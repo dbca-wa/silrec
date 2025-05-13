@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 6.3499999 6.35"
+   version="1.1"
+   id="svg502"
+   xml:space="preserve"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   sodipodi:docname="trash-bin.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+     id="namedview504"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="17.416254"
+     inkscape:cx="31.177772"
+     inkscape:cy="12.057702"
+     inkscape:window-width="1450"
+     inkscape:window-height="1080"
+     inkscape:window-x="1802"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" /><defs
+     id="defs499" /><g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"><g
+       style="fill:#000000"
+       id="g517"
+       transform="matrix(0.22677337,0,0,0.1984375,-0.44571353,0.02647525)"><path
+         d="m 2.016,8 q 0,0.832 0.576,1.44 0.576,0.608 1.408,0.576 v 16 q 0,2.496 1.76,4.224 1.76,1.728 4.256,1.76 h 12 Q 24.48,32 26.24,30.24 28,28.48 28,26.016 v -16 q 0.832,0 1.408,-0.576 Q 29.984,8.864 30.016,8 30.048,7.136 29.408,6.592 28.768,6.048 28,6.016 H 22.016 Q 22.016,3.52 20.256,1.76 18.496,0 16,0 13.504,0 11.744,1.76 9.984,3.52 10.016,6.016 H 4 Q 3.168,6.016 2.592,6.592 2.016,7.168 2.016,8 Z M 8,26.016 v -16 h 16 v 16 q 0,0.832 -0.576,1.408 Q 22.848,28 22.016,28 h -12 Q 9.184,28 8.576,27.424 7.968,26.848 8,26.016 Z m 2.016,0 H 12 V 12 h -1.984 z m 4,0 h 4 V 12 h -4 z m 0,-20 q 0,-0.832 0.576,-1.408 Q 15.168,4.032 16,4 q 0.832,-0.032 1.408,0.608 0.576,0.64 0.608,1.408 z m 5.984,20 h 2.016 V 12 H 20 Z"
+         id="path508" /></g></g></svg>

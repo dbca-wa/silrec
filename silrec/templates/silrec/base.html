@@ -67,8 +67,10 @@
                                 </button>
 
                                 {% if not empty_menu %}
+                                    {% comment %}
+                                    {% endcomment %}
                                     {% if not is_internal_login_path %}
-                                        <a class="navbar-brand" href="/external/" title="External Home View"><div style="inline"><img src="{% static 'silrec/img/dpaw_small.png' %}">Home</div></a>
+                                        <a class="navbar-brand" href="/" title="External Home View"><div style="inline"><img src="{% static 'silrec/img/dpaw_small.png' %}">Home</div></a>
                                     {% endif %}
                                     {% if is_internal_login and is_internal_login_path %}
                                         <a class="navbar-brand" href="{% url 'home' %}"><div style="inline"><img src="{% static 'silrec/img/dpaw_small.png' %}">Forest Blocks</div></a>
@@ -85,7 +87,7 @@
 			                    {{request.user}}
                                             {% endcomment %}
                                             {% if True %}
-                                                {% if is_internal_login and is_internal_login_path%}
+                                                {% if is_internal_login and is_internal_login_path %}
                                                     <li><a href="/internal/approvals">Finalised</a></li>
                                                     <li><a href="/internal/compliances">Compliance with Requirements</a></li>
                                                     <li><a href="/internal/search">Search</a></li>
@@ -122,10 +124,12 @@
                                                 <ul class="dropdown-menu" style="z-index:99999">
                                                     {% if is_silrec_admin_user or request.user.is_superuser %}
                                                         <li><a href="{% url 'admin:index' %}">Admin</a></li>
+                                                        {% comment %}
 							{% if DOMAIN_DETECTED != 'apiary' %}
                                                             <li><a href="/internal/schema">Manage Application Schema</a></li>
 							    <!-- <li><a href="/filelist">View Export Files</a></li> -->
                                                         {% endif %}
+                                                        {% endcomment %}
                                                         <li role="separator" class="divider"></li>
                                                     {% endif %}
                                                     {% if request.user.is_superuser %}

@@ -35,7 +35,8 @@ class UserLogoutView(LogoutView):
 
 class InternalView(UserPassesTestMixin, TemplateView):
     #template_name = 'sqs/dash/index.html'
-    template_name = 'silrec/index2.html'
+    #template_name = 'silrec/index2.html'
+    template_name = 'silrec/base.html'
 
     def test_func(self):
         return is_internal(self.request)
@@ -149,7 +150,7 @@ class HelpView(LoginRequiredMixin, TemplateView):
 
 
 class ManagementCommandsView(LoginRequiredMixin, TemplateView):
-    template_name = 'sqs/mgt-commands.html'
+    template_name = 'forest_blocks/mgt-commands.html'
 
     def post(self, request):
         data = {}

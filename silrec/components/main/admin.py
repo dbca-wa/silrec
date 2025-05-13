@@ -22,66 +22,87 @@ admin.autodiscover()
 @admin.register(OrganisationLkp)
 class OrganisationLkpAdmin(admin.ModelAdmin):
     list_display = ["organisation", "description"]
-    #list_filter = ["system"]
+    readonly_fields = ("organisation",)
+    #list_filter = ["organisation"]
     search_fields = ["organisation", "description"]
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name in ['char', 'text']:
+            kwargs['strip'] = False
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 @admin.register(TaskLkp)
 class  TaskLkpAdmin(admin.ModelAdmin):
     list_display = ["task", "task_name", "category1_label", "category2_label", "category3_label", "category4_label"]
+    readonly_fields = ("task",)
     search_fields = ["task", "task_name"]
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name in ['char', 'text']:
+            kwargs['strip'] = False
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 @admin.register(TasksAttLkp)
 class  TasksAttLkpAdmin(admin.ModelAdmin):
     list_display = ["addition_attrib", "description"]
+    readonly_fields = ("addition_attrib",)
     search_fields = ["addition_attrib", "description"]
 
 
 @admin.register(ObjectiveLkp)
 class ObjectiveLkpAdmin(admin.ModelAdmin):
     list_display = ["obj_code", "definition", "cut", "forest_type", "fmis_code"]
+    readonly_fields = ("obj_code",)
     search_fields = ["obj_code", "fmis_code", "cut", "forest_type", "fmis_code"]
 
 
 @admin.register(SpeciesApiLkp)
 class SpeciesApiLkpAdmin(admin.ModelAdmin):
     list_display = ["species", "short_description", "fmiscode_species", "fmiscode_type"]
+    readonly_fields = ("species",)
     search_fields = ["species", "short_description", "fmiscode_species", "fmiscode_type"]
 
 
 @admin.register(RegenerationMethodsLkp)
 class RegenerationMethodsLkpAdmin(admin.ModelAdmin):
     list_display = ["regen_method", "description"]
+    readonly_fields = ("regen_method",)
     search_fields = ["regen_method", "description"]
 
 
 @admin.register(SpatialPrecisionLkp)
 class SpatialPrecisionLkpAdmin(admin.ModelAdmin):
     list_display = ["precision_code", "resolution", "description"]
+    readonly_fields = ("precision_code",)
     search_fields = ["precision_code", "resolution", "description"]
 
 
 @admin.register(TreatmentStatusLkp)
 class TreatmentStatusLkpAdmin(admin.ModelAdmin):
     list_display = ["status", "name"]
+    readonly_fields = ("status",)
     search_fields = ["status", "name"]
 
 
 @admin.register(RescheduleReasonsLkp)
 class RescheduleReasonsLkpAdmin(admin.ModelAdmin):
     list_display = ["rescheduled_reason", "description"]
+    readonly_fields = ("rescheduled_reason",)
     search_fields = ["rescheduled_reason", "description"]
 
 
 @admin.register(CohortMetricsLkp)
 class CohortMetricsLkpAdmin(admin.ModelAdmin):
-    list_display = ["name", "definition", "rating", "value", "method"]
-    search_fields = ["name", "definition", "rating", "value", "method"]
+    list_display = ["metric_id", "name", "definition", "rating", "value", "method"]
+    readonly_fields = ("metric_id",)
+    search_fields = ["metric_id", "name", "definition", "rating", "value", "method"]
 
 
 @admin.register(MachineLkp)
 class MachineLkpAdmin(admin.ModelAdmin):
     list_display = ["machine_id", "manufacturer", "model", "machine_type"]
+    readonly_fields = ("machine_id",)
     search_fields = ["machine_id", "manufacturer", "model", "machine_type"]
 
 '''

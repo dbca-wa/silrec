@@ -37,6 +37,10 @@ class CohortMetricsLkp(models.Model):
     effective_from = models.DateTimeField(blank=True, null=True)
     effective_to = models.DateTimeField(blank=True, null=True)
 
+    def __str__(self):
+        return self.metric_id
+
+
     class Meta:
         db_table = 'cohort_metrics_lkp'
         db_table_comment = 'Table to enable / identify / define metrics associated with cohorts, e.g. calculations of stand density'
@@ -50,6 +54,9 @@ class MachineLkp(models.Model):
     felling_head_model = models.CharField(max_length=10, blank=True, null=True, db_comment='Felling head may be different on different models.')
     felling_head_herbicide_spray = models.BooleanField(blank=True, null=True, db_comment='Defines whether herbicide sprayed at time of felling.')
 
+    def __str__(self):
+        return self.machine_id
+
     class Meta:
         db_table = 'machine_lkp'
         db_table_comment = 'List machines and key parameters for machines that may be used for thinning and/or coppice control'
@@ -62,6 +69,9 @@ class OrganisationLkp(models.Model):
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
 
+    def __str__(self):
+        return self.organisation
+
     class Meta:
         db_table = 'organisation_lkp'
 
@@ -69,6 +79,9 @@ class OrganisationLkp(models.Model):
 class RegenerationMethodsLkp(models.Model):
     regen_method = models.CharField(primary_key=True, max_length=2, db_comment='code (primary key) for the regeneration method, corresponds to FMIS code to match FMIS theme.')
     description = models.CharField(max_length=50, blank=True, null=True, db_comment='Description or definition of regeneration method')
+
+    def __str__(self):
+        return self.regen_method
 
     class Meta:
         db_table = 'regeneration_methods_lkp'
@@ -83,6 +96,9 @@ class RescheduleReasonsLkp(models.Model):
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
 
+    def __str__(self):
+        return self.rescheduled_reason
+
     class Meta:
         db_table = 'reschedule_reasons_lkp'
         db_table_comment = 'Standard/accepted reasons for rescheduling a prescribed task/treatment'
@@ -96,6 +112,9 @@ class SpatialPrecisionLkp(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return self.resolution
 
     class Meta:
         db_table = 'spatial_precision_lkp'
@@ -114,6 +133,9 @@ class SpeciesApiLkp(models.Model):
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
 
+    def __str__(self):
+        return self.species
+
     class Meta:
         db_table = 'species_api_lkp'
         db_table_comment = 'Lookup code values and definitions for API species types.\nDelete comments below for PRD.\nDW>> Suggest table renamed dominant species.  I.e. Jarrah or Karri etc. Then a relationship created to cohort (DW).\n\nShould the species codes be a replication of the Oracle table sfm_common.species. (DW) \nDS>> No, these are API type codes, as per the FMIS API types; i.e. a stand-based descriptor c.f. a tree-based descriptor.'
@@ -121,7 +143,7 @@ class SpeciesApiLkp(models.Model):
 
 class TaskLkp(ValidateModelMixin, models.Model):
     task = models.CharField(primary_key=True, unique=True, max_length=20, db_comment='Code for the task\n\nAPPLY check constraint to restrict to upper case')
-    task_name = models.CharField(max_length=50, blank=True, null=True, db_comment='Short meaningful name for the task')
+    task_name = models.CharField(max_length=100, blank=True, null=True, db_comment='Short meaningful name for the task')
     definition = models.TextField(blank=True, null=True, db_comment='Detailed definition of task')
     category1_label = models.CharField(max_length=50, blank=True, null=True)
     category2_label = models.CharField(max_length=50, blank=True, null=True)
@@ -171,6 +193,9 @@ class TasksAttLkp(models.Model):
     addition_attrib = models.CharField(primary_key=True, max_length=1)
     description = models.CharField(max_length=50, blank=True, null=True)
 
+    def __str__(self):
+        return self.addition_attrib
+
     class Meta:
         db_table = 'tasks_att_lkp'
 
@@ -183,6 +208,9 @@ class TreatmentStatusLkp(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return self.status
 
     class Meta:
         db_table = 'treatment_status_lkp'
@@ -226,6 +254,9 @@ class ObjectiveLkp(models.Model):
     zavailable = models.BooleanField(db_column='zAvailable', blank=True, null=True, db_comment="Yes if objective is available for current use, No if objective has been revoked and is unavailable.\n\nThis is replaced by 'effective from' & 'effective to' which provide a more flexible means of managing the status of silvic objectives.")  # Field name made lowercase.
     zobjective = models.CharField(db_column='zObjective', max_length=150, blank=True, null=True, db_comment="Precise statement of objective for patch / vegetation\n\n**This should be properly articulated in the definition; I don't think it is used in any query/report")  # Field name made lowercase.
     ztimeframe = models.CharField(max_length=50, blank=True, null=True, db_comment='Definition or description of any timeframe attribute to be recorded for the objective.\n\nUnless this is referenced in a query/report (or may be), then possibly this column could be relegated.')
+
+    def __str__(self):
+        return self.obj_code
 
     class Meta:
         db_table = 'objective_lkp'

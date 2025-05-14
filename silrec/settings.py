@@ -121,6 +121,8 @@ INSTALLED_APPS = [
 
     #'reversion_compare',
     'bootstrap3',
+    'webtemplate_dbca',
+    'django_vite',
     'silrec',
     'silrec.components.main',
     'silrec.components.forest_blocks',
@@ -246,6 +248,13 @@ CACHES = {
 }
 
 STATIC_ROOT=os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+        os.path.join(
+            os.path.join(BASE_DIR, "silrec", "static", "silrec_vue")
+        ),
+        os.path.join(os.path.join(BASE_DIR, "silrec", "static")),
+        os.path.join(os.path.join(BASE_DIR, "silrec", "static", "silrec")),
+    ]
 
 DEV_STATIC = env('DEV_STATIC',False)
 DEV_STATIC_URL = env('DEV_STATIC_URL')
@@ -254,7 +263,9 @@ if DEV_STATIC and not DEV_STATIC_URL:
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 
 # Department details
-SYSTEM_NAME = env('SYSTEM_NAME', 'Silvicultural Recording System')
+LAST_UPDATED = env('LAST_UPDATED', '05/2025')
+SYSTEM_NAME = env('SYSTEM_NAME', 'SILvicultural RECording System')
+SYSTEM_NAME_TITLE = SYSTEM_NAME.title()
 SYSTEM_NAME_SHORT = env('SYSTEM_NAME_SHORT', 'SILREC')
 SITE_PREFIX = env('SITE_PREFIX')
 SITE_DOMAIN = env('SITE_DOMAIN')
@@ -266,7 +277,8 @@ DEP_FAX = env('DEP_FAX','(08) 9423 8242')
 DEP_POSTAL = env('DEP_POSTAL','Locked Bag 104, Bentley Delivery Centre, Western Australia 6983')
 DEP_NAME = env('DEP_NAME','Department of Biodiversity, Conservation and Attractions')
 DEP_NAME_SHORT = env('DEP_NAME_SHORT','DBCA')
-BRANCH_NAME = env('BRANCH_NAME','Office of Information Management')
+BRANCH_NAME = env('BRANCH_NAME','Forest Management Branch')
+DIVISION_NAME = env('BRANCH_NAME','Conservation and Ecosystem Management Division')
 DEP_ADDRESS = env('DEP_ADDRESS','17 Dick Perry Avenue, Kensington WA 6151')
 SITE_URL = env('SITE_URL', 'https://' + SITE_PREFIX + '.' + SITE_DOMAIN)
 PUBLIC_URL=env('PUBLIC_URL', SITE_URL)
@@ -295,6 +307,34 @@ CRON_CLASSES = [
 ]
 
 BASE_URL=env('BASE_URL')
+
+RUNNING_DEVSERVER = len(sys.argv) > 1 and sys.argv[1] == "runserver"
+
+# Make sure this returns true when in local development
+# so you can use the vite dev server with hot module reloading
+USE_VITE_DEV_SERVER = RUNNING_DEVSERVER and EMAIL_INSTANCE == "DEV" and DEBUG is True
+        
+STATIC_URL_PREFIX = (
+    "/static/silrec_vue/" if USE_VITE_DEV_SERVER else "silrec_vue/"
+)   
+        
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": USE_VITE_DEV_SERVER,
+        "dev_server_host": "localhost",  # Default host for vite (can change if needed)
+        #"dev_server_host": "10.17.0.11",  # Default host for vite (can change if needed)
+        "dev_server_port": 5183,  # Default port for vite (can change if needed)
+        "static_url_prefix": STATIC_URL_PREFIX,
+    }
+}
+
+VUE3_ENTRY_SCRIPT = env(
+    "VUE3_ENTRY_SCRIPT",
+    default="src/main.js",  # This path will be auto prefixed with the       static_url_prefix from DJANGO_VITE above
+)  # Path of the vue3 entry point script served by vite
+
+print(f'{VUE3_ENTRY_SCRIPT}')
+
 
 if not os.path.exists(os.path.join(BASE_DIR, 'logs')):
     os.mkdir(os.path.join(BASE_DIR, 'logs'))
@@ -381,3 +421,7 @@ CSRF_TRUSTED_ORIGINS = json.loads(str(CSRF_TRUSTED_ORIGINS_STRING))
 # (_save method of FileSystemStorage class)
 # As it causes a permission exception when using azure network drives
 FILE_UPLOAD_PERMISSIONS = None
+
+TEMPLATE_HEADER_LOGO = "/static/silrec/img/logo-park-stay-trunc.gif"
+
+

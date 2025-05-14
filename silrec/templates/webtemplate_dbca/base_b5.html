@@ -1,0 +1,258 @@
+{% load static %}
+
+{% load users %}
+
+<!DOCTYPE html>
+<html lang="en" >
+
+    <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+         
+        {% block header_js %}
+	    <script src="/static/common_addons/node_modules/jquery/dist/jquery.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	    <script src="/static/common_addons/node_modules/moment/min/moment.min.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	    <script src="/static/common_addons/node_modules/@popperjs/core/dist/umd/popper.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	    <script src="/static/common_addons/node_modules/daterangepicker/daterangepicker.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	    <script src="/static/common_addons/node_modules/bootstrap/dist/js/bootstrap.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	    <script src="/static/common_addons/node_modules/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+
+	{% endblock %}
+
+	{% block header_css %}
+	    <link rel="stylesheet" type="text/css" href="/static/common_addons/node_modules/daterangepicker/daterangepicker.css?ver={{ GIT_COMMIT_HASH }}" />
+	    <link rel="stylesheet" type="text/css" href="/static/common_addons/node_modules/bootstrap/dist/css/bootstrap.css?ver={{ GIT_COMMIT_HASH }}" />
+	    <link rel="stylesheet" type="text/css" href="/static/common_addons/node_modules/bootstrap-icons/font/bootstrap-icons.css?ver={{ GIT_COMMIT_HASH }}"/>
+	    <link rel="stylesheet" type="text/css" href="/static/css/dbca_b5.css?ver={{ GIT_COMMIT_HASH }}"/>
+	    <link rel="stylesheet" type="text/css" href="/static/css/base_bs5_common.css?ver={{ GIT_COMMIT_HASH }}"/>
+	    <link rel="stylesheet" type="text/css" href="/static/common_addons/node_modules/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css?ver={{ GIT_COMMIT_HASH }}"/>
+
+	{% endblock %}
+         
+        {% block extra_js %}
+        {% endblock %}
+
+        {% block extra_css %}
+        {% endblock %}
+
+	{% block extra_hidden_inputs %}
+        {% endblock %}
+
+
+        <title>
+            {% block title %}
+                Department of Biodiversity, Conservation and Attractions
+            {% endblock %}
+        </title>
+    </head>
+    <body>
+        {% block development_header %}
+            {% if DJANGO_SETTINGS.EMAIL_INSTANCE == 'DEV' or DJANGO_SETTINGS.EMAIL_INSTANCE == 'UAT' or DJANGO_SETTINGS.EMAIL_INSTANCE == 'TEST'  %}
+            <div class="col-lg-12 p-3 bg-danger text-white text-center fs-6" >
+                DEVELOPMENT: FOR TESTING ONLY DO NOT USE
+            </div>
+            {% endif %}
+        {% endblock %}
+ 
+        {% block header_top_menu %}
+	      {% if request.user.is_authenticated %}
+                  <div class="top_header_bar">
+                       <div style='padding: 10px;'>
+                          <div class="row">
+                              <div class="col-lg-12 " >
+                                    <div class='container'>
+                                    <ul>
+                                            {% block  top_menu %}
+                                            <li>
+                                                     <button type="button" class="btn btn-sm btn-secondary">
+                                                              Notification 1 <span class="badge bg-danger">14</span>
+                                                     </button>
+                                    
+                                            </li>
+                                    
+                                            <li>
+                                                     <button type="button" class="btn btn-sm btn-secondary">
+                                                              Notification 2 <span class="badge bg-danger">4</span>
+                                                     </button>
+                                    
+                                            </li>
+                                            <li>
+                                                     <button type="button" class="btn btn-sm btn-secondary">
+                                                              Notification 3 <span class="badge bg-danger">8</span>
+                                                     </button>
+                                    
+                                            </li>
+                                            {% endblock %}
+                                    
+                                    </ul>
+                                    </div>
+                              </div>
+                         </div>
+                       </div>
+                   </div>
+              {% endif %}
+        {% endblock %}
+
+        {% block main_header %}
+                  <div class='parks_bg_banner'>
+                       <div class='container'>
+                       <div class="" style='background-color: FFF;  z-index: 2;'>
+                               <div style='padding: 20px;'>
+                                   <div class="row">
+                                       <div class="col-lg-3">
+                                               <h1 id="site-title" class="site-logo">
+                                                  <a href="{% url 'home'%}" >
+							 <img src="/static/img/logo-park-stay-trunc.gif" alt="Department of Parks and Wildlife - Park Stay" class="img-responsive"/>
+                                                  </a>
+                                               </h1>
+                                       </div>
+				       <div class="col-lg-9">
+					     <h1 id="site-title hide-sm" class="site-logo" style="color: white; text-align: left">
+                                                  {{ SYSTEM_NAME }} 
+					     </h1>
+				       </div>
+                               </div>
+                           </div>
+                       </div>
+                       </div>
+                   </div>
+        {% endblock %}
+
+
+        {% block main_menu %}
+                    <div class='gov_b5_nav'>
+                        <div class='container'>
+                            <div class='row'>
+                               <div class='col-sm-12'>
+                                         <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                                           <div class="container-fluid">
+                                             {% block menu_items_left_brand %}
+					     <a class="navbar-brand" href="{% url 'home'%}"><img src="{% if template_group == 'parksv2' %}/static/img/parkstay_icon_v2.png{% else %}/static/img/pwl_icon.png{% endif %}">Home</a>
+                                             {% endblock %}
+                                             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarTogglerTop" aria-controls="navbarTogglerTop" aria-expanded="false" aria-label="Toggle navigation">
+                                               <span class="navbar-toggler-icon"></span>
+                                             </button>
+                                             <div class="collapse navbar-collapse" id="navbarTogglerTop">
+                                               <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="navbarTogglerTopLeft">
+                                                 {% block menu_items_left %}
+						    {% include 'webtemplate_dbca/includes/primary_menu.html' %}
+                                                 {% endblock %}
+                                                </ul>
+                                                <ul class="navbar-nav navbar-right" id="navbarTogglerTopRight" >
+                                                  {% block menu_items_right %}
+                                                  {% if request.user.is_authenticated %}
+                                                 <li class="nav-item">
+                                                     <a class="nav-link" href="#">
+                                                     Welcome
+                                                     <strong>
+                                                         {% if request.user.first_name %}
+                                                             {{ request.user.first_name }}
+                                                         {% elif request.user.last_name %}
+                                                             {{ request.user.last_name }}
+                                                         {% else %}
+                                                             {{ request.user.email }}
+                                                         {% endif %}
+                                                     </strong>
+                                                     </a>
+                                                 </li>
+                    
+                                                 <li class="nav-item dropdown">
+                                                   <a class="nav-link dropdown-toggle" href="#" id="navbarScrollingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                     Options
+                                                   </a>
+                                                   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarScrollingDropdown" id="navbarTogglerTopDropdown">
+                                                     <span class='caret-above-menu hidden-sm' style=''><i class="bi bi-caret-up-fill fas ml-2"></i></span>
+						          {% block menu_dropdown %}
+							      {% block menu_extra_dropdown_top %}
+							      {% endblock %}
+                                                              {% if request.user.is_staff %}
+							            {% include 'webtemplate_dbca/includes/staff_menu.html' %}
+                                                              {% block menu_extra_dropdown_staff_top %}
+                                                                    {% include 'webtemplate_dbca/includes/staff_menu_extras.html' %}
+							      {% endblock %}
+							      {% endif %}
+                                                              <li><hr class="dropdown-divider"></li>
+							      {% block menu_extra_dropdown_bottom %}
+							            {% include 'webtemplate_dbca/includes/menu_bottom.html' %}
+							      {% endblock %}
+                                                              <li><a class="dropdown-item" href="{% url 'logout' %}?next=/">Logout</a></li>
+							  {% endblock %}
+                                                   </ul>
+                                                 </li>
+                                               {% endif %}
+					       {% endblock %}
+					       {% block menu_items2_right %}
+
+					       {% endblock %}
+                                               </ul>
+                                             </div>
+                                           </div>
+                                         </nav>
+                                      </div>
+                                  </div>
+                              </div>
+                    
+                    </div>
+
+
+        {% endblock %}
+        {% block menu_spacer %}
+	<div class='gov_top_spacer'>
+		&nbsp;
+	</div>
+	<br><br><br>
+        {% endblock %}
+        <div class='body-wrapper'>
+
+        <div class="container">
+        </div>
+        {% block breadcrumbs %}
+        {% endblock %}
+        {% block messages %}
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-12">                        
+			  <BR>
+			  {% for message in messages %}
+			  <div class="alert {{ message.tags }} alert-dismissible shadow fade show" role="alert">      
+			      {{ message | safe }}
+			      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+			  </div>
+			  {% endfor %}		    
+                    </div>
+                </div>
+            </div>
+        {% endblock %}
+        {% block content %}
+        {% endblock %}
+        {% block modals %}
+        {% endblock %}
+	{% block footer_js%}
+	<script src="/static/js/base_bs5_common_after.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	{% endblock %}
+        {% block custom_js %}
+        {% endblock %}
+
+    </div>
+
+
+        {% block footer %}
+
+        <div class="container">
+            <div class="row" style='height:100px'>
+                <div class="col-lg-12 " >
+                    <div class="row">
+                    <div class="col-lg-12" style='border-top: 1px solid #f1f0f0; font-size:5px; margin-top: 10px;'>
+            </div>
+                    <div class="col-lg-12" style="word-wrap: break-word;">
+                        &copy;  {{DJANGO_SETTINGS.BRANCH_NAME}}, {{DJANGO_SETTINGS.DIVISION_NAME}}, {{DJANGO_SETTINGS.DEP_NAME_SHORT}};   Last updated: {{DJANGO_SETTINGS.LAST_UPDATED}}
+                    </div>
+            </div>
+                </div><!-- /.row -->
+            </div><!-- /.container-fluid -->
+        </div>
+        {% endblock footer %}
+</body>
+
+</html>

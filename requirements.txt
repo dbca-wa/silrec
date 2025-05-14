@@ -3,7 +3,8 @@ GDAL==3.9.3
 #django-extensions==1.9.8
 django-extensions==3.2.3
 #git+https://github.com/dbca-wa/dpaw-utils.git@0.4.2#egg=dpaw-utils
-git+https://github.com/xzzy/webtemplate.git#egg=webtemplate_dbca
+#git+https://github.com/xzzy/webtemplate.git#egg=webtemplate_dbca
+webtemplate-dbca@git+https://github.com/dbca-wa/webtemplate2.git@955544f4acbc770d07da665c7488f89ccb3486ec ; python_version >= "3.10" and python_version < "4.0"
 git+https://github.com/dbca-wa/dbca-utils@1.1.1#egg=dbca-utils
 psycopg2-binary==2.9.9
 #ipython==7.19.0
@@ -49,6 +50,7 @@ python-dateutil==2.8.2
 cligj==0.7.2
 click-plugins==1.1.1
 numpy==2.1.2
+django_vite==3.1.0
 
 # next packages required for geopandas -- plotting
 cycler==0.11.0

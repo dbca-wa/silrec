@@ -36,6 +36,14 @@ def system_base_url(context):
     request = context['request']
     return 'https://' + SITE_PREFIX + '.' + SITE_DOMAIN + os.sep
 
+@register.simple_tag()
+def is_assessor():
+    return True
+
+@register.simple_tag()
+def is_approver():
+    return True
+
 '''
 @register.simple_tag()
 def can_show_tests():

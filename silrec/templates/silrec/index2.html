@@ -26,6 +26,18 @@
                 <h2>
                     Welcome to {{DISPLAYED_SYSTEM_NAME}} 
                 </h2>
+                <p style="max-width:550px;">
+                    {{ DISPLAYED_SYSTEM_NAME }} ({{SYSTEM_NAME_SHORT}}) records harvest and other disturbance activities in State Forest, monitors change in stand status, 
+                    and tracks follow-up silvicultural treatments to ensure objectives are achieved. It provides feedback to silvicultural staff on operations, 
+                    offers a unified data capture system for integration with other platforms, and generates a range of output reports and GIS maps to support 
+                    decision-making.  
+                </p>
+
+                <p style="max-width:550px;">
+                    {{SYSTEM_NAME_SHORT}} was developed in 1993, with three major versions released. Version 1 and 2 were operated in a dual MicroStation/Access environment, 
+                    while Version 3 runs on a Postgresql/PostGIS and Django framework.  
+                </p>
+
             </div>
             <div class="col-md-4">
                 {% if not request.user.is_authenticated %}
@@ -50,4 +62,6 @@
             </div>
         </div>
     </div>
+
+
 {% endblock %}

@@ -183,6 +183,23 @@
         <!-- dash/index.html inserts <div id="app"></div> tag here, which is replaced by the Vue components >-->
         {% endblock %}
 
+        {% block footer %}
+        <div class="container">
+            <div class="row" style='height:100px'>
+                <div class="col-lg-12 " >
+                    <div class="row">
+                    <div class="col-lg-12" style='border-top: 1px solid #f1f0f0; font-size:5px; margin-top: 10px;'>
+            </div>
+                    <div class="col-lg-12" style="word-wrap: break-word;">
+                        &copy;  {{DJANGO_SETTINGS.BRANCH_NAME}}, {{DJANGO_SETTINGS.DIVISION_NAME}}, {{DJANGO_SETTINGS.DEP_NAME_SHORT}};   Last updated: {{DJANGO_SETTINGS.LAST_UPDATED}}
+                    </div>
+            </div>
+                </div><!-- /.row -->
+            </div><!-- /.container-fluid -->
+        </div>
+        {% endblock footer %}
+
+
         {% block modals %}
         {% endblock %}
 	    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">

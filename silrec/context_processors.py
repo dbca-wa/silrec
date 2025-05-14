@@ -11,11 +11,15 @@ def silrec_url(request):
     support_email = settings.SUPPORT_EMAIL
 
     return {
+        'DJANGO_SETTINGS': settings,
+        'template_header_logo': settings.TEMPLATE_HEADER_LOGO,
+
         #'DOMAIN_DETECTED': settings.DOMAIN_DETECTED,
         'DEBUG': settings.DEBUG,
         'DEV_STATIC': settings.DEV_STATIC,
         'DEV_STATIC_URL': settings.DEV_STATIC_URL,
         #'TEMPLATE_GROUP': settings.DOMAIN_DETECTED,
+        'SYSTEM_NAME_SHORT': settings.SYSTEM_NAME_SHORT,
         'SYSTEM_NAME': settings.SYSTEM_NAME,
         'PUBLIC_URL': PUBLIC_URL,
         #'APPLICATION_GROUP': settings.DOMAIN_DETECTED,
@@ -25,4 +29,7 @@ def silrec_url(request):
         #'KMI_SERVER_URL': settings.KMI_SERVER_URL,
         #'SHOW_DAS_MAP': settings.SHOW_DAS_MAP,
         #'MAX_LAYERS_PER_SQQ': settings.MAX_LAYERS_PER_SQQ,
+        'vue3_entry_script': settings.VUE3_ENTRY_SCRIPT,
+        'use_vite_dev_server': settings.USE_VITE_DEV_SERVER,
+
     }

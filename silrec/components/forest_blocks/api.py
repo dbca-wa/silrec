@@ -20,6 +20,8 @@ from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, BasePermission
 from rest_framework.pagination import PageNumberPagination
+from rest_framework_datatables.pagination import DatatablesPageNumberPagination
+from rest_framework_datatables.filters import DatatablesFilterBackend
 from datetime import datetime, timedelta, date
 
 from silrec.helpers import is_customer, is_internal
@@ -244,5 +246,69 @@ class Polygon2ViewSet(viewsets.ModelViewSet):
         import ipdb; ipdb.set_trace()
 
         return Response(serializer.data)
+
+
+class PolygonPaginatedViewSet(viewsets.ModelViewSet):
+    filter_backends = (DatatablesFilterBackend,)
+    #filter_backends = (ProposalFilterBackend,)
+    pagination_class = DatatablesPageNumberPagination
+    #renderer_classes = (ProposalRenderer,)
+    #queryset = Polygon.objects.none()
+    queryset = Polygon.objects.filter(polygon_id__lt=392915)
+    #serializer_class = ListProposalSerializer
+    serializer_class = Polygon2Serializer
+    search_fields = ['polygon_id',]
+    #serializer_class = DTProposalSerializer
+    page_size = 10
+
+    def get_queryset(self):
+        #import ipdb; ipdb.set_trace()
+        #return Polygon.objects.all() #[:5]
+        #return Polygon.objects.all()[:25]
+        return Polygon.objects.filter(polygon_id__lt=392915)
+
+    #@list_route(methods=['GET', ])
+#    @action(detail=False, methods=['GET'])
+#    @list_route(
+#        methods=[
+#            "GET",
+#        ],
+#        detail=False,
+#    )
+    @list_route(detail=False, methods=['GET', ])
+    def ply_datatable_list(self, request, *args, **kwargs):
+        """ http://localhost:8001/api/ply_paginated/ply_datatable_list/?format=datatables&draw=1&length=10
+        """
+        #self.serializer_class = DTSpatialQueryLayersUsedSerializer 
+        self.serializer_class = Polygon2Serializer 
+        #queryset = self.get_queryset().filter(layer_data__isnull=False, processing_status=Proposal.PROCESSING_STATUS_APPROVED)
+        queryset = self.get_queryset().filter()
+
+        queryset = self.filter_queryset(queryset)
+        self.paginator.page_size = queryset.count()
+        # self.paginator.page_size = 0
+        result_page = self.paginator.paginate_queryset(queryset, request)
+        serializer = Polygon2Serializer(
+            result_page, context={'request': request}, many=True
+        )
+        data = serializer.data
+
+        response = self.paginator.get_paginated_response(data)
+        return response
+
+    #@list_route(methods=['GET',])
+    @list_route(detail=False, methods=['GET', ])
+    def list_paginated(self, request, *args, **kwargs):
+        """
+        http://localhost:8001/api/ply_paginated/list_paginated/?format=datatables&draw=1&length=10
+        """
+        #import ipdb; ipdb.set_trace()
+        proposals = self.get_queryset()
+        paginator = PageNumberPagination()
+        #paginator = LimitOffsetPagination()
+        paginator.page_size = 2
+        result_page = paginator.paginate_queryset(proposals, request)
+        serializer = Polygon2Serializer(result_page, context={'request':request}, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 

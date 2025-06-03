@@ -14,6 +14,9 @@ class TreatmentSerializer(serializers.ModelSerializer):
 
 
 class PolygonSerializer(serializers.ModelSerializer):
+    ''' http://localhost:8001/api/polygon.json
+        http://localhost:8001/api/polygon
+    '''
     class Meta:
         model = Polygon
 #        fields = (
@@ -23,20 +26,28 @@ class PolygonSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class Polygon2Serializer(serializers.ModelSerializer):
+    ''' http://localhost:8001/api/polygon2.json
+        http://localhost:8001/api/polygon2
+    '''
     cohorts = serializers.SerializerMethodField()
 
     def get_cohorts(self,obj):
-        cohort_qs = obj.assignchttoply_set.all()
-        cohorts = [cohort.cohort for cohort in cohort_qs]
-        #return cohort_qs
-        import ipdb; ipdb.set_trace()
-        serializer = CohortSerializer(cohorts, many=True)
+        assignchttoply_qs = obj.assignchttoply_set.all()
+        cohorts = [cohort.cohort for cohort in assignchttoply_qs] # map to cohort objects
+        #import ipdb; ipdb.set_trace()
+        #serializer = CohortSerializer(cohorts, many=True)
+        serializer = SimpleCohortSerializer(cohorts, many=True)
 
         return serializer.data
 
     class Meta:
         model = Polygon
         fields = (
+            'polygon_id',
+            'name',
+            'cohorts',
+        )
+        datatables_always_serialize = (
             'polygon_id',
             'name',
             'cohorts',

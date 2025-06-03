@@ -154,13 +154,31 @@ WSGI_APPLICATION = 'silrec.wsgi.application'
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'
 }'''
 
+#REST_FRAMEWORK = {
+#    'DEFAULT_RENDERER_CLASSES': (
+#        'rest_framework.renderers.JSONRenderer',
+#        'rest_framework.renderers.BrowsableAPIRenderer',
+#        #'rest_framework_datatables.renderers.DatatablesRenderer',
+#    ),
+#    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+#}
+
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
-        #'rest_framework_datatables.renderers.DatatablesRenderer',
+        'rest_framework_datatables.renderers.DatatablesRenderer',
     ),
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+    'DEFAULT_FILTER_BACKENDS': (
+        'rest_framework_datatables.filters.DatatablesFilterBackend',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework_datatables.pagination.DatatablesPageNumberPagination',
+    'PAGE_SIZE': 10,
+    #'EXCEPTION_HANDLER': 'utils.rest_framework.views.exception_handler'
 }
 
 #MIDDLEWARE_CLASSES = [

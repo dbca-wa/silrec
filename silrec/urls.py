@@ -65,6 +65,8 @@ router.register(r'polygon', forest_blocks_api.PolygonViewSet, basename='polygon'
 router.register(r'polygon2', forest_blocks_api.Polygon2ViewSet, basename='polygon2')
 router.register(r'polygoncohorts', forest_blocks_api.PolygonCohortViewSet, basename='polygoncohorts')
 
+router.register(r'ply_paginated',forest_blocks_api.PolygonPaginatedViewSet,"ply_paginated")
+
 api_patterns = [
     #re_path(r'api/', include(router.urls)),
     re_path(r"^api/", include(router.urls)),

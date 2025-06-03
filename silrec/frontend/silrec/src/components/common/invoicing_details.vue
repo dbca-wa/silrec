@@ -55,11 +55,7 @@
                     </div>
                     <div>
                         To add a new code please visit:
-                        <a
-                            href="/admin/silrec/oraclecode/"
-                            target="_blank"
-                            >Oracle Codes Admin</a
-                        >
+                        <a href="#" target="_blank">Oracle Codes Admin</a>
                     </div>
                 </BootstrapAlert>
             </div>

@@ -14,6 +14,10 @@ from django.conf.urls.static import static
 from rest_framework import routers
 from rest_framework_swagger.views import get_swagger_view
 from silrec import views
+
+from silrec.components.users import api as users_api
+from silrec.components.main import api as lookup_tbls_api
+from silrec.components.forest_blocks import api as forest_blocks_api
 #from sqs.components.gisquery import api as gisquery_api
 #from sqs.components.gisquery import views as gisquery_views
 
@@ -45,11 +49,40 @@ urlpatterns = [
 ]
 '''
 
+# API patterns
+router = routers.DefaultRouter()
+router.include_root_view = False
+
+if settings.INCLUDE_ROOT_VIEW:
+        router.include_root_view = True
+
+#router.register(r"users", users_api.UserViewSet)
+router.register(r'users', users_api.UserViewSet, basename='users')
+#router.register(r"lookup_tbls", lookup_tbls_api.MainViewSet, basename="lookup_tbls")
+router.register(r'cohorts', forest_blocks_api.CohortViewSet, basename='cohorts')
+router.register(r'treatments', forest_blocks_api.TreatmentViewSet, basename='treatments')
+router.register(r'polygon', forest_blocks_api.PolygonViewSet, basename='polygon')
+router.register(r'polygon2', forest_blocks_api.Polygon2ViewSet, basename='polygon2')
+router.register(r'polygoncohorts', forest_blocks_api.PolygonCohortViewSet, basename='polygoncohorts')
+
+api_patterns = [
+    #re_path(r'api/', include(router.urls)),
+    re_path(r"^api/", include(router.urls)),
+    #re_path(r'api/profile$', users_api.GetProfile.as_view(), name='get-profile'),
+    #re_path(r"^api/user$", users_api.UserViewSet.as_view(), name="get-user"),
+    #re_path(r"^api/cohorts/<int:cohort_id>/get_cohort$", forest_blocks_api.CohortViewSet.as_view({'get': 'get_cohort'}), name="get-cohort"),
+    #re_path(r'^api/cohorts/<int:cohort_id>/get_cohort$', forest_blocks_api.CohortViewSet.as_view({'get': 'get_cohort'}), name='get-cohort'),
+]
+
 urlpatterns = [
     re_path(r'admin/', admin.site.urls),
+    #re_path(r'', include(api_patterns)),
+    re_path(r"", include(api_patterns)),
+    re_path(r"^$", views.SilrecRoutingView.as_view(), name="home"),
+
     re_path('logout/', views.UserLogoutView.as_view(http_method_names = ['get', 'post', 'options']), name='logout'),
     #re_path(r'^$', TemplateView.as_view(template_name='base.html'), name='home'),
-    re_path(r'^$', views.SilrecRoutingView.as_view(), name='home'),
+    #re_path(r'^$', views.SilrecRoutingView.as_view(), name='home'),
 
     re_path(r'^internal/', views.InternalView.as_view(), name='internal'),
     re_path(r'^external/', views.ExternalView.as_view(), name='external'),

@@ -52,6 +52,8 @@ REQUEST_PARTIAL_CACHE_TIMEOUT = env('REQUEST_PARTIAL_CACHE_TIMEOUT', 60*2) # 2 m
 CHECK_APIURL_TOKEN = env('CHECK_APIURL_TOKEN', True)
 CHECK_IP = env('CHECK_IP', True)
 
+INCLUDE_ROOT_VIEW = env("INCLUDE_ROOT_VIEW", False)
+
 #USE_SQS_CACHING = env('USE_SQS_CACHING', True)
 
 # Use 'epsg:4326' as projected coordinate system - 'epcg:4326' coordinate system is in meters (Then the buffer distance will be in meters)
@@ -124,6 +126,7 @@ INSTALLED_APPS = [
     'webtemplate_dbca',
     'django_vite',
     'silrec',
+    'silrec.components.users',
     'silrec.components.main',
     'silrec.components.forest_blocks',
     #'silrec.components.gisquery',

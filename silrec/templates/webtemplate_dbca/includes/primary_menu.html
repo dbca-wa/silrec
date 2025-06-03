@@ -14,14 +14,14 @@
 <ul class="nav navbar-expand-lg navbar-light align-items-center">
 {% if is_internal_login %}
     {% if is_assessor %}
-    <li class="nav-item"><a class="nav-link" href="/internal/approvals">Approvals</a></li>
+    <li class="nav-item"><a class="nav-link" href="/internal/approvals">Treatments</a></li>
     <li class="nav-item"><a class="nav-link" href="/internal/compliances">Compliances</a></li>
     {% endif %}
     {% if is_assessor %}
-    <li class="nav-item"><a class="nav-link" href="/internal/organisations/access">Organisation Access</a></li>
+    <!-- <li class="nav-item"><a class="nav-link" href="/internal/organisations/access">Organisation Access</a></li> -->
     {% endif %}
     {% if is_assessor %}
-    <li class="nav-item"><a class="nav-link" href="/internal/invoices">Invoices</a></li>
+    <!-- <li class="nav-item"><a class="nav-link" href="/internal/invoices">Invoices</a></li> -->
     {% endif %}
     {% if is_assessor or is_approver %}
     <li class="nav-item"><a class="nav-link" href="/internal/search">Search</a></li>

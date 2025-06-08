@@ -13,7 +13,7 @@ fi
 
 GIT_BRANCH=$1
 date_var=$(date +%Y.%m.%d.%H.%M%S)
-BUILD_TAG=dbcawa/sqs:$date_var
+BUILD_TAG=dbcawa/silrec:$date_var
 #git checkout $GIT_BRANCH &&
 #git pull &&
 #cd commercialoperator/frontend/commercialoperator/ &&
@@ -21,6 +21,7 @@ BUILD_TAG=dbcawa/sqs:$date_var
 #cd ../../../ &&
 #source venv/bin/activate &&
 #./manage_co.py collectstatic --no-input &&
-docker image build $NO_CACHE --tag $BUILD_TAG . --progress=plain &&
+docker image build $NO_CACHE --tag $BUILD_TAG . &&
+#docker image build $NO_CACHE --tag $BUILD_TAG . --progress=plain &&
 echo $BUILD_TAG &&
 docker push $BUILD_TAG

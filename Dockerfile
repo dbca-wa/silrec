@@ -1,8 +1,8 @@
 # Prepare the base environment.
-FROM ubuntu:24.04 AS builder_base_sqs
+FROM ubuntu:24.04 AS builder_base_silrec
 
 LABEL maintainer="asi@dbca.wa.gov.au"
-LABEL org.opencontainers.image.source="https://github.com/dbca-wa/sqs"
+LABEL org.opencontainers.image.source="https://github.com/dbca-wa/silrec"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBUG=True
@@ -14,7 +14,7 @@ ENV NON_PROD_EMAIL='jawaid.mushtaq@dbca.wa.gov.au'
 ENV PRODUCTION_EMAIL=False
 ENV EMAIL_INSTANCE='DEV'
 ENV SECRET_KEY="ThisisNotRealKey"
-ENV SITE_PREFIX='sqs-dev'
+ENV SITE_PREFIX='silrec-dev'
 ENV SITE_DOMAIN='dbca.wa.gov.au'
 ENV OSCAR_SHOP_NAME='Parks & Wildlife'
 ENV BPAY_ALLOWED=False
@@ -27,6 +27,7 @@ RUN apt-get install --no-install-recommends -y libpq-dev patch
 RUN apt-get install --no-install-recommends -y postgresql-client mtr
 RUN apt-get install --no-install-recommends -y sqlite3 vim postgresql-client ssh htop
 RUN apt-get install --no-install-recommends -y graphviz libgraphviz-dev pkg-config run-one virtualenv software-properties-common
+RUN apt-get install --no-install-recommends -y npm
 
 # Install GDAL
 RUN add-apt-repository ppa:ubuntugis/ubuntugis-unstable
@@ -58,7 +59,7 @@ RUN chmod 755 /bin/scheduler.py
 
 
 # Install Python libs from requirements.txt.
-FROM builder_base_sqs AS python_libs_sqs
+FROM builder_base_silrec AS python_libs_silrec
 
 WORKDIR /app
 USER oim
@@ -76,7 +77,7 @@ RUN pip3 install --upgrade pip && \
 #  && rm -rf /var/lib/{apt,dpkg,cache,log}/ /tmp/* /var/tmp/*
 
 # Install the project (ensure that frontend projects have been built prior to this step).
-FROM python_libs_sqs
+FROM python_libs_silrec
 
 #COPY libgeos.py.patch /app/
 #RUN patch /usr/local/lib/python3.8/dist-packages/django/contrib/gis/geos/libgeos.py /app/libgeos.py.patch
@@ -87,13 +88,20 @@ COPY --chown=oim:oim gunicorn.ini manage.py ./
 RUN touch /app/.env
 COPY --chown=oim:oim .git ./.git
 COPY --chown=oim:oim python-cron python-cron
-COPY --chown=oim:oim sqs ./sqs
+COPY --chown=oim:oim silrec ./silrec
+
+RUN cd /app/silrec/frontend/silrec ; npm ci --omit=dev && \
+    cd /app/silrec/frontend/silrec ; npm run build
+
+RUN touch /app/.env
+RUN python manage.py collectstatic --noinput
+
 #RUN mkdir /app/sqs/cache/
 #RUN chmod 777 /app/sqs/cache/
 RUN whereis pip
 RUN whereis python
 RUN ls -al /app/venv/
-RUN python manage.py collectstatic --noinput
+#RUN python manage.py collectstatic --noinput
 #RUN apt-get install --no-install-recommends -y python-pil
 EXPOSE 8080
 HEALTHCHECK --interval=1m --timeout=5s --start-period=10s --retries=3 CMD ["wget", "-q", "-O", "-", "http://localhost:8080/"]

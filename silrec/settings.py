@@ -320,8 +320,9 @@ EMAIL_HOST = env('EMAIL_HOST', 'smtp.lan.fyi')
 # Database
 DATABASES = {
     # Defined in the DATABASE_URL env variable.
-    'default': database.config(),
+    'default': database.config()
 }
+DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec'})
 
 #DATABASES = {
 #    'default': {

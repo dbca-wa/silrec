@@ -1,0 +1,10 @@
+[
+    {
+        "model": "leaseslicensing.proposalapprovergroup",
+        "fields":
+        {
+            "name":"Default Group",
+            "default": true
+        }
+    }
+]

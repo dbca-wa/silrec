@@ -26,10 +26,10 @@ def silrec_url(request):
         'DISPLAYED_SYSTEM_NAME': displayed_system_name,
         'SUPPORT_EMAIL': support_email,
         'build_tag': settings.BUILD_TAG,
-        #'KMI_SERVER_URL': settings.KMI_SERVER_URL,
+        'KMI_SERVER_URL': settings.KMI_SERVER_URL,
+        'GIS_SERVER_URL': settings.GIS_SERVER_URL,
         #'SHOW_DAS_MAP': settings.SHOW_DAS_MAP,
         #'MAX_LAYERS_PER_SQQ': settings.MAX_LAYERS_PER_SQQ,
         'vue3_entry_script': settings.VUE3_ENTRY_SCRIPT,
         'use_vite_dev_server': settings.USE_VITE_DEV_SERVER,
-
     }

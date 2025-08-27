@@ -1,0 +1,11 @@
+{%  extends 'leaseslicensing/emails/base_email.html' %}
+
+{%  block content %}
+        <p>A referral for {{ application_type }} Application: <strong>{{ proposal.lodgement_number }}</strong> has been completed by {{ completed_by }}</p>
+
+        <p>Referral Comments: {{ referral_comments }}</p>
+
+        <p>You can access this {{ application_type }} Application using the following link:</p>
+
+        <a href="{{ url }}">Access {{ application_type }} Application</a>
+{%  endblock %}

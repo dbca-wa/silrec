@@ -166,6 +166,8 @@ export default {
             return this.level == 'internal';
         },
         show_applications_datatable: function () {
+            return true;
+            /*
             if (this.accessing_user) {
                 return (
                     this.accessing_user.is_assessor ||
@@ -175,6 +177,7 @@ export default {
             } else {
                 return false;
             }
+            */
         },
         show_competitive_processes_tab: function () {
             if (this.accessing_user) {

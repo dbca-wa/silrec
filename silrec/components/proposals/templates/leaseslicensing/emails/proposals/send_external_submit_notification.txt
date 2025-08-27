@@ -1,0 +1,9 @@
+{%  extends 'leaseslicensing/emails/base_email.txt' %}
+
+{%  block content %}
+    {{ proposal.application_type.confirmation_text }} proposal was successfully submitted
+
+    Reference Number: {{ proposal.lodgement_number }}
+
+    Date / Time: {{ proposal.lodgement_date }}
+{%  endblock %}

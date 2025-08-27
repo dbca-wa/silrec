@@ -1,5 +1,4 @@
 import traceback
-import geojson
 from django.db.models import Q, Min
 from django.db import transaction
 from django.http import HttpResponse
@@ -22,6 +21,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, B
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
 from rest_framework_datatables.filters import DatatablesFilterBackend
+
 from datetime import datetime, timedelta, date
 
 from silrec.helpers import is_customer, is_internal
@@ -43,6 +43,7 @@ from silrec.components.forest_blocks.serializers import   (
     PolygonSerializer,
     Polygon2Serializer,
     PolygonCohortSerializer,
+    PolygonGeometrySerializer,
 )
 
 
@@ -239,13 +240,31 @@ class Polygon2ViewSet(viewsets.ModelViewSet):
         #import ipdb; ipdb.set_trace()
         return Polygon.objects.all() #[:5]
 
-    def list(self, request, *args, **kwargs):            
-        """ http://localhost:8001/api/polygon.json
-        """
-        serializer = Polygon2Serializer(self.get_queryset()[:5], many=True)
-        import ipdb; ipdb.set_trace()
+#    def list(self, request, *args, **kwargs):            
+#        """ http://localhost:8001/api/polygon.json
+#        """
+#        serializer = Polygon2Serializer(self.get_queryset()[:5], many=True)
+#        import ipdb; ipdb.set_trace()
+#
+#        return Response(serializer.data)
 
-        return Response(serializer.data)
+
+class PolygonGeometryViewSet(viewsets.ModelViewSet):
+    queryset = Polygon.objects.none()
+    serializer_class = PolygonGeometrySerializer
+
+    def get_queryset(self):
+        #import ipdb; ipdb.set_trace()
+        return Polygon.objects.all() #[:5]
+
+#    def list(self, request, *args, **kwargs):            
+#        """ http://localhost:8001/api/polygon.json
+#        """
+#        serializer = PolygonGeometrySerializer(self.get_queryset()[:5], many=True)
+#        import ipdb; ipdb.set_trace()
+#
+#        return Response(serializer.data)
+
 
 
 class PolygonPaginatedViewSet(viewsets.ModelViewSet):

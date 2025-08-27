@@ -1,0 +1,37 @@
+{%  extends 'leaseslicensing/emails/base_email.html' %}
+
+{% block greetings %}
+<p>
+    Dear {{ external_referee_invite.full_name}},
+</p>
+{% endblock %}
+
+{%  block content %}
+
+        {% if reminder %}
+        <p>
+            <strong>Reminder:</strong> You were invited to complete a referral for DBCA {{proposal.application_type.name_display}} application: <strong>{{proposal.lodgement_number}}</strong>.
+        </p>
+        <p>
+            We sent the original referral request to this email address on {{external_referee_invite.datetime_sent|date:'d/m/Y'}}.
+        </p>
+        {% else %}
+        <p>You have been invited to complete a referral for DBCA {{proposal.application_type.name_display}} application: <strong>{{proposal.lodgement_number}}</strong>.</p>
+        {% endif %}
+    </p>
+
+    <p>Comments: {{external_referee_invite.invite_text}}</p>
+
+    <p>
+        In order to submit your comments regarding the proposal you will need to create an account with
+        our system. (If you already have an account with us you can simply log in as usual).
+    </p>
+
+    <p>
+        When you register and log in you will be able to see any proposals that have been referred to you.
+    </p>
+
+    <p>
+        <a href="{{ url }}">Click here to register and log in</a>
+    </p>
+{%  endblock %}

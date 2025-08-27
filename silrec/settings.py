@@ -85,6 +85,28 @@ DATA_STORE = env('DATA_STORE', 'data_store') # MB
 if not os.path.exists(DATA_STORE):
     os.makedirs(DATA_STORE)
 
+
+
+KMI_SERVER_URL = env("KMI_SERVER_URL", "https://kmi.dbca.wa.gov.au")
+
+GIS_SERVER_URL = env(
+            "GIS_SERVER_URL", "https://kaartdijin-boodja-geoserver.dbca.wa.gov.au"
+            )
+GIS_LANDS_AND_WATERS_LAYER_NAME = env(
+            "GIS_LANDS_AND_WATERS_LAYER_NAME",
+                "kaartdijin-boodja-public:CPT_DBCA_LEGISLATED_TENURE",
+                )   
+GIS_INVERT_XY = env("GIS_INVERT_XY", True)
+#    
+#ABS_API_URL = env("ABS_API_URL", "https://api.data.abs.gov.au")
+#ABS_API_CPI_SUBDIRECTORY = env("ABD_API_CPI_PATH", "/data/CPI/")
+#ABS_API_CPI_PATH = env("ABD_API_CPI_PATH", "3.10001.10.5.Q")
+
+KMI_AUTH_USERNAME = env("KMI_AUTH_USERNAME")
+KMI_AUTH_PASSWORD = env("KMI_AUTH_PASSWORD")
+
+
+
 LANGUAGE_CODE = 'en-AU'
 TIME_ZONE = 'Australia/Perth'
 USE_I18N = True
@@ -119,7 +141,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
-    'django_cron',
+    #'django_cron',
 
     #'reversion_compare',
     'bootstrap3',
@@ -127,14 +149,16 @@ INSTALLED_APPS = [
     'django_vite',
     'silrec',
     'silrec.components.users',
-    'silrec.components.main',
+    #'silrec.components.proposals',
     'silrec.components.forest_blocks',
+    'silrec.components.main',
+    #'silrec.components.lookups',
     #'silrec.components.gisquery',
     #'silrec.components.api',
     'reversion',
     'rest_framework',
     #'rest_framework.authtoken',
-    #'rest_framework_gis',
+    'rest_framework_gis',
     #'rest_framework_swagger',
     #"debug_toolbar",
     #'pympler',

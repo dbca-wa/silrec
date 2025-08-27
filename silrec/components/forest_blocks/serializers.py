@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from django.contrib.auth.models import User
-from silrec.components.forest_blocks.models import Polygon, Cohort, Treatment, AssignChtToPly
+from silrec.components.forest_blocks.models import Polygon, Cohort, Treatment, Compartments, AssignChtToPly
 
 class TreatmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,11 +26,40 @@ class PolygonSerializer(serializers.ModelSerializer):
 #        )
         fields = '__all__'
 
+
+class CompartmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Compartments
+        fields = '__all__'
+
+
+class PolygonGeometrySerializer(GeoFeatureModelSerializer):
+    compartments = CompartmentsSerializer(source='compartment', many=False)
+
+    class Meta:
+        model = Polygon
+        geo_field = "geom"
+        fields = (
+            "polygon_id",
+            "name",
+            "area_ha",
+            "created_on",
+            "created_by",
+            "closed",
+            "reason_closed",
+            "zfea_id",
+            "compartments",
+            "geom",
+        )
+        read_only_fields = ("polygon_id",)
+
+
 class Polygon2Serializer(serializers.ModelSerializer):
     ''' http://localhost:8001/api/polygon2.json
         http://localhost:8001/api/polygon2
     '''
-    cohorts = serializers.SerializerMethodField()
+    #cohorts = serializers.SerializerMethodField()
+    polygongeometry = PolygonGeometrySerializer(many=True, read_only=True)
 
     def get_cohorts(self,obj):
         assignchttoply_qs = obj.assignchttoply_set.all()
@@ -42,15 +72,21 @@ class Polygon2Serializer(serializers.ModelSerializer):
 
     class Meta:
         model = Polygon
-        fields = (
-            'polygon_id',
-            'name',
-            'cohorts',
-        )
+        fields = "__all__"
+#        extra_fields = [
+#            "polygongeometry",
+#        ]
+#        fields = (
+#            #'polygon_id',
+#            #'name',
+#            #'cohorts',
+#            'polygongeometry',
+#        )
         datatables_always_serialize = (
             'polygon_id',
             'name',
-            'cohorts',
+            #'cohorts',
+            'polygongeometry',
         )
 
 

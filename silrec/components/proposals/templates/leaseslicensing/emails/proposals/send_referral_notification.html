@@ -1,0 +1,15 @@
+{%  extends 'leaseslicensing/emails/base_email.html' %}
+
+{%  block content %}
+    {% if reminder %}
+        <p>This is a reminder for a referral for {{ proposal.application_type.name_display }} Application <strong>{{proposal.lodgement_number}}</strong> that has been sent to you:</p>
+    {% else %}
+        <p>{{ proposal.application_type.name_display }} Application: <strong>{{ proposal.lodgement_number }}</strong> is ready for your advice.</p>
+
+        <p>Comments: {{comments}}</p>
+    {% endif %}
+
+        <p>You can access this {{ proposal.application_type.name_display }} Application using the following link:</p>
+
+        <a href="{{ url }}">Access {{ proposal.application_type.name_display }} Application</a>
+{%  endblock %}

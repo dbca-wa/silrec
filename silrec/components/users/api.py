@@ -1,5 +1,4 @@
 import traceback
-import geojson
 from django.db.models import Q, Min
 from django.db import transaction
 from django.http import HttpResponse

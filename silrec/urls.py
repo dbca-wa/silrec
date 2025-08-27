@@ -63,6 +63,7 @@ router.register(r'cohorts', forest_blocks_api.CohortViewSet, basename='cohorts')
 router.register(r'treatments', forest_blocks_api.TreatmentViewSet, basename='treatments')
 router.register(r'polygon', forest_blocks_api.PolygonViewSet, basename='polygon')
 router.register(r'polygon2', forest_blocks_api.Polygon2ViewSet, basename='polygon2')
+router.register(r'polygon3', forest_blocks_api.PolygonGeometryViewSet, basename='polygon3')
 router.register(r'polygoncohorts', forest_blocks_api.PolygonCohortViewSet, basename='polygoncohorts')
 
 router.register(r'ply_paginated',forest_blocks_api.PolygonPaginatedViewSet,"ply_paginated")

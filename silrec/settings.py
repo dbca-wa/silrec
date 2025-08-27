@@ -149,10 +149,10 @@ INSTALLED_APPS = [
     'django_vite',
     'silrec',
     'silrec.components.users',
-    #'silrec.components.proposals',
-    'silrec.components.forest_blocks',
+    'silrec.components.proposals',
     'silrec.components.main',
-    #'silrec.components.lookups',
+    'silrec.components.forest_blocks',
+    'silrec.components.lookups',
     #'silrec.components.gisquery',
     #'silrec.components.api',
     'reversion',
@@ -338,6 +338,12 @@ EMAIL_FROM = DEFAULT_FROM_EMAIL
 NOTIFICATION_EMAIL=env('NOTIFICATION_EMAIL')
 CRON_NOTIFICATION_EMAIL = env('CRON_NOTIFICATION_EMAIL', NOTIFICATION_EMAIL).lower()
 EMAIL_HOST = env('EMAIL_HOST', 'smtp.lan.fyi')
+
+PROTECTED_MEDIA_ROOT = env(
+    "PROTECTED_MEDIA_ROOT", os.path.join(BASE_DIR, "protected_media")
+)
+SECURE_FILE_API_BASE_PATH = "/api/main/secure_file/"
+SECURE_DOCUMENT_API_BASE_PATH = "/api/main/secure_document/"
 
 #SILKY_PYTHON_PROFILER = True
 

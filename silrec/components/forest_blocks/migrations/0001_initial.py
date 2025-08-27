@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('main', '0001_initial'),
+        ('lookups', '0001_initial'),
     ]
 
     operations = [
@@ -536,7 +536,7 @@ class Migration(migrations.Migration):
                 ('updated_on', models.DateTimeField(blank=True, db_comment='date record was last changed', null=True)),
                 ('updated_by', models.CharField(blank=True, db_comment='network user ID of person updating the record in the database', max_length=50, null=True)),
                 ('stand', models.CharField(blank=True, max_length=10, null=True)),
-                ('regen_method', models.ForeignKey(db_column='regen_method', db_comment="Method of Regeneration, consistent with FMIS codes; refer to lookup table\nProbably should default to value ' /' for not regenerated  **NEED TO MONITOR FOR ISSUES'", on_delete=django.db.models.deletion.CASCADE, to='main.regenerationmethodslkp')),
+                ('regen_method', models.ForeignKey(db_column='regen_method', db_comment="Method of Regeneration, consistent with FMIS codes; refer to lookup table\nProbably should default to value ' /' for not regenerated  **NEED TO MONITOR FOR ISSUES'", on_delete=django.db.models.deletion.CASCADE, to='lookups.regenerationmethodslkp')),
                 ('vrp', models.ForeignKey(blank=True, db_comment='Number of vegetation retention patch', null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.vegretpatch')),
             ],
             options={
@@ -551,7 +551,7 @@ class Migration(migrations.Migration):
                 ('quantity', models.FloatField(blank=True, db_comment='Polygon / cohort average quantity (e.g. average BA or average crown density or average LAI)', null=True)),
                 ('rating', models.CharField(blank=True, db_comment='Polygon / cohort average rating, e.g. density class, NDVI class', max_length=50, null=True)),
                 ('cohort', models.ForeignKey(blank=True, db_comment='Foreign key to cohort table', null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.cohort')),
-                ('metric', models.ForeignKey(blank=True, db_comment='Foreign key to the success measures table', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.cohortmetricslkp')),
+                ('metric', models.ForeignKey(blank=True, db_comment='Foreign key to the success measures table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.cohortmetricslkp')),
             ],
             options={
                 'db_table': 'cohort_result',
@@ -627,7 +627,7 @@ class Migration(migrations.Migration):
                 ('zfea_id', models.CharField(blank=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)', max_length=7, null=True)),
                 ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
                 ('compartment', models.ForeignKey(db_column='compartment', db_comment='foreign key to compartment and blocks table', on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.compartments')),
-                ('sp_code', models.ForeignKey(blank=True, db_column='sp_code', db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.spatialprecisionlkp')),
+                ('sp_code', models.ForeignKey(blank=True, db_column='sp_code', db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.spatialprecisionlkp')),
             ],
             options={
                 'db_table': 'polygon',
@@ -667,9 +667,9 @@ class Migration(migrations.Migration):
                 ('effective_to', models.DateTimeField(blank=True, db_comment='date this task is revoked from the prescription and no longer to be used as a default prescribed task', null=True)),
                 ('authorised_by', models.CharField(blank=True, db_comment='Person / document / authority authorising the task for inclusion in the prescription.\nNormally this will be the Senior Silviculturalist via silvicultural guidelines', max_length=50, null=True)),
                 ('revoked_by', models.CharField(blank=True, db_comment='Person / document / authority revoking the task from inclusion in the prescription.\nNormally this will be the Senior Silviculturalist via silvicultural guidelines', max_length=50, null=True)),
-                ('obj_code', models.ForeignKey(blank=True, db_column='obj_code', db_comment='silvicultural objective task entry applies to\nForeign key to silvic_lkp  (OBJECTIVE-LKP??)\n**Change column name to match lookup table PK', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='prescriptions', to='main.objectivelkp')),
-                ('responsibility', models.ForeignKey(blank=True, db_column='responsibility', db_comment='Organisation or role having responsibility for implementing the task\nLookup table to organisation-lkp\nShould we have this - working arrangements can be dynamic in curent context', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.organisationlkp')),
-                ('task', models.ForeignKey(blank=True, db_column='task', db_comment='Foreign key to tasks table', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.tasklkp')),
+                ('obj_code', models.ForeignKey(blank=True, db_column='obj_code', db_comment='silvicultural objective task entry applies to\nForeign key to silvic_lkp  (OBJECTIVE-LKP??)\n**Change column name to match lookup table PK', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='prescriptions', to='lookups.objectivelkp')),
+                ('responsibility', models.ForeignKey(blank=True, db_column='responsibility', db_comment='Organisation or role having responsibility for implementing the task\nLookup table to organisation-lkp\nShould we have this - working arrangements can be dynamic in curent context', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.organisationlkp')),
+                ('task', models.ForeignKey(blank=True, db_column='task', db_comment='Foreign key to tasks table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.tasklkp')),
             ],
             options={
                 'db_table': 'prescription',
@@ -689,7 +689,7 @@ class Migration(migrations.Migration):
                 ('effective_to', models.DateTimeField(blank=True, null=True)),
                 ('authorised_by', models.CharField(blank=True, max_length=50, null=True)),
                 ('revoked_by', models.CharField(blank=True, max_length=50, null=True)),
-                ('obj_code', models.ForeignKey(blank=True, db_column='obj_code', db_comment='FK to objective table', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.objectivelkp')),
+                ('obj_code', models.ForeignKey(blank=True, db_column='obj_code', db_comment='FK to objective table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.objectivelkp')),
                 ('report', models.ForeignKey(blank=True, db_comment='FK to report table', null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.reportcohort')),
             ],
             options={
@@ -710,7 +710,7 @@ class Migration(migrations.Migration):
                 ('effective_to', models.DateTimeField(blank=True, null=True)),
                 ('authorised_by', models.CharField(blank=True, max_length=50, null=True)),
                 ('revoked_by', models.CharField(blank=True, max_length=50, null=True)),
-                ('task', models.ForeignKey(blank=True, db_column='task', db_comment='FK to cohort table', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.tasklkp')),
+                ('task', models.ForeignKey(blank=True, db_column='task', db_comment='FK to cohort table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.tasklkp')),
                 ('tsk_rpt', models.ForeignKey(blank=True, db_comment='FK to report table', null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.reporttreatment')),
             ],
             options={
@@ -759,7 +759,7 @@ class Migration(migrations.Migration):
                 ('created_by', models.CharField(blank=True, max_length=50, null=True)),
                 ('updated_on', models.DateTimeField(blank=True, null=True)),
                 ('updated_by', models.CharField(blank=True, max_length=50, null=True)),
-                ('task', models.ForeignKey(blank=True, db_column='task', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.tasklkp')),
+                ('task', models.ForeignKey(blank=True, db_column='task', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.tasklkp')),
                 ('tsk_cat', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.taskcategory')),
             ],
             options={
@@ -796,7 +796,7 @@ class Migration(migrations.Migration):
                 ('zextra_info', models.BooleanField(blank=True, db_comment='Flag to show if additional attributes recorded or should be recorded\n(populated when task inserted to treatment table)', null=True)),
                 ('cohort', models.ForeignKey(blank=True, db_comment='Foreign key to cohort table\nidentifies the cohort the task was applied to', null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.cohort')),
                 ('prescription', models.ForeignKey(blank=True, db_comment='If/when a new prescription is created for a silvic objective, there is a linkage back to the prescription item that created the treatment (where it exists … sometimes there are ‘unprescribed’ treatments)', null=True, on_delete=django.db.models.deletion.CASCADE, to='forest_blocks.prescription')),
-                ('task', models.ForeignKey(blank=True, db_column='task', db_comment='Foreign key to task_lkp to identify task applied', null=True, on_delete=django.db.models.deletion.CASCADE, to='main.tasklkp')),
+                ('task', models.ForeignKey(blank=True, db_column='task', db_comment='Foreign key to task_lkp to identify task applied', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.tasklkp')),
             ],
             options={
                 'db_table': 'treatment',

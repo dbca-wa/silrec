@@ -16,7 +16,7 @@ from rest_framework_swagger.views import get_swagger_view
 from silrec import views
 
 from silrec.components.users import api as users_api
-from silrec.components.main import api as lookup_tbls_api
+from silrec.components.lookups import api as lookup_tbls_api
 from silrec.components.forest_blocks import api as forest_blocks_api
 #from sqs.components.gisquery import api as gisquery_api
 #from sqs.components.gisquery import views as gisquery_views

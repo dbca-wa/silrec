@@ -2,7 +2,7 @@
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models import MultiPolygonField
 
-from silrec.components.main.models import (
+from silrec.components.lookups.models import (
     CohortMetricsLkp,
     MachineLkp,
     ObjectiveLkp,

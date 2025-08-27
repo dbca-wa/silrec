@@ -1,4 +1,20 @@
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, models, transaction
+from django.db.models import F, JSONField, Max, Min, Q
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from rest_framework import serializers
+from reversion.models import Version
 
+from dirtyfields import DirtyFieldsMixin
+
+from silrec.components.main.models import (
+    Document,
+    ApplicationType,
+    SecureFileField,
+    RevisionedMixin,
+)
 
 
 def update_proposal_doc_filename(instance, filename):
@@ -29,6 +45,26 @@ class DefaultDocument(Document):
                 self.name
             )
         )
+
+class ProposalDocument(Document):
+    proposal = models.ForeignKey(
+        "Proposal", related_name="supporting_documents", on_delete=models.CASCADE
+    )
+    _file = SecureFileField(upload_to=update_proposal_doc_filename, max_length=512)
+    input_name = models.CharField(max_length=255, null=True, blank=True)
+    can_delete = models.BooleanField(
+        default=True
+    )  # after initial submit prevent document from being deleted
+    can_hide = models.BooleanField(
+        default=False
+    )  # after initial submit, document cannot be deleted but can be hidden
+    hidden = models.BooleanField(
+        default=False
+    )  # after initial submit prevent document from being deleted
+
+    class Meta:
+        app_label = "silrec"
+        verbose_name = "Application Document"
 
 
 class ShapefileDocumentQueryset(models.QuerySet):
@@ -98,7 +134,7 @@ class ProposalType(models.Model):
 #            )
 #        )
 
-class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
+class Proposal(RevisionedMixin, DirtyFieldsMixin):
     #objects = ProposalManager()
 
     MODEL_PREFIX = "P"
@@ -125,26 +161,26 @@ class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
     )
 
     # List of statuses from above that allow a customer to view a proposal (read-only)
-    CUSTOMER_VIEWABLE_STATE = [
-        PROCESSING_STATUS_WITH_ASSESSOR,
-        PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
-        PROCESSING_STATUS_WITH_REFERRAL,
-        PROCESSING_STATUS_WITH_APPROVER,
-        PROCESSING_STATUS_APPROVED_REGISTRATION_OF_INTEREST,
-        PROCESSING_STATUS_APPROVED_COMPETITIVE_PROCESS,
-        PROCESSING_STATUS_APPROVED_EDITING_INVOICING,
-        PROCESSING_STATUS_APPROVED,
-        PROCESSING_STATUS_DECLINED,
-        PROCESSING_STATUS_DISCARDED,
-    ]
-
-    OFFICER_PROCESSABLE_STATE = [
-        PROCESSING_STATUS_WITH_ASSESSOR,
-        PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
-        PROCESSING_STATUS_WITH_REFERRAL,  # <-- Be aware
-        PROCESSING_STATUS_WITH_APPROVER,
-    ]
-
+#    CUSTOMER_VIEWABLE_STATE = [
+#        PROCESSING_STATUS_WITH_ASSESSOR,
+#        PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
+#        PROCESSING_STATUS_WITH_REFERRAL,
+#        PROCESSING_STATUS_WITH_APPROVER,
+#        PROCESSING_STATUS_APPROVED_REGISTRATION_OF_INTEREST,
+#        PROCESSING_STATUS_APPROVED_COMPETITIVE_PROCESS,
+#        PROCESSING_STATUS_APPROVED_EDITING_INVOICING,
+#        PROCESSING_STATUS_APPROVED,
+#        PROCESSING_STATUS_DECLINED,
+#        PROCESSING_STATUS_DISCARDED,
+#    ]
+#
+#    OFFICER_PROCESSABLE_STATE = [
+#        PROCESSING_STATUS_WITH_ASSESSOR,
+#        PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
+#        PROCESSING_STATUS_WITH_REFERRAL,  # <-- Be aware
+#        PROCESSING_STATUS_WITH_APPROVER,
+#    ]
+#
     COMPLIANCE_CHECK_STATUS_CHOICES = (
         ("not_checked", "Not Checked"),
         ("awaiting_returns", "Awaiting Returns"),
@@ -163,15 +199,12 @@ class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
         ProposalType, blank=True, null=True, on_delete=models.SET_NULL
     )
     proposed_issuance_approval = JSONField(blank=True, null=True)
-    #applicant = models.IntegerField(null=True, blank=True)  # EmailUserRO
-    #proxy_applicant = models.IntegerField(null=True, blank=True)  # EmailUserRO
-    #lodgement_sequence = models.IntegerField(blank=True, default=0)
     lodgement_number = models.CharField(max_length=9, blank=True, default='')
     lodgement_date = models.DateTimeField(blank=True, null=True)
     submitter = models.IntegerField(null=True)  # EmailUserRO
-    assigned_officer = models.IntegerField(null=True)  # EmailUserRO
-    assigned_approver = models.IntegerField(null=True)  # EmailUserRO
-    approved_by = models.IntegerField(null=True)  # EmailUserRO
+#    assigned_officer = models.IntegerField(null=True)  # EmailUserRO
+#    assigned_approver = models.IntegerField(null=True)  # EmailUserRO
+#    approved_by = models.IntegerField(null=True)  # EmailUserRO
     processing_status = models.CharField(
         "Processing Status",
         max_length=35,
@@ -179,18 +212,11 @@ class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
         default=PROCESSING_STATUS_CHOICES[0][0],
     )
     prev_processing_status = models.CharField(max_length=30, blank=True, null=True)
-    review_status = models.CharField(
-        "Review Status",
-        max_length=30,
-        choices=REVIEW_STATUS_CHOICES,
-        default=REVIEW_STATUS_CHOICES[0][0],
-    )
-#    approval = models.ForeignKey(
-#        "leaseslicensing.Approval",
-#        null=True,
-#        blank=True,
-#        on_delete=models.SET_NULL,
-#        related_name="proposals",
+#    review_status = models.CharField(
+#        "Review Status",
+#        max_length=30,
+#        choices=REVIEW_STATUS_CHOICES,
+#        default=REVIEW_STATUS_CHOICES[0][0],
 #    )
     previous_application = models.ForeignKey(
         "self", blank=True, null=True, on_delete=models.SET_NULL
@@ -199,114 +225,7 @@ class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
     # Special Fields
     title = models.CharField(max_length=255, null=True, blank=True)
     application_type = models.ForeignKey(ApplicationType, on_delete=models.PROTECT)
-    approval_level = models.CharField(
-        "Activity matrix approval level", max_length=255, null=True, blank=True
-    )
-    approval_level_document = models.ForeignKey(
-        ProposalDocument,
-        blank=True,
-        null=True,
-        related_name="approval_level_document",
-        on_delete=models.SET_NULL,
-    )
-    approval_comment = models.TextField(blank=True)
-    details_text = models.TextField(blank=True)
-    added_internally = models.BooleanField(default=False)
-    # If the proposal is created as part of migration of approvals
     migrated = models.BooleanField(default=False)
-    original_leaselicence_number = models.CharField(
-        max_length=255, blank=True, null=True
-    )
-    # Registration of Interest generates a Lease Licence
-    generated_proposal = models.ForeignKey(
-        "self",
-        related_name="originating_proposal",
-        blank=True,
-        null=True,
-        on_delete=models.SET_NULL,
-    )
-    # Registration of Interest generates a Competitive Process
-    generated_competitive_process = models.OneToOneField(
-        CompetitiveProcess,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="originating_proposal",
-    )
-    # Competitive Process generates a Lease Licence
-    originating_competitive_process = models.ForeignKey(
-        CompetitiveProcess,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="generated_proposal",
-    )
-    # When adding proposal as a party to an existing competitive process
-    competitive_process_to_copy_to = models.ForeignKey(
-        CompetitiveProcess,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="proposals_added",
-    )
-    invoicing_details = models.OneToOneField(
-        InvoicingDetails,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="proposal",
-    )
-    # Registration of Interest additional form fields
-    # proposal details
-    exclusive_use = models.BooleanField(null=True)
-    exclusive_use_text = models.TextField(blank=True)
-    long_term_use = models.BooleanField(null=True)
-    long_term_use_text = models.TextField(blank=True)
-    consistent_purpose = models.BooleanField(null=True)
-    consistent_purpose_text = models.TextField(blank=True)
-    consistent_plan = models.BooleanField(null=True)
-    consistent_plan_text = models.TextField(blank=True)
-    # proposal impact
-    clearing_vegetation = models.BooleanField(null=True)
-    clearing_vegetation_text = models.TextField(blank=True)
-    ground_disturbing_works = models.BooleanField(null=True)
-    ground_disturbing_works_text = models.TextField(blank=True)
-    heritage_site = models.BooleanField(null=True)
-    heritage_site_text = models.TextField(blank=True)
-    environmentally_sensitive = models.BooleanField(null=True)
-    environmentally_sensitive_text = models.TextField(blank=True)
-    wetlands_impact = models.BooleanField(null=True)
-    wetlands_impact_text = models.TextField(blank=True)
-    building_required = models.BooleanField(null=True)
-    building_required_text = models.TextField(blank=True)
-    significant_change = models.BooleanField(null=True)
-    significant_change_text = models.TextField(blank=True)
-    aboriginal_site = models.BooleanField(null=True)
-    aboriginal_site_text = models.TextField(blank=True)
-    native_title_consultation = models.BooleanField(null=True)
-    native_title_consultation_text = models.TextField(blank=True)
-    mining_tenement = models.BooleanField(null=True)
-    mining_tenement_text = models.TextField(blank=True)
-    # Lease Licence additional form fields
-    # proposal details
-    profit_and_loss_text = models.TextField(blank=True)
-    cash_flow_text = models.TextField(blank=True)
-    capital_investment_text = models.TextField(blank=True)
-    financial_capacity_text = models.TextField(blank=True)
-    available_activities_text = models.TextField(blank=True)
-    market_analysis_text = models.TextField(blank=True)
-    staffing_text = models.TextField(blank=True)
-    # proposal impact
-    key_personnel_text = models.TextField(blank=True)
-    key_milestones_text = models.TextField(blank=True)
-    risk_factors_text = models.TextField(blank=True)
-    legislative_requirements_text = models.TextField(blank=True)
-    site_name = models.ForeignKey(
-        SiteName, blank=True, null=True, on_delete=models.PROTECT
-    )
-    proponent_reference_number = models.CharField(null=True, blank=True, max_length=50)
-    # datetime_gis_data_first_fetched = models.DateTimeField(blank=True, null=True)
-    # datetime_gis_data_last_fetched = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         app_label = "silrec"
@@ -324,8 +243,6 @@ class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
 
         super().save(*args, **kwargs)
 
-        # Append 'P' to Proposal id to generate Lodgement number.
-        # Lodgement number and lodgement sequence are used to generate Reference.
         if self.lodgement_number == '':
             self.lodgement_number = 'P{0:06d}'.format(self.pk)
             self.save()
@@ -335,5 +252,85 @@ class Proposal(LicensingModelVersioned, DirtyFieldsMixin):
         if self.processing_status != original_processing_status:
             self.save(version_comment=f'processing_status: {self.processing_status}')
 
+
+class AmendmentReason(models.Model):
+    reason = models.CharField("Reason", max_length=125)
+
+    class Meta:
+        app_label = "silrec"
+        verbose_name = "Proposal Amendment Reason"  # display name in Admin
+        verbose_name_plural = "Proposal Amendment Reasons"
+
+    def __str__(self):
+        return self.reason
+
+class ProposalRequest(models.Model):
+    proposal = models.ForeignKey(
+        Proposal, related_name="proposalrequest_set", on_delete=models.CASCADE
+    )
+    subject = models.CharField(max_length=200, blank=True)
+    text = models.TextField(blank=True)
+    # fficer = models.ForeignKey(EmailUser, null=True, on_delete=models.SET_NULL)
+    officer = models.IntegerField(null=True)  # EmailUserRO
+
+    def __str__(self):
+        return f"{self.subject} - {self.text}"
+
+    class Meta:
+        app_label = "silrec"
+
+
+class AmendmentRequest(ProposalRequest):
+    STATUS_CHOICE_REQUESTED = "requested"
+    STATUS_CHOICE_AMENDED = "amended"
+    STATUS_CHOICES = (
+        (STATUS_CHOICE_REQUESTED, "Requested"),
+        (STATUS_CHOICE_AMENDED, "Amended"),
+    )
+
+    status = models.CharField(
+        "Status", max_length=30, choices=STATUS_CHOICES, default=STATUS_CHOICES[0][0]
+    )
+    reason = models.ForeignKey(
+        AmendmentReason, blank=True, null=True, on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        app_label = "silrec"
+
+#    @transaction.atomic
+#    def generate_amendment(self, request):
+#        if not self.proposal.can_assess(request.user):
+#            raise exceptions.ProposalNotAuthorized()
+#
+#        if self.status == AmendmentRequest.STATUS_CHOICE_REQUESTED:
+#            proposal = self.proposal
+#            if proposal.processing_status != Proposal.PROCESSING_STATUS_DRAFT:
+#                proposal.processing_status = Proposal.PROCESSING_STATUS_DRAFT
+#                proposal.save(
+#                    version_comment=f"Proposal amendment requested {request.data.get('reason', '')}"
+#                )
+#
+#                # Mark any related documents that the assessor may have attached to the proposal as not delete-able
+#                self.proposal.mark_documents_not_deleteable()
+#
+#            # Create a log entry for the proposal
+#            proposal.log_user_action(
+#                ProposalUserAction.ACTION_ID_REQUEST_AMENDMENTS, request
+#            )
+#
+#            # Create a log entry for the applicant
+#            proposal.applicant.log_user_action(
+#                ProposalUserAction.ACTION_REQUESTED_AMENDMENT.format(proposal.id),
+#                request,
+#            )
+#
+#            # send email
+#            send_amendment_email_notification(self, request, self.proposal)
+#
+#        self.save()
+#
+#    def user_has_object_permission(self, user_id):
+#        return self.proposal.user_has_object_permission(user_id)
 
 

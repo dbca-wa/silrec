@@ -1,0 +1,18 @@
+[
+{
+    "model": "silrec.proposaltype",
+    "pk": 1,
+    "fields": {
+        "code": "new",
+        "description": "New Proposal"
+    }
+},
+{
+    "model": "silrec.proposaltype",
+    "pk": 2,
+    "fields": {
+        "code": "amendment",
+        "description": "Amendment"
+    }
+}
+]

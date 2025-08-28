@@ -1,0 +1,18 @@
+[
+{
+    "model": "silrec.applicationtype",
+    "pk": 1,
+    "fields": {
+        "name": "Ecological_Thinning",
+        "visible": true
+    }
+},
+{
+    "model": "silrec.applicationtype",
+    "pk": 2,
+    "fields": {
+        "name": "Other",
+        "visible": false
+    }
+}
+]

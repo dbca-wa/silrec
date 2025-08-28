@@ -1,0 +1,50 @@
+[
+{
+    "model": "silrec.proposal",
+    "pk": 1,
+    "fields": {
+        "lodgement_number": "P000001",
+        "proposal_type": 1,
+        "lodgement_date": null,
+        "submitter": 1,
+        "processing_status": "draft",
+        "prev_processing_status": null,
+        "previous_application": null,
+        "title": "First Dummy Application - JM",
+        "application_type": 1,
+        "migrated": false
+    }
+},
+{
+    "model": "silrec.proposal",
+    "pk": 2,
+    "fields": {
+        "lodgement_number": "P000002",
+        "proposal_type": 1,
+        "lodgement_date": null,
+        "submitter": 1,
+        "processing_status": "draft",
+        "prev_processing_status": null,
+        "previous_application": null,
+        "title": "Second Dummy Application - JM",
+        "application_type": 1,
+        "migrated": false
+    }
+},
+{
+    "model": "silrec.proposal",
+    "pk": 3,
+    "fields": {
+        "lodgement_number": "P000003",
+        "proposal_type": 1,
+        "lodgement_date": null,
+        "submitter": 1,
+        "processing_status": "draft",
+        "prev_processing_status": null,
+        "previous_application": null,
+        "title": "Third Dummy Application - JM",
+        "application_type": 1,
+        "migrated": false
+    }
+}
+]

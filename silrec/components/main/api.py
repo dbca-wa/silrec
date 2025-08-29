@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 
 from rest_framework import viewsets, serializers, status, generics, views
 #from rest_framework.decorators import detail_route, list_route,renderer_classes
+from rest_framework import status, views, viewsets
 from rest_framework.decorators import action
 from rest_framework.decorators import action as detail_route
 from rest_framework.decorators import action as list_route
@@ -26,7 +27,35 @@ from silrec.components.users.serializers import   (
     UserSerializer,
     UserSerializerSimple,
 )
+
+from silrec.components.main.models import   (   
+    ApplicationType,
+)
+
+from silrec.components.main.serializers import   (   
+    ApplicationTypeSerializer,
+    ApplicationTypeKeyValueSerializer,
+)
+
 #from disturbance.helpers import is_customer, is_internal
+
+
+class KeyValueListMixin:
+    @action(detail=False, methods=["get"], url_path="key-value-list")
+    def key_value_list(self, request):
+        if not hasattr(self, "key_value_display_field"):
+            raise AttributeError("key_value_display_field is not defined on viewset")
+        if not hasattr(self, "key_value_serializer_class"):
+            raise AttributeError("key_value_serializer_class is not defined on viewset")
+    
+        queryset = self.get_queryset().only("id", self.key_value_display_field)
+        search_term = request.GET.get("term", "")
+        if search_term:
+            queryset = queryset.filter(
+                **{f"{self.key_value_display_field}__icontains": search_term}
+            )[:30]
+        serializer = self.key_value_serializer_class(queryset, many=True)
+        return Response(serializer.data)
 
 
 class GetProfile(views.APIView):
@@ -95,4 +124,69 @@ class UserViewSet(viewsets.ModelViewSet):
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
 
+class LicensingViewSet(viewsets.ModelViewSet):
+    http_method_names = ["head", "get", "post", "put", "patch"]
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class ApplicationTypeViewSet(viewsets.ReadOnlyModelViewSet, KeyValueListMixin):
+    queryset = ApplicationType.objects.all()
+    serializer_class = ApplicationTypeSerializer
+    key_value_display_field = "name"
+    key_value_serializer_class = ApplicationTypeKeyValueSerializer
+
+
+class UserActionLoggingViewset(LicensingViewSet):
+    """Class that extends the ModelViewSet to log the common user actions
+
+    will scan the instance provided for the fields listed in settings
+    use the first one it finds. If it doesn't find one it will raise an AttributeError.
+    """
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.log_user_action(
+            settings.ACTION_VIEW.format(
+                instance._meta.verbose_name.title(),  # pylint: disable=protected-access
+                helpers.get_instance_identifier(instance),
+            ),
+            request,
+        )
+        return super().retrieve(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        instance = response.data.serializer.instance
+        instance.log_user_action(
+            settings.ACTION_CREATE.format(
+                instance._meta.verbose_name.title(),  # pylint: disable=protected-acces
+                helpers.get_instance_identifier(instance),
+            ),
+            request,
+        )
+        return response
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.log_user_action(
+            settings.ACTION_UPDATE.format(
+                instance._meta.verbose_name.title(),  # pylint: disable=protected-access
+                helpers.get_instance_identifier(instance),
+            ),
+            request,
+        )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.log_user_action(
+            settings.ACTION_DESTROY.format(
+                instance._meta.verbose_name.title(),  # pylint: disable=protected-access
+                helpers.get_instance_identifier(instance),
+            ),
+            request,
+        )
+        return super().destroy(request, *args, **kwargs)
 

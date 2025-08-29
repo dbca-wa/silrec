@@ -10,8 +10,6 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import cache_page
-from ledger_api_client.ledger_models import EmailUserRO as EmailUser
-from ledger_api_client.utils import get_or_create as get_or_create_emailuser
 from rest_framework import serializers, status, views, viewsets
 from rest_framework.decorators import action as detail_route
 from rest_framework.decorators import action as list_route
@@ -21,100 +19,27 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
 from rest_framework_datatables.renderers import DatatablesRenderer
+from rest_framework_datatables.filters import DatatablesFilterBackend
 from reversion.models import Version
 
-from leaseslicensing.components.approvals.models import Approval
-from leaseslicensing.components.competitive_processes.models import CompetitiveProcess
-from leaseslicensing.components.compliances.models import Compliance
-from leaseslicensing.components.main.api import (
-    LicensingViewSet,
+from silrec.components.proposals.models import (
+    Proposal,
+    ProposalType,
+)
+
+from silrec.components.main.models import (
+    ApplicationType,
+)
+
+from silrec.components.proposals.serializers import (
+    ProposalSerializer,
+    ListProposalMinimalSerializer,
+    ListProposalSerializer,
+    ProposalTypeSerializer,
+)
+from silrec.components.main.api import (
     UserActionLoggingViewset,
 )
-from leaseslicensing.components.main.decorators import basic_exception_handler
-from leaseslicensing.components.main.filters import LedgerDatatablesFilterBackend
-from leaseslicensing.components.main.models import ApplicationType
-from leaseslicensing.components.main.process_document import process_generic_document
-from leaseslicensing.components.main.related_item import RelatedItemsSerializer
-from leaseslicensing.components.main.serializers import (
-    NewEmailuserSerializer,
-    RelatedItemSerializer,
-)
-from leaseslicensing.components.main.utils import save_site_name, validate_map_files
-from leaseslicensing.components.organisations.models import Organisation
-from leaseslicensing.components.proposals.email import (
-    send_external_referee_invite_email,
-)
-from leaseslicensing.components.proposals.models import (
-    AdditionalDocumentType,
-    AmendmentReason,
-    AmendmentRequest,
-    ChecklistQuestion,
-    ExternalRefereeInvite,
-    Proposal,
-    ProposalAssessment,
-    ProposalAssessmentAnswer,
-    ProposalGeometry,
-    ProposalRequirement,
-    ProposalStandardRequirement,
-    ProposalType,
-    ProposalUserAction,
-    Referral,
-    ReferralRecipientGroup,
-    RequirementDocument,
-)
-from leaseslicensing.components.proposals.serializers import (  # InternalSaveProposalSerializer,
-    AdditionalDocumentTypeSerializer,
-    AmendmentRequestDisplaySerializer,
-    AmendmentRequestSerializer,
-    ChecklistQuestionSerializer,
-    CreateProposalSerializer,
-    DTReferralSerializer,
-    ExternalRefereeInviteSerializer,
-    InternalProposalSerializer,
-    ListProposalMinimalSerializer,
-    ListProposalReferralSerializer,
-    ListProposalSerializer,
-    MigrateProposalSerializer,
-    ProposalAssessmentAnswerSerializer,
-    ProposalAssessmentSerializer,
-    ProposalDeclineSerializer,
-    ProposalGeometrySerializer,
-    ProposalLogEntrySerializer,
-    ProposalRequirementSerializer,
-    ProposalSerializer,
-    ProposalStandardRequirementSerializer,
-    ProposalTypeSerializer,
-    ProposalUserActionSerializer,
-    ProposedApprovalROISerializer,
-    ProposedApprovalSerializer,
-    ReferralSerializer,
-    SaveProposalSerializer,
-    SendReferralSerializer,
-)
-from leaseslicensing.components.proposals.utils import (
-    make_proposal_applicant_ready,
-    populate_gis_data,
-    proposal_submit,
-    save_assessor_data,
-    save_proponent_data,
-    save_referral_data,
-)
-from leaseslicensing.components.users.serializers import ProposalApplicantSerializer
-from leaseslicensing.helpers import (
-    is_approver,
-    is_assessor,
-    is_customer,
-    is_finance_officer,
-    is_internal,
-    is_referee,
-)
-from leaseslicensing.ledger_api_utils import retrieve_email_user
-from leaseslicensing.permissions import (
-    HasObjectPermission,
-    IsAssessor,
-    IsAssignedReferee,
-)
-from leaseslicensing.settings import APPLICATION_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -143,10 +68,12 @@ class GetProposalType(views.APIView):
             return Response(
                 {"error": "There is currently no proposal type."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 
-class ProposalFilterBackend(LedgerDatatablesFilterBackend):
+#class ProposalFilterBackend(LedgerDatatablesFilterBackend):
+class ProposalFilterBackend(DatatablesFilterBackend):
     """
     Custom filters
     """
@@ -183,15 +110,15 @@ class ProposalFilterBackend(LedgerDatatablesFilterBackend):
             "submitter",
         ]
         # Prevent the external user from searching for officers
-        if is_internal(request):
-            ledger_lookup_fields += ["assigned_officer", "assigned_approver"]
+#        if is_internal(request):
+#            ledger_lookup_fields += ["assigned_officer", "assigned_approver"]
 
-        queryset = self.apply_request(
-            request,
-            queryset,
-            view,
-            ledger_lookup_fields=ledger_lookup_fields,
-        )
+#        queryset = self.apply_request(
+#            request,
+#            queryset,
+#            view,
+#            ledger_lookup_fields=ledger_lookup_fields,
+#        )
 
         setattr(view, "_datatables_filtered_count", queryset.count())
         setattr(view, "_datatables_total_count", total_count)
@@ -250,6 +177,8 @@ class ProposalPaginatedViewSet(viewsets.ReadOnlyModelViewSet):
         return super().get_serializer_class()
 
     def list(self, request, *args, **kwargs):
+        ''' http://localhost:8001/api/proposal_paginated/?draw=1&length=10
+        '''
         qs = self.get_queryset()
 
 #        email_user_id_assigned = int(
@@ -279,6 +208,8 @@ class ProposalPaginatedViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProposalViewSet(UserActionLoggingViewset):
+    ''' http://localhost:8001/api/proposal/1/  <-- calls retrieve()
+    '''
     queryset = Proposal.objects.none()
     serializer_class = ProposalSerializer
     lookup_field = "id"
@@ -366,10 +297,12 @@ class ProposalViewSet(UserActionLoggingViewset):
 #            return Response()
 
     def list(self, request, *args, **kwargs):
+        ''' http://localhost:8001/api/proposal/
+        '''
         proposals = self.get_queryset()
 
         statuses = list(map(lambda x: x[0], Proposal.PROCESSING_STATUS_CHOICES))
-        types = list(map(lambda x: x[0], APPLICATION_TYPES))
+        types = list(map(lambda x: x[0], ApplicationType.APPLICATION_TYPES))
         type = request.query_params.get("type", "")
         status = request.query_params.get("status", "")
         if status in statuses and type in types:
@@ -377,7 +310,8 @@ class ProposalViewSet(UserActionLoggingViewset):
             proposals = proposals.filter(
                 Q(processing_status=status) & Q(application_type__name=type)
             )
-        serializer = ListProposalMinimalSerializer(
+        #serializer = ListProposalMinimalSerializer(
+        serializer = ListProposalSerializer(
             proposals, context={"request": request}, many=True
         )
         return Response(serializer.data)

@@ -194,7 +194,7 @@ export default {
         },
     },
     mounted: async function () {
-        const res = await fetch('/api/profile');
+        //const res = await fetch('/api/profile');
         const resData = await res.json();
         this.accessing_user = resData;
         this.$nextTick(function () {

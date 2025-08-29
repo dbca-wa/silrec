@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
+from silrec.components.proposals.models import (
+    ApplicationType,
+)
+
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,12 +25,24 @@ class UserSerializerSimple(serializers.ModelSerializer):
 
 
 class ApplicationTypeSerializer(serializers.ModelSerializer):
-    name_display = serializers.CharField()
-    confirmation_text = serializers.CharField()
+    name = serializers.CharField()
+    #confirmation_text = serializers.CharField()
 
     class Meta:
         model = ApplicationType
         fields = "__all__"
-        read_only_fields = ["name_display", "confirmation_text"]
+        #read_only_fields = ["name", "confirmation_text"]
+        read_only_fields = ["name"]
 
+class ApplicationTypeKeyValueSerializer(serializers.ModelSerializer):
+    name_display = serializers.SerializerMethodField()
+        
+    class Meta:
+        model = ApplicationType
+        fields = ["id", "name"]
+        read_only_fields = ["id", "name"]
+
+    def get_name_display(self, obj):
+        #return obj.get_name_display()
+        return obj.name
 

@@ -279,11 +279,11 @@ export default {
                     'Number',
                     'Type',
                     'Submitter',
-                    'Proponent',
+//                    'Proponent',
                     'Status',
                     'Lodged On',
-                    'Assigned Officer',
-                    'Action',
+//                    'Assigned Officer',
+//                    'Action',
                 ];
             }
             // Default
@@ -310,25 +310,9 @@ export default {
                 visible: true,
                 render: function (row, type, full) {
                     let lodgement_number = full.lodgement_number;
-                    if (full.migrated) {
-                        lodgement_number += ' (M)';
-                    }
-                    if (full.referral_processing_status) {
-                        if (
-                            full.referral_processing_status ==
-                            constants.REFERRAL_STATUS
-                                .PROCESSING_STATUS_WITH_REFERRAL.ID
-                        ) {
-                            lodgement_number += `<i class="fa-solid fa-circle-exclamation text-warning ms-1" title="With Referral"></i>`;
-                        } else if (
-                            full.referral_processing_status ==
-                            constants.REFERRAL_STATUS
-                                .PROCESSING_STATUS_COMPLETED.ID
-                        ) {
-                            lodgement_number += `<i class="fa-solid fa-circle-check text-success ms-1" title="Completed"></i>`;
-                        }
-                        lodgement_number += ``;
-                    }
+//                    if (full.migrated) {
+//                        lodgement_number += ' (M)';
+//                    }
                     return lodgement_number;
                 },
                 name: 'lodgement_number',
@@ -342,13 +326,14 @@ export default {
                 searchable: true,
                 visible: true,
                 render: function (row, type, full) {
-                    let text = full.application_type.name_display;
-                    if (full.proposal_type?.code != 'new') {
-                        text += ` (${full.proposal_type?.description})`;
-                    }
-                    return text;
+                    return full.application_type.name;
+//                    let text = full.application_type.name_display;
+//                    if (full.proposal_type?.code != 'new') {
+//                        text += ` (${full.proposal_type?.description})`;
+//                    }
+//                    return text;
                 },
-                name: 'application_type_id__name',
+                name: 'application_type__name',
             };
         },
         column_submitter: function () {
@@ -358,28 +343,13 @@ export default {
                 searchable: true,
                 visible: true,
                 render: function (row, type, full) {
-                    if (full.submitter) {
-                        return full.submitter.fullname;
+                    if (full.submitter_obj) {
+                        return full.submitter_obj.full_name;
                     } else {
                         return '';
                     }
                 },
-                name: 'submitter__first_name, submitter__last_name',
-            };
-        },
-        column_applicant: function () {
-            return {
-                data: 'id',
-                orderable: true,
-                searchable: true,
-                visible: true,
-                render: function (row, type, full) {
-                    if (full.applicant_name) {
-                        return `${full.applicant_name}`;
-                    }
-                    return '';
-                },
-                name: 'proposalapplicant__first_name, proposalapplicant__last_name',
+                name: 'submitter_obj__first_name, submitter_obj__last_name',
             };
         },
         column_status: function () {
@@ -391,10 +361,7 @@ export default {
                 searchable: true,
                 visible: true,
                 render: function (row, type, full) {
-                    if (vm.is_internal) {
-                        return full.processing_status;
-                    }
-                    return full.customer_status;
+                    return full.processing_status;
                 },
                 name: 'processing_status',
             };
@@ -415,57 +382,57 @@ export default {
                 name: 'lodgement_date',
             };
         },
-        column_assigned_officer: function () {
-            return {
-                data: 'id',
-                orderable: true,
-                searchable: true,
-                visible: true,
-                render: function (row, type, full) {
-                    if (full.assigned_officer) {
-                        return full.assigned_officer.fullname;
-                    } else {
-                        return '';
-                    }
-                },
-                name: 'assigned_officer__first_name, assigned_officer__last_name, assigned_approver__first_name, assigned_approver__last_name',
-            };
-        },
-        column_action: function () {
-            let vm = this;
-            return {
-                // 8. Action
-                data: 'id',
-                orderable: false,
-                searchable: false,
-                visible: true,
-                render: function (row, type, full) {
-                    let links = '';
-                    if (vm.is_internal) {
-                        if (full.accessing_user_can_process) {
-                            links += `<a href='/internal/proposal/${full.id}'>Process</a><br/>`;
-                        } else if (full.can_edit_invoicing_details) {
-                            links += `<a href='/internal/proposal/${full.id}'>Edit Invoicing</a><br/>`;
-                        } else {
-                            links += `<a href='/internal/proposal/${full.id}'>View</a><br/>`;
-                        }
-                    }
-                    if (vm.is_external) {
-                        if (full.can_user_edit) {
-                            links += `<a href='/external/proposal/${full.id}'>Continue</a><br/>`;
-                            links += `<a href='#${full.id}' data-discard-proposal='${full.id}' data-proposal-lodgement-number='${full.lodgement_number}'>Discard</a><br/>`;
-                        } else if (full.can_user_view) {
-                            if (vm.email_user_id_assigned) {
-                                links += `<a href="/external/proposal/${full.id}/referral/">Complete Referral</a><br/>`;
-                            } else {
-                                links += `<a href='/external/proposal/${full.id}'>View</a><br/>`;
-                            }
-                        }
-                    }
-                    return links;
-                },
-            };
-        },
+//        column_assigned_officer: function () {
+//            return {
+//                data: 'id',
+//                orderable: true,
+//                searchable: true,
+//                visible: true,
+//                render: function (row, type, full) {
+//                    if (full.assigned_officer) {
+//                        return full.assigned_officer.fullname;
+//                    } else {
+//                        return '';
+//                    }
+//                },
+//                name: 'assigned_officer__first_name, assigned_officer__last_name, assigned_approver__first_name, assigned_approver__last_name',
+//            };
+//        },
+//        column_action: function () {
+//            let vm = this;
+//            return {
+//                // 8. Action
+//                data: 'id',
+//                orderable: false,
+//                searchable: false,
+//                visible: true,
+//                render: function (row, type, full) {
+//                    let links = '';
+//                    if (vm.is_internal) {
+//                        if (full.accessing_user_can_process) {
+//                            links += `<a href='/internal/proposal/${full.id}'>Process</a><br/>`;
+//                        } else if (full.can_edit_invoicing_details) {
+//                            links += `<a href='/internal/proposal/${full.id}'>Edit Invoicing</a><br/>`;
+//                        } else {
+//                            links += `<a href='/internal/proposal/${full.id}'>View</a><br/>`;
+//                        }
+//                    }
+//                    if (vm.is_external) {
+//                        if (full.can_user_edit) {
+//                            links += `<a href='/external/proposal/${full.id}'>Continue</a><br/>`;
+//                            links += `<a href='#${full.id}' data-discard-proposal='${full.id}' data-proposal-lodgement-number='${full.lodgement_number}'>Discard</a><br/>`;
+//                        } else if (full.can_user_view) {
+//                            if (vm.email_user_id_assigned) {
+//                                links += `<a href="/external/proposal/${full.id}/referral/">Complete Referral</a><br/>`;
+//                            } else {
+//                                links += `<a href='/external/proposal/${full.id}'>View</a><br/>`;
+//                            }
+//                        }
+//                    }
+//                    return links;
+//                },
+//            };
+//        },
         dtOptions: function () {
             let vm = this;
 
@@ -521,11 +488,9 @@ export default {
                     vm.column_lodgement_number,
                     vm.column_type,
                     vm.column_submitter,
-                    vm.column_applicant,
                     vm.column_status,
                     vm.column_lodged_on,
-                    vm.column_assigned_officer,
-                    vm.column_action,
+                    //vm.column_action,
                 ];
                 // eslint-disable-next-line no-unused-vars
                 search = true;
@@ -704,22 +669,22 @@ export default {
             let vm = this;
 
             // Application Types
-            fetch(api_endpoints.application_types + 'key-value-list/').then(
-                async (response) => {
-                    const resData = await response.json();
-                    vm.application_types = resData;
-                },
-                () => {}
-            );
+//            fetch(api_endpoints.application_types + 'key-value-list/').then(
+//                async (response) => {
+//                    const resData = await response.json();
+//                    vm.application_types = resData;
+//                },
+//                () => {}
+//            );
 
             // Application Statuses
-            const res = await fetch(api_endpoints.application_statuses_dict);
-            const data = await res.json();
-            if (vm.is_internal) {
-                vm.application_statuses = data.internal_statuses;
-            } else {
-                vm.application_statuses = data.external_statuses;
-            }
+//            const res = await fetch(api_endpoints.application_statuses_dict);
+//            const data = await res.json();
+//            if (vm.is_internal) {
+//                vm.application_statuses = data.internal_statuses;
+//            } else {
+//                vm.application_statuses = data.external_statuses;
+//            }
         },
         addEventListeners: function () {
             let vm = this;

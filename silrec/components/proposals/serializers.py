@@ -8,16 +8,16 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from leaseslicensing.components.main.serializers import (
+from silrec.components.main.serializers import (
     UserSerializerSimple,
     ApplicationTypeSerializer,
     #CommunicationLogEntrySerializer,
     #EmailUserSerializer,
 )
-from leaseslicensing.components.proposals.models import (
+from silrec.components.proposals.models import (
     AmendmentRequest,
     Proposal,
-    ProposalGeometry,
+    #ProposalGeometry,
     ProposalType,
     #ProposalUserAction,
     #Referral,
@@ -42,11 +42,11 @@ class BaseProposalSerializer(serializers.ModelSerializer):
     proposal_type = ProposalTypeSerializer()
     application_type = ApplicationTypeSerializer()
     #accessing_user_roles = serializers.SerializerMethodField()
-    proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)
+    #proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)
     #applicant = serializers.SerializerMethodField()
     lodgement_date_display = serializers.SerializerMethodField()
     #applicant = serializers.SerializerMethodField()
-    applicant = UserSerializerSimple()
+    submitter_obj = UserSerializerSimple()
     #groups = serializers.SerializerMethodField(read_only=True)
     #allowed_assessors = EmailUserSerializer(many=True)
     #details_url = serializers.SerializerMethodField(read_only=True)
@@ -68,12 +68,10 @@ class BaseProposalSerializer(serializers.ModelSerializer):
             "id",
             #"allowed_assessors",
             "application_type",
-            "applicant",
             "proposal_type",
             "title",
             "processing_status",
-            "applicant",
-            "submitter",
+            #"submitter_obj",
             #"assigned_officer",
             "previous_application",
             #"get_history",
@@ -131,8 +129,15 @@ class BaseProposalSerializer(serializers.ModelSerializer):
     def get_readonly(self, obj):
         return False
 
+    def get_submitter_obj(self, obj):
+        if obj.submitter:
+            return obj.submitter_obj
+        else:
+            return None
+
     def get_processing_status(self, obj):
-        return obj.get_processing_status_display()
+        #return obj.get_processing_status_display()
+        return obj.processing_status
 
 #    def get_accessing_user_roles(self, proposal):
 #        request = self.context.get("request")
@@ -151,5 +156,125 @@ class BaseProposalSerializer(serializers.ModelSerializer):
 #
 #        return roles
 
+class ProposalSerializer(BaseProposalSerializer):
+    #submitter_obj = serializers.SerializerMethodField(read_only=True)
+    submitter_obj = UserSerializerSimple()
+    processing_status = serializers.SerializerMethodField(read_only=True)
+    # Had to add assessor mode and lodgement versions for this serializer to work for
+    # external user that is a referral
+    #assessor_mode = serializers.SerializerMethodField(read_only=True)
+    #lodgement_versions = serializers.SerializerMethodField(read_only=True)
+    #referrals = ProposalReferralSerializer(many=True)
+    #additional_document_types = ProposalAdditionalDocumentTypeSerializer(
+    #    many=True, read_only=True
+    #)
+    #assessor_assessment = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Proposal
+        fields = "__all__"
+        extra_fields = [
+            #"details_text",
+            #"model_name",
+            #"assessor_mode",
+            #"lodgement_versions",
+            #"referrals",
+            #"additional_document_types",
+        ]
+
+#    def get_field_names(self, declared_fields, info):
+#        expanded_fields = super().get_field_names(declared_fields, info)
+#        if getattr(self.Meta, "extra_fields", None):
+#            return expanded_fields + self.Meta.extra_fields
+#        return expanded_fields
+
+    def get_readonly(self, obj):
+        return obj.can_user_view
+
+    def get_submitter_obj(self, obj):
+        if obj.submitter:
+            return obj.submitter_obj
+        else:
+            return None
+
+
+class ListProposalMinimalSerializer(serializers.ModelSerializer):
+    #proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)
+#    application_type_name_display = serializers.CharField(
+#        read_only=True, source="application_type.name"
+#    )
+    processing_status_display = serializers.CharField(
+        read_only=True, source="get_processing_status"
+    )       
+    lodgement_date_display = serializers.DateTimeField(
+        read_only=True, format="%d/%m/%Y", source="lodgement_date"
+    )       
+            
+    class Meta:
+        model = Proposal
+        fields = (
+            "id",
+            "processing_status",
+            "processing_status_display",
+            #"proposalgeometry",
+            #"application_type_name_display",
+            "application_type_id",
+            "lodgement_number",
+            "lodgement_date",
+            "lodgement_date_display",
+        )
+
+class ListProposalSerializer(BaseProposalSerializer):
+    #submitter = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Proposal
+        fields = (
+            "id",
+            "application_type",
+            "proposal_type",
+            "title",
+            "processing_status",
+            #"review_status",
+            "submitter_obj",
+            "previous_application",
+            #"get_history",
+            "lodgement_date",
+            "lodgement_number",
+            "readonly",
+            #"can_user_edit",
+            #"can_user_view",
+            #"can_officer_process",
+            #"allowed_assessors",
+            "proposal_type",
+            #"accessing_user_can_process",
+            #"groups",
+        )
+        # the serverSide functionality of datatables is such that only columns that have
+        # field 'data' defined are requested from the serializer. We
+        # also require the following additional fields for some of the mRender functions
+        datatables_always_serialize = (
+            "id",
+            "application_type",
+            "proposal_type",
+            "title",
+            "processing_status",
+            "submitter_obj",
+            "previous_application",
+            "lodgement_date",
+            "lodgement_number",
+            #"can_user_edit",
+            #"can_user_view",
+            #"can_officer_process",
+            #"accessing_user_can_process",
+            #"groups",
+        )
+
+    def get_submitter(self, obj):
+        if obj.submitter:
+            email_user = retrieve_email_user(obj.submitter)
+            return EmailUserSerializer(email_user).data
+        else:
+            return ""
 
 

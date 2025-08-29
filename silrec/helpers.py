@@ -6,6 +6,16 @@ from django.core.cache import cache
 import logging
 logger = logging.getLogger(__name__)
 
+
+def get_instance_identifier(instance):
+    """Checks the instance for the attributes specified in settings"""
+    for field in settings.ACTION_LOGGING_IDENTIFIER_FIELDS:
+        if hasattr(instance, field):
+            return getattr(instance, field)
+    raise AttributeError(
+        f"Model instance has no valid identifier to use for logging. Tried: {settings.ACTION_LOGGING_IDENTIFIER_FIELDS}"
+    )   
+
 def belongs_to(user, group_name):
     """
     Check if the user belongs to the given group.

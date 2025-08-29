@@ -29,7 +29,7 @@ export default defineConfig({
     },
     plugins: [
         vue(),
-        eslint(),
+        //eslint(),
         svgLoader({
             defaultImport: 'url',
         }),

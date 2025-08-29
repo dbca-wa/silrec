@@ -345,6 +345,14 @@ PROTECTED_MEDIA_ROOT = env(
 SECURE_FILE_API_BASE_PATH = "/api/main/secure_file/"
 SECURE_DOCUMENT_API_BASE_PATH = "/api/main/secure_document/"
 
+# ---------- Identifier fields for logging ----------
+""" Fields that the logging functions will check for on the instance
+    and use to identify the instance in the logs. """
+ACTION_LOGGING_IDENTIFIER_FIELDS = [
+    "lodgement_number", 
+    "id",
+]
+
 #SILKY_PYTHON_PROFILER = True
 
 # Database

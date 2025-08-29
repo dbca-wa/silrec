@@ -18,6 +18,8 @@ from silrec import views
 from silrec.components.users import api as users_api
 from silrec.components.lookups import api as lookup_tbls_api
 from silrec.components.forest_blocks import api as forest_blocks_api
+from silrec.components.main import api as main_api
+from silrec.components.proposals import api as proposal_api
 #from sqs.components.gisquery import api as gisquery_api
 #from sqs.components.gisquery import views as gisquery_views
 
@@ -58,6 +60,7 @@ if settings.INCLUDE_ROOT_VIEW:
 
 #router.register(r"users", users_api.UserViewSet)
 router.register(r'users', users_api.UserViewSet, basename='users')
+router.register("proposal", proposal_api.ProposalViewSet, basename="proposal")
 #router.register(r"lookup_tbls", lookup_tbls_api.MainViewSet, basename="lookup_tbls")
 router.register(r'cohorts', forest_blocks_api.CohortViewSet, basename='cohorts')
 router.register(r'treatments', forest_blocks_api.TreatmentViewSet, basename='treatments')
@@ -67,6 +70,7 @@ router.register(r'polygon3', forest_blocks_api.PolygonGeometryViewSet, basename=
 router.register(r'polygoncohorts', forest_blocks_api.PolygonCohortViewSet, basename='polygoncohorts')
 
 router.register(r'ply_paginated',forest_blocks_api.PolygonPaginatedViewSet,"ply_paginated")
+router.register(r"proposal_paginated", proposal_api.ProposalPaginatedViewSet, basename="proposal_paginated")
 
 api_patterns = [
     #re_path(r'api/', include(router.urls)),
@@ -75,6 +79,8 @@ api_patterns = [
     #re_path(r"^api/user$", users_api.UserViewSet.as_view(), name="get-user"),
     #re_path(r"^api/cohorts/<int:cohort_id>/get_cohort$", forest_blocks_api.CohortViewSet.as_view({'get': 'get_cohort'}), name="get-cohort"),
     #re_path(r'^api/cohorts/<int:cohort_id>/get_cohort$', forest_blocks_api.CohortViewSet.as_view({'get': 'get_cohort'}), name='get-cohort'),
+    re_path(r"^api/proposal_type$", proposal_api.GetProposalType.as_view(), name="get-proposal-type"),
+
 ]
 
 urlpatterns = [
@@ -92,6 +98,12 @@ urlpatterns = [
     re_path(r'^contact/', views.SilrecContactView.as_view(), name='contact'),
     re_path(r'^further_info/', views.SilrecFurtherInformationView.as_view(), name='further_info'),
     re_path(r'^mgt-commands/$', views.ManagementCommandsView.as_view(), name='mgt-commands'),
+
+    re_path(
+        r"^internal/proposal/(?P<pk>\d+)/$",
+        views.InternalProposalView.as_view(),
+        name="internal-proposal-detail",
+    ),
 
 ]
 

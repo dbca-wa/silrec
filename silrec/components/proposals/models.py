@@ -4,6 +4,8 @@ from django.db.models import F, JSONField, Max, Min, Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.contrib.auth.models import User
+
 from rest_framework import serializers
 from reversion.models import Version
 
@@ -15,6 +17,7 @@ from silrec.components.main.models import (
     SecureFileField,
     RevisionedMixin,
 )
+
 
 
 def update_proposal_doc_filename(instance, filename):
@@ -263,6 +266,13 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         if self.processing_status != original_processing_status:
             self.save(version_comment=f'processing_status: {self.processing_status}')
 
+    @property
+    def submitter_obj(self):
+        return User.objects.get(id=self.submitter)
+
+    @property
+    def can_user_view(self):
+        return True
 
 class AmendmentReason(models.Model):
     reason = models.CharField("Reason", max_length=125)

@@ -1,0 +1,4 @@
+
+http://localhost:8001/api/proposal
+http://localhost:8001/api/proposal/1
+http://localhost:8001/api/proposal_paginated/?draw=1&length=10

@@ -39,10 +39,10 @@ class ApplicationTypeKeyValueSerializer(serializers.ModelSerializer):
         
     class Meta:
         model = ApplicationType
-        fields = ["id", "name"]
-        read_only_fields = ["id", "name"]
+        fields = ["id", "name_display"]
+        read_only_fields = ["id", "name_display"]
 
     def get_name_display(self, obj):
-        #return obj.get_name_display()
-        return obj.name
+        return obj.get_name_display()
+        #return obj.name
 

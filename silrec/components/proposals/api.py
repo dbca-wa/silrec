@@ -40,6 +40,7 @@ from silrec.components.proposals.serializers import (
 from silrec.components.main.api import (
     UserActionLoggingViewset,
 )
+from silrec.components.main.decorators import basic_exception_handler
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,41 @@ class GetApplicationTypeDict(views.APIView):
             return Response(serializers.data)
         else:
             return Response({})
+
+
+class GetApplicationStatusesDict(views.APIView):
+    ''' http://localhost:8001/api/application_statuses_dict?for_filter=true
+    '''
+    renderer_classes = [
+        JSONRenderer,
+    ]
+
+    def get(self, request, format=None):
+        data = {}
+
+        for_filter = request.query_params.get("for_filter", "")
+        for_filter = True if for_filter == "true" else False
+
+        if for_filter:
+            application_statuses = [
+                {"id": i[0], "text": i[1]} for i in Proposal.PROCESSING_STATUS_CHOICES
+            ]
+
+            return Response(application_statuses)
+        else:
+            internal_application_statuses = [
+                {"code": i[0], "description": i[1]}
+                for i in Proposal.PROCESSING_STATUS_CHOICES
+            ]
+            data["internal_statuses"] = internal_application_statuses
+
+#            external_application_statuses = [
+#                {"code": i[0], "description": i[1]}
+#                for i in Proposal.PROCESSING_STATUS_CHOICES
+#            ]
+#            data["external_statuses"] = external_application_statuses
+
+            return Response(data)
 
 
 class GetProposalType(views.APIView):
@@ -315,6 +351,59 @@ class ProposalViewSet(UserActionLoggingViewset):
             proposals, context={"request": request}, many=True
         )
         return Response(serializer.data)
+
+    @list_route(methods=["GET"], detail=False)
+    def list_for_map(self, request, *args, **kwargs):
+        """Returns the proposals for the map"""
+        proposal_ids = [
+            int(id)
+            for id in request.query_params.get("proposal_ids", "").split(",")
+            if id.lstrip("-").isnumeric()
+        ]
+        application_type = request.query_params.get("application_type", None)
+        processing_status = request.query_params.get("processing_status", None)
+
+        cache_key = settings.CACHE_KEY_MAP_PROPOSALS
+        qs = cache.get(cache_key)
+        if qs is None:
+            qs = (
+                self.get_queryset()
+                .exclude(proposalgeometry__isnull=True)
+                .prefetch_related("proposalgeometry")
+            )
+            cache.set(cache_key, qs, settings.CACHE_TIMEOUT_2_HOURS)
+
+        if len(proposal_ids) > 0:
+            qs = qs.filter(id__in=proposal_ids)
+
+        if (
+            application_type
+            and application_type.isnumeric()
+            and int(application_type) > 0
+        ):
+            qs = qs.filter(application_type_id=application_type)
+
+        if processing_status:
+            qs = qs.filter(processing_status=processing_status)
+
+        serializer = ListProposalMinimalSerializer(
+            qs, context={"request": request}, many=True
+        )
+        return Response(serializer.data)
+
+    @detail_route(methods=["post"], detail=True)
+    @renderer_classes((JSONRenderer,))
+    @basic_exception_handler
+    def validate_map_files(self, request, *args, **kwargs):
+        instance = self.get_object()
+        valid_geometry_saved = validate_map_files(request, instance)
+        instance.save()
+        if valid_geometry_saved:
+            populate_gis_data(instance, "proposalgeometry")
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+
 
 #    @detail_route(methods=["GET"], detail=True)
 #    @basic_exception_handler

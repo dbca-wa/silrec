@@ -2,11 +2,13 @@
     <div v-if="proposal" id="internalProposal" class="container">
         <div v-if="debug">internal/proposals/proposal.vue</div>
         <div class="row">
+	    <!--
+	    -->
             <h3>
                 {{ proposal.lodgement_number }} -
                 {{
                     proposal.application_type
-                        ? proposal.application_type.name_display
+                        ? proposal.application_type.name
                         : null
                 }}
                 -
@@ -15,16 +17,10 @@
                         ? proposal.proposal_type.description
                         : null
                 }}
-                <small
-                    v-if="proposal.original_leaselicence_number"
-                    class="text-muted"
-                >
-                    (Migrating:
-                    {{ proposal.original_leaselicence_number }})</small
-                >
             </h3>
 
             <div class="col-md-3">
+	    <!--
                 <CommsLogs
                     :comms_url="comms_url"
                     :logs_url="logs_url"
@@ -76,6 +72,7 @@
             </div>
 
             <div class="col-md-9">
+	        <!--
                 <BootstrapAlert v-if="showTransferInformation">
                     Proposal to transfer
                     <span class="fw-bold"
@@ -87,7 +84,9 @@
                     to
                     <span class="fw-bold">{{ proposal.applicant }}</span>
                 </BootstrapAlert>
+		-->
                 <!-- Main contents -->
+	        <!--
                 <template v-if="display_approval_screen">
                     <ApprovalScreen
                         ref="approval_screen"
@@ -96,7 +95,9 @@
                         @update-invoicing-details="updateInvoicingDetails"
                     />
                 </template>
+		-->
 
+	        <!--
                 <template v-if="display_requirements">
                     <Requirements
                         :key="requirementsKey"
@@ -106,7 +107,9 @@
                         @update-requirement="updateRequirement"
                     />
                 </template>
+		-->
 
+		<!--
                 <template
                     v-if="
                         (showingProposal &&
@@ -126,6 +129,24 @@
                         (!canSeeSubmission && showingProposal)
                     "
                 >
+		-->
+                    <FormSection
+                        :form-collapse="false"
+                        label="Proposal"
+                        index="application"
+                    >
+			<ApplicationForm
+                            :proposal="proposal"
+                            :is_internal="true"
+                        />
+		    </FormSection>
+		<template>
+			<!--
+			<ApplicationForm
+                            :proposal="proposal"
+                            :is_internal="true"
+                        />
+
                     <FormSection
                         :form-collapse="false"
                         label="Proposal"
@@ -154,1088 +175,6 @@
                             @finished-drawing="onFinishedDrawing"
                             @deleted-features="onFinishedDrawing"
                         >
-                            <!-- Inserted into the slot on the form.vue: Collapsible Assessor Questions -->
-                            <template #slot_map_assessment_comments>
-                                <AssessmentComments
-                                    ref="collapsible_map_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Map Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_map_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_map"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_map
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_map"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_map"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_map
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_map"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_map_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_map
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_map_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template
-                                #slot_proposal_tourism_details_assessment_comments
-                            >
-                                <AssessmentComments
-                                    ref="collapsible_proposal_tourism_details_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Tourism Proposal Details Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_proposal_tourism_details_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_tourism_proposal_details"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_tourism_proposal_details
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_tourism_proposal_details"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_tourism_proposal_details"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_tourism_proposal_details
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_tourism_proposal_details"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_proposal_details
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                        <textarea
-                                                            :id="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_proposal_details
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template
-                                #slot_proposal_general_details_assessment_comments
-                            >
-                                <AssessmentComments
-                                    ref="collapsible_proposal_general_details_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="General Proposal Details Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_proposal_general_details_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_general_proposal_details"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_general_proposal_details
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_general_proposal_details"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_general_proposal_details"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_general_proposal_details
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_general_proposal_details"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_proposal_details
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template
-                                #slot_proposal_details_assessment_comments
-                            >
-                                <AssessmentComments
-                                    ref="collapsible_proposal_details_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Proposal Details Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_proposal_details_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_proposal_details"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_proposal_details
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_proposal_details"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_proposal_details"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_proposal_details
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_proposal_details"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_proposal_details
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_proposal_details_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template #slot_proposal_impact_assessment_comments>
-                                <AssessmentComments
-                                    ref="collapsible_proposal_impact_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Proposal Impact Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_proposal_impact_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_proposal_impact"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_proposal_impact
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_proposal_impact"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_proposal_impact"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_proposal_impact
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_proposal_impact"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_proposal_impact_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_proposal_impact
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_proposal_impact_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template #slot_gis_data_assessment_comments>
-                                <AssessmentComments
-                                    ref="collapsible_gis_data_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Geospatial Data Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_gis_data_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_gis_data"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_gis_data
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_gis_data"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_gis_data"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_gis_data
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_gis_data"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_gis_data_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_gis_data
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_gis_data_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template #slot_categorisation_assessment_comments>
-                                <AssessmentComments
-                                    ref="collapsible_categorisation_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Categorisation Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_categorisation_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_categorisation"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_categorisation
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_categorisation"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_categorisation"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_categorisation
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_categorisation"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_gis_data_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_categorisation
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_gis_data_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template #slot_deed_poll_assessment_comments>
-                                <AssessmentComments
-                                    ref="collapsible_deed_poll_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Deed Poll Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_deed_poll_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_deed_poll"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_deed_poll
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_deed_poll"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_deed_poll"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_deed_poll
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_deed_poll"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.processing_status !=
-                                                    constants.REFERRAL_STATUS
-                                                        .PROCESSING_STATUS_RECALLED
-                                                        .TEXT
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_deed_poll_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_deed_poll
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_deed_poll_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-                            </template>
-
-                            <template
-                                #slot_additional_documents_assessment_comments
-                            >
-                                <AssessmentComments
-                                    ref="collapsible_additional_documents_comments"
-                                    :collapsed="collapseAssessmentComments"
-                                    component_title="Additional Documents Assessment Comments"
-                                    class="mb-2"
-                                    @created="
-                                        collapsible_additional_documents_comments_component_mounted
-                                    "
-                                >
-                                    <div class="container px-3">
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="assessor_comment_additional_documents"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .assessor_comment_additional_documents
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="assessor_comment_additional_documents"
-                                                        >Assessor
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-3">
-                                            <div class="col">
-                                                <div class="form-floating">
-                                                    <textarea
-                                                        id="deficiency_comment_additional_documents"
-                                                        v-model="
-                                                            proposal
-                                                                .assessor_assessment
-                                                                .deficiency_comment_additional_documents
-                                                        "
-                                                        class="form-control"
-                                                        :disabled="
-                                                            !canEditComments
-                                                        "
-                                                    />
-                                                    <label
-                                                        for="deficiency_comment_additional_documents"
-                                                        >Deficiency
-                                                        Comments</label
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <template
-                                            v-for="referral in proposal.referrals"
-                                        >
-                                            <div
-                                                v-if="
-                                                    referral.referral_text ||
-                                                    referral.referral ==
-                                                        profile.id
-                                                "
-                                                :key="referral.id"
-                                                class="row mb-3 mt-3"
-                                            >
-                                                <div class="col">
-                                                    <div class="form-floating">
-                                                        <textarea
-                                                            :id="
-                                                                'comment_additional_documents_' +
-                                                                referral.id
-                                                            "
-                                                            v-model="
-                                                                referral.comment_additional_documents
-                                                            "
-                                                            class="form-control referral-comment"
-                                                            :disabled="
-                                                                referral.referral !==
-                                                                profile.id
-                                                            "
-                                                        />
-                                                        <label
-                                                            :for="
-                                                                'comment_additional_documents_' +
-                                                                referral.id
-                                                            "
-                                                            >Referral Comment by
-                                                            <span
-                                                                class="fw-bold"
-                                                                >{{
-                                                                    referral
-                                                                        .referral_obj
-                                                                        .fullname
-                                                                }}</span
-                                                            ></label
-                                                        >
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </AssessmentComments>
-
-                                <strong
-                                    >Select one or more documents that need to
-                                    be provided by the applicant:</strong
-                                >
-
-                                <div
-                                    v-show="
-                                        select2AppliedToAdditionalDocumentTypes
-                                    "
-                                    class="mb-3"
-                                >
-                                    <select
-                                        ref="select_additional_document_types"
-                                        v-model="
-                                            proposal.additional_document_types
-                                        "
-                                        class="form-select"
-                                        :disabled="!canAssess || savingProposal"
-                                    ></select>
-                                </div>
-                                <div class="row">
-                                    <div
-                                        v-for="additional_document in proposal.additional_documents"
-                                        :key="additional_document.id"
-                                        class="col-sm-6"
-                                    >
-                                        <div class="card mb-3">
-                                            <div class="card-body">
-                                                <h4 class="card-title">
-                                                    {{
-                                                        additional_document.input_name
-                                                    }}
-                                                </h4>
-                                                <p
-                                                    class="card-text d-flex align-items-center"
-                                                >
-                                                    <label
-                                                        for=""
-                                                        class="d-inline-block pe-2"
-                                                        >Document:
-                                                    </label>
-
-                                                    <i
-                                                        class="fa fa-file-text pe-2"
-                                                        aria-hidden="true"
-                                                    ></i>
-                                                    <a
-                                                        class="d-inline-block text-truncate"
-                                                        style="max-width: 250px"
-                                                        :href="
-                                                            additional_document.secure_url
-                                                        "
-                                                        target="_blank"
-                                                        >{{
-                                                            additional_document.name
-                                                        }}</a
-                                                    >
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-
-                            <!-- Inserted into the slot on the form.vue: Related Items -->
                             <template #slot_section_related_items>
                                 <FormSection
                                     :form-collapse="false"
@@ -1249,10 +188,12 @@
                             </template>
                         </ApplicationForm>
                     </FormSection>
+			-->
                 </template>
             </div>
         </div>
 
+	<!--
         <ProposedApproval
             v-if="showProposedModals"
             ref="proposed_approval"
@@ -1278,6 +219,7 @@
             :proposed-approval-key="proposedApprovalKey"
         />
         <AmendmentRequest ref="amendment_request" :proposal="proposal" />
+	-->
 
         <div v-if="displaySaveBtns" class="navbar fixed-bottom bg-navbar">
             <div class="container">
@@ -1334,7 +276,7 @@ import CommsLogs from '@common-utils/comms_logs.vue';
 import Submission from '@common-utils/submission.vue';
 import Workflow from '@common-utils/workflow.vue';
 import { api_endpoints, helpers, constants } from '@/utils/hooks';
-import ApplicationForm from '@/components/form.vue';
+import ApplicationForm from '@/components/form_jm.vue';
 import FormSection from '@/components/forms/section_toggle.vue';
 import AssessmentComments from '@/components/forms/collapsible_component.vue';
 import TableRelatedItems from '@/components/common/table_related_items.vue';
@@ -1482,6 +424,7 @@ export default {
             return canEdit;
         },
         displaySaveBtns: function () {
+            return true;
             let display = false;
 
             if (
@@ -1778,10 +721,10 @@ export default {
         });
     },
     created: async function () {
-        this.profile = Object.assign(
-            {},
-            await helpers.fetchWrapper(api_endpoints.profile)
-        );
+    //    this.profile = Object.assign(
+    //        {},
+    //        await helpers.fetchWrapper(api_endpoints.profile)
+    //    );
         this.fetchProposal();
     },
     methods: {
@@ -2211,16 +1154,16 @@ export default {
         },
         initialiseOrgContactTable: function () {
             let vm = this;
-            if (vm.proposal && !vm.contacts_table_initialised) {
-                vm.contacts_options.ajax.url = helpers.add_endpoint_json(
-                    api_endpoints.organisations,
-                    vm.proposal.applicant.id + '/contacts'
-                );
-                vm.contacts_table = $('#' + vm.contacts_table_id).DataTable(
-                    vm.contacts_options
-                );
-                vm.contacts_table_initialised = true;
-            }
+//            if (vm.proposal && !vm.contacts_table_initialised) {
+//                vm.contacts_options.ajax.url = helpers.add_endpoint_json(
+//                    api_endpoints.organisations,
+//                    vm.proposal.applicant.id + '/contacts'
+//                );
+//                vm.contacts_table = $('#' + vm.contacts_table_id).DataTable(
+//                    vm.contacts_options
+//                );
+//                vm.contacts_table_initialised = true;
+//            }
         },
         commaToNewline(s) {
             return s.replace(/[,;]/g, '\n');
@@ -2831,9 +1774,9 @@ export default {
             }
         },
         fetchAdditionalDocumentTypesDict: async function () {
-            const response = await fetch('/api/additional_document_types_dict');
-            const resData = await response.json();
-            this.applySelect2ToAdditionalDocumentTypes(resData);
+//            const response = await fetch('/api/additional_document_types_dict');
+//            const resData = await response.json();
+//            this.applySelect2ToAdditionalDocumentTypes(resData);
         },
         revisionToDisplay: async function (revision) {
             let payload = {
@@ -2885,43 +1828,44 @@ export default {
                 })
                 .then((data) => {
                     vm.proposal = Object.assign({}, data);
-                    // Dict of the latest revision's parameters
-                    vm.latest_revision = Object.assign(
-                        {},
-                        data.lodgement_versions[0]
-                    );
-                    // Set current reivsion id to the latest one on creation
-                    vm.current_revision_id = vm.latest_revision.revision_id;
-                    vm.hasAmendmentRequest = this.proposal.hasAmendmentRequest;
-                    if (vm.debug == true) {
-                        this.showingProposal = true;
-                    }
-                    if (
-                        [constants.PROPOSAL_STATUS.WITH_REFERRAL.TEXT].includes(
-                            vm.proposal.processing_status
-                        )
-                    ) {
-                        $(
-                            'textarea.referral-comment:enabled:visible:not([readonly="readonly"]):first'
-                        ).focus();
-                    }
-                    this.$nextTick(() => {
-                        $('textarea').each(function () {
-                            if ($(this)[0].scrollHeight > 70) {
-                                $(this).height($(this)[0].scrollHeight - 30);
-                            }
-                        });
-                        if (
-                            constants.PROPOSAL_STATUS.APPROVED_EDITING_INVOICING
-                                .ID == vm.proposal.processing_status_id &&
-                            vm.profile.is_finance_officer &&
-                            $('#invoicing-form').length
-                        ) {
-                            $(document).scrollTop(
-                                $('#invoicing-form').offset()?.top - 300
-                            );
-                        }
-                    });
+     		    console.log('poposal.vue ' + vm.proposal.id)
+//                    // Dict of the latest revision's parameters
+//                    vm.latest_revision = Object.assign(
+//                        {},
+//                        data.lodgement_versions[0]
+//                    );
+//                    // Set current reivsion id to the latest one on creation
+//                    vm.current_revision_id = vm.latest_revision.revision_id;
+//                    vm.hasAmendmentRequest = this.proposal.hasAmendmentRequest;
+//                    if (vm.debug == true) {
+//                        this.showingProposal = true;
+//                    }
+//                    if (
+//                        [constants.PROPOSAL_STATUS.WITH_REFERRAL.TEXT].includes(
+//                            vm.proposal.processing_status
+//                        )
+//                    ) {
+//                        $(
+//                            'textarea.referral-comment:enabled:visible:not([readonly="readonly"]):first'
+//                        ).focus();
+//                    }
+//                    this.$nextTick(() => {
+//                        $('textarea').each(function () {
+//                            if ($(this)[0].scrollHeight > 70) {
+//                                $(this).height($(this)[0].scrollHeight - 30);
+//                            }
+//                        });
+//                        if (
+//                            constants.PROPOSAL_STATUS.APPROVED_EDITING_INVOICING
+//                                .ID == vm.proposal.processing_status_id &&
+//                            vm.profile.is_finance_officer &&
+//                            $('#invoicing-form').length
+//                        ) {
+//                            $(document).scrollTop(
+//                                $('#invoicing-form').offset()?.top - 300
+//                            );
+//                        }
+//                    });
                 })
                 .catch((error) => {
                     console.error(error);

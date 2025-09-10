@@ -12,7 +12,8 @@
         "previous_application": null,
         "title": "First Dummy Application - JM",
         "application_type": 1,
-        "migrated": false
+        "migrated": false,
+        "lodgement_date": "2025-01-01"
     }
 },
 {
@@ -28,7 +29,8 @@
         "previous_application": null,
         "title": "Second Dummy Application - JM",
         "application_type": 1,
-        "migrated": false
+        "migrated": false,
+        "lodgement_date": "2025-02-01"
     }
 },
 {
@@ -44,7 +46,8 @@
         "previous_application": null,
         "title": "Third Dummy Application - JM",
         "application_type": 1,
-        "migrated": false
+        "migrated": false,
+        "lodgement_date": "2025-03-01"
     }
 }
 ]

@@ -353,6 +353,11 @@ ACTION_LOGGING_IDENTIFIER_FIELDS = [
     "id",
 ]
 
+API_EXCEPTION_MESSAGE = (
+    "An error occurred while processing your request, "
+    f"please try again and if the problem persists contact {SUPPORT_EMAIL}"
+)
+
 #SILKY_PYTHON_PROFILER = True
 
 # Database

@@ -71,6 +71,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
             "proposal_type",
             "title",
             "processing_status",
+            "processing_status_id",
             #"submitter_obj",
             #"assigned_officer",
             "previous_application",
@@ -160,9 +161,10 @@ class ProposalSerializer(BaseProposalSerializer):
     #submitter_obj = serializers.SerializerMethodField(read_only=True)
     submitter_obj = UserSerializerSimple()
     processing_status = serializers.SerializerMethodField(read_only=True)
+    processing_status_id = serializers.SerializerMethodField(read_only=True)
     # Had to add assessor mode and lodgement versions for this serializer to work for
     # external user that is a referral
-    #assessor_mode = serializers.SerializerMethodField(read_only=True)
+    assessor_mode = serializers.SerializerMethodField(read_only=True)
     #lodgement_versions = serializers.SerializerMethodField(read_only=True)
     #referrals = ProposalReferralSerializer(many=True)
     #additional_document_types = ProposalAdditionalDocumentTypeSerializer(
@@ -176,7 +178,8 @@ class ProposalSerializer(BaseProposalSerializer):
         extra_fields = [
             #"details_text",
             #"model_name",
-            #"assessor_mode",
+            "assessor_mode",
+            "processing_status_id",
             #"lodgement_versions",
             #"referrals",
             #"additional_document_types",
@@ -187,6 +190,12 @@ class ProposalSerializer(BaseProposalSerializer):
 #        if getattr(self.Meta, "extra_fields", None):
 #            return expanded_fields + self.Meta.extra_fields
 #        return expanded_fields
+
+    def get_processing_status_id(self, obj):
+        return obj.processing_status
+
+    def get_assessor_mode(self, obj):
+        return True
 
     def get_readonly(self, obj):
         return obj.can_user_view
@@ -226,6 +235,7 @@ class ListProposalMinimalSerializer(serializers.ModelSerializer):
 
 class ListProposalSerializer(BaseProposalSerializer):
     #submitter = serializers.SerializerMethodField(read_only=True)
+    processing_status_id = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
@@ -235,6 +245,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             "proposal_type",
             "title",
             "processing_status",
+            "processing_status_id",
             #"review_status",
             "submitter_obj",
             "previous_application",
@@ -259,6 +270,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             "proposal_type",
             "title",
             "processing_status",
+            "processing_status_id",
             "submitter_obj",
             "previous_application",
             "lodgement_date",
@@ -276,5 +288,8 @@ class ListProposalSerializer(BaseProposalSerializer):
             return EmailUserSerializer(email_user).data
         else:
             return ""
+
+    def get_processing_status_id(self, obj):
+        return obj.processing_status
 
 

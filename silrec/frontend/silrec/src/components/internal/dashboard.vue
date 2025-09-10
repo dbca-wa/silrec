@@ -70,6 +70,7 @@
                         @filter-appied="filterAppliedApplications()"
                     />
                 </FormSection>
+		<!--
                 <FormSection
                     :form-collapse="false"
                     label="Proposals Referred to Me"
@@ -86,6 +87,7 @@
                         filter-proposal-lodged-to-cache-name="filterApplicationLodgedToForApplicationReferredToMeTable"
                     />
                 </FormSection>
+		-->
             </div>
             <div
                 v-if="show_competitive_processes_tab"

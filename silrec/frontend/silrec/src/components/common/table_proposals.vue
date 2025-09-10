@@ -213,7 +213,8 @@ export default {
     computed: {
         new_migrate_button_text: function () {
             if (this.level == 'internal') {
-                return 'Create New or Migrate Existing Lease/Licence';
+                //return 'Create New or Migrate Existing Lease/Licence';
+                return 'Create New Proposal';
             }
             return 'New Proposal';
         },
@@ -283,7 +284,7 @@ export default {
                     'Status',
                     'Lodged On',
 //                    'Assigned Officer',
-//                    'Action',
+                    'Action',
                 ];
             }
             // Default
@@ -398,41 +399,41 @@ export default {
 //                name: 'assigned_officer__first_name, assigned_officer__last_name, assigned_approver__first_name, assigned_approver__last_name',
 //            };
 //        },
-//        column_action: function () {
-//            let vm = this;
-//            return {
-//                // 8. Action
-//                data: 'id',
-//                orderable: false,
-//                searchable: false,
-//                visible: true,
-//                render: function (row, type, full) {
-//                    let links = '';
-//                    if (vm.is_internal) {
-//                        if (full.accessing_user_can_process) {
-//                            links += `<a href='/internal/proposal/${full.id}'>Process</a><br/>`;
-//                        } else if (full.can_edit_invoicing_details) {
-//                            links += `<a href='/internal/proposal/${full.id}'>Edit Invoicing</a><br/>`;
-//                        } else {
-//                            links += `<a href='/internal/proposal/${full.id}'>View</a><br/>`;
-//                        }
-//                    }
-//                    if (vm.is_external) {
-//                        if (full.can_user_edit) {
-//                            links += `<a href='/external/proposal/${full.id}'>Continue</a><br/>`;
-//                            links += `<a href='#${full.id}' data-discard-proposal='${full.id}' data-proposal-lodgement-number='${full.lodgement_number}'>Discard</a><br/>`;
-//                        } else if (full.can_user_view) {
-//                            if (vm.email_user_id_assigned) {
-//                                links += `<a href="/external/proposal/${full.id}/referral/">Complete Referral</a><br/>`;
-//                            } else {
-//                                links += `<a href='/external/proposal/${full.id}'>View</a><br/>`;
-//                            }
-//                        }
-//                    }
-//                    return links;
-//                },
-//            };
-//        },
+        column_action: function () {
+            let vm = this;
+            return {
+                // 8. Action
+                data: 'id',
+                orderable: false,
+                searchable: false,
+                visible: true,
+                render: function (row, type, full) {
+                    let links = '';
+                    if (vm.is_internal) {
+                        if (full.accessing_user_can_process) {
+                            links += `<a href='/internal/proposal/${full.id}'>Process</a><br/>`;
+                        } else if (full.can_edit_invoicing_details) {
+                            links += `<a href='/internal/proposal/${full.id}'>Edit Invoicing</a><br/>`;
+                        } else {
+                            links += `<a href='/internal/proposal/${full.id}'>View</a><br/>`;
+                        }
+                    }
+                    if (vm.is_external) {
+                        if (full.can_user_edit) {
+                            links += `<a href='/external/proposal/${full.id}'>Continue</a><br/>`;
+                            links += `<a href='#${full.id}' data-discard-proposal='${full.id}' data-proposal-lodgement-number='${full.lodgement_number}'>Discard</a><br/>`;
+                        } else if (full.can_user_view) {
+                            if (vm.email_user_id_assigned) {
+                                links += `<a href="/external/proposal/${full.id}/referral/">Complete Referral</a><br/>`;
+                            } else {
+                                links += `<a href='/external/proposal/${full.id}'>View</a><br/>`;
+                            }
+                        }
+                    }
+                    return links;
+                },
+            };
+        },
         dtOptions: function () {
             let vm = this;
 
@@ -490,7 +491,7 @@ export default {
                     vm.column_submitter,
                     vm.column_status,
                     vm.column_lodged_on,
-                    //vm.column_action,
+                    vm.column_action,
                 ];
                 // eslint-disable-next-line no-unused-vars
                 search = true;

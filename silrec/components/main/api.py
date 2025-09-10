@@ -132,6 +132,8 @@ class LicensingViewSet(viewsets.ModelViewSet):
 
 
 class ApplicationTypeViewSet(viewsets.ReadOnlyModelViewSet, KeyValueListMixin):
+    ''' http://localhost:8001/api/application_types/key-value-list/ 
+    '''
     queryset = ApplicationType.objects.all()
     serializer_class = ApplicationTypeSerializer
     key_value_display_field = "name"

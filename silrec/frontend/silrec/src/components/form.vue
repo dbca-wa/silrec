@@ -1,35 +1,22 @@
 <template lang="html">
     <div class="">
+        <div v-if="proposal">
+		    {{proposal}}
+        </div>
+	    <!--
         <div v-if="debug">components/form.vue</div>
         <div
-            v-if="proposal && show_application_title"
+            v-if="proposal"
             id="scrollspy-heading"
             class=""
         >
             <h3>
-                {{ applicationTypeText }} - {{ proposalTypeText }}:
-                {{ proposal.lodgement_number }}
+		    {{proposal}}
             </h3>
         </div>
 
         <div class="">
             <ul id="pills-tab" class="nav nav-pills" role="tablist">
-                <li class="nav-item mr-1" role="presentation">
-                    <button
-                        id="pills-applicant-tab"
-                        class="nav-link active"
-                        data-bs-toggle="pill"
-                        data-bs-target="#pills-applicant"
-                        role="tab"
-                        aria-controls="pills-applicant"
-                        aria-selected="true"
-                    >
-                        <template v-if="is_external"
-                            >Provide Proponent Information</template
-                        >
-                        <template v-else>Proponent</template>
-                    </button>
-                </li>
                 <li class="nav-item" role="presentation">
                     <button
                         id="pills-map-tab"
@@ -66,43 +53,7 @@
                         <template v-else>Details</template>
                     </button>
                 </li>
-                <template v-if="show_related_items_tab">
-                    <li class="nav-item" role="presentation">
-                        <button
-                            id="pills-related-items-tab"
-                            class="nav-link"
-                            data-bs-toggle="pill"
-                            data-bs-target="#pills-related-items"
-                            role="tab"
-                            aria-controls="pills-related-items"
-                            aria-selected="false"
-                        >
-                            Related Items
-                        </button>
-                    </li>
-                </template>
             </ul>
-            <div id="pills-tabContent" class="tab-content">
-                <div
-                    id="pills-applicant"
-                    class="tab-pane fade show active"
-                    role="tabpanel"
-                    aria-labelledby="pills-applicant-tab"
-                >
-                    <Applicant
-                        v-if="'individual' == proposal.applicant_type"
-                        id="proposalStartApplicant"
-                        :proposal-id="proposal.id"
-                        :proposal-applicant="proposal.proposal_applicant"
-                        :readonly="readonly"
-                        :collapse-form-sections="false"
-                    />
-                    <OrganisationApplicant
-                        v-else
-                        :org="proposal.applicant_obj"
-                        :is-internal="is_internal"
-                    />
-                </div>
                 <div
                     id="pills-map"
                     class="tab-pane fade"
@@ -149,205 +100,9 @@
                     role="tabpanel"
                     aria-labelledby="pills-details-tab"
                 >
-                    <RegistrationOfInterest
-                        v-if="registrationOfInterest"
-                        ref="registration_of_interest"
-                        :proposal="proposal"
-                        :readonly="readonly"
-                    >
-                        <template #slot_proposal_details_assessment_comments>
-                            <slot
-                                name="slot_proposal_details_assessment_comments"
-                            ></slot>
-                        </template>
-
-                        <template #slot_proposal_impact_assessment_comments>
-                            <slot
-                                name="slot_proposal_impact_assessment_comments"
-                            ></slot>
-                        </template>
-                    </RegistrationOfInterest>
-
-                    <LeaseLicence
-                        v-if="leaseLicence"
-                        ref="lease_licence"
-                        :proposal="proposal"
-                        :is_internal="is_internal"
-                        :readonly="readonly"
-                    >
-                        <template
-                            #slot_proposal_tourism_details_assessment_comments
-                        >
-                            <slot
-                                name="slot_proposal_tourism_details_assessment_comments"
-                            ></slot>
-                        </template>
-
-                        <template
-                            #slot_proposal_general_details_assessment_comments
-                        >
-                            <slot
-                                name="slot_proposal_general_details_assessment_comments"
-                            ></slot>
-                        </template>
-                    </LeaseLicence>
-
-                    <FormSection
-                        v-if="is_internal"
-                        label="Geospatial Data"
-                        index="other_section"
-                    >
-                        <slot name="slot_gis_data_assessment_comments"></slot>
-                        <GisDataDetails
-                            :selected-data="gis_data"
-                            :readonly="is_external && leaseLicence"
-                            @update:selected-data="
-                                (property, value) => {
-                                    $emit('update:GisData', property, value);
-                                }
-                            "
-                        />
-                    </FormSection>
-
-                    <FormSection
-                        v-if="is_internal || proposal.site_name"
-                        label="Categorisation"
-                        index="categorisation"
-                    >
-                        <slot
-                            name="slot_categorisation_assessment_comments"
-                        ></slot>
-
-                        <div
-                            v-if="is_internal || proposal.site_name"
-                            class="row mb-3"
-                        >
-                            <div class="col-sm-3">
-                                <label class="col-form-label">Site Name</label>
-                            </div>
-                            <div class="col-sm-9">
-                                <input
-                                    id="site_name"
-                                    ref="site_name"
-                                    v-model="proposal.site_name"
-                                    class="form-control"
-                                    type="text"
-                                    name="site_name"
-                                    :disabled="!can_assess"
-                                />
-                            </div>
-                        </div>
-                        <div v-if="is_internal || is_referee" class="row mb-3">
-                            <div class="col-sm-3">
-                                <label class="col-form-label">Groups</label>
-                            </div>
-                            <div class="col-sm-9">
-                                <Multiselect
-                                    id="groups"
-                                    ref="groups"
-                                    v-model="proposal.groups"
-                                    label="name"
-                                    track-by="id"
-                                    placeholder="Select Groups"
-                                    :options="groups"
-                                    :hide-selected="true"
-                                    :multiple="true"
-                                    :searchable="true"
-                                    :loading="loadingGroups"
-                                    :disabled="!can_assess"
-                                />
-                            </div>
-                        </div>
-                    </FormSection>
-
-                    <FormSection
-                        label="Deed Poll"
-                        :subtitle="leaseLicence ? 'Mandatory' : 'Optional'"
-                        index="deed_poll"
-                    >
-                        <slot name="slot_deed_poll_assessment_comments"></slot>
-                        <div class="col-sm-12 section-style">
-                            <BootstrapAlert
-                                :type="leaseLicence ? 'warning' : 'primary'"
-                                :icon="
-                                    leaseLicence
-                                        ? 'exclamation-triangle-fill'
-                                        : 'info-fill'
-                                "
-                            >
-                                <ul class="list-group">
-                                    <li class="list-group-item">
-                                        <template v-if="leaseLicence">
-                                            It is a requirement of all
-                                            proponents
-                                        </template>
-                                        <template v-else>You may wish</template>
-                                        to sign a deed poll to release and
-                                        indemnify the State of Western
-                                        Australia.
-                                    </li>
-                                    <li class="list-group-item">
-                                        The deed poll must be signed, dated and
-                                        have a witness signature.
-                                    </li>
-                                    <li class="list-group-item">
-                                        Once signed, dated and witnessed, please
-                                        scan and attach the deed poll below.
-                                    </li>
-                                </ul>
-                            </BootstrapAlert>
-
-                            <BootstrapAlert type="danger">
-                                <span class="fw-bold">Please note:</span>
-                                electronic or digital signatures cannot be
-                                accepted.
-                            </BootstrapAlert>
-
-                            <label for="deed_poll_document" class="mb-3"
-                                >Deed poll:</label
-                            >
-                            <FileField
-                                id="deed_poll_document"
-                                ref="deed_poll_document"
-                                :readonly="readonly"
-                                name="deed_poll_document"
-                                :is-repeatable="true"
-                                :document-action-url="deedPollDocumentUrl"
-                                :replace_button_by_text="true"
-                            />
-                        </div>
-                    </FormSection>
-
-                    <template
-                        v-if="
-                            is_internal ||
-                            proposal.additional_document_types.length > 0
-                        "
-                    >
-                        <FormSection
-                            label="Additional Documents"
-                            index="additional_documents"
-                        >
-                            <slot
-                                name="slot_additional_documents_assessment_comments"
-                            ></slot>
-                        </FormSection>
-                    </template>
                 </div>
-
-                <!-- Related Items tab is shown on the internal proposal page -->
-                <template v-if="show_related_items_tab">
-                    <div
-                        id="pills-related-items"
-                        class="tab-pane fade"
-                        role="tabpanel"
-                        aria-labelledby="pills-related-items-tab"
-                    >
-                        <slot name="slot_section_related_items"></slot>
-                    </div>
-                </template>
-            </div>
         </div>
+	    -->
     </div>
 </template>
 
@@ -374,86 +129,86 @@ import Confirmation from '@/components/common/confirmation.vue'
 export default {
     name: 'ProposalForm',
     components: {
-        RegistrationOfInterest,
-        LeaseLicence,
-        Applicant,
-        OrganisationApplicant,
-        FormSection,
-        FileField,
-        MapComponent,
-        Multiselect,
-        GisDataDetails,
+//        RegistrationOfInterest,
+//        LeaseLicence,
+//        Applicant,
+//        OrganisationApplicant,
+//        FormSection,
+//        FileField,
+//        MapComponent,
+//        Multiselect,
+//        GisDataDetails,
     },
     props: {
-        show_related_items_tab: {
-            type: Boolean,
-            default: false,
-        },
+//        show_related_items_tab: {
+//            type: Boolean,
+//            default: false,
+//        },
         proposal: {
             type: Object,
             required: true,
         },
-        show_application_title: {
-            type: Boolean,
-            default: true,
-        },
-        submitterId: {
-            type: Number,
-            default: null,
-        },
-        canEditActivities: {
-            type: Boolean,
-            default: true,
-        },
-        is_external: {
-            type: Boolean,
-            default: false,
-        },
+//        show_application_title: {
+//            type: Boolean,
+//            default: true,
+//        },
+//        submitterId: {
+//            type: Number,
+//            default: null,
+//        },
+//        canEditActivities: {
+//            type: Boolean,
+//            default: true,
+//        },
+//        is_external: {
+//            type: Boolean,
+//            default: false,
+//        },
         is_internal: {
             type: Boolean,
             default: false,
         },
-        can_assess: {
-            type: Boolean,
-            default: false,
-        },
-        is_referee: {
-            type: Boolean,
-            default: false,
-        },
-        hasReferralMode: {
-            type: Boolean,
-            default: false,
-        },
-        hasAssessorMode: {
-            type: Boolean,
-            default: false,
-        },
-        referral: {
-            type: Object,
-            required: false,
-            default: null,
-        },
-        readonly: {
-            type: Boolean,
-            default: true,
-        },
-        registrationOfInterest: {
-            type: Boolean,
-            default: true,
-        },
-        leaseLicence: {
-            type: Boolean,
-            default: true,
-        },
-        navbarButtonsDisabled: {
-            type: Boolean,
-            default: false,
-        },
-        savingInProgress: {
-            type: Boolean,
-            default: false,
-        },
+//        can_assess: {
+//            type: Boolean,
+//            default: false,
+//        },
+//        is_referee: {
+//            type: Boolean,
+//            default: false,
+//        },
+//        hasReferralMode: {
+//            type: Boolean,
+//            default: false,
+//        },
+//        hasAssessorMode: {
+//            type: Boolean,
+//            default: false,
+//        },
+//        referral: {
+//            type: Object,
+//            required: false,
+//            default: null,
+//        },
+//        readonly: {
+//            type: Boolean,
+//            default: true,
+//        },
+//        registrationOfInterest: {
+//            type: Boolean,
+//            default: true,
+//        },
+//        leaseLicence: {
+//            type: Boolean,
+//            default: true,
+//        },
+//        navbarButtonsDisabled: {
+//            type: Boolean,
+//            default: false,
+//        },
+//        savingInProgress: {
+//            type: Boolean,
+//            default: false,
+//        },
     },
     emits: [
         'refreshFromResponse',
@@ -467,9 +222,6 @@ export default {
             can_modify: true,
             show_col_status_when_submitted: true,
 
-            /*
-            componentMapOn: false,
-            */
             values: null,
             profile: {},
             uuid: null,
@@ -500,6 +252,7 @@ export default {
             return false;
         },
         proposalId: function () {
+	    console.log('form.vue ' + this.proposal);
             return this.proposal ? this.proposal.id : null;
         },
         deedPollDocumentUrl: function () {
@@ -601,15 +354,16 @@ export default {
         },
     },
     created: function () {
-        if (this.is_internal || this.is_referee) {
-            utils.fetchKeyValueLookup(api_endpoints.groups, '').then((data) => {
-                this.groups = data;
-            });
-        }
+//        if (this.is_internal || this.is_referee) {
+//            utils.fetchKeyValueLookup(api_endpoints.groups, '').then((data) => {
+//                this.groups = data;
+//            });
+//        }
         this.uuid = uuid();
     },
     mounted: function () {
         this.$emit('formMounted');
+        console.log('form.vue ' + this.proposal.lodgement_number)
     },
     methods: {
         incrementComponentMapKey: function () {

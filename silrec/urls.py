@@ -72,6 +72,8 @@ router.register(r'polygoncohorts', forest_blocks_api.PolygonCohortViewSet, basen
 router.register(r'ply_paginated',forest_blocks_api.PolygonPaginatedViewSet,"ply_paginated")
 router.register(r"proposal_paginated", proposal_api.ProposalPaginatedViewSet, basename="proposal_paginated")
 
+router.register(r"application_types", main_api.ApplicationTypeViewSet)
+
 api_patterns = [
     #re_path(r'api/', include(router.urls)),
     re_path(r"^api/", include(router.urls)),
@@ -104,7 +106,11 @@ urlpatterns = [
         views.InternalProposalView.as_view(),
         name="internal-proposal-detail",
     ),
-
+    re_path(
+        r"^api/application_statuses_dict$",
+        proposal_api.GetApplicationStatusesDict.as_view(),
+        name="get-application-statuses-dict",
+    ),
 ]
 
 if settings.ENABLE_DJANGO_LOGIN:

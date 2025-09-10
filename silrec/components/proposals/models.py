@@ -1,10 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models import F, JSONField, Max, Min, Q
+from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.contrib.auth.models import User
+from django.contrib.gis.db.models.fields import PolygonField
+from django.contrib.gis.db.models.functions import Area
 
 from rest_framework import serializers
 from reversion.models import Version
@@ -156,20 +159,20 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     PROCESSING_STATUS_DRAFT = "draft"
     PROCESSING_STATUS_AMENDMENT_REQUIRED = "amendment_required"
     PROCESSING_STATUS_WITH_ASSESSOR = "with_assessor"
-    PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS = "with_assessor_conditions"
-    PROCESSING_STATUS_WITH_APPROVER = "with_approver"
-    PROCESSING_STATUS_WITH_REFERRAL = "with_referral"
-    PROCESSING_STATUS_APPROVED = "approved"
+    PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS = "with_assessor_treatments"
+    PROCESSING_STATUS_WITH_ASSESSOR_TASKS = "with_assessor_tasks"
+    PROCESSING_STATUS_WITH_REVIEWER = "with_reviewer"
+    PROCESSING_STATUS_REVIEW_COMPLETED = "review_Completed"
     PROCESSING_STATUS_DECLINED = "declined"
     PROCESSING_STATUS_DISCARDED = "discarded"
     PROCESSING_STATUS_CHOICES = (
         (PROCESSING_STATUS_DRAFT, "Draft"),
         (PROCESSING_STATUS_AMENDMENT_REQUIRED, "Amendment Required"),
         (PROCESSING_STATUS_WITH_ASSESSOR, "With Assessor"),
-        (PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS, "With Assessor (Conditions)"),
-        (PROCESSING_STATUS_WITH_APPROVER, "With Approver"),
-        (PROCESSING_STATUS_WITH_REFERRAL, "With Referral"),
-        (PROCESSING_STATUS_APPROVED, "Approved"),
+        (PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS, "With Assessor (Treatments)"),
+        (PROCESSING_STATUS_WITH_ASSESSOR_TASKS, "With Assessor (Tasks)"),
+        (PROCESSING_STATUS_WITH_REVIEWER, "With Reviewer"),
+        (PROCESSING_STATUS_REVIEW_COMPLETED, "Review Completed"),
         (PROCESSING_STATUS_DECLINED, "Declined"),
         (PROCESSING_STATUS_DISCARDED, "Discarded"),
     )
@@ -273,6 +276,58 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     @property
     def can_user_view(self):
         return True
+
+class ProposalGeometryManager(models.Manager):
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .annotate(area=Area(Cast("polygon", PolygonField(geography=True))))
+        )
+
+
+class ProposalGeometry(models.Model):
+    SOURCE_CHOICE_APPLICANT = "proponent"
+    SOURCE_CHOICE_ASSESSOR = "assessor"
+    SOURCE_CHOICES = (
+        (SOURCE_CHOICE_APPLICANT, "Proponent"),
+        (SOURCE_CHOICE_ASSESSOR, "Assessor"),
+    )  
+
+    objects = ProposalGeometryManager()
+
+    proposal = models.ForeignKey(
+        Proposal, on_delete=models.CASCADE, related_name="proposalgeometry"
+    )
+    polygon = PolygonField(srid=4326, blank=True, null=True)
+    intersects = models.BooleanField(default=False)
+    copied_from = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, blank=True, null=True
+    )
+    drawn_by = models.IntegerField(blank=True, null=True)  # EmailUserRO
+    source_type = models.CharField(
+        max_length=255, blank=True, choices=SOURCE_CHOICES, default=SOURCE_CHOICES[0][0],
+    )
+    source_name = models.CharField(max_length=255, blank=True)
+    locked = models.BooleanField(default=False)
+
+    class Meta:
+        app_label = "leaseslicensing"
+
+    @property
+    def area_sqm(self):
+        if not hasattr(self, "area") or not self.area:
+            logger.warning(f"ProposalGeometry: {self.id} has no area")
+            return None
+        return self.area.sq_m
+
+    @property
+    def area_sqhm(self):
+        if not hasattr(self, "area") or not self.area:
+            logger.warning(f"ProposalGeometry: {self.id} has no area")
+            return None
+        return self.area.sq_m / 10000
+
 
 class AmendmentReason(models.Model):
     reason = models.CharField("Reason", max_length=125)

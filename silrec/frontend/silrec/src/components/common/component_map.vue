@@ -1066,13 +1066,11 @@ export default {
             let endpoint = '';
             let obj_id = 0;
             if (this.context?.model_name == 'proposal') {
+                //console.log('shapefileDocumentUrl:' + api_endpoints.proposal);
                 endpoint = api_endpoints.proposal;
                 obj_id = this.context.id;
-            } else if (this.context?.model_name == 'competitiveprocess') {
-                endpoint = api_endpoints.competitive_process;
-                obj_id = this.context.id;
             } else {
-                console.warn('shapefileDocumentUrl: invalid context');
+                //console.warn('shapefileDocumentUrl: invalid context');
                 return ''; // Should not reach here.
             }
             let url = helpers.add_endpoint_join(

@@ -22,12 +22,23 @@ from silrec.components.main.models import (
 )
 
 
-
 def update_proposal_doc_filename(instance, filename):
     return f"proposals/{instance.proposal.id}/documents/{filename}"
 
 def update_proposal_comms_log_filename(instance, filename):
     return f"proposals/{instance.log_entry.proposal.id}/{filename}"
+
+
+class AdditionalDocumentType(RevisionedMixin):
+    name = models.CharField(max_length=255, null=True, blank=True)
+    help_text = models.CharField(max_length=255, null=True, blank=True)
+    enabled = models.BooleanField(default=True)
+ 
+    class Meta:
+        verbose_name = "Additional Document Type"
+        app_label = "silrec"
+        ordering = ["name"]
+
 
 class DefaultDocument(Document):
     input_name = models.CharField(max_length=255, null=True, blank=True)
@@ -112,6 +123,18 @@ class ShapefileDocument(Document):
                 self.name
             )
         )
+
+    class Meta:
+        app_label = "silrec"
+
+
+class ProposalAdditionalDocumentType(models.Model):
+    proposal = models.ForeignKey(
+        'Proposal', on_delete=models.CASCADE, related_name="additional_document_types"
+    )
+    additional_document_type = models.ForeignKey(
+        AdditionalDocumentType, on_delete=models.CASCADE
+    )           
 
     class Meta:
         app_label = "silrec"
@@ -277,6 +300,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     def can_user_view(self):
         return True
 
+
 class ProposalGeometryManager(models.Manager):
     def get_queryset(self):
         return (
@@ -312,7 +336,7 @@ class ProposalGeometry(models.Model):
     locked = models.BooleanField(default=False)
 
     class Meta:
-        app_label = "leaseslicensing"
+        app_label = "silrec"
 
     @property
     def area_sqm(self):

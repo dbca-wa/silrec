@@ -41,7 +41,7 @@ def save_geometry(
     component,
     geometry_data,
     foreign_key_field=None,
-    source_type=settings.SOURCE_CHOICE_APPLICANT,
+    source_type='proponent',
 ):
     instance_name = instance._meta.model.__name__
     logger.info(f"\n\n\nSaving {instance_name} geometry")
@@ -160,6 +160,20 @@ def save_geometry(
             f"Deleted {instance_name} geometries: {deleted_geometries} for {instance}"
         )
 
+def get_secure_file_url(instance, file_field_name, revision_id=None):
+    base_path = settings.SECURE_FILE_API_BASE_PATH
+    if revision_id:
+        return f"{base_path}{instance._meta.model.__name__}/{instance.id}/{file_field_name}/{revision_id}/"
+    return (
+        f"{base_path}{instance._meta.model.__name__}/{instance.id}/{file_field_name}/"
+    )
+
+
+def get_secure_document_url(instance, related_name="documents", document_id=None):
+    base_path = settings.SECURE_DOCUMENT_API_BASE_PATH
+    if document_id:
+        return f"{base_path}{instance._meta.model.__name__}/{instance.id}/{related_name}/{document_id}/"
+    return f"{base_path}{instance._meta.model.__name__}/{instance.id}/{related_name}/"
 
 def validate_map_files(request, instance, foreign_key_field=None):
     # Validates shapefiles uploaded with via the proposal map or the competitive process map.

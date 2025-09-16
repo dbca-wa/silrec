@@ -292,6 +292,8 @@ CACHES = {
     }
 }
 
+CACHE_KEY_MAP_PROPOSALS = "map-proposals"
+
 STATIC_ROOT=os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
         os.path.join(

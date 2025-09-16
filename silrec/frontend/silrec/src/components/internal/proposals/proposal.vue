@@ -20,7 +20,6 @@
             </h3>
 
             <div class="col-md-3">
-	    <!--
                 <CommsLogs
                     :comms_url="comms_url"
                     :logs_url="logs_url"
@@ -28,6 +27,7 @@
                     :disable_add_entry="false"
                 />
 
+	        <!--
                 <Submission
                     v-if="canSeeSubmission || debug"
                     :can-see-submission="canSeeSubmission"
@@ -69,6 +69,7 @@
                     @update-assigned-approver="updateAssignedApprover"
                     @update-assigned-officer="updateAssignedOfficer"
                 />
+                -->
             </div>
 
             <div class="col-md-9">
@@ -135,13 +136,39 @@
                         label="Proposal"
                         index="application"
                     >
+                        <!--
 			<ApplicationForm
                             :proposal="proposal"
                             :is_internal="true"
                         />
+		        -->
+                        <ApplicationForm
+                            v-if="proposal"
+                            ref="application_form"
+                            :key="computedProposalId"
+                            :proposal="proposal"
+                            :show_application_title="false"
+                            :is_external="false"
+                            :is_internal="true"
+                            :can_assess="canAssess"
+                            :is_referee="isReferee"
+                            :readonly="readonly"
+                            :submitter-id="submitter_id"
+                            :show_related_items_tab="true"
+                            :registration-of-interest="isRegistrationOfInterest"
+                            :lease-licence="isLeaseLicence"
+                            :navbar-buttons-disabled="navbarButtonsDisabled"
+                            :saving-in-progress="savingProposal"
+                            @refresh-from-response="refreshFromResponse"
+                            @form-mounted="applicationFormMounted"
+                            @update:gis-data="updateGisData"
+                            @finished-drawing="onFinishedDrawing"
+                            @deleted-features="onFinishedDrawing"
+                        />
+
 		    </FormSection>
+		<!--
 		<template>
-			<!--
 			<ApplicationForm
                             :proposal="proposal"
                             :is_internal="true"
@@ -188,8 +215,8 @@
                             </template>
                         </ApplicationForm>
                     </FormSection>
-			-->
                 </template>
+		-->
             </div>
         </div>
 
@@ -276,7 +303,8 @@ import CommsLogs from '@common-utils/comms_logs.vue';
 import Submission from '@common-utils/submission.vue';
 import Workflow from '@common-utils/workflow.vue';
 import { api_endpoints, helpers, constants } from '@/utils/hooks';
-import ApplicationForm from '@/components/form_jm.vue';
+//import ApplicationForm from '@/components/form_jm.vue';
+import ApplicationForm from '@/components/form.vue';
 import FormSection from '@/components/forms/section_toggle.vue';
 import AssessmentComments from '@/components/forms/collapsible_component.vue';
 import TableRelatedItems from '@/components/common/table_related_items.vue';
@@ -483,32 +511,36 @@ export default {
             return !this.displaySaveBtns;
         },
         submitter_first_name: function () {
-            if (this.proposal.submitter) {
-                return this.proposal.submitter.first_name;
-            } else {
-                return '';
-            }
+            return this.proposal.submitter_obj.first_name;
+//            if (this.proposal.submitter) {
+//                return this.proposal.submitter.first_name;
+//            } else {
+//                return '';
+//            }
         },
         submitter_last_name: function () {
-            if (this.proposal.submitter) {
-                return this.proposal.submitter.last_name;
-            } else {
-                return '';
-            }
+            return this.proposal.submitter_obj.last_name;
+//            if (this.proposal.submitter) {
+//                return this.proposal.submitter.last_name;
+//            } else {
+//                return '';
+//            }
         },
         submitter_id: function () {
-            if (this.proposal.submitter) {
-                return this.proposal.submitter.id;
-            } else {
-                return this.proposal.applicant_obj.id;
-            }
+            return this.proposal.submitter_obj.id;
+//            if (this.proposal.submitter_obj) {
+//                return this.proposal.submitter.id;
+//            } else {
+//                return this.proposal.applicant_obj.id;
+//            }
         },
         submitter_email: function () {
-            if (this.proposal.submitter) {
-                return this.proposal.submitter.email;
-            } else {
-                return this.proposal.applicant_obj.email;
-            }
+            return this.proposal.submitter_obj.email;
+//            if (this.proposal.submitter) {
+//                return this.proposal.submitter.email;
+//            } else {
+//                return this.proposal.applicant_obj.email;
+//            }
         },
         proposal_form_url: function () {
             if (

@@ -1,9 +1,8 @@
 <template lang="html">
     <div class="">
         <div v-if="proposal">
-		    {{proposal}}
+		    {{proposal.id}}
         </div>
-	    <!--
         <div v-if="debug">components/form.vue</div>
         <div
             v-if="proposal"
@@ -11,10 +10,44 @@
             class=""
         >
             <h3>
-		    {{proposal}}
+		    {{proposal.id}}
             </h3>
         </div>
+                    <FormSection
+                        :form-collapse="false"
+                        label="Map"
+                        index="proposal_geometry"
+                    >
+                        <slot name="slot_map_assessment_comments"></slot>
+                        <MapComponent
+                            ref="component_map"
+                            :key="componentMapKey"
+                            :context="proposal"
+                            :proposal-ids="[-1]"
+                            :feature-collection="geometriesToFeatureCollection"
+                            :ows-query="owsQuery"
+                            style-by="assessor"
+                            :filterable="false"
+                            :drawable="is_internal || !leaseLicence"
+                            :editable="true"
+                            :navbar-buttons-disabled="navbarButtonsDisabled"
+                            :saving-features="savingInProgress"
+                            level="internal"
+                            :map-info-text="
+                                is_internal
+                                    ? ''
+                                    : leaseLicence
+                                      ? 'You cannot change the area anymore at this stage.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
+                                      : 'Use the <b>draw</b> tool to draw the area of the proposal you are interested in on the map.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
+                            "
+                            @validate-feature="validateFeature.bind(this)()"
+                            @refresh-from-response="refreshFromResponse"
+                            @finished-drawing="$emit('finished-drawing')"
+                            @deleted-features="$emit('deleted-features')"
+                        />
+                    </FormSection>
 
+	    <!--
         <div class="">
             <ul id="pills-tab" class="nav nav-pills" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -133,9 +166,9 @@ export default {
 //        LeaseLicence,
 //        Applicant,
 //        OrganisationApplicant,
-//        FormSection,
+        FormSection,
 //        FileField,
-//        MapComponent,
+        MapComponent,
 //        Multiselect,
 //        GisDataDetails,
     },
@@ -148,67 +181,67 @@ export default {
             type: Object,
             required: true,
         },
-//        show_application_title: {
-//            type: Boolean,
-//            default: true,
-//        },
-//        submitterId: {
-//            type: Number,
-//            default: null,
-//        },
-//        canEditActivities: {
-//            type: Boolean,
-//            default: true,
-//        },
-//        is_external: {
-//            type: Boolean,
-//            default: false,
-//        },
+        show_application_title: {
+            type: Boolean,
+            default: true,
+        },
+        submitterId: {
+            type: Number,
+            default: null,
+        },
+        canEditActivities: {
+            type: Boolean,
+            default: true,
+        },
+        is_external: {
+            type: Boolean,
+            default: false,
+        },
         is_internal: {
             type: Boolean,
             default: false,
         },
-//        can_assess: {
-//            type: Boolean,
-//            default: false,
-//        },
-//        is_referee: {
-//            type: Boolean,
-//            default: false,
-//        },
-//        hasReferralMode: {
-//            type: Boolean,
-//            default: false,
-//        },
-//        hasAssessorMode: {
-//            type: Boolean,
-//            default: false,
-//        },
-//        referral: {
-//            type: Object,
-//            required: false,
-//            default: null,
-//        },
-//        readonly: {
-//            type: Boolean,
-//            default: true,
-//        },
-//        registrationOfInterest: {
-//            type: Boolean,
-//            default: true,
-//        },
-//        leaseLicence: {
-//            type: Boolean,
-//            default: true,
-//        },
-//        navbarButtonsDisabled: {
-//            type: Boolean,
-//            default: false,
-//        },
-//        savingInProgress: {
-//            type: Boolean,
-//            default: false,
-//        },
+        can_assess: {
+            type: Boolean,
+            default: false,
+        },
+        is_referee: {
+            type: Boolean,
+            default: false,
+        },
+        hasReferralMode: {
+            type: Boolean,
+            default: false,
+        },
+        hasAssessorMode: {
+            type: Boolean,
+            default: false,
+        },
+        referral: {
+            type: Object,
+            required: false,
+            default: null,
+        },
+        readonly: {
+            type: Boolean,
+            default: true,
+        },
+        registrationOfInterest: {
+            type: Boolean,
+            default: true,
+        },
+        leaseLicence: {
+            type: Boolean,
+            default: true,
+        },
+        navbarButtonsDisabled: {
+            type: Boolean,
+            default: false,
+        },
+        savingInProgress: {
+            type: Boolean,
+            default: false,
+        },
     },
     emits: [
         'refreshFromResponse',
@@ -332,6 +365,8 @@ export default {
                 ...vm.proposal.proposalgeometry,
             };
 
+            return featureCollection; // TODO - JM
+
             for (let feature of proposalgeometries['features']) {
                 feature['properties']['source'] = 'registration_of_interest';
                 let model = {
@@ -370,8 +405,8 @@ export default {
             this.uuid = uuid();
         },
         toggleComponentMapOn: function () {
-            //this.incrementComponentMapKey()
-            //this.componentMapOn = true;
+            this.incrementComponentMapKey()
+            this.componentMapOn = true;
             this.$nextTick(() => {
                 this.$refs.component_map.forceToRefreshMap();
             });

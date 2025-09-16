@@ -31,6 +31,9 @@ from silrec.components.main.models import (
     ApplicationType,
 )
 
+from silrec.components.main.process_document import (
+    process_generic_document,
+)
 from silrec.components.proposals.serializers import (
     ProposalSerializer,
     ListProposalMinimalSerializer,
@@ -355,6 +358,7 @@ class ProposalViewSet(UserActionLoggingViewset):
     @list_route(methods=["GET"], detail=False)
     def list_for_map(self, request, *args, **kwargs):
         """Returns the proposals for the map"""
+        #import ipdb; ipdb.set_trace()
         proposal_ids = [
             int(id)
             for id in request.query_params.get("proposal_ids", "").split(",")
@@ -402,6 +406,20 @@ class ProposalViewSet(UserActionLoggingViewset):
             populate_gis_data(instance, "proposalgeometry")
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    @detail_route(methods=["POST"], detail=True)
+    @renderer_classes((JSONRenderer,))
+    @basic_exception_handler
+    def process_shapefile_document(self, request, *args, **kwargs):
+        #import ipdb; ipdb.set_trace()
+        instance = self.get_object()
+        returned_data = process_generic_document(
+            request, instance, document_type="shapefile_document"
+        )
+        if returned_data:
+            return Response(returned_data)
+        else:
+            return Response()
 
 
 

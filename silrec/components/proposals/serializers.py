@@ -39,6 +39,7 @@ class ProposalTypeSerializer(serializers.ModelSerializer):
 
 
 class BaseProposalSerializer(serializers.ModelSerializer):
+    model_name = serializers.CharField(read_only=True)
     proposal_type = ProposalTypeSerializer()
     application_type = ApplicationTypeSerializer()
     #accessing_user_roles = serializers.SerializerMethodField()
@@ -66,6 +67,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
         model = Proposal
         fields = (
             "id",
+            "model_name",
             #"allowed_assessors",
             "application_type",
             "proposal_type",
@@ -157,8 +159,20 @@ class BaseProposalSerializer(serializers.ModelSerializer):
 #
 #        return roles
 
+#class ProposalSerializer(serializers.ModelSerializer):
+#
+#    class Meta:
+#        model = Proposal
+#        #fields = "__all__"
+#        fields = (
+#            "id",
+#            "model_name",
+#        )
+
+#
 class ProposalSerializer(BaseProposalSerializer):
     #submitter_obj = serializers.SerializerMethodField(read_only=True)
+    model_name = serializers.SerializerMethodField(read_only=True)
     submitter_obj = UserSerializerSimple()
     processing_status = serializers.SerializerMethodField(read_only=True)
     processing_status_id = serializers.SerializerMethodField(read_only=True)
@@ -171,25 +185,32 @@ class ProposalSerializer(BaseProposalSerializer):
     #    many=True, read_only=True
     #)
     #assessor_assessment = serializers.SerializerMethodField(read_only=True)
+    proposalgeometry = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
-        fields = "__all__"
-        extra_fields = [
-            #"details_text",
-            #"model_name",
+        #fields = "__all__"
+        fields = (
+            "id",
+            "model_name",
+            #"allowed_assessors",
+            "application_type",
+            "proposal_type",
+            "title",
+            "processing_status",
+            "processing_status_id",
+            "submitter_obj",
+            "previous_application",
+            "lodgement_date",
+            "lodgement_number",
+            "readonly",
             "assessor_mode",
             "processing_status_id",
-            #"lodgement_versions",
-            #"referrals",
-            #"additional_document_types",
-        ]
+            "proposalgeometry",
+        )
 
-#    def get_field_names(self, declared_fields, info):
-#        expanded_fields = super().get_field_names(declared_fields, info)
-#        if getattr(self.Meta, "extra_fields", None):
-#            return expanded_fields + self.Meta.extra_fields
-#        return expanded_fields
+    def get_model_name(self, obj):
+        return obj._meta.model_name
 
     def get_processing_status_id(self, obj):
         return obj.processing_status
@@ -206,6 +227,9 @@ class ProposalSerializer(BaseProposalSerializer):
         else:
             return None
 
+    def get_proposalgeometry(self, obj):
+        # TODO - JM
+        return {}
 
 class ListProposalMinimalSerializer(serializers.ModelSerializer):
     #proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)
@@ -236,6 +260,7 @@ class ListProposalMinimalSerializer(serializers.ModelSerializer):
 class ListProposalSerializer(BaseProposalSerializer):
     #submitter = serializers.SerializerMethodField(read_only=True)
     processing_status_id = serializers.SerializerMethodField(read_only=True)
+    proposalgeometry = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
@@ -260,6 +285,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             "proposal_type",
             #"accessing_user_can_process",
             #"groups",
+            "proposalgeometry",
         )
         # the serverSide functionality of datatables is such that only columns that have
         # field 'data' defined are requested from the serializer. We
@@ -291,5 +317,9 @@ class ListProposalSerializer(BaseProposalSerializer):
 
     def get_processing_status_id(self, obj):
         return obj.processing_status
+
+    def get_proposalgeometry(self, obj):
+        # TODO - JM
+        return {}
 
 

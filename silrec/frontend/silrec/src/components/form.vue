@@ -13,6 +13,7 @@
 		    {{proposal.id}}
             </h3>
         </div>
+	            <!--JM {{geometriesToFeatureCollection}}-->
                     <FormSection
                         :form-collapse="false"
                         label="Map"
@@ -365,10 +366,10 @@ export default {
                 ...vm.proposal.proposalgeometry,
             };
 
-            return featureCollection; // TODO - JM
+            //return featureCollection; // TODO - JM
 
             for (let feature of proposalgeometries['features']) {
-                feature['properties']['source'] = 'registration_of_interest';
+                feature['properties']['source'] = 'Proposal';
                 let model = {
                     id: vm.proposal.id,
                     details_url: vm.proposal.details_url,
@@ -384,7 +385,7 @@ export default {
                 feature['model'] = model;
                 featureCollection['features'].push(feature);
             }
-
+            console.log('featureCollection: ' + featureCollection)
             return featureCollection;
         },
     },

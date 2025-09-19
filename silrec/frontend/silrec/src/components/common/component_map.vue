@@ -2459,11 +2459,24 @@ export default {
             if (featureCollection == null) {
                 featureCollection = vm.featureCollection;
             }
+	    //console.log('JM3: ' + JSON.stringify(featureCollection))
 
             for (let featureData of featureCollection['features']) {
+//		featureData["id"] = "3"
+//		featureData["properties"]["area_sqm"] = 1678825658.164856
+//		featureData["properties"]["area_sqhm"] = 167882.56581648558
+//		featureData["properties"]["intersects"] = true
+		featureData["properties"]["polygon_source"] = "Proposal"
+//		featureData["properties"]["locked"] = true
+//		featureData["properties"]["proposal_copied_from"] = null
+
+//		featureData["model"]["details_url"] = "/internal/proposal/3/"
+//		featureData["model"]["application_type_name_display"] = "Lease Licence"
+
+		console.log('JM4: ' + JSON.stringify(featureData))
                 let feature = vm.featureFromDict(
                     featureData,
-                    featureData.model
+                    featureData.model 
                 );
 
                 vm.modelQuerySource.addFeature(feature);
@@ -2555,7 +2568,7 @@ export default {
                 label: model.label || model.application_type_name_display,
                 color: color,
                 source: featureData.properties.source,
-                polygon_source: featureData.properties.polygon_source,
+                polygon_source: "", //featureData.properties.polygon_source,
                 locked: featureData.properties.locked,
                 copied_from: featureData.properties.proposal_copied_from,
                 area_sqm: featureData.properties.area_sqm,

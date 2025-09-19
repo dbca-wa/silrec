@@ -1,4 +1,8 @@
+. bin/venv silrec
+
 vi -p silrec/components/proposals/models.py silrec/components/proposals/serializers.py silrec/components/proposals/api.py silrec/frontend/silrec/src/components/internal/proposals/proposal.vue silrec/frontend/silrec/src/components/form.vue silrec/frontend/silrec/src/components/form_jm.vue
+
+vi -p silrec/components/proposals/models.py silrec/components/proposals/serializers.py silrec/components/proposals/api.py silrec/components/main/utils.py silrec/components/main/process_document.py silrec/frontend/silrec/src/components/internal/proposals/proposal.vue silrec/frontend/silrec/src/components/form.vue silrec/frontend/silrec/src/components/common/component_map.vue
 
 
 -----------------

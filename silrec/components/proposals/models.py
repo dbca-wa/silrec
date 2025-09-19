@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models import F, JSONField, Max, Min, Q
+from django.db.models.functions import Cast
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
@@ -9,6 +10,8 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db.models.fields import PolygonField
 from django.contrib.gis.db.models.functions import Area
 
+import json
+import geopandas as gpd
 from rest_framework import serializers
 from reversion.models import Version
 
@@ -265,6 +268,8 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     # Special Fields
     title = models.CharField(max_length=255, null=True, blank=True)
     application_type = models.ForeignKey(ApplicationType, on_delete=models.PROTECT)
+
+    shapefile_json = JSONField('Source/Submitter (multi) polygon geometry', blank=True, null=True)
     migrated = models.BooleanField(default=False)
 
     class Meta:
@@ -299,6 +304,10 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     @property
     def can_user_view(self):
         return True
+
+    @property
+    def shp_to_gdf(self):
+        return gpd.read_file(json.dumps(self.shapefile_json))
 
 
 class ProposalGeometryManager(models.Manager):

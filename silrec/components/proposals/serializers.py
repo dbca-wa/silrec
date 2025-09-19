@@ -24,6 +24,10 @@ from silrec.components.proposals.models import (
     #SectionChecklist,
 )
 
+from silrec.helpers import (
+    is_internal,
+)
+
 
 class ProposalTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,6 +55,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
     #groups = serializers.SerializerMethodField(read_only=True)
     #allowed_assessors = EmailUserSerializer(many=True)
     #details_url = serializers.SerializerMethodField(read_only=True)
+    details_url = serializers.SerializerMethodField(read_only=True)
     readonly = serializers.SerializerMethodField(read_only=True)
     #approval = serializers.SerializerMethodField(read_only=True, allow_null=True)
     # Gis data fields
@@ -80,6 +85,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
             #"get_history",
             "lodgement_date",
             "lodgement_number",
+            "details_url",
             #"supporting_documents",
             #"requirements",
             "readonly",
@@ -111,6 +117,16 @@ class BaseProposalSerializer(serializers.ModelSerializer):
                 + obj.lodgement_date.strftime("%-I:%M %p")
             )
 
+    def get_details_url(self, obj):
+        request = self.context["request"]
+        if request.user.is_authenticated:
+            if is_internal(request):
+                return reverse("internal-proposal-detail", kwargs={"pk": obj.id})
+            else:
+                return reverse(
+                    "external-proposal-detail", kwargs={"proposal_pk": obj.id}
+                )
+
 #    def get_applicant(self, obj):
 #        if isinstance(obj.applicant, Organisation):
 #            return obj.applicant.ledger_organisation_name
@@ -140,7 +156,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
 
     def get_processing_status(self, obj):
         #return obj.get_processing_status_display()
-        return obj.processing_status
+        return obj.get_processing_status_display()
 
 #    def get_accessing_user_roles(self, proposal):
 #        request = self.context.get("request")
@@ -179,6 +195,7 @@ class ProposalSerializer(BaseProposalSerializer):
     # Had to add assessor mode and lodgement versions for this serializer to work for
     # external user that is a referral
     assessor_mode = serializers.SerializerMethodField(read_only=True)
+    details_url = serializers.SerializerMethodField(read_only=True)
     #lodgement_versions = serializers.SerializerMethodField(read_only=True)
     #referrals = ProposalReferralSerializer(many=True)
     #additional_document_types = ProposalAdditionalDocumentTypeSerializer(
@@ -203,17 +220,21 @@ class ProposalSerializer(BaseProposalSerializer):
             "previous_application",
             "lodgement_date",
             "lodgement_number",
+            "details_url",
             "readonly",
             "assessor_mode",
             "processing_status_id",
             "proposalgeometry",
         )
 
+    def get_proposalgeometry(self, obj):
+        return obj.shapefile_json
+
     def get_model_name(self, obj):
         return obj._meta.model_name
 
     def get_processing_status_id(self, obj):
-        return obj.processing_status
+        return obj.get_processing_status_display()
 
     def get_assessor_mode(self, obj):
         return True
@@ -227,9 +248,20 @@ class ProposalSerializer(BaseProposalSerializer):
         else:
             return None
 
-    def get_proposalgeometry(self, obj):
-        # TODO - JM
-        return {}
+    def get_details_url(self, obj):
+        request = self.context["request"]
+        if request.user.is_authenticated:
+            if is_internal(request):
+                return reverse("internal-proposal-detail", kwargs={"pk": obj.id})
+            else:
+                return reverse(
+                    "external-proposal-detail", kwargs={"proposal_pk": obj.id}
+                )
+
+
+#    def get_proposalgeometry(self, obj):
+#        # TODO - JM
+#        return {}
 
 class ListProposalMinimalSerializer(serializers.ModelSerializer):
     #proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)

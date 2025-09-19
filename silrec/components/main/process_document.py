@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 def process_generic_document(request, instance, document_type=None, *args, **kwargs):
     try:
-        #import ipdb; ipdb.set_trace()
         action = request.data.get("action")
         input_name = request.data.get("input_name")
         comms_log_id = request.data.get("comms_log_id")
@@ -36,6 +35,7 @@ def process_generic_document(request, instance, document_type=None, *args, **kwa
         elif action == "save":
             save_document(request, instance, comms_instance, document_type, input_name)
 
+        #import ipdb; ipdb.set_trace()
         # HTTP Response varies by action and instance type
         if comms_instance and action == "cancel" and deleted:
             return deleted
@@ -61,91 +61,12 @@ def process_generic_document(request, instance, document_type=None, *args, **kwa
                 documents_qs = instance.supporting_documents
             elif document_type == "proposed_approval_document":
                 documents_qs = instance.proposed_approval_documents
-            elif document_type == "exclusive_use_document":
-                documents_qs = instance.exclusive_use_documents
-            elif document_type == "long_term_use_document":
-                documents_qs = instance.long_term_use_documents
-            elif document_type == "consistent_purpose_document":
-                documents_qs = instance.consistent_purpose_documents
-            elif document_type == "consistent_plan_document":
-                documents_qs = instance.consistent_plan_documents
-            elif document_type == "clearing_vegetation_document":
-                documents_qs = instance.clearing_vegetation_documents
-            elif document_type == "ground_disturbing_works_document":
-                documents_qs = instance.ground_disturbing_works_documents
-            elif document_type == "heritage_site_document":
-                documents_qs = instance.heritage_site_documents
-            elif document_type == "environmentally_sensitive_document":
-                documents_qs = instance.environmentally_sensitive_documents
-            elif document_type == "wetlands_impact_document":
-                documents_qs = instance.wetlands_impact_documents
-            elif document_type == "building_required_document":
-                documents_qs = instance.building_required_documents
-            elif document_type == "significant_change_document":
-                documents_qs = instance.significant_change_documents
-            elif document_type == "aboriginal_site_document":
-                documents_qs = instance.aboriginal_site_documents
-            elif document_type == "native_title_consultation_document":
-                documents_qs = instance.native_title_consultation_documents
-            elif document_type == "mining_tenement_document":
-                documents_qs = instance.mining_tenement_documents
-            elif document_type == "profit_and_loss_document":
-                documents_qs = instance.profit_and_loss_documents
-            elif document_type == "cash_flow_document":
-                documents_qs = instance.cash_flow_documents
-            elif document_type == "capital_investment_document":
-                documents_qs = instance.capital_investment_documents
-            elif document_type == "financial_capacity_document":
-                documents_qs = instance.financial_capacity_documents
-            elif document_type == "mining_tenement_document":
-                documents_qs = instance.mining_tenement_documents
-            elif document_type == "available_activities_document":
-                documents_qs = instance.available_activities_documents
-            elif document_type == "market_analysis_document":
-                documents_qs = instance.market_analysis_documents
-            elif document_type == "staffing_document":
-                documents_qs = instance.staffing_documents
-            elif document_type == "key_personnel_document":
-                documents_qs = instance.key_personnel_documents
-            elif document_type == "key_milestones_document":
-                documents_qs = instance.key_milestones_documents
-            elif document_type == "risk_factors_document":
-                documents_qs = instance.risk_factors_documents
-            elif document_type == "legislative_requirements_document":
-                documents_qs = instance.legislative_requirements_documents
             elif document_type == "shapefile_document":
                 documents_qs = instance.shapefile_documents
             elif document_type == "proposed_decline_document":
                 documents_qs = instance.proposed_decline_documents
-            elif document_type == "approval_cancellation_document":
-                documents_qs = instance.approval_cancellation_documents
-            elif document_type == "approval_surrender_document":
-                documents_qs = instance.approval_surrender_documents
-            elif document_type == "approval_suspension_document":
-                documents_qs = instance.approval_suspension_documents
             elif document_type == "additional_document":
                 documents_qs = instance.additional_documents
-            elif document_type == "approval_transfer_supporting_document":
-                documents_qs = instance.approval_transfer_supporting_documents
-            elif document_type == "lease_licence_approval_document":
-                documents_qs = instance.lease_licence_approval_documents
-
-                returned_file_data = [
-                    dict(
-                        secure_url=get_secure_document_url(
-                            instance, document_type + "s", d.id
-                        ),
-                        id=d.id,
-                        name=d.name,
-                        approval_type=d.approval_type.id,
-                        approval_type_document_type=d.approval_type_document_type.id,
-                    )
-                    for d in documents_qs.filter(input_name=input_name)
-                    if d._file
-                ]
-                return {"filedata": returned_file_data}
-            elif document_type == "competitive_process_document":
-                documents_qs = instance.competitive_process_documents
 
             # default file attributes
             returned_file_data = [

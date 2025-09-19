@@ -13,6 +13,7 @@ csv
 *.swo
 data_store/
 archive/
+protected_media/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

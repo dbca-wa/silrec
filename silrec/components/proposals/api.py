@@ -34,6 +34,11 @@ from silrec.components.main.models import (
 from silrec.components.main.process_document import (
     process_generic_document,
 )
+
+from silrec.components.main.utils import (
+    validate_map_files,
+    populate_gis_data,
+)
 from silrec.components.proposals.serializers import (
     ProposalSerializer,
     ListProposalMinimalSerializer,
@@ -401,6 +406,7 @@ class ProposalViewSet(UserActionLoggingViewset):
     def validate_map_files(self, request, *args, **kwargs):
         instance = self.get_object()
         valid_geometry_saved = validate_map_files(request, instance)
+        #import ipdb;ipdb.set_trace()
         instance.save()
         if valid_geometry_saved:
             populate_gis_data(instance, "proposalgeometry")

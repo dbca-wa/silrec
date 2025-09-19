@@ -25,7 +25,8 @@ class UserSerializerSimple(serializers.ModelSerializer):
 
 
 class ApplicationTypeSerializer(serializers.ModelSerializer):
-    name = serializers.CharField()
+    name_display = serializers.SerializerMethodField()
+    #name = serializers.CharField()
     #confirmation_text = serializers.CharField()
 
     class Meta:
@@ -33,6 +34,10 @@ class ApplicationTypeSerializer(serializers.ModelSerializer):
         fields = "__all__"
         #read_only_fields = ["name", "confirmation_text"]
         read_only_fields = ["name"]
+
+    def get_name_display(self, obj):
+        return obj.get_name_display()
+
 
 class ApplicationTypeKeyValueSerializer(serializers.ModelSerializer):
     name_display = serializers.SerializerMethodField()

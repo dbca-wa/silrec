@@ -5,9 +5,11 @@ import re
 import sys
 from zipfile import ZipFile
 
+from shapely import wkt
 import geopandas as gpd
 import pytz
 import requests
+import subprocess
 from django.apps import apps
 from django.conf import settings
 from django.contrib.gis.gdal import SpatialReference
@@ -19,6 +21,9 @@ from django.utils import timezone
 #from ledger_api_client.ledger_models import EmailUserRO as EmailUser
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+
+from silrec.settings import OGR2OGR, CRS_GDA94
+from silrec.components.proposals.models import ProposalGeometry
 
 #from leaseslicensing.components.tenure.models import (
 #    LGA,
@@ -175,6 +180,24 @@ def get_secure_document_url(instance, related_name="documents", document_id=None
         return f"{base_path}{instance._meta.model.__name__}/{instance.id}/{related_name}/{document_id}/"
     return f"{base_path}{instance._meta.model.__name__}/{instance.id}/{related_name}/"
 
+
+def polygons_to_gdf():
+    from silrec.components.forest_blocks.models import Polygon
+
+    # TODO place in cache
+    geo_series_list = []
+    crs_list = []
+    for poly in Polygon.objects.all():
+        shapely_multi_polygon = wkt.loads(poly.geom.wkt)
+        geo_series_list.append(shapely_multi_polygon)
+        crs_list.append(poly.geom.srs.srid)
+        
+    # confirm all polygons geometries have same CRS
+    if len(set(crs_list)) > 1:
+        raise Exception(f'Geometry CRS is not unique {list(set(crs_list))}')
+    gdf = gpd.GeoDataFrame(geometry=geo_series_list, crs=CRS_GDA94) # EPSG:28350
+    return gdf
+
 def validate_map_files(request, instance, foreign_key_field=None):
     # Validates shapefiles uploaded with via the proposal map or the competitive process map.
     # Shapefiles are valid when the shp, shx, and dbf extensions are provided
@@ -228,85 +251,183 @@ def validate_map_files(request, instance, foreign_key_field=None):
     # A list of all uploaded shapefiles
     shp_file_objs = shp_file_qs.filter(Q(name__endswith=".shp"))
 
-    for shp_file_obj in shp_file_objs:
-        gdf = gpd.read_file(shp_file_obj.path)  # Shapefile to GeoDataFrame
+    gdf_full = polygons_to_gdf()
 
-        if gdf.empty:
-            raise ValidationError(f"Geometry is empty in {shp_file_obj.name}")
+    if len(shp_file_objs) > 1:
+        raise ValidationError("Can only upload one shapefile combination at a time")
 
-        # If no prj file assume WGS-84 datum
-        if not gdf.crs:
-            gdf_transform = gdf.set_crs("epsg:4326", inplace=True)
-        else:
-            gdf_transform = gdf.to_crs("epsg:4326")
+    import ipdb; ipdb.set_trace()
+    gdf = gpd.read_file(shp_file_objs[0].path)  # Shapefile to GeoDataFrame
 
-        geometries = gdf_transform.geometry  # GeoSeries
+    if gdf.empty:
+        raise ValidationError(f"Geometry is empty in {shp_file_objs[0].name}")
 
-        # Only accept polygons
-        geom_type = geometries.geom_type.values[0]
-        if geom_type not in ("Polygon", "MultiPolygon"):
-            raise ValidationError(f"Geometry of type {geom_type} not allowed")
+    if gdf.crs.srs.lower() != CRS_GDA94.lower():
+        gdf.to_crs(CRS_GDA94, inplace=True) # epsg:28350
 
-        # Check for intersection with DBCA geometries
-        gdf_transform["valid"] = False
-        for geom in geometries:
-            srid = SpatialReference(
-                geometries.crs.srs
-            ).srid  # spatial reference identifier
-
-            polygon = GEOSGeometry(geom.wkt, srid=srid)
-
-            # Add the file name as identifier to the geojson for use in the frontend
-            if "source_" not in gdf_transform:
-                gdf_transform["source_"] = shp_file_obj.name
-
-            specs = tenure_layer_specification()
-
-            test_polygon = (
-                invert_xy_coordinates([polygon])[0] if specs["invert_xy"] else polygon
-            )
-
-            # Imported geometry is valid if it intersects with any one of the DBCA geometries
-            if not polygon_intersects_with_layer(
-                test_polygon,
-                specs["server_url"],
-                specs["layer_name"],
-                specs["properties"],
-                specs["version"],
-                specs["the_geom"],
-            ):
-                raise ValidationError(
-                    "One or more polygons does not intersect with a relevant layer"
-                )
-
-            gdf_transform["valid"] = True
-
-            # Some generic code to save the geometry to the database
-            # That will work for both a proposal instance and a competitive process instance
-            instance_name = instance._meta.model.__name__
-
-            if not foreign_key_field:
-                foreign_key_field = instance_name.lower()
-
-            geometry_model = apps.get_model(
-                "leaseslicensing", f"{instance_name}Geometry"
-            )
-
-            geometry_model.objects.create(
-                **{
-                    foreign_key_field: instance,
-                    "polygon": polygon,
-                    "intersects": True,
-                    "drawn_by": request.user.id,
-                }
-            )
-
-        instance.save()
+    result = gdf.overlay(gdf_full, how='intersection')
+    if result.empty:
+        raise ValidationError(
+            "The input shapefile does not intersect with any historical polygons currently in the system"
+        )
+    else:
         valid_geometry_saved = True
+
+    # Only accept polygons
+    geometries = gdf.geometry  # GeoSeries
+    geom_type = geometries.geom_type.values[0]
+    if geom_type not in ("Polygon", "MultiPolygon"):
+        raise ValidationError(f"Geometry of type {geom_type} not allowed")
+
+    #result = subprocess.run(f'{OGR2OGR} -t_srs {CRS_GDA94} -f GeoJSON /vsistdout/ {shp_file_objs[0].path}', capture_output=True, text=True, check=True, shell=True)
+    result_ogr = subprocess.run(f'{OGR2OGR} -t_srs EPSG:4326 -f GeoJSON /vsistdout/ {shp_file_objs[0].path}', capture_output=True, text=True, check=True, shell=True)
+    shp_json = json.loads(result_ogr.stdout)
+
+    instance.shapefile_json = shp_json
+    instance.save()
 
     # Delete all shapefile documents so the user can upload another one if they wish.
     instance.shapefile_documents.all().delete()
 
     return valid_geometry_saved
 
+
+#    # Check for intersection with DBCA geometries
+#    gdf["valid"] = False
+#    for geom in geometries:
+#        srid = SpatialReference(
+#            geometries.crs.srs
+#        ).srid  # spatial reference identifier
+#
+#        polygon = GEOSGeometry(geom.wkt, srid=srid)
+#
+#        # Add the file name as identifier to the geojson for use in the frontend
+#        if "source_" not in gdf:
+#            gdf["source_"] = shp_file_objs[0].name
+#        gdf["valid"] = True
+#
+#        ProposalGeometry.objects.create(
+#            **{
+#                "proposal": instance,
+#                "polygon": polygon,
+#                "intersects": True,
+#                "drawn_by": request.user.id,
+#            }
+#        )
+#
+#        instance.save()
+#        valid_geometry_saved = True
+#
+#    # Delete all shapefile documents so the user can upload another one if they wish.
+#    instance.shapefile_documents.all().delete()
+#
+#    return valid_geometry_saved
+
+
+#    for shp_file_obj in shp_file_objs:
+#        gdf = gpd.read_file(shp_file_obj.path)  # Shapefile to GeoDataFrame
+#
+#        if gdf.empty:
+#            raise ValidationError(f"Geometry is empty in {shp_file_obj.name}")
+#
+#        # If no prj file assume WGS-84 datum
+#        if not gdf.crs:
+#            gdf_transform = gdf.set_crs("epsg:4326", inplace=True)
+#        else:
+#            gdf_transform = gdf.to_crs("epsg:4326")
+#
+#        geometries = gdf_transform.geometry  # GeoSeries
+#
+#        # Only accept polygons
+#        geom_type = geometries.geom_type.values[0]
+#        if geom_type not in ("Polygon", "MultiPolygon"):
+#            raise ValidationError(f"Geometry of type {geom_type} not allowed")
+#
+#
+#        # Check for intersection with DBCA geometries
+#        gdf_transform["valid"] = False
+#        for geom in geometries:
+#            srid = SpatialReference(
+#                geometries.crs.srs
+#            ).srid  # spatial reference identifier
+#
+#            polygon = GEOSGeometry(geom.wkt, srid=srid)
+#
+#            # Add the file name as identifier to the geojson for use in the frontend
+#            if "source_" not in gdf_transform:
+#                gdf_transform["source_"] = shp_file_obj.name
+#
+#            specs = tenure_layer_specification()
+#
+#            test_polygon = (
+#                invert_xy_coordinates([polygon])[0] if specs["invert_xy"] else polygon
+#            )
+#
+#            # Imported geometry is valid if it intersects with any one of the DBCA geometries
+#            if not polygon_intersects_with_layer(
+#                test_polygon,
+#                specs["server_url"],
+#                specs["layer_name"],
+#                specs["properties"],
+#                specs["version"],
+#                specs["the_geom"],
+#            ):
+#                raise ValidationError(
+#                    "One or more polygons does not intersect with a relevant layer"
+#                )
+#
+#            gdf_transform["valid"] = True
+#
+#            # Some generic code to save the geometry to the database
+#            # That will work for both a proposal instance and a competitive process instance
+#            instance_name = instance._meta.model.__name__
+#
+#            if not foreign_key_field:
+#                foreign_key_field = instance_name.lower()
+#
+#            geometry_model = apps.get_model(
+#                "leaseslicensing", f"{instance_name}Geometry"
+#            )
+#
+#            geometry_model.objects.create(
+#                **{
+#                    foreign_key_field: instance,
+#                    "polygon": polygon,
+#                    "intersects": True,
+#                    "drawn_by": request.user.id,
+#                }
+#            )
+#
+#        instance.save()
+#        valid_geometry_saved = True
+#
+#    # Delete all shapefile documents so the user can upload another one if they wish.
+#    instance.shapefile_documents.all().delete()
+#
+#    return valid_geometry_saved
+
+def populate_gis_data(instance, geometries_attribute, foreign_key_field=None):
+    """Fetches required GIS data from the server defined in settings.GIS_SERVER_URL
+    and saves it to the instance (Proposal or Competitive Process)"""
+    import ipdb;ipdb.set_trace()
+    instance_name = instance._meta.model.__name__
+    
+    logger.info(
+        "Populating GIS data for %s: %s", instance_name, instance.lodgement_number
+    )
+    
+    if not foreign_key_field:
+        foreign_key_field = instance_name.lower()
+            
+#    populate_gis_data_lands_and_waters(
+#        instance, geometries_attribute, foreign_key_field
+#    )  # Covers Identifiers, Names, Acts, Tenures and Categories
+#    populate_gis_data_regions(instance, geometries_attribute, foreign_key_field)
+#    populate_gis_data_districts(instance, geometries_attribute, foreign_key_field)
+#    populate_gis_data_lgas(instance, geometries_attribute, foreign_key_field)
+    logger.info(
+        "-> Finished populating GIS data for %s: %s",
+        instance_name,
+        instance.lodgement_number,
+    )
 

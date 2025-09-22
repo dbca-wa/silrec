@@ -1035,13 +1035,15 @@ export default {
             selectedFeatureIds: [],
             lastPoint: null,
             sketchCoordinates: [[]],
+            defaultFillColor: '#949494',
             defaultColor: '#eeeeee',
             clickSelectStroke: new Stroke({
                 color: 'rgba(255, 0, 0, 0.7)',
                 width: 2,
             }),
             hoverFill: new Fill({
-                color: 'rgba(255, 255, 255, 0.5)',
+                //color: 'rgba(255, 255, 255, 0.5)',
+                color: '#949494',
             }),
             hoverStroke: new Stroke({
                 color: 'rgba(255, 255, 255, 0.5)',
@@ -1473,11 +1475,13 @@ export default {
 
             let style = new Style({
                 stroke: new Stroke({
-                    color: color,
+                    //color: color,
+                    color: 'rgba(0, 0, 0, 0.7)',
                     width: 1,
                 }),
                 fill: new Fill({
                     color: color,
+                    //color: 'rgba(255, 255, 0, 0.7)',
                 }),
             });
 
@@ -2560,6 +2564,7 @@ export default {
 
             let color = vm.styleByColor(featureData, model);
             let style = vm.createStyle(color);
+            //let style = vm.createStyle(vm.defaultFillColor);
 
             let feature = new Feature({
                 id: vm.newFeatureId, // Incrementing-id of the polygon/feature on the map

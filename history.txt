@@ -9,3 +9,32 @@ vi -p silrec/components/proposals/models.py silrec/components/proposals/serializ
 API's
 http://localhost:8001/api/application_types/key-value-list/
 http://localhost:8001/api/application_statuses_dict?for_filter=true
+
+----
+
+import geopandas as gpd
+from silrec.utils.plot_utils import annotate_plot, plot_gdf, plot_overlay, create_gdf
+    from silrec.components.main.utils import polygons_to_gdf
+    polygons = polygons_to_gdf()
+
+    gdf_single = gpd.read_file('/home/jawaidm/Shapefiles/demarcation_single/demarcation_single_feature.shp')
+    gdf_single.to_crs('EPSG:28350', inplace=True)
+
+    gdf_five = gpd.read_file('/home/jawaidm/Shapefiles/demarcation_five/demarcation_five_features.shp')
+    gdf_five.to_crs('EPSG:28350', inplace=True)
+
+    # res = gdf_single.overlay(polygons, how='intersection')
+
+    # Determine which geometries in polygons geodataframe intersect with any geometry in gdf_single
+    # This creates a boolean Series
+    intersects_mask_single = polygons.geometry.intersects(gdf_single.unary_union)
+    intersects_mask_five   = polygons.geometry.intersects(gdf_five.unary_union)
+
+    # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
+    polygons_intersecting_single = polygons[intersects_mask_single]
+    polygons_intersecting_five = polygons[intersects_mask_five]
+
+    # non overlapping overlayed germs (creates independent slivers)
+    gdf_overlay = gpd.overlay(gdf_single, polygons_intersecting_single, how='union')
+plot_gdf(gdf_overlay.iloc[[2,7]])
+

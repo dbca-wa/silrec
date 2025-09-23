@@ -1,6 +1,10 @@
+from django.conf import settings
 import geopandas as gpd
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from shapely.geometry import Polygon
+from shapely.ops import unary_union, polygonize
 
 def annotate_plot(gdf, ax, label_prefix=None):
     for idx, row in gdf.iterrows():
@@ -23,7 +27,7 @@ def annotate_plot(gdf, ax, label_prefix=None):
                     fontsize=8,
                     color='black') # Customize color, font size, etc.
     return ax
- 
+
 def plot_gdf(gdf, annotate=True):
     ''' Annotate the plot with a feature index
 
@@ -54,7 +58,7 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
 
     # Create a list of random colors, one for each feature in the GeoDataFrame
     random_colors = [get_random_color() for _ in range(len(gdf_base)+len(gdf_hist))]
-    gdf_overlay['random_color'] = random_colors
+    #gdf_overlay['random_color'] = random_colors
 
 
     # Create a plot to visualize the overlay
@@ -80,15 +84,39 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
 
     plt.show()
 
+def get_base_polygon_gdf(gdf_base, gdf_common_boundary):
+    ''' returns the equiv. of gdf_single, but the one after
+        historical polygon intersection and subsequent splitting
+        to form new polygons
+
+        --> Returns the ''new split' base polygon
+    '''
+    centroids_gdf1 = gdf_base.geometry.centroid
+    centroids_df = gpd.GeoDataFrame(geometry=centroids_gdf1)
+
+    if 'index_right' in gdf_common_boundary.columns:
+        gdf_common_boundary.drop(['index_right'], axis=1, inplace=True)
+
+    return gpd.sjoin(gdf_common_boundary, centroids_df, how="inner", predicate="intersects")
+
+
 def create_gdf():
+    '''
+    from silrec.utils.plot_utils import create_dummy_polygons, plot_gdf, plot_overlay, create_gdf
+    polygons, gdf_single, polygons_intersecting_single, gdf_overlay, gdf_split, gdf_common_boundary, gdf_slivers, base_polygon, gdf_slivers_plus_base, gdf_new_hist_polygons, gdf_slivers_merged
+
+    %matplotlib
+    plot_gdf(gdf_slivers_merged)
+    plot_gdf(gdf_new_hist_polygons)
+    '''
     import geopandas as gpd
     from silrec.components.main.utils import polygons_to_gdf
     polygons = polygons_to_gdf()
 
-    gdf_single = gpd.read_file('/home/jawaidm/Shapefiles/demarcation_single/demarcation_single_feature.shp')
+    gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_single/demarcation_single_feature.shp')
     gdf_single.to_crs('EPSG:28350', inplace=True)
 
-    gdf_five = gpd.read_file('/home/jawaidm/Shapefiles/demarcation_five/demarcation_five_features.shp')
+    gdf_five = gpd.read_file('silrec/utils/Shapefiles/demarcation_five/demarcation_five_features.shp')
     gdf_five.to_crs('EPSG:28350', inplace=True)
 
     # res = gdf_single.overlay(polygons, how='intersection')
@@ -102,16 +130,79 @@ def create_gdf():
     polygons_intersecting_single = polygons[intersects_mask_single]
     polygons_intersecting_five = polygons[intersects_mask_five]
 
-    # non overlapping overlayed germs (creates independent slivers)
+    # plot the boundary outlines only (of all polygons touching also)
+    bound_single = unary_union(polygons_intersecting_single.geometry.boundary)
+    boundary_single = gpd.GeoSeries([bound_single])
+    #boundary_single.plot()
+
+    # non overlapping overlayed geometries (creates independent partitioned geometries)
     gdf_overlay = gpd.overlay(gdf_single, polygons_intersecting_single, how='union')
 
-    gdf1 = gdf_overlay.iloc[[7]]
-    gdf2 = gdf_overlay.iloc[[2,3]]
-    # Find geometries in gdf2 that have a common boundary (touch) with gdf1
-    common_boundary_geos = gpd.sjoin(gdf2, gdf1, how='inner', predicate='touches')
+    # plot the boundary outlines only (of all polygons touching also)
+    bound_overlay = unary_union(gdf_overlay.geometry.boundary)
+    boundary_overlay = gpd.GeoSeries([bound_overlay])
+    #boundary_overlay.plot()
+
+    poly_list = list(polygonize(bound_overlay)) #Create polygons from it
+    gdf_split = gpd.GeoDataFrame(geometry=poly_list) #And a dataframe
+    #import ipdb; ipdb.set_trace()
+    gdf_split.set_crs(settings.CRS_GDA94, inplace=True)
+
+    # Perform the spatial join
+    # This will find all geometries in gdf1 that intersect with gdf2
+    # (i.e., touch at a point, line, or boundary)
+    #gdf_common_boundary = gpd.sjoin(gdf_split, gdf_split.iloc[[2]], how='inner', predicate='intersects')
+    gdf_common_boundary = gpd.sjoin(gdf_split, gdf_single, how='inner', predicate='intersects')
+
+    # get the gdf_single split equivalent from gdf_common_boundary
+    base_polygon = get_base_polygon_gdf(gdf_single, gdf_common_boundary)
+
+    threshold = 5
+    gdf_slivers = gdf_common_boundary[gdf_common_boundary.geometry.area/gdf_common_boundary.geometry.length < threshold]
+    gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
+
+
+    # all new historical polygons that intersect, excluding slivers and base polygon (gdf_single)
+    #gdf_new_hist_polygons = gdf_common_boundary[~gdf_slivers_plus_base.geometry.contains(gdf_common_boundary.geometry)]
+    gdf_new_hist_polygons = gpd.overlay(gdf_common_boundary, gdf_slivers_plus_base, how='difference')
+
+    # View the plots - the sum of the two below make-up 'gdf_common_boundary'
+    # plot_gdf(gdf_new_hist_polygons) # Everything excluding slivers + base_polygon
+    # plot_gdf(gdf_slivers_plus_base) # Only slivers + base_polygon
+
+    gdf_slivers_merged = gdf_slivers_plus_base.dissolve() # Multipolygon
+    #gdf_slivers_merged = gdf_slivers_plus_base.dissolve().explode()) # Polygon(s) - >1 if there gaps between polygons preventing merge to a single polygon
 
     #plot_overlay(gdf_five, polygons_intersecting_five)
-    return polygons, gdf_single, gdf_five, polygons_intersecting_single, polygons_intersecting_five, gdf_overlay
+    return polygons, gdf_single, polygons_intersecting_single, gdf_overlay, gdf_split, gdf_common_boundary, gdf_slivers,base_polygon, gdf_slivers_plus_base, gdf_new_hist_polygons, gdf_slivers_merged
+
+
+def create_dummy_polygons():
+    '''
+    poly, polys3, df, df3, df_intersecting, gdf_overlay = create_dummy_polygons()
+    '''
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import geopandas as gpd
+    import pandas as pd
+    from silrec.utils.plot_utils import annotate_plot, plot_gdf, plot_overlay, create_gdf
+    poly = gpd.GeoSeries([Polygon([(1,1), (4,1), (4,4), (1,4)])])
+    polys3 = gpd.GeoSeries([Polygon([(0,0), (2,0), (2,2), (0,2)]),Polygon([(1,1), (4,1), (4,4), (1,4)]),Polygon([(3,3), (5,3), (5,5), (3,5)])])
+    df = gpd.GeoDataFrame({'geometry': poly, 'df':[0]})
+    df3 = gpd.GeoDataFrame({'geometry': polys3, 'df3':[1,2,3]})
+    intersects_mask = df3.geometry.intersects(df.unary_union)
+    df_intersecting = df3[intersects_mask]
+    gdf_overlay = gpd.overlay(df, df_intersecting, how='union')
+    #plot_overlay(df3, df)
+    return poly, polys3, df, df3, df_intersecting, gdf_overlay
+
+
+def merge_base_polygon_to_slivers(gdf_base, gdf_slivers, threshold=10):
+    combined_gdf = gpd.GeoDataFrame(pd.concat([gdf_base, gdf_slivers], ignore_index=True))
+    return combined_gdf.dissolve()
+    base_boundary = gpd.GeoDataFrame(pd.concat([base_polygon, gdf_slivers], ignore_index=True)).boundary.iloc[[0]]
+
+    In [290]: base_boundary.convex_hull
 
 
 
@@ -120,9 +211,9 @@ def merge_slivers(gdf_base, gdf_common_boundary, threshold=10):
 
         gdf_base --> Polygon from user input Shapefile
         gdf_common_boundary - gdf from touching slivers (touching gdf_base) created from intersecting historical polygons
-        
+
         threshold --> Area/Length (m), used to decide which slivers to mege into gdf_base
-        
+
         returns --> a single polygon with slivers below a given threshold Area/Length ratio
     '''
     area_length_ratio = gdf_common_boundary.area / gdf_common_boundary.length
@@ -131,4 +222,7 @@ def merge_slivers(gdf_base, gdf_common_boundary, threshold=10):
     combined_gdf = gpd.GeoDataFrame(pd.concat([gdf_base, gdf_slivers], ignore_index=True))
 
     return combined_gdf.dissolve()
+
+if __name__ == '__main__':
+    poly, polys3, df, df3, df_intersecting, gdf_overlay = create_dummy_polygons()
 

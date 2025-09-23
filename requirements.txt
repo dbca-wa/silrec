@@ -3,7 +3,7 @@ djangorestframework-datatables==0.7.2
 django_filter==25.1
 django-confy==1.0.4
 
-GDAL==3.9.3
+#GDAL==3.9.3
 
 django-extensions==3.2.3
 webtemplate-dbca@git+https://github.com/dbca-wa/webtemplate2.git@955544f4acbc770d07da665c7488f89ccb3486ec ; python_version >= "3.10" and python_version < "4.0"

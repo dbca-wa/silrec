@@ -49,6 +49,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="profit_and_loss_text"
                         ref="profit_and_loss_text"
@@ -58,6 +59,7 @@
                         required
                         @text-changed="proposal.profit_and_loss_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row pb-3">
@@ -92,6 +94,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="cash_flow_text"
                         ref="cash_flow_text"
@@ -101,6 +104,7 @@
                         required
                         @text-changed="proposal.cash_flow_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -134,6 +138,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="capital_investment_text"
                         ref="capital_investment_text"
@@ -145,6 +150,7 @@
                             proposal.capital_investment_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -185,6 +191,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="financial_capacity_text"
                         ref="financial_capacity_text"
@@ -196,6 +203,7 @@
                             proposal.financial_capacity_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -234,6 +242,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="available_activities_text"
                         ref="available_activities_text"
@@ -245,6 +254,7 @@
                             proposal.available_activities_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -283,6 +293,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="market_analysis_text"
                         ref="market_analysis_text"
@@ -292,6 +303,7 @@
                         required
                         @text-changed="proposal.market_analysis_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -328,6 +340,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="staffing_text"
                         ref="staffing_text"
@@ -337,6 +350,7 @@
                         required
                         @text-changed="proposal.staffing_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -383,6 +397,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="key_personnel_text"
                         ref="key_personnel_text"
@@ -391,6 +406,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.key_personnel_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -424,6 +440,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="key_milestones_text"
                         ref="key_milestones_text"
@@ -432,6 +449,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.key_milestones_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -469,6 +487,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="risk_factors_text"
                         ref="risk_factors_text"
@@ -477,6 +496,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.risk_factors_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -514,6 +534,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <!--
                     <RichText
                         id="legislative_requirements_text"
                         ref="legislative_requirements_text"
@@ -524,6 +545,7 @@
                             proposal.legislative_requirements_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div class="row mb-3">
@@ -590,7 +612,7 @@
 
 <script>
 import FormSection from '@/components/forms/section_toggle.vue';
-import RichText from '@/components/forms/RichText.vue';
+//import RichText from '@/components/forms/RichText.vue';
 import FileField from '@/components/forms/filefield_immediate.vue';
 import { api_endpoints, constants, helpers } from '@/utils/hooks';
 
@@ -598,7 +620,7 @@ export default {
     name: 'LeaseLicenceForm',
     components: {
         FormSection,
-        RichText,
+        //RichText,
         FileField,
     },
     props: {

@@ -36,7 +36,7 @@ class AdditionalDocumentType(RevisionedMixin):
     name = models.CharField(max_length=255, null=True, blank=True)
     help_text = models.CharField(max_length=255, null=True, blank=True)
     enabled = models.BooleanField(default=True)
- 
+
     class Meta:
         verbose_name = "Additional Document Type"
         app_label = "silrec"
@@ -137,7 +137,7 @@ class ProposalAdditionalDocumentType(models.Model):
     )
     additional_document_type = models.ForeignKey(
         AdditionalDocumentType, on_delete=models.CASCADE
-    )           
+    )
 
     class Meta:
         app_label = "silrec"
@@ -270,6 +270,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     application_type = models.ForeignKey(ApplicationType, on_delete=models.PROTECT)
 
     shapefile_json = JSONField('Source/Submitter (multi) polygon geometry', blank=True, null=True)
+    shp_processed_json = JSONField('Source Polygon intersected with hist and split (multi) polygon geometry', blank=True, null=True)
     migrated = models.BooleanField(default=False)
 
     class Meta:
@@ -280,7 +281,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         # Clear out the cached
         #cache.delete(settings.CACHE_KEY_MAP_PROPOSALS)
 
-        # Store the original values of fields we want to keep track of in 
+        # Store the original values of fields we want to keep track of in
         # django reversion before they are overwritten by super() below
         original_processing_status = self._original_state['processing_status']
         #original_assessor_data = self._original_state['assessor_data']
@@ -325,7 +326,7 @@ class ProposalGeometry(models.Model):
     SOURCE_CHOICES = (
         (SOURCE_CHOICE_APPLICANT, "Proponent"),
         (SOURCE_CHOICE_ASSESSOR, "Assessor"),
-    )  
+    )
 
     objects = ProposalGeometryManager()
 

@@ -30,6 +30,7 @@
                                 >
                             </div>
                             <div class="col-sm-9">
+                                <!--
                                 <RichText
                                     :id="
                                         proposal.application_type.name ==
@@ -43,6 +44,7 @@
                                     placeholder-text="Add some details here"
                                     @text-changed="decline.reason = $event"
                                 />
+                                -->
                             </div>
                         </div>
                     </div>
@@ -97,7 +99,7 @@
 <script>
 import modal from '@vue-utils/bootstrap-modal.vue';
 import VueAlert from '@vue-utils/alert.vue';
-import RichText from '@/components/forms/RichText.vue';
+//import RichText from '@/components/forms/RichText.vue';
 import FileField from '@/components/forms/filefield_immediate.vue';
 import { helpers, api_endpoints, utils } from '@/utils/hooks.js';
 import { v4 as uuid } from 'uuid';
@@ -106,7 +108,7 @@ export default {
     components: {
         modal,
         VueAlert,
-        RichText,
+        //RichText,
         FileField,
     },
     props: {

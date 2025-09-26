@@ -16,6 +16,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="details_text"
                         ref="details_text"
@@ -25,6 +26,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.details_text = $event"
                     />
+                    -->
                 </div>
             </div>
 
@@ -92,6 +94,7 @@
                     <label class="form-label">Provide details</label>
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="exclusive_use_text"
                         ref="exclusive_use_text"
@@ -100,6 +103,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.exclusive_use_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.exclusive_use" class="row pb-3 mb-3">
@@ -166,6 +170,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="long_term_use_text"
                         ref="long_term_use_text"
@@ -174,6 +179,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.long_term_use_text = $event"
                     />
+                    -->
                 </div>
             </div>
 
@@ -251,6 +257,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="consistent_purpose_text"
                         ref="consistent_purpose_text"
@@ -261,6 +268,7 @@
                             proposal.consistent_purpose_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.consistent_purpose" class="row mb-3">
@@ -338,6 +346,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="consistent_plan_text"
                         ref="consistent_plan_text"
@@ -346,6 +355,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.consistent_plan_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.consistent_plan" class="row mb-3">
@@ -431,6 +441,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="clearing_vegetation_text"
                         ref="clearing_vegetation_text"
@@ -441,6 +452,7 @@
                             proposal.clearing_vegetation_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.clearing_vegetation" class="row mb-3">
@@ -518,6 +530,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="ground_disturbing_works_text"
                         ref="ground_disturbing_works_text"
@@ -528,6 +541,7 @@
                             proposal.ground_disturbing_works_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.ground_disturbing_works" class="row mb-3">
@@ -605,6 +619,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="heritage_site_text"
                         ref="heritage_site_text"
@@ -613,6 +628,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.heritage_site_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.heritage_site" class="row mb-3">
@@ -694,6 +710,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="environmentally_sensitive_text"
                         ref="environmentally_sensitive_text"
@@ -704,6 +721,7 @@
                             proposal.environmentally_sensitive_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.environmentally_sensitive" class="row mb-3">
@@ -783,6 +801,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="wetlands_impact_text"
                         ref="wetlands_impact_text"
@@ -791,6 +810,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.wetlands_impact_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.wetlands_impact" class="row mb-3">
@@ -868,6 +888,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="building_required_text"
                         ref="building_required_text"
@@ -876,6 +897,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.building_required_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.building_required" class="row mb-3">
@@ -953,6 +975,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="significant_change_text"
                         ref="significant_change_text"
@@ -963,6 +986,7 @@
                             proposal.significant_change_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.significant_change" class="row mb-3">
@@ -1042,6 +1066,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="aboriginal_site_text"
                         ref="aboriginal_site_text"
@@ -1050,6 +1075,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.aboriginal_site_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.aboriginal_site" class="row mb-3">
@@ -1131,6 +1157,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="native_title_consultation_text"
                         ref="native_title_consultation_text"
@@ -1141,6 +1168,7 @@
                             proposal.native_title_consultation_text = $event
                         "
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.native_title_consultation" class="row mb-3">
@@ -1222,6 +1250,7 @@
                     >
                 </div>
                 <div class="col-12">
+                    <!--
                     <RichText
                         id="mining_tenement_text"
                         ref="mining_tenement_text"
@@ -1230,6 +1259,7 @@
                         :readonly="readonly"
                         @text-changed="proposal.mining_tenement_text = $event"
                     />
+                    -->
                 </div>
             </div>
             <div v-show="proposal.mining_tenement" class="row mb-3">
@@ -1256,7 +1286,7 @@
 
 <script>
 import FormSection from '@/components/forms/section_toggle.vue';
-import RichText from '@/components/forms/RichText.vue';
+//import RichText from '@/components/forms/RichText.vue';
 import FileField from '@/components/forms/filefield_immediate.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
 
@@ -1264,7 +1294,7 @@ export default {
     name: 'RegistrationOfInterestForm',
     components: {
         FormSection,
-        RichText,
+        //RichText,
         FileField,
     },
     props: {

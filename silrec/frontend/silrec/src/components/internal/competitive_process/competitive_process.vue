@@ -334,6 +334,7 @@
                                     >
                                 </div>
                                 <div class="col-sm-9">
+                                    <!--
                                     <RichText
                                         :id="
                                             hasWinner
@@ -347,6 +348,7 @@
                                         :readonly="elementDisabled"
                                         @text-changed="detailsTextChanged"
                                     />
+                                    -->
                                 </div>
                             </div>
                             <div class="row mb-2">
@@ -449,7 +451,7 @@ import Workflow from '@common-utils/workflow_competitive_process.vue';
 import FormSection from '@/components/forms/section_toggle.vue';
 import TableParties from '@common-utils/table_parties.vue';
 import MapComponent from '@/components/common/component_map.vue';
-import RichText from '@/components/forms/RichText.vue';
+//import RichText from '@/components/forms/RichText.vue';
 import FileField from '@/components/forms/filefield_immediate.vue';
 import TableRelatedItems from '@/components/common/table_related_items.vue';
 import GISDataDetails from '@/components/common/gis_data_details.vue';
@@ -470,7 +472,7 @@ export default {
         FormSection,
         MapComponent,
         Multiselect,
-        RichText,
+        //RichText,
         FileField,
         TableRelatedItems,
     },

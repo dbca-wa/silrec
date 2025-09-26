@@ -41,9 +41,9 @@ CACHE_TIMEOUT_5_MINUTES = 60 * 5
 CACHE_TIMEOUT_2_HOURS = 60 * 60 * 2
 CACHE_TIMEOUT_24_HOURS = 60 * 60 * 24
 
-# This cache is updated first Sunday of each month by cron. Also, updated if an existing layer 
+# This cache is updated first Sunday of each month by cron. Also, updated if an existing layer
 # is updated (on demand, and by nightly cron 'manage.py update_active_layers')
-CACHE_TIMEOUT = env('CACHE_TIMEOUT', None) 
+CACHE_TIMEOUT = env('CACHE_TIMEOUT', None)
 
 # API Request cache
 REQUEST_CACHE_TIMEOUT = env('REQUEST_CACHE_TIMEOUT', 60*10) # 10 mins
@@ -88,6 +88,7 @@ DATA_STORE = env('DATA_STORE', 'data_store') # MB
 if not os.path.exists(DATA_STORE):
     os.makedirs(DATA_STORE)
 
+SLIVER_AREALENGTH_THRESHOLD=5 # Polygon AREA/LENGTH
 
 
 KMI_SERVER_URL = env("KMI_SERVER_URL", "https://kmi.dbca.wa.gov.au")
@@ -98,9 +99,9 @@ GIS_SERVER_URL = env(
 GIS_LANDS_AND_WATERS_LAYER_NAME = env(
             "GIS_LANDS_AND_WATERS_LAYER_NAME",
                 "kaartdijin-boodja-public:CPT_DBCA_LEGISLATED_TENURE",
-                )   
+                )
 GIS_INVERT_XY = env("GIS_INVERT_XY", True)
-#    
+#
 #ABS_API_URL = env("ABS_API_URL", "https://api.data.abs.gov.au")
 #ABS_API_CPI_SUBDIRECTORY = env("ABD_API_CPI_PATH", "/data/CPI/")
 #ABS_API_CPI_PATH = env("ABD_API_CPI_PATH", "3.10001.10.5.Q")
@@ -354,7 +355,7 @@ SECURE_DOCUMENT_API_BASE_PATH = "/api/main/secure_document/"
 """ Fields that the logging functions will check for on the instance
     and use to identify the instance in the logs. """
 ACTION_LOGGING_IDENTIFIER_FIELDS = [
-    "lodgement_number", 
+    "lodgement_number",
     "id",
 ]
 
@@ -391,11 +392,11 @@ RUNNING_DEVSERVER = len(sys.argv) > 1 and sys.argv[1] == "runserver"
 # Make sure this returns true when in local development
 # so you can use the vite dev server with hot module reloading
 USE_VITE_DEV_SERVER = RUNNING_DEVSERVER and EMAIL_INSTANCE == "DEV" and DEBUG is True
-        
+
 STATIC_URL_PREFIX = (
     "/static/silrec_vue/" if USE_VITE_DEV_SERVER else "silrec_vue/"
-)   
-        
+)
+
 DJANGO_VITE = {
     "default": {
         "dev_mode": USE_VITE_DEV_SERVER,

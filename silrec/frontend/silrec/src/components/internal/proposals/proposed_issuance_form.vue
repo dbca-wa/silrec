@@ -120,6 +120,7 @@
                             >
                             <div class="col-sm-9">
                                 <div class="col-sm-9">
+                                    <!--
                                     <RichText
                                         id="registration-of-interest-details-approve"
                                         ref="registration_of_interest_details"
@@ -133,6 +134,7 @@
                                             )
                                         "
                                     />
+                                    -->
                                 </div>
                                 <div
                                     class="details-invalid-feedback invalid-feedback"
@@ -395,6 +397,7 @@
                                     >Details</label
                                 >
                                 <div class="col-sm-9">
+                                    <!--
                                     <RichText
                                         id="lease-licence-details-approve"
                                         ref="lease_licence_details"
@@ -410,6 +413,7 @@
                                             )
                                         "
                                     />
+                                    -->
                                     <div
                                         class="details-invalid-feedback invalid-feedback"
                                     >
@@ -553,7 +557,7 @@
 
 <script>
 import VueAlert from '@vue-utils/alert.vue';
-import RichText from '@/components/forms/RichText.vue';
+//import RichText from '@/components/forms/RichText.vue';
 import { v4 as uuid } from 'uuid';
 
 import { api_endpoints, constants, helpers, utils } from '@/utils/hooks';
@@ -566,7 +570,7 @@ export default {
     name: 'ProposedApprovalForm',
     components: {
         VueAlert,
-        RichText,
+        //RichText,
         FileField,
         ProposedApprovalDocuments,
     },

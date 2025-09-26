@@ -203,6 +203,7 @@ class ProposalSerializer(BaseProposalSerializer):
     #)
     #assessor_assessment = serializers.SerializerMethodField(read_only=True)
     proposalgeometry = serializers.SerializerMethodField(read_only=True)
+    proposalgeometry_sep = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
@@ -270,11 +271,11 @@ class ListProposalMinimalSerializer(serializers.ModelSerializer):
 #    )
     processing_status_display = serializers.CharField(
         read_only=True, source="get_processing_status"
-    )       
+    )
     lodgement_date_display = serializers.DateTimeField(
         read_only=True, format="%d/%m/%Y", source="lodgement_date"
-    )       
-            
+    )
+
     class Meta:
         model = Proposal
         fields = (

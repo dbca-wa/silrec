@@ -25,6 +25,8 @@ from rest_framework.exceptions import ValidationError
 from silrec.settings import OGR2OGR, CRS_GDA94
 from silrec.components.proposals.models import ProposalGeometry
 
+from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
+
 #from leaseslicensing.components.tenure.models import (
 #    LGA,
 #    Act,
@@ -191,12 +193,18 @@ def polygons_to_gdf():
         shapely_multi_polygon = wkt.loads(poly.geom.wkt)
         geo_series_list.append(shapely_multi_polygon)
         crs_list.append(poly.geom.srs.srid)
-        
+
     # confirm all polygons geometries have same CRS
     if len(set(crs_list)) > 1:
         raise Exception(f'Geometry CRS is not unique {list(set(crs_list))}')
     gdf = gpd.GeoDataFrame(geometry=geo_series_list, crs=CRS_GDA94) # EPSG:28350
     return gdf
+
+def get_processed_json_obj():
+    ssm = ShapefileSliversMerger(gdf_single)
+    gdf_result = ssm.create_gdf()
+    return ssm.processed_to_json_obj()
+
 
 def validate_map_files(request, instance, foreign_key_field=None):
     # Validates shapefiles uploaded with via the proposal map or the competitive process map.
@@ -284,6 +292,7 @@ def validate_map_files(request, instance, foreign_key_field=None):
     shp_json = json.loads(result_ogr.stdout)
 
     instance.shapefile_json = shp_json
+    instance.shp_processed_json = get_processed_json_obj()
     instance.save()
 
     # Delete all shapefile documents so the user can upload another one if they wish.
@@ -411,14 +420,14 @@ def populate_gis_data(instance, geometries_attribute, foreign_key_field=None):
     and saves it to the instance (Proposal or Competitive Process)"""
     import ipdb;ipdb.set_trace()
     instance_name = instance._meta.model.__name__
-    
+
     logger.info(
         "Populating GIS data for %s: %s", instance_name, instance.lodgement_number
     )
-    
+
     if not foreign_key_field:
         foreign_key_field = instance_name.lower()
-            
+
 #    populate_gis_data_lands_and_waters(
 #        instance, geometries_attribute, foreign_key_field
 #    )  # Covers Identifiers, Names, Acts, Tenures and Categories

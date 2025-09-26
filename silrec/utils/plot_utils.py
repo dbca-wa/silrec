@@ -1,4 +1,5 @@
 from django.conf import settings
+from sqlalchemy import create_engine
 import geopandas as gpd
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,10 +12,12 @@ def annotate_plot(gdf, ax, label_prefix=None):
         # Get the centroid of the geometry for label placement
         # For points, this is the point itself. For polygons/lines, it's the centroid.
         # Use .representative_point() for polygons to ensure the point is within the polygon.
-        if row.geometry.geom_type == 'Point':
-            x, y = row.geometry.x, row.geometry.y
+
+        row_geom = row.geometry if 'geometry' in gdf.columns else row.geom
+        if row_geom.geom_type == 'Point':
+            x, y = row_geom.x, row_geom.y
         else:
-            x, y = row.geometry.centroid.x, row.geometry.centroid.y
+            x, y = row_geom.centroid.x, row_geom.centroid.y
 
         # Get the label text from a column in your GeoDataFrame (e.g., 'name_column')
         label = label_prefix + '_' + str(idx) if label_prefix else str(idx)
@@ -84,6 +87,39 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
 
     plt.show()
 
+def get_conn_engine():
+    '''
+    an alternative solution for a multi-client (multi-tenant) application is to configure a different db user
+    for each client, and configure the relevant search_path for each user:
+
+    alter role user1 set search_path = "$user", public
+    '''
+    dbschema='silrec,public' # Searches left-to-right
+    engine = create_engine(
+        'postgresql://dev:dev123@localhost:5432/silrec_test1',
+        connect_args={'options': '-c search_path={}'.format(dbschema)}
+    )
+    return engine
+
+def get_base_polygon_id(row, polygons):
+    ''' for given split polygon, returns the polygon_id of the parent (historical polygons gdf) polygon
+
+        --> Returns the parent polygon_id (intersected by the centroid)
+
+        usage: gdf_tmp['polygon_id'] = gdf_tmp.apply(get_base_polygon_id, axis=1)
+    '''
+    # Convert Centroid POINT to GDF
+    centroid_point = row.geometry.centroid
+    data = {'geometry': [centroid_point]}
+    centroid_gdf = gpd.GeoDataFrame(data, geometry='geometry', crs=settings.CRS_GDA94)
+
+    if 'index_right' in polygons.columns:
+        polygons.drop(['index_right'], axis=1, inplace=True)
+
+    gdf = gpd.sjoin(polygons, centroid_gdf, how="inner", predicate="intersects")
+    return None if gdf.empty else gdf.polygon_id.iloc[0]
+
+
 def get_base_polygon_gdf(gdf_base, gdf_common_boundary):
     ''' returns the equiv. of gdf_single, but the one after
         historical polygon intersection and subsequent splitting
@@ -103,7 +139,7 @@ def get_base_polygon_gdf(gdf_base, gdf_common_boundary):
 def create_gdf():
     '''
     from silrec.utils.plot_utils import create_dummy_polygons, plot_gdf, plot_overlay, create_gdf
-    polygons, gdf_single, polygons_intersecting_single, gdf_overlay, gdf_split, gdf_common_boundary, gdf_slivers, base_polygon, gdf_slivers_plus_base, gdf_new_hist_polygons, gdf_slivers_merged
+    polygons, gdf_single, polygons_intersecting_single, gdf_overlay, gdf_split, gdf_common_boundary, gdf_slivers, base_polygon, gdf_slivers_plus_base, gdf_new_hist_polygons, gdf_slivers_merged, gdf_result
 
     %matplotlib
     plot_gdf(gdf_slivers_merged)
@@ -111,7 +147,10 @@ def create_gdf():
     '''
     import geopandas as gpd
     from silrec.components.main.utils import polygons_to_gdf
-    polygons = polygons_to_gdf()
+    #polygons = polygons_to_gdf()
+
+    sql='select * from polygon;'
+    polygons = gpd.read_postgis(sql, con=get_conn_engine(), geom_col='geom')
 
     gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_single/demarcation_single_feature.shp')
     gdf_single.to_crs('EPSG:28350', inplace=True)
@@ -172,9 +211,13 @@ def create_gdf():
 
     gdf_slivers_merged = gdf_slivers_plus_base.dissolve() # Multipolygon
     #gdf_slivers_merged = gdf_slivers_plus_base.dissolve().explode()) # Polygon(s) - >1 if there gaps between polygons preventing merge to a single polygon
+    #import ipdb; ipdb.set_trace()
+    gdf_result = gpd.GeoDataFrame(pd.concat([gdf_slivers_merged, gdf_new_hist_polygons], ignore_index=True))
+    #gdf_result['polygon_id'] = gdf_result.apply(get_base_polygon_id, args=(gdf_result, polygons), axis=1)
 
     #plot_overlay(gdf_five, polygons_intersecting_five)
-    return polygons, gdf_single, polygons_intersecting_single, gdf_overlay, gdf_split, gdf_common_boundary, gdf_slivers,base_polygon, gdf_slivers_plus_base, gdf_new_hist_polygons, gdf_slivers_merged
+    return polygons, gdf_single, polygons_intersecting_single, gdf_overlay, gdf_split, gdf_common_boundary, \
+           gdf_slivers,base_polygon, gdf_slivers_plus_base, gdf_new_hist_polygons, gdf_slivers_merged, gdf_result
 
 
 def create_dummy_polygons():

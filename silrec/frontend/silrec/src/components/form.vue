@@ -368,24 +368,26 @@ export default {
 
             //return featureCollection; // TODO - JM
 
-            for (let feature of proposalgeometries['features']) {
-                feature['properties']['source'] = 'Proposal';
-                let model = {
-                    id: vm.proposal.id,
-                    details_url: vm.proposal.details_url,
-                    application_type_name_display:
-                        vm.proposal.application_type.name_display,
-                    lodgement_number: vm.proposal.lodgement_number,
-                    lodgement_date_display: moment(
-                        vm.proposal.lodgement_date
-                    ).format('DD/MM/YYYY'),
-                    processing_status_display: vm.proposal.processing_status,
-                };
+            if (proposalgeometries) {
+                for (let feature of proposalgeometries['features']) {
+                    feature['properties']['source'] = 'Proposal';
+                    let model = {
+                        id: vm.proposal.id,
+                        details_url: vm.proposal.details_url,
+                        application_type_name_display:
+                            vm.proposal.application_type.name_display,
+                        lodgement_number: vm.proposal.lodgement_number,
+                        lodgement_date_display: moment(
+                            vm.proposal.lodgement_date
+                        ).format('DD/MM/YYYY'),
+                        processing_status_display: vm.proposal.processing_status,
+                    };
 
-                feature['model'] = model;
-                featureCollection['features'].push(feature);
+                    feature['model'] = model;
+                    featureCollection['features'].push(feature);
+                }
+                console.log('featureCollection: ' + featureCollection)
             }
-            console.log('featureCollection: ' + featureCollection)
             return featureCollection;
         },
     },

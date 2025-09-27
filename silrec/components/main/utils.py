@@ -200,7 +200,7 @@ def polygons_to_gdf():
     gdf = gpd.GeoDataFrame(geometry=geo_series_list, crs=CRS_GDA94) # EPSG:28350
     return gdf
 
-def get_processed_json_obj():
+def get_processed_json_obj(gdf_single):
     ssm = ShapefileSliversMerger(gdf_single)
     gdf_result = ssm.create_gdf()
     return ssm.processed_to_json_obj()
@@ -264,7 +264,7 @@ def validate_map_files(request, instance, foreign_key_field=None):
     if len(shp_file_objs) > 1:
         raise ValidationError("Can only upload one shapefile combination at a time")
 
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
     gdf = gpd.read_file(shp_file_objs[0].path)  # Shapefile to GeoDataFrame
 
     if gdf.empty:
@@ -292,7 +292,8 @@ def validate_map_files(request, instance, foreign_key_field=None):
     shp_json = json.loads(result_ogr.stdout)
 
     instance.shapefile_json = shp_json
-    instance.shp_processed_json = get_processed_json_obj()
+    import ipdb; ipdb.set_trace()
+    instance.shp_processed_json = get_processed_json_obj(gpd.read_file(json.dumps(shp_json)))
     instance.save()
 
     # Delete all shapefile documents so the user can upload another one if they wish.

@@ -226,9 +226,13 @@ class ProposalSerializer(BaseProposalSerializer):
             "assessor_mode",
             "processing_status_id",
             "proposalgeometry",
+            "proposalgeometry_sep",
         )
 
     def get_proposalgeometry(self, obj):
+        return obj.shapefile_json
+
+    def get_proposalgeometry_sep(self, obj):
         return obj.shapefile_json
 
     def get_model_name(self, obj):

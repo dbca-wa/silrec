@@ -26,4 +26,5 @@ django-ckeditor==6.7.3
 geopandas==1.1.1
 matplotlib==3.10.6
 SQLAlchemy==2.0.43
+GeoAlchemy2==0.18.0
 jupyter==1.1.1

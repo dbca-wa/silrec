@@ -117,6 +117,19 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = False
 
+SHELL_PLUS_POST_IMPORTS = [
+    'import pandas as pd',
+    'import geopandas as gpd',
+    'import matplotlib.pyplot as plt',
+    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
+    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
+]
+
+# For Auto Reloading
+#~/.ipython/profile_default/ipython_config.py
+#c.InteractiveShellApp.extensions = ['autoreload']
+#c.InteractiveShellApp.exec_lines = ['%autoreload 2']
+
 # Custom Email Settings
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if env('CONSOLE_EMAIL_BACKEND', False) else 'silrec.backend_email.SqsEmailBackend'
 PRODUCTION_EMAIL = env('PRODUCTION_EMAIL', False)

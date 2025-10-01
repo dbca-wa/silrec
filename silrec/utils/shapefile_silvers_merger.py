@@ -71,7 +71,7 @@ class ShapefileSliversMerger():
             historical polygon intersection and subsequent splitting
             to form new polygons
 
-            --> Returns the ''new split' base polygon
+            --> Returns the 'new split' base polygon
         '''
         centroids_gdf1 = gdf_base.geometry.centroid
         centroids_df = gpd.GeoDataFrame(geometry=centroids_gdf1)

@@ -40,23 +40,5 @@ plot_gdf(gdf_overlay.iloc[[2,7]])
 
 ---
 
-:ls
-  1 #a   "plot_utils.py"                line 1
-  2  h   "shapefile_silvers_merger.py"  line 38
-  3  a   "~/projects/silrec/silrec/components/main/models.py" line 0
-  4  a   "~/projects/silrec/silrec/components/proposals/models.py" line 0
-  5  a   "~/projects/silrec/silrec/components/proposals/serializers.py" line 0
-  6  a   "~/projects/silrec/silrec/components/proposals/api.py" line 0
-  7  a   "~/projects/silrec/silrec/frontend/silrec/src/components/form.vue" line 1
-  8  a   "~/projects/silrec/silrec/components/main/utils.py" line 0
-  9  a-  "[Location List]"              line 0
- 10  h   "~/projects/silrec/silrec/frontend/silrec/src/components/src/components/common/component_map.vue" line 0
- 11  a   "~/projects/silrec/silrec/frontend/silrec/src/components/common/component_map.vue" line 0
- 12  a   "~/projects/silrec/silrec/frontend/silrec/src/components/common/map_functions.js" line 0
- 14 %a   "shapefile_silvers_merger2.py" line 63
- 15  a-  "[Location List]"              line 4
- 16  a   "~/projects/silrec/silrec/components/forest_blocks/models.py" line 0
- 17  a-  "[Location List]"              line 0
- 18  a-  "[Location List]"              line 1
- 23  h   "~/projects/silrec/silrec/settings.py" line 62
-
+:args
+silrec/utils/shapefile_silvers_merger2.py silrec/components/proposals/models.py       silrec/components/proposals/api.py silrec/components/main/models.py            silrec/components/proposals/serializers.py

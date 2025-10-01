@@ -136,6 +136,7 @@ class ShapefileSliversMerger():
         bound_single = unary_union(self.polygons_intersecting_single.geometry.boundary)
         boundary_single = gpd.GeoSeries([bound_single])
 
+        import ipdb; ipdb.set_trace()
         # non overlapping overlayed geometries (creates independent partitioned geometries)
         self.gdf_overlay = gpd.overlay(self.gdf_single, self.polygons_intersecting_single, how='union')
 

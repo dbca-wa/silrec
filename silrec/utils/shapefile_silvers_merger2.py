@@ -9,7 +9,8 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union, polygonize
 
 import json
-from silrec.utils.plot_utils import plot_gdf, plot_overlay
+from silrec.utils.plot_utils import plot_gdf as plot
+from silrec.utils.plot_utils import plot_overlay, plot_multi
 from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
@@ -26,7 +27,7 @@ class ShapefileSliversMerger():
 
     gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
     gdf_shp.to_crs('EPSG:28350', inplace=True)
-    ssm = ShapefileSliversMerger(gdf_shp)
+    ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
     gdf_result = ssm.create_gdf()
 
     ssm.plot_hist_polygons
@@ -50,12 +51,12 @@ class ShapefileSliversMerger():
 
 
     '''
-    def __init__(self, gdf_global, proposal_id, threshold=None, sql_polygons=None):
-        #self.gdf_global = gdf_global
+    def __init__(self, gdf_shpfile, proposal_id, threshold=None, sql_polygons=None):
+        self.gdf_shpfile = gdf_shpfile
         self.proposal_id = proposal_id
         self.threshold = threshold
         self.conn_engine = self.get_conn_engine()
-        self.gdf_polygons_global = self.get_polygons_gdf(gdf_global, 'polygon', sql_polygons)
+        self.gdf_hist_polygons_total = self.get_polygons_gdf(gdf_shpfile, 'polygon', sql_polygons)
 
         # for plots
 #        self.gdf_polygons_intersecting_single = None
@@ -82,11 +83,11 @@ class ShapefileSliversMerger():
 
     @property
     def next_version_id(self):
-        version_id = PolygonHistory.objects.filter(proposal_id=self.proposal_id).aggregate(models.Max('version_id'))['version_id__max'] + 1
-        return version_id if version_id is not None else 0
+        version_id = PolygonHistory.objects.filter(proposal_id=self.proposal_id).aggregate(models.Max('version_id'))['version_id__max']
+        return version_id + 1 if version_id is not None else 0
 
     def save_global_intersecting_polygons(self, gdf, table_name='silrec_polygonhistory'):
-        ''' Save the all polygons from forest_blocks.polygon (to PolygonHistory) that intersect the global shapefile '''
+        ''' Save all polygons from forest_blocks.polygon (to PolygonHistory) that intersect the global (input) shapefile '''
         gdf.to_postgis(table_name, con=self.conn_engine, if_exists='append', schema='silrec')
 
     def get_polygons_gdf(self, gdf, table_name, sql=None):
@@ -95,13 +96,17 @@ class ShapefileSliversMerger():
             Returns --> SQL query result as gdf
         '''
 
+        import ipdb; ipdb.set_trace()
         if not sql:
             srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; ' # SRID=28350;
-            base_polygon_wkt = srid + gdf.dissolve().iloc[0].geometry.wkt
+            #base_polygon_wkt = srid + gdf.dissolve().iloc[0].geometry.wkt
+            #base_polygon_wkt = srid + gdf.iloc[0].geometry.wkt
+            combined_geometry = unary_union(gdf['geometry'])
+            base_polygon_wkt = srid + combined_geometry.wkt
+
             sql = f'''SELECT ph.polygon_id, ph.name, ph.geom FROM {table_name} AS ph WHERE ph.closed IS NULL AND ST_Intersects(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'));'''
 
-        #import ipdb; ipdb.set_trace()
-        self.gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
+        gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
 
         gdf['version_id'] = self.next_version_id
         gdf['proposal_id'] = self.proposal_id
@@ -143,41 +148,41 @@ class ShapefileSliversMerger():
                 --> Returns the parent polygon_id (intersected by the centroid)
             '''
             # Convert Centroid POINT to GDF
-            import ipdb; ipdb.set_trace()
+            #import ipdb; ipdb.set_trace()
             centroid_point = row.geometry.centroid
             data = {'geometry': [centroid_point]}
             centroid_gdf = gpd.GeoDataFrame(data, geometry='geometry', crs=settings.CRS_GDA94)
 
-            if 'index_right' in self.gdf_polygons_global.columns:
+            if 'index_right' in self.gdf_hist_polygons_total.columns:
                 self.polygons.drop(['index_right'], axis=1, inplace=True)
 
-            gdf = gpd.sjoin(self.gdf_polygons_global, centroid_gdf, how="inner", predicate="intersects")
+            gdf = gpd.sjoin(self.gdf_hist_polygons_total, centroid_gdf, how="inner", predicate="intersects")
             return None if gdf.empty else gdf.polygon_src_id.iloc[0]
 
 #        import ipdb; ipdb.set_trace()
-#        self.save_global_intersecting_polygons(self.gdf_polygons_global, 'silrec_polygonhistory')
+#        self.save_global_intersecting_polygons(self.gdf_hist_polygons_total, 'silrec_polygonhistory')
 
-        for index, row in self.gdf_polygons_global.iterrows():
+        for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
             gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
-            # Determine which geometries in polygons geodataframe intersect with any geometry in gdf_single
-            intersects_mask_single = self.gdf_polygons_global.geometry.intersects(gdf_single.unary_union)
 
+            # Determine which geometries in polygons geodataframe intersect with any geometry in gdf_single
             # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
-            gdf_polygons_intersecting_single = self.gdf_polygons_global[intersects_mask_single]
+            intersects_mask_single = self.gdf_hist_polygons_total.geometry.intersects(gdf_single.unary_union)
+            gdf_polygons_intersecting_single = self.gdf_hist_polygons_total[intersects_mask_single]
 
             # plot the boundary outlines only (of all polygons touching also)
-            bound_single = unary_union(gdf_polygons_intersecting_single.geometry.boundary)
-            boundary_single = gpd.GeoSeries([bound_single])
+            #bound_single = unary_union(gdf_polygons_intersecting_single.geometry.boundary)
+            #boundary_single = gpd.GeoSeries([bound_single])
 
             # non overlapping overlayed geometries (creates independent partitioned geometries)
-            self.gdf_overlay = gpd.overlay(gdf_single, gdf_polygons_intersecting_single, how='union')
+            self.gdf_polygons_partitioned = gpd.overlay(gdf_single, gdf_polygons_intersecting_single, how='union')
+            import ipdb; ipdb.set_trace()
 
             # plot the boundary outlines only (of all polygons touching also)
-            bound_overlay = unary_union(self.gdf_overlay.geometry.boundary)
+            bound_overlay = unary_union(self.gdf_polygons_partitioned.geometry.boundary)
             boundary_overlay = gpd.GeoSeries([bound_overlay])
             poly_list = list(polygonize(bound_overlay)) #Create polygons from it
             gdf_split = gpd.GeoDataFrame(geometry=poly_list) #And a dataframe
-            import ipdb; ipdb.set_trace()
             gdf_split.set_crs(settings.CRS_GDA94, inplace=True)
 
             # Perform the spatial join
@@ -210,13 +215,23 @@ class ShapefileSliversMerger():
             gdf_result = gpd.GeoDataFrame()
             gdf_result = gpd.GeoDataFrame(pd.concat([gdf_slivers_merged, gdf_new_hist_polygons], ignore_index=True))
             #gdf_result['polygon_id'] = self.gdf_result.apply(get_base_polygon_id, args=(self.gdf_result, self.polygons), axis=1)
-            gdf_result['polygon_id'] = gdf_result.apply(get_base_polygon_id, axis=1) # add column for the corresponding hist polygon_id
-            gdf_result['Area'] = gdf_result.area # update the area column
+            gdf_result['polygon_src_id'] = gdf_result.apply(get_base_polygon_id, axis=1) # add column for the corresponding hist polygon_id
+            gdf_result['polygon_src_id'] = gdf_result['polygon_src_id'].fillna(0).astype(int)
             import ipdb; ipdb.set_trace()
 
             #plot_overlay(gdf_five, polygons_intersecting_five)
             if 'index_right' in gdf_result.columns:
                 gdf_result.drop('index_right', axis=1, inplace=True)
+
+            # ['polygon_src_id', 'name', 'geom', 'version_id', 'proposal_id']
+            gdf_result_filtered = gdf_result[['polygon_src_id', 'name', 'geometry']]
+            gdf_result_filtered['version_id'] = self.next_version_id
+            gdf_result_filtered['proposal_id'] = self.proposal_id
+
+            # get un-partitioned parts from self.gdf_hist_polygons_total
+            gdf_hist_polygons_net = gpd.overlay(self.gdf_hist_polygons_total, gdf_result, how='difference')
+            gdf_hist_polygons_net = gdf_hist_polygons_net[gdf_hist_polygons_net.area>1] # drop tiny areas
+            #self.save_global_intersecting_polygons(gdf_hist_polygons_net, 'silrec_polygonhistory')
 
         return gdf_result
 

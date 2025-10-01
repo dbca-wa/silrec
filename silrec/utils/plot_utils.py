@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union, polygonize
 
 def annotate_plot(gdf, ax, label_prefix=None):
@@ -85,6 +85,94 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
     ax.legend()
     ax.set_title('Overlay Plot of Base Shapefile Geometries and Hiostorical Intersecting Polygons')
 
+    plt.show()
+
+def plot_multi(gdf_list):
+
+    if len(gdf_list)<=3:
+        nrows = 1
+    elif len(gdf_list)>3 and len(gdf_list)<=6:
+        nrows = 2
+    else:
+        raise Exception(f'Max. number of gdfs is 6: {len(gdf_list)}')
+
+    if len(gdf_list)==1:
+        ncols = 1
+    elif len(gdf_list)==2:
+        ncols = 2
+    else:
+        ncols = 3
+
+    #import ipdb; ipdb.set_trace()
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 10))
+    for i, gdf in enumerate(gdf_list):
+        if nrows==1:
+            col = i % 3   # Calculate column index
+            gdf.plot(ax=axs[col], color='blue', edgecolor='black')
+        else:
+            row = i // 3  # Calculate row index
+            col = i % 3   # Calculate column index
+            gdf.plot(ax=axs[row, col], edgecolor='black', linewidth=0.5)
+
+    # Handle extra subplots if number of GDFs is less than 6
+    if len(gdf_list) > 3 and len(gdf_list) < 6:
+        for j in range(len(gdf_list), 6):
+            row = j // 3
+            col = j % 3
+            axs[row, col].set_visible(False) # Hide empty subplots
+
+    # Display the plot
+    plt.tight_layout() # Adjusts subplot params for a tight layout
+    #plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to prevent title overlap
+    plt.show()
+
+
+def plot_multi_test():
+    gdf_list = [
+        gpd.GeoDataFrame({'col1': [1, 2], 'geometry': [Point(0, 0), Point(1, 1)]}, crs="EPSG:4326"),
+        gpd.GeoDataFrame({'col2': [3, 4], 'geometry': [Point(2, 2), Point(3, 3)]}, crs="EPSG:4326"),
+        gpd.GeoDataFrame({'col3': [5, 6], 'geometry': [Point(4, 4), Point(5, 5)]}, crs="EPSG:4326"),
+
+        gpd.GeoDataFrame({'col1': [1, 2], 'geometry': [Point(0, 0), Point(1, 1)]}, crs="EPSG:4326"),
+        gpd.GeoDataFrame({'col2': [3, 4], 'geometry': [Point(2, 2), Point(3, 3)]}, crs="EPSG:4326"),
+        gpd.GeoDataFrame({'col3': [5, 6], 'geometry': [Point(4, 4), Point(5, 5)]}, crs="EPSG:4326"),
+    ]
+
+    if len(gdf_list)<=3:
+        nrows = 1
+    elif len(gdf_list)>3 and len(gdf_list)<=6:
+        nrows = 2
+    else:
+        raise Exception(f'Max. number of gdfs is 6: {len(gdf_list)}')
+
+    if len(gdf_list)==1:
+        ncols = 1
+    elif len(gdf_list)==2:
+        ncols = 2
+    else:
+        ncols = 3
+
+    #import ipdb; ipdb.set_trace()
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 10))
+    for i, gdf in enumerate(gdf_list):
+        if nrows==1:
+            col = i % 3   # Calculate column index
+            gdf.plot(ax=axs[col], color='blue', edgecolor='black')
+        else:
+            row = i // 3  # Calculate row index
+            col = i % 3   # Calculate column index
+            gdf.plot(ax=axs[row, col], edgecolor='black', linewidth=0.5)
+
+    # Handle extra subplots if number of GDFs is less than 6
+    if len(gdf_list) > 3 and len(gdf_list) < 6:
+        for j in range(len(gdf_list), 6):
+            row = j // 3
+            col = j % 3
+            axs[row, col].set_visible(False) # Hide empty subplots
+
+    # Display the plot
+    plt.tight_layout() # Adjusts subplot params for a tight layout
+    #plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to prevent title overlap
     plt.show()
 
 def get_conn_engine():

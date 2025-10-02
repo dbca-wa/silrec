@@ -136,7 +136,7 @@ class ShapefileSliversMerger():
         bound_single = unary_union(self.polygons_intersecting_single.geometry.boundary)
         boundary_single = gpd.GeoSeries([bound_single])
 
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         # non overlapping overlayed geometries (creates independent partitioned geometries)
         self.gdf_overlay = gpd.overlay(self.gdf_single, self.polygons_intersecting_single, how='union')
 
@@ -154,6 +154,7 @@ class ShapefileSliversMerger():
         # (i.e., touch at a point, line, or boundary)
         #gdf_common_boundary = gpd.sjoin(gdf_split, gdf_split.iloc[[2]], how='inner', predicate='intersects')
         gdf_common_boundary = gpd.sjoin(gdf_split, self.gdf_single, how='inner', predicate='intersects')
+        self.gdf = gdf_common_boundary.copy() # net split
 
         # get the gdf_single split equivalent from gdf_common_boundary
         base_polygon = self.get_base_polygon_gdf(self.gdf_single, gdf_common_boundary)
@@ -229,7 +230,7 @@ class ShapefileSliversMerger():
 
     @property
     def plot_overlay(self):
-        plot_gdf(self.gdf_overlay)
+        plot_gdf(self.gdf_overlay.explode())
 
     @property
     def plot_slivers(self):

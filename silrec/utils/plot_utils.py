@@ -47,6 +47,10 @@ def plot_gdf(gdf, annotate=True):
     # Assuming 'gdf' is your GeoDataFrame
     ax = gdf.plot(color=gdf['random_color'], figsize=(10, 10))
 
+    npolys = len(gdf)
+    area_ha = round(gdf.area.sum()/10000, 2)
+    ax.set_title(f'Polys {npolys}. Area Ha {area_ha}')
+
     # annotate the plot
     if annotate:
         annotate_plot(gdf, ax, label_prefix=None)
@@ -89,6 +93,9 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
 
 def plot_multi(gdf_list):
 
+    def get_random_color():
+        return "#%06x" % np.random.randint(0, 0xFFFFFF)
+
     if len(gdf_list)<=3:
         nrows = 1
     elif len(gdf_list)>3 and len(gdf_list)<=6:
@@ -103,16 +110,31 @@ def plot_multi(gdf_list):
     else:
         ncols = 3
 
+    
     #import ipdb; ipdb.set_trace()
     fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 10))
     for i, gdf in enumerate(gdf_list):
+
+        #random_colors = [get_random_color() for _ in range(len(gdf))]
+        random_colors = [get_random_color() for _ in range(100)]
+        #gdf['random_color'] = random_colors
+
+        npolys = len(gdf)
+        area_ha = round(gdf.area.sum()/10000, 2)
         if nrows==1:
             col = i % 3   # Calculate column index
-            gdf.plot(ax=axs[col], color='blue', edgecolor='black')
+            #gdf.plot(ax=axs[col], color='blue', edgecolor='black')
+            gdf.plot(ax=axs[col], color=random_colors[:npolys+1], edgecolor='black')
+            #gdf.plot(ax=axs[col], color='blue', edgecolor='black')
+            axs[col].set_title(f'Polys {npolys}. Area Ha {area_ha}')
+            annotate_plot(gdf, axs[col], label_prefix=None)
         else:
             row = i // 3  # Calculate row index
             col = i % 3   # Calculate column index
-            gdf.plot(ax=axs[row, col], edgecolor='black', linewidth=0.5)
+            gdf.plot(ax=axs[row, col], color=random_colors[:npolys+1], edgecolor='black', linewidth=0.5)
+            #gdf.plot(ax=axs[row, col], color='blue', edgecolor='black', linewidth=0.5)
+            axs[row,col].set_title(f'Polys {npolys}. Area Ha {area_ha}')
+            annotate_plot(gdf, axs[row,col], label_prefix=None)
 
     # Handle extra subplots if number of GDFs is less than 6
     if len(gdf_list) > 3 and len(gdf_list) < 6:
@@ -125,7 +147,6 @@ def plot_multi(gdf_list):
     plt.tight_layout() # Adjusts subplot params for a tight layout
     #plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to prevent title overlap
     plt.show()
-
 
 def plot_multi_test():
     gdf_list = [

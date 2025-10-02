@@ -8,7 +8,7 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union, polygonize
 
 import json
-from silrec.utils.plot_utils import plot_gdf, plot_overlay
+from silrec.utils.plot_utils import plot_gdf, plot_overlay, plot_multi
 
 import matplotlib as mpl
 mpl.use('TkAgg')
@@ -18,7 +18,7 @@ mpl.use('TkAgg')
 class ShapefileSliversMerger():
     '''
     import geopandas as gpd
-    from silrec.utils.shapefile_overlay_separator import ShapefileSliversMerger
+    from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
 
     gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_single/demarcation_single_feature.shp')
     gdf_single.to_crs('EPSG:28350', inplace=True)
@@ -252,4 +252,8 @@ class ShapefileSliversMerger():
     def plot_result(self):
         plot_gdf(self.gdf_result)
 
-
+    @property
+    def plot_multi(self):
+        gdf_full = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+        gdf_full.to_crs('EPSG:28350', inplace=True)
+        plot_multi([self.gdf_single, self.polygons_intersecting_single, self.gdf_common_boundary, self.gdf_slivers_plus_base, self.gdf_slivers_merged, self.gdf_result])

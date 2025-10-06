@@ -18,10 +18,9 @@ mpl.use('TkAgg')
 class ShapefileSliversMerger():
     '''
     import geopandas as gpd
-    from silrec.utils.shapefile_silvers_merger_b import ShapefileSliversMerger
+    from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
 
-    #gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
-    gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
+    gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_single/demarcation_single_feature.shp')
     gdf_single.to_crs('EPSG:28350', inplace=True)
     ssm = ShapefileSliversMerger(gdf_single)
     gdf_result = ssm.create_gdf()
@@ -66,6 +65,21 @@ class ShapefileSliversMerger():
     def get_polygons_gdf(self, sql_polygons):
         sql = sql_polygons if sql_polygons else 'select * from polygon;'
         return gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
+
+#    def get_polygons_gdf(self, gdf, table_name, sql=None):
+#        ''' Get intersecting polygons from forest_blocks.polygon - intersecting with the given base polygon
+#            Returns --> SQL query result as gdf
+#        '''
+#        import ipdb; ipdb.set_trace()
+#        if not sql:
+#            srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; ' # SRID=28350;
+#            combined_geometry = unary_union(gdf['geometry'])
+#            base_polygon_wkt = srid + combined_geometry.wkt
+#            sql = f'''SELECT ph.polygon_id, ph.name, ph.geom FROM {table_name} AS ph WHERE ph.closed IS NULL AND ST_Intersects(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'));'''
+#
+#        gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
+#        return gdf
+
 
     def get_base_polygon_gdf(self, gdf_base, gdf_common_boundary):
         ''' returns the equiv. of gdf_single, but the one after
@@ -255,6 +269,6 @@ class ShapefileSliversMerger():
 
     @property
     def plot_multi(self):
-        #gdf_full = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
-        #gdf_full.to_crs('EPSG:28350', inplace=True)
-        plot_multi([self.gdf_single, self.polygons_intersecting_single, self.gdf, self.gdf_slivers_plus_base, self.gdf_slivers_merged, self.gdf_result])
+        gdf_full = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+        gdf_full.to_crs('EPSG:28350', inplace=True)
+        plot_multi([self.gdf_single, self.polygons_intersecting_single, self.gdf_common_boundary, self.gdf_slivers_plus_base, self.gdf_slivers_merged, self.gdf_result])

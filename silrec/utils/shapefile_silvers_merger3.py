@@ -11,6 +11,7 @@ from shapely.ops import unary_union, polygonize
 import json
 from silrec.utils.plot_utils import plot_gdf as plot
 from silrec.utils.plot_utils import plot_overlay, plot_multi
+from silrec.utils.sliver_test1 import identify_slivers
 from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
@@ -23,13 +24,14 @@ mpl.use('TkAgg')
 class ShapefileSliversMerger():
     '''
     import geopandas as gpd
-    from silrec.utils.shapefile_silvers_merger2 import ShapefileSliversMerger
+    from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
 
     gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
     gdf_shp.to_crs('EPSG:28350', inplace=True)
     ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
     gdf_result = ssm.create_gdf()
 
+    plot_multi([self.gdf_shpfile, gdf_single, self.gdf_polygons_partitioned.explode(), gdf_slivers, gdf_result])
     ssm.plot_hist_polygons
     ssm.plot_hist_polygons_new
     ssm.plot_overlay
@@ -96,7 +98,7 @@ class ShapefileSliversMerger():
             Returns --> SQL query result as gdf
         '''
 
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         if not sql:
             srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; ' # SRID=28350;
             #base_polygon_wkt = srid + gdf.dissolve().iloc[0].geometry.wkt
@@ -121,7 +123,7 @@ class ShapefileSliversMerger():
 
             --> Returns the 'new split' base polygon
         '''
-        centroids_gdf1 = gdf_base.geometry.centroid
+        centroids_gdf1 = gdf_base.geometry.representative_point()
         centroids_df = gpd.GeoDataFrame(geometry=centroids_gdf1)
 
         if 'index_right' in gdf_common_boundary.columns:
@@ -163,11 +165,11 @@ class ShapefileSliversMerger():
         def get_base_polygon_id(row):
             ''' for given split polygon, returns the polygon_id of the parent (historical polygons gdf) polygon
                 usage: gdf_tmp['polygon_id'] = gdf_tmp.apply(get_base_polygon_id, axis=1)
-                --> Returns the parent polygon_id (intersected by the centroid)
+                --> Returns the parent polygon_id (intersected by the centroid - representative_point() falls inside the polygon)
             '''
             # Convert Centroid POINT to GDF
             #import ipdb; ipdb.set_trace()
-            centroid_point = row.geometry.centroid
+            centroid_point = row.geometry.representative_point()
             data = {'geometry': [centroid_point]}
             centroid_gdf = gpd.GeoDataFrame(data, geometry='geometry', crs=settings.CRS_GDA94)
 
@@ -181,99 +183,58 @@ class ShapefileSliversMerger():
 #        self.save_global_intersecting_polygons(self.gdf_hist_polygons_total, 'silrec_polygonhistory')
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
+        #gdf_result = gpd.GeoDataFrame()
         for index, row in self.gdf_shpfile.iterrows():
-            #gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
-            gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
+            gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
+            #gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
 
             # Determine which geometries in polygons geodataframe intersect with any geometry in gdf_single
             # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
-#            intersects_mask_single = self.gdf_hist_polygons_total.geometry.intersects(gdf_single.unary_union)
             intersects_mask_single = self.gdf_hist_polygons_total.geometry.intersects(self.gdf_shpfile.unary_union)
             gdf_polygons_intersecting_single = self.gdf_hist_polygons_total[intersects_mask_single]
-#            gdf_polygons_intersecting_single = self.gdf_shpfile.copy()
-
-            # splits the gdf_polygons_interecting_single (from silrec_v3) into  new parts, but excludes gdf_single+slivers
-            gdf_polygons_split_excl = gpd.overlay(gdf_single, gdf_polygons_intersecting_single, how='symmetric_difference')
-
-            # base_polygon + slivers --> merged to a single polygon
-            gdf_slivers_plus_base = gpd.overlay(gdf_single, gdf_polygons_intersecting_single, how='intersection')
-            gdf_slivers_merged = self.merge_touching(gdf_slivers_plus_base)
-
-            combined_gdf = gpd.GeoDataFrame(
-                pd.concat([gdf_polygons_split_excl, gdf_slivers_merged], ignore_index=True),
-                crs=gdf_polygons_intersecting_single.crs
-            )
-
-            # plot the boundary outlines only (of all polygons touching also)
-            #bound_single = unary_union(gdf_polygons_intersecting_single.geometry.boundary)
-            #boundary_single = gpd.GeoSeries([bound_single])
 
             # non overlapping overlayed geometries (creates independent partitioned geometries)
             self.gdf_polygons_partitioned = gpd.overlay(gdf_single, gdf_polygons_intersecting_single, how='union')
 
-            import ipdb; ipdb.set_trace()
-            # plot the boundary outlines only (of all polygons touching also)
-            bound_overlay = unary_union(self.gdf_polygons_partitioned.geometry.boundary)
-            boundary_overlay = gpd.GeoSeries([bound_overlay])
-            poly_list = list(polygonize(bound_overlay)) #Create polygons from it
-            gdf_split = gpd.GeoDataFrame(geometry=poly_list) #And a dataframe
-            gdf_split.set_crs(settings.CRS_GDA94, inplace=True)
+            #import ipdb; ipdb.set_trace()
+            base_polygon = self.get_base_polygon_gdf(gdf_single, self.gdf_polygons_partitioned)
 
-            gdf_split2 = gpd.overlay(gdf_split, gdf_polygons_intersecting_single, how='intersection')
-            # Perform the spatial join
-            # This will find all geometries in gdf1 that intersect with gdf2
-            # (i.e., touch at a point, line, or boundary)
-            #gdf_common_boundary = gpd.sjoin(gdf_split, gdf_split.iloc[[2]], how='inner', predicate='intersects')
-#            gdf_common_boundar = gpd.sjoin(gdf_split, gdf_single, how='inner', predicate='intersects')
-            gdf_common_boundary = gpd.sjoin(self.gdf_polygons_partitioned, gdf_single, how='inner', predicate='intersects')
-#            gdf_common_boundary = gpd.sjoin(gdf_split, self.gdf_polygons_partitioned, how='inner', predicate='within')
-
-            # get the gdf_single split equivalent from gdf_common_boundary
-#            base_polygon = self.get_base_polygon_gdf(gdf_single, gdf_common_boundary)
-#            base_polygon = self.get_base_polygon_gdf(gdf_single, gdf_split)
-            base_polygon = self.get_base_polygon_gdf(gdf_single, self.gdf_polygons_partitioned,)
 
             threshold = self.threshold if self.threshold else settings.SLIVER_AREALENGTH_THRESHOLD
-            gdf_slivers = gdf_common_boundary[gdf_common_boundary.geometry.area/gdf_common_boundary.geometry.length < threshold]
+            gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), base_polygon, sliver_threshold=threshold) # better since returns all slivers touching base_polygon
+            mask = self.gdf_polygons_partitioned.explode().geometry.area/self.gdf_polygons_partitioned.explode().geometry.length < threshold
+            gdf_excl_slivers = self.gdf_polygons_partitioned.explode()[~(mask)]
             gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
 
-            # all new historical polygons that intersect, excluding slivers and base polygon (gdf_single)
-            #gdf_new_hist_polygons = gdf_common_boundary[~gdf_slivers_plus_base.geometry.contains(gdf_common_boundary.geometry)]
-#            gdf_new_hist_polygons = gpd.overlay(gdf_common_boundary, gdf_slivers_plus_base, how='difference')
-            gdf_new_hist_polygons = gpd.overlay(gdf_split, gdf_slivers_plus_base, how='difference')
-            gdf_new_hist_polygons['origin'] = 'HIST'
-
-            # View the plots - the sum of the two below make-up 'gdf_common_boundary'
-            # plot_gdf(gdf_new_hist_polygons) # Everything excluding slivers + base_polygon
-            # plot_gdf(gdf_slivers_plus_base) # Only slivers + base_polygon
-
-            gdf_slivers_merged = gdf_slivers_plus_base.dissolve() # Multipolygon
+            gdf_excl_slivers_plus_base = gpd.overlay(self.gdf_polygons_partitioned, gdf_slivers_plus_base, how='difference')
+            gdf_excl_slivers_plus_base['origin'] = 'HIST'
+            gdf_slivers_merged = gdf_slivers_plus_base.dissolve()
             gdf_slivers_merged['origin'] = 'BASE'
+            gdf_result = gpd.GeoDataFrame(pd.concat([gdf_excl_slivers_plus_base, gdf_slivers_merged], ignore_index=True))
+            gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
 
-            #gdf_slivers_merged = gdf_slivers_plus_base.dissolve().explode()) # Polygon(s) - >1 if there gaps between polygons preventing merge to a single polygon
-            #import ipdb; ipdb.set_trace()
-            gdf_result = gpd.GeoDataFrame()
-            gdf_result = gpd.GeoDataFrame(pd.concat([gdf_slivers_merged, gdf_new_hist_polygons], ignore_index=True))
+            gdf_result['poly_src_id'] = gdf_result.apply(get_base_polygon_id, axis=1) # add column for the corresponding hist polygon_id
+            gdf_result['poly_src_id'] = gdf_result['poly_src_id'].fillna(0).astype(int)
 
-            gdf_result = gpd.overlay(gdf_result, gdf_polygons_intersecting_single, how='intersection')
-            #gdf_result['polygon_id'] = self.gdf_result.apply(get_base_polygon_id, args=(self.gdf_result, self.polygons), axis=1)
-            gdf_result['polygon_src_id'] = gdf_result.apply(get_base_polygon_id, axis=1) # add column for the corresponding hist polygon_id
-            gdf_result['polygon_src_id'] = gdf_result['polygon_src_id'].fillna(0).astype(int)
-            import ipdb; ipdb.set_trace()
-
-            #plot_overlay(gdf_five, polygons_intersecting_five)
             if 'index_right' in gdf_result.columns:
                 gdf_result.drop('index_right', axis=1, inplace=True)
 
-            # ['polygon_src_id', 'name', 'geom', 'version_id', 'proposal_id']
-            gdf_result_filtered = gdf_result[['polygon_src_id', 'name', 'geometry']]
+            # identify the 'cookie-cut' polygons
+            gdf_within = gpd.sjoin(self.gdf_polygons_partitioned, gdf_result, how="inner", predicate="within")
+            gdf_within_not = gpd.overlay(self.gdf_polygons_partitioned, gdf_within, how='difference')                           # with indices from self.gdf_result
+            gdf_within_not_with_idx = gpd.sjoin(gdf_result, gdf_within_not, how="inner", predicate="within") # with indices from self.gdf_polygons_partitioned
+            indices = gdf_within_not_with_idx.index.to_list()
+            gdf_result.loc[indices,'origin'] = 'CUT'
+
+            #gdf_result_filtered = gdf_result[['poly_src_id', 'name', 'geometry']]
+            gdf_result_filtered = gdf_result[['poly_src_id', 'origin', 'geometry']]
             gdf_result_filtered['version_id'] = self.next_version_id
             gdf_result_filtered['proposal_id'] = self.proposal_id
+            #plot_multi([gdf_result_filtered, gdf_result_filtered], use_random_cols=False)
+            import ipdb; ipdb.set_trace()
+            pass
 
-            # get un-partitioned parts from self.gdf_hist_polygons_total
-            gdf_hist_polygons_net = gpd.overlay(self.gdf_hist_polygons_total, gdf_result, how='difference')
-            gdf_hist_polygons_net = gdf_hist_polygons_net[gdf_hist_polygons_net.area>1] # drop tiny areas
-            #self.save_global_intersecting_polygons(gdf_hist_polygons_net, 'silrec_polygonhistory')
+            #self.save_global_intersecting_polygons(gdf_result_filtered, 'silrec_polygonhistory')
 
         return gdf_result
 
@@ -340,130 +301,4 @@ class ShapefileSliversMerger():
 
 
 
-import geopandas as gpd
-import pandas as pd
-from shapely.geometry import Polygon
-from shapely.ops import unary_union
 
-def identify_slivers(gdf, base_polygon, buffer_distance=0.001, sliver_threshold=5):
-    """
-    Identify all touching polygon slivers for a given base polygon.
-
-    Parameters:
-    -----------
-    gdf : GeoDataFrame
-        Input GeoDataFrame containing multiple polygons
-    base_polygon : shapely.geometry.Polygon
-        The base polygon to find slivers for
-    buffer_distance : float, default=0.001
-        Buffer distance to find nearly touching polygons
-    sliver_threshold : float, default=5
-        Area/Length ratio threshold (slivers have ratio < threshold)
-
-    Returns:
-    --------
-    GeoDataFrame containing the identified sliver polygons
-    """
-
-    # Create a copy to avoid modifying original
-    import ipdb; ipdb.set_trace()
-    working_gdf = gdf.copy()
-
-    # Find polygons that touch or are within buffer distance of base_polygon
-    buffered_base = base_polygon.buffer(buffer_distance)
-
-    # Find potential slivers (excluding the base polygon itself)
-#    potential_slivers = working_gdf[
-#        (working_gdf.geometry.intersects(buffered_base)) &
-#        (working_gdf.geometry != base_polygon)
-#    ].copy()
-    potential_slivers = gpd.overlay(working_gdf, base_polygon, how='difference')
-
-    if len(potential_slivers) == 0:
-        print("No potential slivers found near the base polygon")
-        return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
-
-    # Calculate area/length ratio for each potential sliver
-    potential_slivers['area'] = potential_slivers.geometry.area
-    potential_slivers['length'] = potential_slivers.geometry.length
-    potential_slivers['area_length_ratio'] = potential_slivers['area'] / potential_slivers['length']
-
-    # Identify slivers based on threshold
-    slivers = potential_slivers[potential_slivers['area_length_ratio'] < sliver_threshold].copy()
-
-    print(f"Found {len(slivers)} sliver polygons out of {len(potential_slivers)} potential candidates")
-
-    # Add sliver information
-    slivers['is_sliver'] = True
-    slivers['sliver_ratio'] = slivers['area_length_ratio']
-
-    return slivers[['geometry', 'is_sliver', 'sliver_ratio', 'area', 'length']]
-
-def merge_slivers_into_base(gdf, base_polygon, slivers_gdf, buffer_distance=0.001):
-    """
-    Merge identified slivers into the base polygon and return updated GeoDataFrame.
-
-    Parameters:
-    -----------
-    gdf : GeoDataFrame
-        Original GeoDataFrame
-    base_polygon : shapely.geometry.Polygon
-        The base polygon to merge slivers into
-    slivers_gdf : GeoDataFrame
-        Slivers identified by identify_slivers function
-    buffer_distance : float, default=0.001
-        Buffer distance for robust merging
-
-    Returns:
-    --------
-    GeoDataFrame with slivers merged into base polygon
-    """
-
-    if len(slivers_gdf) == 0:
-        print("No slivers to merge")
-        return gdf.copy()
-
-    # Create a copy of the original GeoDataFrame
-    updated_gdf = gdf.copy()
-
-    # Get geometries to merge (base polygon + all slivers)
-    geometries_to_merge = [base_polygon] + slivers_gdf.geometry.tolist()
-
-    # Merge using unary_union with small buffer for robustness
-    buffered_geometries = [geom.buffer(buffer_distance) for geom in geometries_to_merge]
-    merged_geometry = unary_union(buffered_geometries)
-
-    # Remove the buffer to get clean geometry
-    final_merged_geometry = merged_geometry.buffer(-buffer_distance)
-
-    # Ensure we have a valid polygon (handle potential MultiPolygon results)
-    if final_merged_geometry.geom_type == 'MultiPolygon':
-        # Take the largest polygon if it becomes a multipolygon
-        polygons = list(final_merged_geometry.geoms)
-        largest_polygon = max(polygons, key=lambda p: p.area)
-        final_merged_geometry = largest_polygon
-    elif final_merged_geometry.geom_type != 'Polygon':
-        # If geometry type is unexpected, fall back to original base_polygon
-        print(f"Warning: Unexpected geometry type after merging: {final_merged_geometry.geom_type}")
-        final_merged_geometry = base_polygon
-
-    # Update the base polygon in the GeoDataFrame
-    base_polygon_mask = updated_gdf.geometry == base_polygon
-    if base_polygon_mask.any():
-        updated_gdf.loc[base_polygon_mask, 'geometry'] = final_merged_geometry
-    else:
-        # If base_polygon is not found by equality, find it by intersection
-        base_idx = updated_gdf[updated_gdf.geometry.intersects(base_polygon)].index[0]
-        updated_gdf.loc[base_idx, 'geometry'] = final_merged_geometry
-
-    # Remove the sliver polygons from the GeoDataFrame
-    sliver_indices = slivers_gdf.index
-    updated_gdf = updated_gdf.drop(sliver_indices, errors='ignore')
-
-    # Reset index
-    updated_gdf = updated_gdf.reset_index(drop=True)
-
-    print(f"Successfully merged {len(slivers_gdf)} slivers into base polygon")
-    print(f"Updated GeoDataFrame has {len(updated_gdf)} polygons (original had {len(gdf)})")
-
-    return updated_gdf

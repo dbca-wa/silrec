@@ -8,27 +8,35 @@ from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union, polygonize
 
 def annotate_plot(gdf, ax, label_prefix=None):
+    row_idx = 0
     for idx, row in gdf.iterrows():
         # Get the centroid of the geometry for label placement
         # For points, this is the point itself. For polygons/lines, it's the centroid.
         # Use .representative_point() for polygons to ensure the point is within the polygon.
 
+        #idx = row.name
+        label_prefix = None
         row_geom = row.geometry if 'geometry' in gdf.columns else row.geom
         if row_geom.geom_type == 'Point':
             x, y = row_geom.x, row_geom.y
         else:
-            x, y = row_geom.centroid.x, row_geom.centroid.y
+            #x, y = row_geom.centroid.x, row_geom.centroid.y
+            x, y = row_geom.representative_point().x, row_geom.representative_point().y
 
         # Get the label text from a column in your GeoDataFrame (e.g., 'name_column')
-        label = label_prefix + '_' + str(idx) if label_prefix else str(idx)
+        if 'origin' in row.keys().to_list() and row.origin == 'BASE':
+            label_prefix = 'BASE'
+        label = f'{label_prefix} ({idx})' if label_prefix else str(idx)
+        #label = label_prefix + '_' + str(idx) if label_prefix else f'{idx} ({row_idx})'
 
         # Add the label using annotate
         ax.annotate(text=label, xy=(x, y),
                     xytext=(3, 3), # Offset text slightly from the centroid
                     textcoords="offset points",
                     horizontalalignment='center',
-                    fontsize=8,
+                    fontsize=9,
                     color='black') # Customize color, font size, etc.
+        row_idx += 1
     return ax
 
 def plot_gdf(gdf, annotate=True):
@@ -91,7 +99,7 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
 
     plt.show()
 
-def plot_multi(gdf_list):
+def plot_multi(gdf_list, use_random_cols=True):
 
     def get_random_color():
         return "#%06x" % np.random.randint(0, 0xFFFFFF)
@@ -110,28 +118,46 @@ def plot_multi(gdf_list):
     else:
         ncols = 3
 
-    
-    #import ipdb; ipdb.set_trace()
+
     fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 10))
     for i, gdf in enumerate(gdf_list):
 
-        #random_colors = [get_random_color() for _ in range(len(gdf))]
-        random_colors = [get_random_color() for _ in range(100)]
-        #gdf['random_color'] = random_colors
+#        random_colors = [get_random_color() for _ in range(len(gdf))]
+        if use_random_cols is True or 'origin' not in list(gdf.columns):
+            random_colors = [get_random_color() for _ in range(len(gdf))]
+        else:
+            random_colors = ['cornflowerblue' for _ in range(len(gdf))]
+            try:
+                # colour the base_polygon
+                indices = gdf.index[gdf['origin'] == 'BASE'].tolist()
+                idx = gdf.index.get_loc(indices[0])
+                random_colors[idx] = 'limegreen'
+
+                # colour the neighbouring polygons that have been cookie-cut
+                indices_cut = gdf.index[gdf['origin'] == 'CUT'].tolist()
+                if len(indices_cut) > 0:
+                    for idx_cut in indices_cut:
+                        idx = gdf.index.get_loc(idx_cut)
+                        random_colors[idx] = 'cyan'
+
+            except Exception as e:
+                print(f'{e}')
 
         npolys = len(gdf)
         area_ha = round(gdf.area.sum()/10000, 2)
         if nrows==1:
             col = i % 3   # Calculate column index
             #gdf.plot(ax=axs[col], color='blue', edgecolor='black')
-            gdf.plot(ax=axs[col], color=random_colors[:npolys+1], edgecolor='black')
+            #gdf.plot(ax=axs[col], color=random_colors[:npolys+1], edgecolor='black')
+            gdf.plot(ax=axs[col], color=random_colors, edgecolor='black')
             #gdf.plot(ax=axs[col], color='blue', edgecolor='black')
             axs[col].set_title(f'Polys {npolys}. Area Ha {area_ha}')
             annotate_plot(gdf, axs[col], label_prefix=None)
         else:
             row = i // 3  # Calculate row index
             col = i % 3   # Calculate column index
-            gdf.plot(ax=axs[row, col], color=random_colors[:npolys+1], edgecolor='black', linewidth=0.5)
+            #gdf.plot(ax=axs[row, col], color=random_colors[:npolys+1], edgecolor='black', linewidth=0.5)
+            gdf.plot(ax=axs[row, col], color=random_colors, edgecolor='black', linewidth=0.5)
             #gdf.plot(ax=axs[row, col], color='blue', edgecolor='black', linewidth=0.5)
             axs[row,col].set_title(f'Polys {npolys}. Area Ha {area_ha}')
             annotate_plot(gdf, axs[row,col], label_prefix=None)

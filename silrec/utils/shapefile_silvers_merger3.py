@@ -110,9 +110,10 @@ class ShapefileSliversMerger():
 
         gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
 
-        gdf['version_id'] = self.next_version_id
+        gdf['origin'] = 'HIST'
+        gdf['version_id'] = 0 #self.next_version_id
         gdf['proposal_id'] = self.proposal_id
-        gdf.rename(columns={'polygon_id': 'polygon_src_id'}, inplace=True)
+        gdf.rename(columns={'polygon_id': 'poly_src_id'}, inplace=True)
 
         return gdf
 
@@ -149,6 +150,15 @@ class ShapefileSliversMerger():
 
         return gpd.GeoDataFrame([1], geometry=[merged_clean], crs=gdf.crs)
 
+    def init_gdf_merge_store(self, gdf_hist):
+        gdf = gdf_hist.copy()
+        gdf['version_id'] = 0 #self.next_version_id
+        gdf.rename(columns={'geom': 'geometry'}, inplace=True)
+        gdf.set_geometry('geometry', inplace=True)
+        gdf.set_crs(settings.CRS_GDA94)
+        #import ipdb; ipdb.set_trace()
+        return gdf
+
     def create_gdf(self):
         '''
         from silrec.utils.plot_utils import create_dummy_polygons, plot_gdf, plot_overlay, create_gdf
@@ -177,21 +187,24 @@ class ShapefileSliversMerger():
                 self.polygons.drop(['index_right'], axis=1, inplace=True)
 
             gdf = gpd.sjoin(self.gdf_hist_polygons_total, centroid_gdf, how="inner", predicate="intersects")
-            return None if gdf.empty else gdf.polygon_src_id.iloc[0]
+            return None if gdf.empty else gdf.poly_src_id.iloc[0]
 
 #        import ipdb; ipdb.set_trace()
 #        self.save_global_intersecting_polygons(self.gdf_hist_polygons_total, 'silrec_polygonhistory')
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
-        #gdf_result = gpd.GeoDataFrame()
+        idx_count = 0
+        gdf_hist = self.gdf_hist_polygons_total.copy()
+        gdf_merge_store = self.init_gdf_merge_store(self.gdf_hist_polygons_total)
         for index, row in self.gdf_shpfile.iterrows():
+            idx_count += 1
             gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
             #gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
 
             # Determine which geometries in polygons geodataframe intersect with any geometry in gdf_single
             # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
-            intersects_mask_single = self.gdf_hist_polygons_total.geometry.intersects(self.gdf_shpfile.unary_union)
-            gdf_polygons_intersecting_single = self.gdf_hist_polygons_total[intersects_mask_single]
+            intersects_mask_single = gdf_hist.geometry.intersects(self.gdf_shpfile.unary_union)
+            gdf_polygons_intersecting_single = gdf_hist[intersects_mask_single]
 
             # non overlapping overlayed geometries (creates independent partitioned geometries)
             self.gdf_polygons_partitioned = gpd.overlay(gdf_single, gdf_polygons_intersecting_single, how='union')
@@ -199,20 +212,24 @@ class ShapefileSliversMerger():
             #import ipdb; ipdb.set_trace()
             base_polygon = self.get_base_polygon_gdf(gdf_single, self.gdf_polygons_partitioned)
 
-
+            # extract the land slivers
             threshold = self.threshold if self.threshold else settings.SLIVER_AREALENGTH_THRESHOLD
             gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), base_polygon, sliver_threshold=threshold) # better since returns all slivers touching base_polygon
             mask = self.gdf_polygons_partitioned.explode().geometry.area/self.gdf_polygons_partitioned.explode().geometry.length < threshold
             gdf_excl_slivers = self.gdf_polygons_partitioned.explode()[~(mask)]
             gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
 
+            # re-merge land slivers to base_polygon and create origin column
             gdf_excl_slivers_plus_base = gpd.overlay(self.gdf_polygons_partitioned, gdf_slivers_plus_base, how='difference')
             gdf_excl_slivers_plus_base['origin'] = 'HIST'
             gdf_slivers_merged = gdf_slivers_plus_base.dissolve()
             gdf_slivers_merged['origin'] = 'BASE'
+
+            # re-merge merged base_polygon with remaining cookie-cut and hist polygons
             gdf_result = gpd.GeoDataFrame(pd.concat([gdf_excl_slivers_plus_base, gdf_slivers_merged], ignore_index=True))
             gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
 
+            # identify and assign the src polygon from active hist polygon (silrec_v3)
             gdf_result['poly_src_id'] = gdf_result.apply(get_base_polygon_id, axis=1) # add column for the corresponding hist polygon_id
             gdf_result['poly_src_id'] = gdf_result['poly_src_id'].fillna(0).astype(int)
 
@@ -221,22 +238,27 @@ class ShapefileSliversMerger():
 
             # identify the 'cookie-cut' polygons
             gdf_within = gpd.sjoin(self.gdf_polygons_partitioned, gdf_result, how="inner", predicate="within")
-            gdf_within_not = gpd.overlay(self.gdf_polygons_partitioned, gdf_within, how='difference')                           # with indices from self.gdf_result
+            gdf_within_not = gpd.overlay(self.gdf_polygons_partitioned, gdf_within, how='difference') # with indices from self.gdf_result
             gdf_within_not_with_idx = gpd.sjoin(gdf_result, gdf_within_not, how="inner", predicate="within") # with indices from self.gdf_polygons_partitioned
             indices = gdf_within_not_with_idx.index.to_list()
             gdf_result.loc[indices,'origin'] = 'CUT'
 
             #gdf_result_filtered = gdf_result[['poly_src_id', 'name', 'geometry']]
             gdf_result_filtered = gdf_result[['poly_src_id', 'origin', 'geometry']]
-            gdf_result_filtered['version_id'] = self.next_version_id
+            #gdf_result_filtered['version_id'] = self.next_version_id
+            gdf_result_filtered['version_id'] = idx_count
             gdf_result_filtered['proposal_id'] = self.proposal_id
             #plot_multi([gdf_result_filtered, gdf_result_filtered], use_random_cols=False)
-            import ipdb; ipdb.set_trace()
+
+            #import ipdb; ipdb.set_trace()
+            gdf_hist = gdf_result_filtered.copy()
+            gdf_merge_store = pd.concat([gdf_merge_store, gdf_hist])
+            #import ipdb; ipdb.set_trace()
             pass
 
             #self.save_global_intersecting_polygons(gdf_result_filtered, 'silrec_polygonhistory')
 
-        return gdf_result
+        return gdf_merge_store
 
 #    def processed_to_json_obj(self):
 #        data = {}
@@ -246,7 +268,7 @@ class ShapefileSliversMerger():
 #        data["result"] = json.loads(self.result_to_json())
 #
 #        return data
-#
+
 #    def hist_polygons_intersecting_to_json(self):
 #        ''' Historical Polygons ('active') from silrec_v3 tha intersect with base_polygon '''
 #        self.gdf_polygons_intersecting_single[['created_on','updated_on']] = self.polygons_intersecting_single[['created_on','updated_on']].astype(str)

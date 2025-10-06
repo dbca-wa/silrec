@@ -11,6 +11,7 @@ csv
 *.csv
 *.xls*
 *.swo
+*.png
 data_store/
 archive/
 protected_media/

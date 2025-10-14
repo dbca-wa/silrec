@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from shapely.ops import unary_union, polygonize
 
 import json
+import os
+from confy import database
+
 from silrec.utils.plot_utils import plot_gdf as plot
 from silrec.utils.plot_utils import plot_overlay, plot_multi
 from silrec.utils.plot_canvas import create_tabbed_charts
@@ -22,6 +25,7 @@ mpl.use('TkAgg')
 
 import logging
 logger = logging.getLogger(__name__)
+
 
 
 class ShapefileSliversMerger():
@@ -78,10 +82,12 @@ class ShapefileSliversMerger():
         for each client, and configure the relevant search_path for each user:
 
         alter role user1 set search_path = "$user", public
+
+        'postgresql://dev:dev123@localhost:5432/silrec_dev1',
         '''
         dbschema='silrec,public' # Searches left-to-right
         engine = create_engine(
-            'postgresql://dev:dev123@localhost:5432/silrec_test1',
+            database.env('DATABASE_URL'),
             connect_args={'options': '-c search_path={}'.format(dbschema)}
         )
         return engine

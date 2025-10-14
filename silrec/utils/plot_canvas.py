@@ -326,9 +326,10 @@ def create_tabbed_charts(*tab_lists, tab_names=None, tab_descriptions=None, char
 
     # Default tab names
     if tab_names is None:
-        tab_names = [f"Tab {i+1}" for i in range(len(tab_lists))]
+        #tab_names = [f"Tab {i+1}" for i in range(len(tab_lists))]
+        tab_names = [f"Tab {i}" for i in range(len(tab_lists))]
     elif len(tab_names) < len(tab_lists):
-        tab_names.extend([f"Tab {i+1}" for i in range(len(tab_names), len(tab_lists))])
+        tab_names.extend([f"Tab {i}" for i in range(len(tab_names), len(tab_lists))])
 
     # Default tab descriptions
     default_descriptions = [
@@ -607,9 +608,14 @@ if __name__ == "__main__":
     list3 = [gdf5, gdf16, gdf1, gdf2 ]
     list4 = [gdf16, gdf1, gdf2, gdf5, gdf1]
 
+#    create_tabbed_charts(
+#        list1, list2, list3, list4,
+#        tab_names=tab_names,
+#        tab_descriptions=tab_descriptions
+#    )
+
+    gdf_list = [list1, list2, list3, list4]
     create_tabbed_charts(
-        list1, list2, list3, list4,
-        tab_names=tab_names,
-        tab_descriptions=tab_descriptions
+        *gdf_list
     )
 

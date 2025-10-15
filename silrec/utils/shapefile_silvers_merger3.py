@@ -39,6 +39,8 @@ class ShapefileSliversMerger():
     ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
     gdf_merge_store = ssm.create_gdf()
 
+    ssm.plot_canvas()
+
     plot_gdf(ssm.gdf_result_filtered)
 
     plot_gdf(find_and_merge(ssm.gdf_result_filtered, 20))
@@ -171,7 +173,8 @@ class ShapefileSliversMerger():
 
     def init_gdf_merge_store(self, gdf_hist):
         gdf = gdf_hist.copy()
-        gdf['iter_seq'] = 0 #self.next_iter_seq
+        #gdf['iter_seq'] = 0 #self.next_iter_seq
+        gdf['iter_seq'] = 1
         gdf.rename(columns={'geom': 'geometry'}, inplace=True)
         gdf.set_geometry('geometry', inplace=True)
         gdf.set_crs(settings.CRS_GDA94)
@@ -211,8 +214,9 @@ class ShapefileSliversMerger():
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
         idx_count = 0
         gdf_shpfile = self.gdf_shpfile.copy()
-        gdf_hist = self.gdf_hist_polygons_total.copy()
+        #gdf_hist = self.gdf_hist_polygons_total.copy()
         self.gdf_merge_store = self.init_gdf_merge_store(self.gdf_hist_polygons_total)
+        gdf_hist = self.gdf_merge_store.copy()
 
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
@@ -237,15 +241,15 @@ class ShapefileSliversMerger():
             base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
             base_polygon['iter_seq'] = idx_count
             base_polygon['poly_type'] = 'BASE'
-            #import ipdb; ipdb.set_trace()
 
             # extract the land slivers
             threshold = self.threshold if self.threshold else settings.SLIVER_AREALENGTH_THRESHOLD
+            #import ipdb; ipdb.set_trace()
             gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), base_polygon, sliver_threshold=threshold) # better since returns all slivers touching base_polygon
+            #gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), self.gdf_single, sliver_threshold=threshold) # better since returns all slivers touching base_polygon
             gdf_slivers['poly_type'] = 'SLVR'
             mask = self.gdf_polygons_partitioned.explode().geometry.area/self.gdf_polygons_partitioned.explode().geometry.length < threshold
             gdf_excl_slivers = self.gdf_polygons_partitioned.explode()[~(mask)]
-            #import ipdb; ipdb.set_trace()
             gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
 
             # re-merge land slivers to base_polygon and create poly_type column
@@ -280,10 +284,8 @@ class ShapefileSliversMerger():
             gdf_result_filtered['iter_seq'] = idx_count
             gdf_result_filtered['proposal_id'] = self.proposal_id
             #plot_multi([gdf_result_filtered, gdf_result_filtered], use_random_cols=False)
-            #gdf_result_filtered = find_and_merge(gdf_result_filtered, threshold)
+            gdf_result_filtered = find_and_merge(gdf_result_filtered, threshold)
 
-            #import ipdb; ipdb.set_trace()
-            gdf_hist = gdf_result_filtered.copy()
 
             # set columns not previously set in gdf's
             #import ipdb; ipdb.set_trace()
@@ -291,12 +293,17 @@ class ShapefileSliversMerger():
             gdf_slivers = self.set_data(gdf_slivers, iter_seq=idx_count, poly_type='SLVR')
             gdf_slivers_plus_base = self.set_data(gdf_slivers_plus_base, iter_seq=idx_count, poly_type='SLVR')
 
+            #slivers_all = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area/self.gdf_polygons_partitioned.length < 5]
+            #slivers_all = self.set_data(slivers_all, iter_seq=idx_count, poly_type='SLVR')
+
             list_state = [
                 gdf_shpfile,
                 gdf_hist,
                 self.gdf_single,
                 self.gdf_polygons_partitioned,
                 gdf_slivers,
+                #slivers_all,
+                #find_and_merge(self.gdf_polygons_partitioned, threshold),
                 # gdf_excl_slivers,
                 gdf_slivers_plus_base,
                 # gdf_excl_slivers_plus_base,
@@ -305,7 +312,6 @@ class ShapefileSliversMerger():
                 gdf_result_filtered,
             ]
 
-            #import ipdb; ipdb.set_trace()
             # add column identifying store type
             gdf_shpfile['state']                   = "gdf_shpfile".upper()
             gdf_hist['state']                      = "gdf_hist".upper()
@@ -313,6 +319,7 @@ class ShapefileSliversMerger():
             self.gdf_polygons_partitioned['state'] = "gdf_polygons_partitioned".upper()
             base_polygon['state']                  = "base_polygon".upper()
             gdf_slivers['state']                   = "gdf_slivers".upper()
+            #slivers_all['state']                   = "slivers_all".upper()
             gdf_excl_slivers['state']              = "gdf_excl_slivers".upper()
             gdf_slivers_plus_base['state']         = "gdf_slivers_plus_base".upper()
             gdf_excl_slivers_plus_base['state']    = "gdf_excl_slivers_plus_base".upper()
@@ -320,10 +327,16 @@ class ShapefileSliversMerger():
             gdf_result['state']                    = "gdf_result".upper()
             gdf_result_filtered['state']           = "gdf_result_filtered".upper()
 
+            #import ipdb; ipdb.set_trace()
+            
             #self.gdf_merge_store = self.store_state(list_state)
             self.store_state(list_state)
+            gdf_hist = gdf_result_filtered.copy()
+            gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
             #import ipdb; ipdb.set_trace()
             #gdf_merge_store = pd.concat([gdf_merge_store, gdf_hist])
+
+            #import ipdb; ipdb.set_trace()
             pass
 
             #self.save_global_intersecting_polygons(gdf_result_filtered, 'silrec_polygonhistory')
@@ -388,14 +401,16 @@ class ShapefileSliversMerger():
 
         '''
         iters = [int(item) for item in self.gdf_merge_store.iter_seq.unique() if not (isinstance(item, float) and np.isnan(item))]
+        iters.insert(0, 0)
         states = [item for item in self.gdf_merge_store.state.unique() if not (isinstance(item, float) and np.isnan(item))]
 
         gdf_iter_list = []
         chart_titles_list = []
-        #for it in iters[:3]:
-        for it in iters:
+        for it in iters[:3]:
+        #for it in iters:
             gdf_state_list = []
             chart_titles = []
+            #import ipdb; ipdb.set_trace() 
             if it == 0:
                 # Plot Summary on first Tab
                 gdf_state_list.append(self.gdf_shpfile)

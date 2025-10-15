@@ -98,7 +98,9 @@ def find_and_merge(full_gdf, sliver_threshold):
         GeoDataFrame containing target polygons to be merged into their neighbors
     full_gdf : GeoDataFrame
         Full GeoDataFrame containing all polygons
-
+    sliver_threshold:
+        Area per unit Length threshold
+        gdf.area/gdf.length < sliver_threshold
     Returns:
     --------
     GeoDataFrame

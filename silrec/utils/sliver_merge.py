@@ -86,7 +86,8 @@ def merge_target_into_neighbor(target_gdf, neighbor_gdf, full_gdf):
 
     return updated_gdf
 
-def find_and_merge(target_gdf, full_gdf):
+#def find_and_merge(target_gdf, full_gdf):
+def find_and_merge(full_gdf, sliver_threshold):
     """
     Iterate through each target polygon, find its largest neighbor, and merge the target into that neighbor.
     Returns updated GeoDataFrame with reduced polygon count.
@@ -103,6 +104,8 @@ def find_and_merge(target_gdf, full_gdf):
     GeoDataFrame
         Updated GeoDataFrame with target polygons merged into their largest neighbors
     """
+    target_gdf = full_gdf[full_gdf.area/full_gdf.length < sliver_threshold]
+
     if len(target_gdf) == 0:
         return full_gdf.copy()
 

@@ -14,6 +14,7 @@ from confy import database
 from silrec.utils.plot_utils import plot_gdf as plot
 from silrec.utils.plot_utils import plot_overlay, plot_multi
 from silrec.utils.plot_canvas import create_tabbed_charts
+from silrec.utils.sliver_merge import find_and_merge
 
 from silrec.utils.sliver_test1 import identify_slivers
 from silrec.components.proposals.models import PolygonHistory
@@ -36,7 +37,11 @@ class ShapefileSliversMerger():
     gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
     gdf_shp.to_crs('EPSG:28350', inplace=True)
     ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
-    gdf_result = ssm.create_gdf()
+    gdf_merge_store = ssm.create_gdf()
+
+    plot_gdf(ssm.gdf_result_filtered)
+
+    plot_gdf(find_and_merge(ssm.gdf_result_filtered, 20))
 
     plot_multi([self.gdf_shpfile, gdf_single, self.gdf_polygons_partitioned.explode(), gdf_slivers, gdf_result])
     ssm.plot_hist_polygons
@@ -231,13 +236,16 @@ class ShapefileSliversMerger():
             #import ipdb; ipdb.set_trace()
             base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
             base_polygon['iter_seq'] = idx_count
+            base_polygon['poly_type'] = 'BASE'
             #import ipdb; ipdb.set_trace()
 
             # extract the land slivers
             threshold = self.threshold if self.threshold else settings.SLIVER_AREALENGTH_THRESHOLD
             gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), base_polygon, sliver_threshold=threshold) # better since returns all slivers touching base_polygon
+            gdf_slivers['poly_type'] = 'SLVR'
             mask = self.gdf_polygons_partitioned.explode().geometry.area/self.gdf_polygons_partitioned.explode().geometry.length < threshold
             gdf_excl_slivers = self.gdf_polygons_partitioned.explode()[~(mask)]
+            #import ipdb; ipdb.set_trace()
             gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
 
             # re-merge land slivers to base_polygon and create poly_type column
@@ -272,6 +280,7 @@ class ShapefileSliversMerger():
             gdf_result_filtered['iter_seq'] = idx_count
             gdf_result_filtered['proposal_id'] = self.proposal_id
             #plot_multi([gdf_result_filtered, gdf_result_filtered], use_random_cols=False)
+            #gdf_result_filtered = find_and_merge(gdf_result_filtered, threshold)
 
             #import ipdb; ipdb.set_trace()
             gdf_hist = gdf_result_filtered.copy()

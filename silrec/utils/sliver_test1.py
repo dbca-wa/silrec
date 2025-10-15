@@ -26,6 +26,7 @@ def identify_slivers(gdf, base_polygon_gdf, buffer_distance=0.001, sliver_thresh
     if len(base_polygon_gdf) != 1:
         raise ValueError("base_polygon_gdf must contain exactly one geometry")
 
+    #import ipdb; ipdb.set_trace()
     # Extract the base polygon geometry
     base_polygon = base_polygon_gdf.geometry.iloc[0]
     base_polygon_index = base_polygon_gdf.index[0] if base_polygon_gdf.index.name else None

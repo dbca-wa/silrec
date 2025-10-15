@@ -221,6 +221,11 @@ class ShapefileSliversMerger():
 
             self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
             self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
+
+            gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
+            gdf_hist.set_geometry('geometry', inplace=True)
+            gdf_hist.set_crs(settings.CRS_GDA94)
+            return self.gdf_single, gdf_hist
             #self.gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
 
             # Determine which geometries in polygons geodataframe (hist) intersect with any geometry in gdf_single

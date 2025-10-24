@@ -29,3 +29,4 @@ SQLAlchemy==2.0.43
 GeoAlchemy2==0.18.0
 jupyter==1.1.1
 notebook==6.5.7
+scipy==1.16.2

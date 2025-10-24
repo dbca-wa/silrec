@@ -16,7 +16,7 @@ class PolygonIntersector:
     result_gdf
     plot_multi([gdf1, gdf2, result_gdf, gdf2_excl, combined_gdf, slivers_gdf])
 
-    plot_multi([combined_gdf, combined_gdf[combined_gdf.poly_type=='HIST'], combined_gdf[combined_gdf.poly_type=='BASE'], combined_gdf[combined_gdf.poly_type=='CUT'], combined_gdf[combined_gdf.poly_type=='SLVR']])
+    plot_multi([combined_gdf, combined_gdf[combined_gdf.poly_type.isin(['CUT', 'HIST'])], combined_gdf[combined_gdf.poly_type=='HIST'], combined_gdf[combined_gdf.poly_type=='BASE'], combined_gdf[combined_gdf.poly_type=='CUT'], combined_gdf[combined_gdf.poly_type=='SLVR']])
     """
 
     def __init__(self, gdf1, gdf2):

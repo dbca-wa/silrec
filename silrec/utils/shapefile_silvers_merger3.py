@@ -39,6 +39,9 @@ class ShapefileSliversMerger():
     ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
     gdf_merge_store = ssm.create_gdf()
 
+    # Final Result in ssm.gdf_merge_store
+    plot_gdf(ssm.gdf_merge_store[(ssm.gdf_merge_store.state=='GDF_RESULT_FILTERED') & (ssm.gdf_merge_store.iter_seq==16)])
+
     ssm.plot_canvas()
 
     plot_gdf(ssm.gdf_result_filtered)
@@ -65,6 +68,22 @@ class ShapefileSliversMerger():
        c.                   additionaly,
        c.                   reapeat loop (next base polygon)
 
+    ---------
+    21Oct2025
+
+    import geopandas as gpd
+    from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
+
+    gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+    gdf_shp.to_crs('EPSG:28350', inplace=True)
+    ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
+    gdf_merge_store = ssm.create_gdf()
+
+    gdf_result = ssm.gdf_merge_store[(ssm.gdf_merge_store.state=='GDF_RESULT_FILTERED') & (ssm.gdf_merge_store.iter_seq==16)]
+    gdf_result.to_file('/home/jawaidm/projects/silrec/silrec/utils/Shapefiles/gdf_final_result/gdf_final_result.shp', driver='ESRI Shapefile')
+
+    gdf_iter_results = ssm.gdf_merge_store[(ssm.gdf_merge_store.state=='GDF_RESULT_FILTERED')]
+    gdf_iter_results.to_file('/home/jawaidm/projects/silrec/silrec/utils/Shapefiles/gdf_iter_results/gdf_iter_results.shp', driver='ESRI Shapefile')
 
     '''
     def __init__(self, gdf_shpfile, proposal_id, threshold=None, sql_polygons=None):
@@ -226,10 +245,13 @@ class ShapefileSliversMerger():
             self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
             self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
 
+            # ---- TEMP
             gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
             gdf_hist.set_geometry('geometry', inplace=True)
             gdf_hist.set_crs(settings.CRS_GDA94)
-            return self.gdf_single, gdf_hist
+            #return self.gdf_single, gdf_hist
+            # ----
+
             #self.gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
 
             # Determine which geometries in polygons geodataframe (hist) intersect with any geometry in gdf_single

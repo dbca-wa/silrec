@@ -146,6 +146,56 @@
                             />
                         </div>
                     </div>
+                    <!-- Layer Control -->
+                    <div class="layer-control-wrapper">
+                        <div class="layer-control-button-wrapper">
+                            <div 
+                                title="Toggle layers"
+                                class="layer-control-button btn"
+                                @click="toggleLayerControl"
+                            >
+                                <img class="svg-icon" src="../../assets/layers.svg" />
+                            </div>
+                        </div>
+                        
+                        <div v-if="layerControlVisible" class="layer-control-popup">
+                            <div class="layer-control-header">
+                                <strong>Map Layers</strong>
+                                <button 
+                                    type="button" 
+                                    class="btn-close btn-close-sm" 
+                                    @click="layerControlVisible = false"
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div class="layer-control-body">
+                                <div class="form-check">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        :id="'fc1-' + elem_id"
+                                        v-model="showFeatureCollection"
+                                        @change="toggleFeatureCollection"
+                                    >
+                                    <label class="form-check-label" :for="'fc1-' + elem_id">
+                                        Feature Collection 1
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        :id="'fc2-' + elem_id"
+                                        v-model="showFeatureCollection2"
+                                        @change="toggleFeatureCollection2"
+                                    >
+                                    <label class="form-check-label" :for="'fc2-' + elem_id">
+                                        Feature Collection 2
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="featureToast" class="toast" style="z-index: 9999">
@@ -548,6 +598,17 @@ export default {
                 return val.type == 'FeatureCollection' ? true : false;
             },
         },
+        // Add this prop definition after the existing featureCollection prop
+        featureCollection2: {
+                type: Object,
+                    required: false,
+            default() {
+                        return { features: [], type: 'FeatureCollection'  };
+            },
+            validator: function (val) {
+                        return val.type == 'FeatureCollection' ? true : false;
+            },
+        },
         /**
          * A classifier to style the features by.
          * `model` displays all features belonging to the same model by the same (randomly generated) color
@@ -804,9 +865,23 @@ export default {
             drawing: false, // Whether the map is in draw (pencil icon) mode
             transforming: false, // Whether the map is in transform (resize, scale, rotate) mode
             autoSave: this.toggleAutoSave, // Whether to auto-save the map after a feature is modified
+
+            // Layer visibility control
+            showFeatureCollection: true,
+            showFeatureCollection2: false,
+            layerControlVisible: false,
+            mapInitialized: false,
+            pendingFeatureRefresh: false,
         };
     },
     computed: {
+        autoSelectedCollection: function() {
+            if (this.featureCollection2.features.length > 0) {
+                            return 'featureCollection2';
+            } else {
+                            return 'featureCollection';
+            }
+        },
         shapefileDocumentUrl: function () {
             let endpoint = '';
             let obj_id = 0;
@@ -955,7 +1030,32 @@ export default {
         },
     },
     watch: {
-        filterApplicationsMapApplicationType: function () {
+        autoSelectedCollection: {
+            immediate: true,
+            handler: function(newVal) {
+                if (newVal === 'featureCollection2') {
+                    this.showFeatureCollection = false;
+                    this.showFeatureCollection2 = true;
+                } else {
+                    this.showFeatureCollection = true;
+                    this.showFeatureCollection2 = false;
+                }
+                this.scheduleFeatureRefresh();
+            }
+        },
+        featureCollection: {
+            deep: true,
+            handler: function() {
+                this.scheduleFeatureRefresh();
+            }
+        },
+        featureCollection2: {
+            deep: true,
+            handler: function() {
+                this.scheduleFeatureRefresh();
+            }
+        },
+         filterApplicationsMapApplicationType: function () {
             this.applyFiltersFrontEnd();
             sessionStorage.setItem(
                 this.filterApplicationsMapApplicationTypeCacheName,
@@ -1020,6 +1120,113 @@ export default {
         });
     },
     methods: {
+
+        /**
+         * Schedule a feature collection refresh, handling initialization state
+         */
+        scheduleFeatureRefresh: function() {
+            let vm = this;
+            if (vm.mapInitialized && vm.modelQuerySource) {
+                // If already initialized, refresh immediately
+                vm.refreshFeatureCollections();
+            } else {
+                // If not initialized, mark that we need to refresh later
+                vm.pendingFeatureRefresh = true;
+            }
+        },
+        refreshFeatureCollections: function() {
+            let vm = this;
+            // Check if modelQuerySource exists before trying to use it
+            if (!vm.modelQuerySource) {
+                console.warn('modelQuerySource not initialized yet');
+                return;
+            }
+            // Clear existing features from both collections
+            const features = vm.modelQuerySource.getFeatures();
+            features.forEach(feature => {
+                const source = feature.get('polygon_source');
+                if (source === 'FeatureCollection' || source === 'FeatureCollection2') {
+                    vm.modelQuerySource.removeFeature(feature);
+                }
+            });
+            // Add features based on visibility settings
+            if (vm.showFeatureCollection && vm.featureCollection.features.length > 0) {
+                vm.addFeatureCollectionToMap(vm.featureCollection, 'FeatureCollection');
+            }
+            if (vm.showFeatureCollection2 && vm.featureCollection2.features.length > 0) {
+                vm.addFeatureCollectionToMap(vm.featureCollection2, 'FeatureCollection2');
+            }
+        },
+        addFeatureCollectionToMap: function (featureCollection, sourceName = 'FeatureCollection') {
+            let vm = this;
+            // Check if modelQuerySource exists before trying to use it
+            if (!vm.modelQuerySource) {
+                console.warn('modelQuerySource not initialized yet');
+                return;
+            }
+            if (featureCollection == null) {
+                featureCollection = vm.featureCollection;
+            }
+
+            for (let featureData of featureCollection['features']) {
+                // Ensure featureData has properties object
+                if (!featureData.properties) {
+                    featureData.properties = {};
+                }
+                // Create the feature first
+                let feature = vm.featureFromDict(featureData, featureData.model || {});
+                // Set the source name for identification
+                feature.set('polygon_source', sourceName);
+                feature.set('source_name', sourceName);
+                vm.modelQuerySource.addFeature(feature);
+                vm.newFeatureId++;
+            }
+        },
+        toggleLayerControl: function() {
+                    this.layerControlVisible = !this.layerControlVisible;
+        },
+        toggleFeatureCollection: function() {
+                    this.showFeatureCollection = !this.showFeatureCollection;
+                    this.refreshFeatureCollections();
+        },
+        toggleFeatureCollection2: function() {
+                    this.showFeatureCollection2 = !this.showFeatureCollection2;
+                    this.refreshFeatureCollections();
+        },
+        // Modify the featureFromDict method to handle different styling
+        featureFromDict: function (featureData, model) {
+            let vm = this;
+            if (model == null) {
+                model = {};
+            }
+
+            let color = vm.styleByColor(featureData, model);
+            let style = vm.createStyle(color);
+
+            // Ensure polygon_source has a default value if not provided
+            const polygonSource = featureData.properties?.polygon_source || "unknown";
+
+            let feature = new Feature({
+                id: vm.newFeatureId,
+                geometry: new Polygon(featureData.geometry.coordinates),
+                name: model.id,
+                label: model.label || model.application_type_name_display,
+                color: color,
+                source: featureData.properties?.source,
+                polygon_source: polygonSource, // This will be overwritten by addFeatureCollectionToMap if needed
+                locked: featureData.properties?.locked || false,
+                copied_from: featureData.properties?.proposal_copied_from,
+                area_sqm: featureData.properties?.area_sqm,
+            });
+            
+            feature.setId(featureData.id);
+            feature.setProperties({
+                model: model,
+            });
+            feature.setStyle(style);
+
+            return feature;
+        },
         updateFilters: function () {
             this.$nextTick(function () {
                 this.filterApplicationsMapApplicationType =
@@ -1200,12 +1407,23 @@ export default {
 
             if (vm.styleBy === 'assessor') {
                 // Assume the object is a feature containing a polygon_source property
-                return vm.featureColors[
-                    featureData.properties.polygon_source.toLowerCase()
-                ];
+                const polygonSource = featureData.properties?.polygon_source;
+                if (!polygonSource) {
+                    console.warn('No polygon_source found in feature properties', featureData);
+                    return vm.featureColors['unknown'] || vm.defaultColor;
+                }
+                
+                // Convert to lowercase and handle potential undefined values
+                const sourceKey = polygonSource.toLowerCase();
+                if (vm.featureColors[sourceKey]) {
+                    return vm.featureColors[sourceKey];
+                } else {
+                    console.warn(`No color defined for polygon_source: ${polygonSource}`);
+                    return vm.featureColors['unknown'] || vm.defaultColor;
+                }
             } else if (vm.styleBy === 'model') {
                 // Assume the object is a model containing a color field
-                return model.color;
+                return model.color || vm.defaultColor;
             } else {
                 return vm.featureColors['unknown'] || vm.defaultColor;
             }
@@ -1446,6 +1664,17 @@ export default {
 
                     vm.map.addInteraction(vm.undoredo);
                     vm.map.addInteraction(vm.undoredo_forSketch);
+                    
+                    // Mark map as fully initialized
+                    vm.mapInitialized = true;
+                    
+                    // Process any pending feature refreshes
+                    if (vm.pendingFeatureRefresh) {
+                        vm.$nextTick(() => {
+                            vm.refreshFeatureCollections();
+                            vm.pendingFeatureRefresh = false;
+                        });
+                    }
                 }
             });
 
@@ -1468,6 +1697,7 @@ export default {
             vm.initialiseSingleClickEvent();
             vm.initialiseDoubleClickEvent();
         },
+
         initialiseMeasurementLayer: function () {
             let vm = this;
 
@@ -2201,26 +2431,26 @@ export default {
                 () => {}
             );
         },
-        addFeatureCollectionToMap: function (featureCollection) {
+        __addFeatureCollectionToMap: function (featureCollection) {
             let vm = this;
             if (featureCollection == null) {
                 featureCollection = vm.featureCollection;
             }
-	    //console.log('JM3: ' + JSON.stringify(featureCollection))
+        //console.log('JM3: ' + JSON.stringify(featureCollection))
 
             for (let featureData of featureCollection['features']) {
-//		featureData["id"] = "3"
-//		featureData["properties"]["area_sqm"] = 1678825658.164856
-//		featureData["properties"]["area_sqhm"] = 167882.56581648558
-//		featureData["properties"]["intersects"] = true
-		featureData["properties"]["polygon_source"] = "Proposal"
-//		featureData["properties"]["locked"] = true
-//		featureData["properties"]["proposal_copied_from"] = null
+//      featureData["id"] = "3"
+//      featureData["properties"]["area_sqm"] = 1678825658.164856
+//      featureData["properties"]["area_sqhm"] = 167882.56581648558
+//      featureData["properties"]["intersects"] = true
+        featureData["properties"]["polygon_source"] = "Proposal"
+//      featureData["properties"]["locked"] = true
+//      featureData["properties"]["proposal_copied_from"] = null
 
-//		featureData["model"]["details_url"] = "/internal/proposal/3/"
-//		featureData["model"]["application_type_name_display"] = "Lease Licence"
+//      featureData["model"]["details_url"] = "/internal/proposal/3/"
+//      featureData["model"]["application_type_name_display"] = "Lease Licence"
 
-		console.log('JM4: ' + JSON.stringify(featureData))
+        console.log('JM4: ' + JSON.stringify(featureData))
                 let feature = vm.featureFromDict(
                     featureData,
                     featureData.model 
@@ -2243,25 +2473,35 @@ export default {
             // Remove all features from the layer
             vm.modelQuerySource.clear();
             proposals.forEach(function (proposal) {
-                proposal.proposalgeometry.features.forEach(
-                    function (featureData) {
-                        let feature = vm.featureFromDict(featureData, proposal);
+                if (proposal.proposalgeometry && proposal.proposalgeometry.features) {
+                    proposal.proposalgeometry.features.forEach(
+                        function (featureData) {
+                            // Ensure properties exist
+                            if (!featureData.properties) {
+                                featureData.properties = {};
+                            }
+                            let feature = vm.featureFromDict(featureData, proposal);
 
-                        if (
-                            vm.modelQuerySource.getFeatureById(feature.getId())
-                        ) {
-                            console.warn(
-                                `Feature ${feature.getId()} already exists in the source. Skipping...`
-                            );
-                            return;
+                            if (
+                                vm.modelQuerySource.getFeatureById(feature.getId())
+                            ) {
+                                console.warn(
+                                    `Feature ${feature.getId()} already exists in the source. Skipping...`
+                                );
+                                return;
+                            }
+                            vm.modelQuerySource.addFeature(feature);
+                            vm.newFeatureId++;
                         }
-                        vm.modelQuerySource.addFeature(feature);
-                        vm.newFeatureId++;
-                    }
-                );
-                if (proposal.competitive_process) {
+                    );
+                }
+                if (proposal.competitive_process && proposal.competitive_process.competitive_process_geometries) {
                     proposal.competitive_process.competitive_process_geometries.features.forEach(
                         function (featureData) {
+                            // Ensure properties exist
+                            if (!featureData.properties) {
+                                featureData.properties = {};
+                            }
                             let feature = vm.featureFromDict(
                                 featureData,
                                 proposal.competitive_process
@@ -2307,23 +2547,24 @@ export default {
 
             let color = vm.styleByColor(featureData, model);
             let style = vm.createStyle(color);
-            //let style = vm.createStyle(vm.defaultFillColor);
+
+            // Ensure polygon_source has a default value if not provided
+            const polygonSource = featureData.properties?.polygon_source || "unknown";
 
             let feature = new Feature({
-                id: vm.newFeatureId, // Incrementing-id of the polygon/feature on the map
+                id: vm.newFeatureId,
                 geometry: new Polygon(featureData.geometry.coordinates),
                 name: model.id,
                 label: model.label || model.application_type_name_display,
                 color: color,
-                source: featureData.properties.source,
-                polygon_source: "", //featureData.properties.polygon_source,
-                locked: featureData.properties.locked,
-                copied_from: featureData.properties.proposal_copied_from,
-                area_sqm: featureData.properties.area_sqm,
+                source: featureData.properties?.source,
+                polygon_source: polygonSource,
+                locked: featureData.properties?.locked || false,
+                copied_from: featureData.properties?.proposal_copied_from,
+                area_sqm: featureData.properties?.area_sqm,
             });
-            // Id of the model object (https://datatracker.ietf.org/doc/html/rfc7946#section-3.2)
+            
             feature.setId(featureData.id);
-
             feature.setProperties({
                 model: model,
             });
@@ -2651,4 +2892,73 @@ export default {
 .force-parent-lh {
     line-height: inherit !important;
 }
+
+.layer-control-wrapper {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+}
+
+.layer-control-button-wrapper {
+    margin-bottom: 5px;
+}
+
+.layer-control-button {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.layer-control-button:hover {
+    background: #f8f9fa;
+}
+
+.layer-control-popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px;
+    min-width: 180px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.layer-control-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.layer-control-header strong {
+    flex-grow: 1;
+}
+
+.layer-control-body .form-check {
+    margin-bottom: 5px;
+}
+
+.layer-control-body .form-check-input {
+    margin-right: 8px;
+}
+
+.layer-control-body .form-check-label {
+    font-size: 14px;
+}
+
+.optional-layers-wrapper {
+    position: absolute;
+    top: 50px; /* Adjust this to be below the layer control */
+    left: 10px;
+    z-index: 1000;
+}
+
 </style>

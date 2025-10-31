@@ -12,6 +12,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 confy.read_environment_file(BASE_DIR+"/.env")
 os.environ.setdefault("BASE_DIR", BASE_DIR)
 
+os.environ['SHAPE_RESTORE_SHX'] = 'YES'
+
 #from ledger_api_client.settings_base import *
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG', False)

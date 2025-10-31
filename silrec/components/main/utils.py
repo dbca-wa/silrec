@@ -270,7 +270,10 @@ def validate_map_files(request, instance, foreign_key_field=None):
     if gdf.empty:
         raise ValidationError(f"Geometry is empty in {shp_file_objs[0].name}")
 
-    if gdf.crs.srs.lower() != CRS_GDA94.lower():
+    import ipdb; ipdb.set_trace()
+    if not gdf.crs or gdf.crs.srs.lower() != CRS_GDA94.lower():
+        gdf.set_crs(CRS_GDA94, inplace=True) # epsg:28350
+    elif not gdf.crs or gdf.crs.srs.lower() != CRS_GDA94.lower():
         gdf.to_crs(CRS_GDA94, inplace=True) # epsg:28350
 
     result = gdf.overlay(gdf_full, how='intersection')

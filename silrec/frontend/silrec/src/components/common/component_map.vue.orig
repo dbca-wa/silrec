@@ -1,4 +1,25 @@
 <template>
+    <!--
+        TODO tasks (and ideas):
+        - populate tenure, locality, and categorisation from geoserver response (see: map_functions::validateFeature for response values and owsQuery prop for query paramerters)
+        - [DONE] prevent polygon delete after save (or save + status change)
+        - [DONE] polygon redo button
+        - [DONE] polygon edit button (move and add/remove vertices)
+        - pass in map tab filterable proposals as prop (see: prop featureCollection)
+        - standardise feature tooltip fields (lodgement_date formatting, application_type, processing_status, etc.) across models
+        - hide feature tooltip on save as it might overlap the save response modal
+        - solve click-select and hover-select for overlapping polygons (cannot click-select a feature for delete if it is under another feature)
+        - prevent referrals from creating/editing polygons in the frontend (does not save in backend anyway)
+        - disable draw tool for external when model is not in draft status
+        - disable draw tool for referral when model is not in with referral status
+        - display polygons of approved proposal on new license proposal (external 017, internal 041)
+        - display polygons from the competitive process of an proposal that proceeded to a competitive process on the proposal page
+        - [DONE] implement map on approval details page and map tab
+        - keyboard input (del to delete a feature, ctrl+z to undo, ctrl+y to redo, d to draw, etc.)
+        - [DONE] delete old map files
+        - [DONE] rename this file
+        - automatic zoom to all on map load
+     -->
     <div>
         <CollapsibleFilters
             v-if="filterable"
@@ -119,6 +140,130 @@
                     />
                 </div>
                 <div class="optional-layers-wrapper">
+                    <div style="position: relative">
+                        <div
+                            class="optional-layers-button-wrapper"
+                            :title="`There are ${optionalLayers.length} optional layers available`"
+                        >
+                            <div
+                                class="optional-layers-button btn"
+                                :class="optionalLayers.length ? '' : 'disabled'"
+                                @mouseover="hover = true"
+                            >
+                                <img src="../../assets/layers.svg" />
+                            </div>
+                        </div>
+                        <transition>
+                            <div
+                                v-show="hover"
+                                div
+                                class="layer_options layer_menu"
+                                @mouseleave="hover = false"
+                            >
+                                <template
+                                    v-for="layer in optionalLayers"
+                                    :key="layer.ol_uid"
+                                >
+                                    <div
+                                        class="row"
+                                        :title="layer.values_.abstract"
+                                    >
+                                        <input
+                                            :id="layer.ol_uid"
+                                            type="checkbox"
+                                            :checked="layer.values_.visible"
+                                            class="layer_option col-md-1"
+                                            @change="
+                                                changeLayerVisibility(layer)
+                                            "
+                                        />
+                                        <label
+                                            :for="layer.ol_uid"
+                                            class="layer_option col-md-6"
+                                            >{{ layer.get('title') }}</label
+                                        >
+                                        <RangeSlider
+                                            class="col-md-5"
+                                            @value-changed="
+                                                valueChanged($event, layer)
+                                            "
+                                        />
+                                    </div>
+                                </template>
+                            </div>
+                        </transition>
+                    </div>
+                    <!-- Toggle measure tool between active and not active -->
+                    <div class="optional-layers-button-wrapper">
+                        <div
+                            :title="
+                                mode == 'measure'
+                                    ? 'Deactivate measure tool'
+                                    : 'Measure distances on the map'
+                            "
+                            class="btn"
+                            :class="[
+                                mode == 'measure'
+                                    ? 'optional-layers-button-active'
+                                    : 'optional-layers-button',
+                            ]"
+                            @click="set_mode.bind(this)('measure')"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/ruler.svg"
+                            />
+                        </div>
+                    </div>
+                    <div v-if="drawable" class="optional-layers-button-wrapper">
+                        <div
+                            :title="
+                                mode == 'draw'
+                                    ? 'Deactivate draw tool'
+                                    : 'Draw a new feature or edit a selected one'
+                            "
+                            class="btn"
+                            :class="[
+                                mode == 'draw'
+                                    ? 'optional-layers-button-active'
+                                    : 'optional-layers-button',
+                                navbarButtonsDisabled ? 'disabled' : '',
+                            ]"
+                            @click="set_mode.bind(this)('draw')"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/pen-icon.svg"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        v-if="editable"
+                        class="optional-layers-button-wrapper"
+                        title="Transform a drawn feature"
+                    >
+                        <div
+                            :title="
+                                mode == 'transform'
+                                    ? 'Deactivate transform tool'
+                                    : 'Transform an existing feature'
+                            "
+                            class="btn"
+                            :class="[
+                                mode == 'transform'
+                                    ? 'optional-layers-button-active'
+                                    : 'optional-layers-button',
+                                drawable && polygonCount ? '' : 'disabled',
+                                navbarButtonsDisabled ? 'disabled' : '',
+                            ]"
+                            @click="set_mode.bind(this)('transform')"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/transform-polygon.svg"
+                            />
+                        </div>
+                    </div>
                     <div
                         v-if="polygonCount"
                         class="optional-layers-button-wrapper"
@@ -143,6 +288,118 @@
                             <img
                                 class="svg-icon"
                                 src="../../assets/download.svg"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        v-if="editable"
+                        class="optional-layers-button-wrapper"
+                        :title="
+                            polygonCount
+                                ? 'Select a feature to delete'
+                                : 'No features to delete'
+                        "
+                    >
+                        <div
+                            class="optional-layers-button btn"
+                            :class="[
+                                selectedFeatureIds.length == 0
+                                    ? 'disabled'
+                                    : 'btn-danger',
+                                navbarButtonsDisabled ? 'disabled' : '',
+                            ]"
+                            title="Delete selected features"
+                            @click="removeModelFeatures()"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/trash-bin.svg"
+                            />
+                            <span
+                                v-if="selectedFeatureIds.length"
+                                id="selectedFeatureCount"
+                                class="badge badge-warning"
+                                >{{ selectedFeatureIds.length }}</span
+                            >
+                        </div>
+                    </div>
+                    <div
+                        v-if="canUndoAction || canUndoDrawnVertex"
+                        class="optional-layers-button-wrapper"
+                        title="Undo last action"
+                    >
+                        <div
+                            class="optional-layers-button btn"
+                            :class="[
+                                (mode !== 'draw' && hasUndo) ||
+                                (mode === 'draw' && canUndoDrawnVertex)
+                                    ? ''
+                                    : 'disabled',
+                                navbarButtonsDisabled ? 'disabled' : '',
+                            ]"
+                            :title="
+                                'Undo ' +
+                                (canUndoDrawnVertex
+                                    ? 'last point'
+                                    : undoRedoStackTopInteractionName('undo'))
+                            "
+                            @click="undo()"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/map-undo.svg"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        v-if="canRedoAction || canRedoDrawnVertex"
+                        class="optional-layers-button-wrapper"
+                        title="Redo last action"
+                    >
+                        <div
+                            class="optional-layers-button btn"
+                            :class="[
+                                (mode !== 'draw' && hasRedo) ||
+                                (mode === 'draw' && canRedoDrawnVertex)
+                                    ? ''
+                                    : 'disabled',
+                                navbarButtonsDisabled ? 'disabled' : '',
+                            ]"
+                            :title="
+                                'Redo ' +
+                                (canRedoDrawnVertex
+                                    ? 'last point'
+                                    : undoRedoStackTopInteractionName('redo'))
+                            "
+                            @click="redo()"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/map-redo.svg"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        v-if="optionalLayersActive"
+                        class="optional-layers-button-wrapper"
+                    >
+                        <div
+                            :title="
+                                mode == 'info'
+                                    ? 'Deactivate info tool'
+                                    : 'Click a data set feature for more information'
+                            "
+                            class="btn"
+                            :class="[
+                                mode == 'info'
+                                    ? 'optional-layers-button-active'
+                                    : 'optional-layers-button',
+                            ]"
+                            @click="set_mode.bind(this)('info')"
+                        >
+                            <img
+                                class="svg-icon"
+                                src="../../assets/info-query.svg"
                             />
                         </div>
                     </div>

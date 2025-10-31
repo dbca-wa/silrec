@@ -1,7 +1,7 @@
 <template lang="html">
     <div class="">
         <div v-if="proposal">
-		    {{proposal.id}}
+		    JM - {{proposal.id}}
         </div>
         <div v-if="debug">components/form.vue</div>
         <div
@@ -363,12 +363,13 @@ export default {
             };
 
             let proposalgeometries = {
-                ...vm.proposal.proposalgeometry,
+                ...(vm.proposal.proposalgeometry ? vm.proposal.proposalgeometry : {}),
             };
+            console.log('JM1: ' + JSON.stringify(proposalgeometries))
 
             //return featureCollection; // TODO - JM
 
-            if (proposalgeometries) {
+            if (Object.keys(proposalgeometries).length !== 0) {
                 for (let feature of proposalgeometries['features']) {
                     feature['properties']['source'] = 'Proposal';
                     let model = {
@@ -387,6 +388,8 @@ export default {
                     featureCollection['features'].push(feature);
                 }
                 console.log('featureCollection: ' + featureCollection)
+            } else {
+                console.log('WARN: Shapefile featureCollection is empty')
             }
             return featureCollection;
         },

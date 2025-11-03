@@ -203,7 +203,9 @@ class ProposalSerializer(BaseProposalSerializer):
     #)
     #assessor_assessment = serializers.SerializerMethodField(read_only=True)
     proposalgeometry = serializers.SerializerMethodField(read_only=True)
-    proposalgeometry_sep = serializers.SerializerMethodField(read_only=True)
+    proposalgeometry_hist = serializers.SerializerMethodField(read_only=True)
+    proposalgeometry_processed = serializers.SerializerMethodField(read_only=True)
+    proposalgeometry_processed_iters = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
@@ -226,14 +228,22 @@ class ProposalSerializer(BaseProposalSerializer):
             "assessor_mode",
             "processing_status_id",
             "proposalgeometry",
-            "proposalgeometry_sep",
+            "proposalgeometry_hist",
+            "proposalgeometry_processed",
+            "proposalgeometry_processed_iters",
         )
 
     def get_proposalgeometry(self, obj):
         return obj.shapefile_json
 
-    def get_proposalgeometry_sep(self, obj):
-        return obj.shapefile_json
+    def get_proposalgeometry_hist(self, obj):
+        return obj.geojson_data_hist
+
+    def get_proposalgeometry_processed(self, obj):
+        return obj.geojson_data_processed
+
+    def get_proposalgeometry_processed_iters(self, obj):
+        return obj.geojson_data_processed_iters
 
     def get_model_name(self, obj):
         return obj._meta.model_name

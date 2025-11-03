@@ -26,7 +26,8 @@
                             :context="proposal"
                             :proposal-ids="[-1]"
                             :featureCollection="geometriesToFeatureCollection"
-                            :featureCollection2="geometriesToFeatureCollection"
+                            :featureCollection2="geometriesToFeatureCollection2"
+                            :featureCollection3="geometriesToFeatureCollection2"
                             :ows-query="owsQuery"
                             style-by="assessor"
                             :filterable="false"
@@ -366,6 +367,10 @@ export default {
             let proposalgeometries = {
                 ...(vm.proposal.proposalgeometry ? vm.proposal.proposalgeometry : {}),
             };
+
+//            let proposalgeometries = {
+//                ...(proposal_geometry ? proposal_geometry : {}),
+//            };
             console.log('JM1: ' + JSON.stringify(proposalgeometries))
 
             //return featureCollection; // TODO - JM
@@ -394,6 +399,136 @@ export default {
             }
             return featureCollection;
         },
+        geometriesToFeatureCollection2: function () {
+            let vm = this;
+
+            let featureCollection = {
+                type: 'FeatureCollection',
+                features: [],
+            };
+
+            let proposalgeometries = {
+                ...(vm.proposal.proposalgeometry_hist ? vm.proposal.proposalgeometry_hist : {}),
+            };
+
+//            let proposalgeometries = {
+//                ...(proposal_geometry ? proposal_geometry : {}),
+//            };
+            console.log('JM1: ' + JSON.stringify(proposalgeometries))
+
+            //return featureCollection; // TODO - JM
+
+            if (Object.keys(proposalgeometries).length !== 0) {
+                for (let feature of proposalgeometries['features']) {
+                    feature['properties']['source'] = 'Proposal';
+                    let model = {
+                        id: vm.proposal.id,
+                        details_url: vm.proposal.details_url,
+                        application_type_name_display:
+                            vm.proposal.application_type.name_display,
+                        lodgement_number: vm.proposal.lodgement_number,
+                        lodgement_date_display: moment(
+                            vm.proposal.lodgement_date
+                        ).format('DD/MM/YYYY'),
+                        processing_status_display: vm.proposal.processing_status,
+                    };
+
+                    feature['model'] = model;
+                    featureCollection['features'].push(feature);
+                }
+                console.log('featureCollection: ' + featureCollection)
+            } else {
+                console.log('WARN: Shapefile featureCollection is empty')
+            }
+            return featureCollection;
+        }, 
+        geometriesToFeatureCollection3: function () {
+            let vm = this;
+
+            let featureCollection = {
+                type: 'FeatureCollection',
+                features: [],
+            };
+
+            let proposalgeometries = {
+                ...(vm.proposal.proposalgeometry_processed ? vm.proposal.proposalgeometry_processed : {}),
+            };
+
+//            let proposalgeometries = {
+//                ...(proposal_geometry ? proposal_geometry : {}),
+//            };
+            console.log('JM1: ' + JSON.stringify(proposalgeometries))
+
+            //return featureCollection; // TODO - JM
+
+            if (Object.keys(proposalgeometries).length !== 0) {
+                for (let feature of proposalgeometries['features']) {
+                    feature['properties']['source'] = 'Proposal';
+                    let model = {
+                        id: vm.proposal.id,
+                        details_url: vm.proposal.details_url,
+                        application_type_name_display:
+                            vm.proposal.application_type.name_display,
+                        lodgement_number: vm.proposal.lodgement_number,
+                        lodgement_date_display: moment(
+                            vm.proposal.lodgement_date
+                        ).format('DD/MM/YYYY'),
+                        processing_status_display: vm.proposal.processing_status,
+                    };
+
+                    feature['model'] = model;
+                    featureCollection['features'].push(feature);
+                }
+                console.log('featureCollection: ' + featureCollection)
+            } else {
+                console.log('WARN: Shapefile featureCollection is empty')
+            }
+            return featureCollection;
+        },
+       geometriesToFeatureCollection2: function () {
+            let vm = this;
+
+            let featureCollection = {
+                type: 'FeatureCollection',
+                features: [],
+            };
+
+            let proposalgeometries = {
+                ...(vm.proposal.proposalgeometry_hist ? vm.proposal.proposalgeometry_hist : {}),
+            };
+
+//            let proposalgeometries = {
+//                ...(proposal_geometry ? proposal_geometry : {}),
+//            };
+            console.log('JM1: ' + JSON.stringify(proposalgeometries))
+
+            //return featureCollection; // TODO - JM
+
+            if (Object.keys(proposalgeometries).length !== 0) {
+                for (let feature of proposalgeometries['features']) {
+                    feature['properties']['source'] = 'Proposal';
+                    let model = {
+                        id: vm.proposal.id,
+                        details_url: vm.proposal.details_url,
+                        application_type_name_display:
+                            vm.proposal.application_type.name_display,
+                        lodgement_number: vm.proposal.lodgement_number,
+                        lodgement_date_display: moment(
+                            vm.proposal.lodgement_date
+                        ).format('DD/MM/YYYY'),
+                        processing_status_display: vm.proposal.processing_status,
+                    };
+
+                    feature['model'] = model;
+                    featureCollection['features'].push(feature);
+                }
+                console.log('featureCollection: ' + featureCollection)
+            } else {
+                console.log('WARN: Shapefile featureCollection is empty')
+            }
+            return featureCollection;
+        },
+
     },
     created: function () {
 //        if (this.is_internal || this.is_referee) {

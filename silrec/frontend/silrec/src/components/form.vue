@@ -27,7 +27,10 @@
                             :proposal-ids="[-1]"
                             :featureCollection="geometriesToFeatureCollection"
                             :featureCollection2="geometriesToFeatureCollection2"
-                            :featureCollection3="geometriesToFeatureCollection2"
+                            :featureCollection3="geometriesToFeatureCollection3"
+                            :featureCollection4="geometriesToFeatureCollection4"
+                            :displayFieldsConfig="displayFieldsConfig"
+                            :additionalFieldsConfig="additionalFieldsConfig"
                             :ows-query="owsQuery"
                             style-by="assessor"
                             :filterable="false"
@@ -278,6 +281,17 @@ export default {
             loadingGroups: false,
             owsQuery: owsQuery,
             validateFeature: validateFeature,
+            displayFieldsConfig: [
+                { key: 'name', label: 'Name' },
+                { key: 'Block', label: 'Block' },
+                { key: 'Compno', label: 'Comp No' }
+            ],
+            additionalFieldsConfig:[
+                { key: 'Region', label: 'Region' },
+                { key: 'fea_id', label: 'Feature ID' },
+                { key: 'Area', label: 'Area' },
+                { key: 'Ops_status', label: 'Status' }
+            ],
         };
     },
     computed: {
@@ -485,27 +499,26 @@ export default {
             }
             return featureCollection;
         },
-       geometriesToFeatureCollection2: function () {
+       geometriesToFeatureCollection4: function () {
             let vm = this;
 
+            let proposalgeometries = {
+                ...(vm.proposal.proposalgeometry_processed_iters ? vm.proposal.proposalgeometry_processed_iters : {}),
+            };
+
+            //console.log('JM44: ' + JSON.stringify(proposalgeometries))
+          const resultList = [];
+          for (const key in proposalgeometries) {
             let featureCollection = {
                 type: 'FeatureCollection',
                 features: [],
             };
 
-            let proposalgeometries = {
-                ...(vm.proposal.proposalgeometry_hist ? vm.proposal.proposalgeometry_hist : {}),
-            };
-
-//            let proposalgeometries = {
-//                ...(proposal_geometry ? proposal_geometry : {}),
-//            };
-            console.log('JM1: ' + JSON.stringify(proposalgeometries))
 
             //return featureCollection; // TODO - JM
 
-            if (Object.keys(proposalgeometries).length !== 0) {
-                for (let feature of proposalgeometries['features']) {
+            if (Object.keys(proposalgeometries[key]).length !== 0) {
+                for (let feature of proposalgeometries[key]['features']) {
                     feature['properties']['source'] = 'Proposal';
                     let model = {
                         id: vm.proposal.id,
@@ -526,7 +539,17 @@ export default {
             } else {
                 console.log('WARN: Shapefile featureCollection is empty')
             }
-            return featureCollection;
+
+            const newDict = {
+                name: key,
+                data: featureCollection[key]
+            };
+            //resultList.push(newDict);
+            resultList.push(featureCollection);
+          }
+
+          //return featureCollection;
+          return resultList;
         },
 
     },

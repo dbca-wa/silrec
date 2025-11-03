@@ -39,6 +39,36 @@
             Layer 3
           </label>
         </div>
+        <!-- New Layer 4 with nested radio buttons -->
+        <div class="layer-item" v-if="hasLayer4">
+          <label>
+            <input 
+              type="checkbox" 
+              v-model="layer4Visible" 
+              @change="toggleLayer('layer4')"
+            >
+            Geometry Collections
+          </label>
+          
+          <!-- Nested radio buttons for geometry collections -->
+          <div v-if="layer4Visible" class="nested-radio-group">
+            <div 
+              v-for="(geometry, index) in geometryCollections" 
+              :key="index"
+              class="radio-item"
+            >
+              <label>
+                <input 
+                  type="radio" 
+                  :value="index"
+                  v-model="selectedGeometryIndex"
+                  @change="toggleGeometryCollection(index)"
+                >
+                Geometry {{ index + 1 }}
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -108,7 +138,7 @@
       <button 
         class="control-btn zoom-to-layer-btn"
         @click="zoomToActiveLayer"
-        :title="hasLayer2 ? 'Zoom to Layer 2' : 'Zoom to Layer 1'"
+        :title="getZoomToLayerTitle"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
@@ -162,7 +192,11 @@ export default {
       type: Object,
       default: null
     },
-    // Configurable display fields (shown by default)
+    featureCollection4: {
+      type: Array,
+      default: () => []
+    },
+    // Add the missing props
     displayFieldsConfig: {
       type: Array,
       default: () => [
@@ -171,7 +205,6 @@ export default {
         { key: 'Compno', label: 'Comp No' }
       ]
     },
-    // Configurable additional fields (shown when info icon is toggled)
     additionalFieldsConfig: {
       type: Array,
       default: () => [
@@ -182,6 +215,11 @@ export default {
         { key: 'type', label: 'Type' },
         { key: 'owner', label: 'Owner' }
       ]
+    },
+    // Add context prop if needed
+    context: {
+      type: Object,
+      default: null
     }
   },
   emits: ['refresh-from-response'],
@@ -191,16 +229,21 @@ export default {
       layer1: null,
       layer2: null,
       layer3: null,
+      layer4: null,
       layer1Visible: true,
       layer2Visible: true,
       layer3Visible: true,
+      layer4Visible: false,
       showLayerControl: false,
       hasLayer2: false,
       hasLayer3: false,
+      hasLayer4: false,
       selectedFeature: null,
       selectInteraction: null,
       showAdditionalInfo: false,
       isMaximised: false,
+      geometryCollections: [],
+      selectedGeometryIndex: null,
       highlightStyle: new Style({
         fill: new Fill({
           color: 'rgba(255, 255, 0, 0.6)'
@@ -209,15 +252,35 @@ export default {
           color: 'rgba(255, 255, 0, 1)',
           width: 3
         })
+      }),
+      layer4Style: new Style({
+        fill: new Fill({
+          color: 'rgba(255, 165, 0, 0.3)'
+        }),
+        stroke: new Stroke({
+          color: 'rgba(255, 165, 0, 0.8)',
+          width: 2
+        })
       })
     };
   },
   computed: {
     displayFields() {
-      return this.displayFieldsConfig;
+      return this.displayFieldsConfig || [];
     },
     additionalFields() {
-      return this.additionalFieldsConfig;
+      return this.additionalFieldsConfig || [];
+    },
+    getZoomToLayerTitle() {
+      if (this.hasLayer4 && this.layer4Visible && this.selectedGeometryIndex !== null) {
+        return `Zoom to Geometry ${this.selectedGeometryIndex + 1}`;
+      } else if (this.hasLayer3 && this.layer3Visible) {
+        return 'Zoom to Layer 3';
+      } else if (this.hasLayer2 && this.layer2Visible) {
+        return 'Zoom to Layer 2';
+      } else {
+        return 'Zoom to Layer 1';
+      }
     }
   },
   watch: {
@@ -238,8 +301,13 @@ export default {
         this.updateLayer3(newGeoJSON);
       },
       deep: true
+    },
+    featureCollection4: {
+      handler(newGeometryList) {
+        this.updateLayer4(newGeometryList);
+      },
+      deep: true
     }
-
   },
   mounted() {
     this.$nextTick(() => {
@@ -249,6 +317,9 @@ export default {
 
       this.hasLayer3 = !!this.featureCollection3;
       this.layer3Visible = this.hasLayer3;
+
+      this.hasLayer4 = !!this.featureCollection4 && this.featureCollection4.length > 0;
+      this.layer4Visible = false;
     });
   },
   beforeUnmount() {
@@ -264,6 +335,7 @@ export default {
       const layer1Source = new VectorSource();
       const layer2Source = new VectorSource();
       const layer3Source = new VectorSource();
+      const layer4Source = new VectorSource();
 
       // Style for layer 1
       const layer1Style = new Style({
@@ -317,6 +389,13 @@ export default {
         visible: this.layer3Visible
       });
 
+      this.layer4 = new VectorLayer({
+        source: layer4Source,
+        style: this.layer4Style,
+        visible: this.layer4Visible,
+        zIndex: 10
+      });
+
       // Base layer (OSM)
       const baseLayer = new TileLayer({
         source: new OSM()
@@ -325,7 +404,7 @@ export default {
       // Initialize the map
       this.map = new Map({
         target: this.$refs.mapContainer,
-        layers: [baseLayer, this.layer1, this.layer2, this.layer3],
+        layers: [baseLayer, this.layer1, this.layer2, this.layer3, this.layer4],
         view: new View({
           projection: 'EPSG:4326',
           center: fromLonLat([121.5, -24.5], 'EPSG:4326'),
@@ -346,6 +425,9 @@ export default {
       if (this.featureCollection3) {
         this.updateLayer3(this.featureCollection3);
       }
+      if (this.featureCollection4 && this.featureCollection4.length > 0) {
+        this.updateLayer4(this.featureCollection4);
+      }
 
       window.addEventListener('resize', this.handleResize);
       document.addEventListener('keydown', this.handleEscape);
@@ -358,7 +440,7 @@ export default {
 
       this.selectInteraction = new Select({
         condition: click,
-        layers: [this.layer1, this.layer2, this.layer3],
+        layers: [this.layer1, this.layer2, this.layer3, this.layer4],
         style: this.highlightStyle,
         multi: false
       });
@@ -366,7 +448,7 @@ export default {
       this.selectInteraction.on('select', (event) => {
         if (event.selected.length > 0) {
           this.selectedFeature = event.selected[0];
-          this.showAdditionalInfo = false; // Reset additional info when new feature selected
+          this.showAdditionalInfo = false;
         } else {
           this.selectedFeature = null;
           this.showAdditionalInfo = false;
@@ -377,7 +459,23 @@ export default {
     },
 
     getFeatureValue(feature, fieldKey) {
-      const value = feature.get(fieldKey);
+      if (!feature) return 'N/A';
+      
+      // Try different property access methods
+      let value = feature.get(fieldKey);
+      
+      // If not found, try properties object
+      if (value === undefined || value === null) {
+        const properties = feature.getProperties();
+        value = properties[fieldKey];
+      }
+      
+      // If still not found, try the original properties
+      if (value === undefined || value === null) {
+        const originalProperties = feature.get('properties');
+        value = originalProperties ? originalProperties[fieldKey] : undefined;
+      }
+      
       return value !== undefined && value !== null ? value : 'N/A';
     },
 
@@ -472,6 +570,45 @@ export default {
       }
     },
 
+    updateLayer4(geometryList) {
+      if (!this.layer4 || !geometryList) return;
+      
+      this.hasLayer4 = geometryList.length > 0;
+      this.geometryCollections = geometryList;
+      
+      this.layer4.getSource().clear();
+      
+      if (this.selectedGeometryIndex !== null && geometryList[this.selectedGeometryIndex]) {
+        this.displayGeometryCollection(this.selectedGeometryIndex);
+      }
+    },
+
+    toggleGeometryCollection(geometryIndex) {
+      console.log('Selecting geometry index:', geometryIndex);
+      this.selectedGeometryIndex = parseInt(geometryIndex);
+      this.displayGeometryCollection(this.selectedGeometryIndex);
+    },
+
+    displayGeometryCollection(geometryIndex) {
+      console.log('GEOM1: ' + JSON.stringify(this.geometryCollections[geometryIndex]))
+      if (!this.layer4 || !this.geometryCollections[geometryIndex]) {
+        console.log('Cannot display geometry - layer4:', this.layer4, 'geometry at index:', geometryIndex);
+        return;
+      }
+      
+      const format = new GeoJSON();
+      const features = format.readFeatures(this.geometryCollections[geometryIndex], {
+        featureProjection: 'EPSG:4326',
+        dataProjection: 'EPSG:4326'
+      });
+      
+      this.layer4.getSource().clear();
+      this.layer4.getSource().addFeatures(features);
+      
+      if (features.length > 0) {
+        this.zoomToLayer('layer4');
+      }
+    },
 
     toggleLayer(layerName) {
       if (layerName === 'layer1') {
@@ -480,11 +617,19 @@ export default {
         this.layer2.setVisible(this.layer2Visible);
       } else if (layerName === 'layer3' && this.layer3) {
         this.layer3.setVisible(this.layer3Visible);
+      } else if (layerName === 'layer4' && this.layer4) {
+        this.layer4.setVisible(this.layer4Visible);
+        if (this.layer4Visible && this.hasLayer4 && this.selectedGeometryIndex === null && this.geometryCollections.length > 0) {
+          this.selectedGeometryIndex = 0;
+          this.displayGeometryCollection(0);
+        }
       }
     },
 
     zoomToActiveLayer() {
-      if (this.hasLayer3 && this.layer3Visible) {
+      if (this.hasLayer4 && this.layer4Visible && this.selectedGeometryIndex !== null) {
+        this.zoomToLayer('layer4');
+      } else if (this.hasLayer3 && this.layer3Visible) {
         this.zoomToLayer('layer3');
       } else if (this.hasLayer2 && this.layer2Visible) {
         this.zoomToLayer('layer2');
@@ -494,7 +639,17 @@ export default {
     },
 
     zoomToLayer(layerName) {
-      const layer = layerName === 'layer1' ? this.layer1 : this.layer2;
+      let layer;
+      if (layerName === 'layer1') {
+        layer = this.layer1;
+      } else if (layerName === 'layer2') {
+        layer = this.layer2;
+      } else if (layerName === 'layer3') {
+        layer = this.layer3;
+      } else if (layerName === 'layer4') {
+        layer = this.layer4;
+      }
+      
       if (!layer || !layer.getVisible()) return;
 
       const source = layer.getSource();
@@ -511,6 +666,15 @@ export default {
 
     refreshFromResponse() {
       this.$emit('refresh-from-response');
+    },
+
+    testLayer4() {
+      console.log('Testing Layer 4...');
+      console.log('Layer4 visible:', this.layer4.getVisible());
+      console.log('Layer4 source features:', this.layer4.getSource().getFeatures().length);
+
+      this.layer4.getSource().changed();
+      this.map.render();
     }
   }
 };
@@ -631,6 +795,30 @@ export default {
 }
 
 .layer-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.nested-radio-group {
+  margin-left: 20px;
+  margin-top: 8px;
+  padding-left: 10px;
+  border-left: 2px solid #e0e0e0;
+}
+
+.radio-item {
+  margin: 6px 0;
+}
+
+.radio-item label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+}
+
+.radio-item input[type="radio"] {
   margin: 0;
 }
 

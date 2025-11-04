@@ -1,0 +1,3 @@
+vi -p silrec/components/proposals/models.py silrec/components/proposals/views.py silrec/components/proposals/serializers.py silrec/components/proposals/api.py silrec/frontend/silrec/src/components/form.vue silrec/frontend/silrec/src/components/common/component_map.vu
+
+

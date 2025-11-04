@@ -30,3 +30,7 @@ GeoAlchemy2==0.18.0
 jupyter==1.1.1
 notebook==6.5.7
 scipy==1.16.2
+
+# sudo apt-get install graphviz libgraphviz-dev
+# pip install pydotplus
+# ./manage.py graph_models silrec --include-models silrec.cohort -o /tmp/silrec_models.png

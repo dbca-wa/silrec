@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 class ShapefileSliversMerger():
     '''
+    04-Nov-2025
+    Query postgres for intersected historical polygons for a single base_polygon at a time, and
+    build the 'Poly - AssignPolygonToCohort - Cohort' tabulated data structure
+    -------------------------------------------------------------------------------------------
+
     import geopandas as gpd
     from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
 
@@ -100,6 +105,7 @@ class ShapefileSliversMerger():
     ssm = ShapefileSliversMerger(gdf_shp_0, proposal_id=1)
     gdf_merge_store = ssm.create_gdf()
 
+    gdf_result_filtered = ssm.gdf_merge_store[(ssm.gdf_merge_store.state=='GDF_RESULT_FILTERED') & (ssm.gdf_merge_store.iter_seq==1)]
 
     '''
     def __init__(self, gdf_shpfile, proposal_id, threshold=None, sql_polygons=None):
@@ -149,7 +155,7 @@ class ShapefileSliversMerger():
             Returns --> SQL query result as gdf
         '''
 
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         if not sql:
             srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; ' # SRID=28350;
             #base_polygon_wkt = srid + gdf.dissolve().iloc[0].geometry.wkt
@@ -172,6 +178,7 @@ class ShapefileSliversMerger():
                 );'''
 
         gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
+        import ipdb; ipdb.set_trace()
 
         gdf['poly_type'] = 'HIST'
         gdf['iter_seq'] = 0 #self.next_iter_seq
@@ -272,6 +279,9 @@ class ShapefileSliversMerger():
 
             self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
             self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
+
+            gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon')
+            import ipdb; ipdb.set_trace()
 
             # ---- TEMP
             gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)

@@ -1,0 +1,27 @@
+04-Nov-2025
+-----------
+Given the original demarcation boundary shapefile :
+    'silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp'
+
+When plotted:
+    import geopandas as gpd
+    from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
+    gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+    gdf_shp.to_crs('EPSG:28350', inplace=True)
+    gdf_shp
+    plot_gdf(gdf_shp)
+
+1. gdf_0   --> the gdf_shp.iloc[[0]]
+    gdf_shp.iloc[[0]].to_file('/home/ubuntu/projects/silrec/silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_0/gdf_0.shp', driver='ESRI Shapefile')
+
+2. gdf_1   --> the gdf_shp.iloc[[1]]
+    gdf_shp.iloc[[1]].to_file('/home/ubuntu/projects/silrec/silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_1/gdf_1.shp', driver='ESRI Shapefile')
+
+3. gdf_2   --> the gdf_shp.iloc[[2]]
+    gdf_shp.iloc[[2]].to_file('/home/ubuntu/projects/silrec/silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_2/gdf_2.shp', driver='ESRI Shapefile')
+
+4. gdf_01  --> the gdf_shp.iloc[[0,1]]
+    gdf_shp.iloc[[0,1]].to_file('/home/ubuntu/projects/silrec/silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_01/gdf_01.shp', driver='ESRI Shapefile')
+
+5. gdf_012 --> the gdf_shp.iloc[[0,1,2]]
+    gdf_shp.iloc[[0,1,2]].to_file('/home/ubuntu/projects/silrec/silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_012/gdf_012.shp', driver='ESRI Shapefile')

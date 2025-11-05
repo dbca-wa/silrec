@@ -203,7 +203,7 @@ class ShapefileSliversMerger():
         gdf['poly_type'] = 'HIST'
         gdf['iter_seq'] = 0 #self.next_iter_seq
         gdf['proposal_id'] = self.proposal_id
-        gdf.rename(columns={'polygon_id': 'poly_src_id'}, inplace=True)
+        #gdf.rename(columns={'polygon_id': 'polygon_id'}, inplace=True)
 
         return gdf
 
@@ -222,7 +222,7 @@ class ShapefileSliversMerger():
 
         gdf = gpd.sjoin(gdf_common_boundary, centroids_df, how="inner", predicate="intersects")
         gdf['poly_type'] = 'BASE'
-        gdf['poly_src_id'] = gdf['polygon_id'] if 'polygon_id' in gdf.columns else 0
+        gdf['polygon_id'] = gdf['polygon_id'] if 'polygon_id' in gdf.columns else 0
         gdf['proposal_id'] = self.proposal_id
 
         return gdf
@@ -280,7 +280,6 @@ class ShapefileSliversMerger():
                 self.polygons.drop(['index_right'], axis=1, inplace=True)
 
             gdf = gpd.sjoin(self.gdf_hist_polygons_total, centroid_gdf, how="inner", predicate="intersects")
-            #return None if gdf.empty else gdf.poly_src_id.iloc[0]
             return None if gdf.empty else gdf[col_name].iloc[0]
 
 #        import ipdb; ipdb.set_trace()
@@ -345,7 +344,7 @@ class ShapefileSliversMerger():
             gdf_excl_slivers_plus_base['poly_type'] = 'HIST'
             gdf_slivers_merged = gdf_slivers_plus_base.dissolve()
             gdf_slivers_merged['poly_type'] = 'BASE'
-            gdf_slivers_merged['poly_src_id'] = 0
+            gdf_slivers_merged['polygon_id'] = 0
             gdf_slivers_merged['proposal_id'] = self.proposal_id
 
             # re-merge merged base_polygon with remaining cookie-cut and hist polygons
@@ -353,11 +352,11 @@ class ShapefileSliversMerger():
             gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
 
             # identify and assign the src polygon from active hist polygon (silrec_v3)
-            gdf_result['poly_src_id'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('poly_src_id',)) # add column for the corresponding hist polygon_id
+            gdf_result['polygon_id'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('polygon_id',)) # add column for the corresponding hist polygon_id
             gdf_result['name'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('name',)) # add column for the corresponding hist polygon_id
             gdf_result['compartment'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('compartment',)) # add column for the corresponding hist polygon_id
             gdf_result['sp_code'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('sp_code',)) # add column for the corresponding hist polygon_id
-            gdf_result['poly_src_id'] = gdf_result['poly_src_id'].fillna(0).astype(int)
+            gdf_result['polygon_id'] = gdf_result['polygon_id'].fillna(0).astype(int)
             gdf_result['area_ha'] = gdf_result.area/10000
             gdf_result['iter_seq'] = idx_count
             gdf_result['proposal_id'] = self.proposal_id
@@ -443,10 +442,10 @@ class ShapefileSliversMerger():
 
         return self.gdf_merge_store
 
-    def set_data(self, gdf, iter_seq=None, poly_src_id=0, poly_type=None):
+    def set_data(self, gdf, iter_seq=None, polygon_id=0, poly_type=None):
         gdf['proposal_id'] = self.proposal_id
         gdf['iter_seq'] = iter_seq
-        gdf['poly_src_id'] = poly_src_id if 'poly_src_id' not in gdf else gdf['poly_src_id'].fillna(poly_src_id)
+        gdf['polygon_id'] = polygon_id if 'polygon_id' not in gdf else gdf['polygon_id'].fillna(polygon_id)
 #        if 'poly_type' not in gdf or gdf['poly_type'].isna().any():
         if poly_type == 'SLVR':
             try:
@@ -476,7 +475,7 @@ class ShapefileSliversMerger():
         for gdf in gdf_list:
             self.gdf_merge_store = pd.concat([
                                 self.gdf_merge_store,
-                                gdf[['poly_src_id','poly_type','iter_seq','proposal_id', 'state', 'geometry']]],
+                                gdf[['polygon_id','poly_type','iter_seq','proposal_id', 'state', 'geometry']]],
                                 axis=0,
                                 ignore_index=True
                             )

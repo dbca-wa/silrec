@@ -41,6 +41,7 @@ class AssignChtToPly(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
+    status_current = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'assign_cht_to_ply'

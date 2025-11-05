@@ -17,7 +17,7 @@ from silrec.utils.plot_canvas import create_tabbed_charts
 from silrec.utils.sliver_merge import find_and_merge
 
 from silrec.utils.sliver_test1 import identify_slivers
-from silrec.components.proposals.models import PolygonHistory
+#from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
 mpl.use('TkAgg')
@@ -95,7 +95,7 @@ class ShapefileSliversMerger():
 
     import geopandas as gpd
     from silrec.utils.plot_utils import plot_gdf, plot_multi, plot_overlay
-    from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
+    from silrec.utils.shapefile_silvers_merger4 import ShapefileSliversMerger
     import json
 
     #gdf_shp.iloc[[0]].to_file('/home/ubuntu/projects/silrec/silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_0/gdf_0.shp', driver='ESRI Shapefile')
@@ -113,7 +113,7 @@ class ShapefileSliversMerger():
         self.proposal_id = proposal_id
         self.threshold = threshold
         self.conn_engine = self.get_conn_engine()
-        self.gdf_hist_polygons_total = self.get_polygons_gdf(gdf_shpfile, 'polygon', sql_polygons)
+        self.gdf_hist_polygons_total = self.get_polygons_gdf(gdf_shpfile, 'tmp_polygon', sql_polygons)
 
         # for plots
 #        self.gdf_polygons_intersecting_single = None
@@ -140,14 +140,14 @@ class ShapefileSliversMerger():
         )
         return engine
 
-    @property
-    def next_iter_seq(self):
-        iter_seq = PolygonHistory.objects.filter(proposal_id=self.proposal_id).aggregate(models.Max('iter_seq'))['iter_seq__max']
-        return iter_seq + 1 if iter_seq is not None else 0
-
-    def save_global_intersecting_polygons(self, gdf, table_name='silrec_polygonhistory'):
-        ''' Save all polygons from forest_blocks.polygon (to PolygonHistory) that intersect the global (input) shapefile '''
-        gdf.to_postgis(table_name, con=self.conn_engine, if_exists='append', schema='silrec')
+#    @property
+#    def next_iter_seq(self):
+#        iter_seq = PolygonHistory.objects.filter(proposal_id=self.proposal_id).aggregate(models.Max('iter_seq'))['iter_seq__max']
+#        return iter_seq + 1 if iter_seq is not None else 0
+#
+#    def save_global_intersecting_polygons(self, gdf, table_name='silrec_polygonhistory'):
+#        ''' Save all polygons from forest_blocks.polygon (to PolygonHistory) that intersect the global (input) shapefile '''
+#        gdf.to_postgis(table_name, con=self.conn_engine, if_exists='append', schema='silrec')
 
     def get_polygons_gdf(self, gdf, table_name, sql=None):
         ''' Get intersecting polygons from forest_blocks.polygon - intersecting with the given base polygon
@@ -166,7 +166,26 @@ class ShapefileSliversMerger():
 
             #sql = f'''SELECT ph.polygon_id, ph.name, ph.geom FROM {table_name} AS ph WHERE ph.closed IS NULL AND ST_Intersects(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'));'''
 
-            sql = f'''SELECT ph.polygon_id, ph.name, ph.geom
+#            sql = f'''SELECT ph.polygon_id, ph.name, ph.area_ha, ph.compartment, ph.sp_code, ph.geom
+#                FROM {table_name} AS ph
+#                WHERE ph.closed IS NULL
+#                AND (
+#                    ST_Overlaps(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
+#                    OR ST_Contains(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
+#                    OR ST_Within(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
+#                    OR ST_Crosses(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
+#                    AND ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) > {min_area_tolerance}
+#                );'''
+
+            sql = f'''SELECT
+                    ph.polygon_id,
+                    ph.name,
+                    ph.area_ha,
+                    ph.compartment,
+                    ph.sp_code,
+                    ph.geom,
+                    ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) AS intersect_area,
+                    (ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) / ph.area_ha) * 100 AS overlap_perc
                 FROM {table_name} AS ph
                 WHERE ph.closed IS NULL
                 AND (
@@ -174,11 +193,12 @@ class ShapefileSliversMerger():
                     OR ST_Contains(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
                     OR ST_Within(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
                     OR ST_Crosses(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
-                    AND ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) > {min_area_tolerance}
-                );'''
+                )
+                AND ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) > {min_area_tolerance};'''
+
 
         gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
 
         gdf['poly_type'] = 'HIST'
         gdf['iter_seq'] = 0 #self.next_iter_seq
@@ -245,9 +265,9 @@ class ShapefileSliversMerger():
         plot_gdf(gdf_new_hist_polygons)
         '''
 
-        def get_base_polygon_id(row):
+        def get_base_polygon_field(row, col_name):
             ''' for given split polygon, returns the polygon_id of the parent (historical polygons gdf) polygon
-                usage: gdf_tmp['polygon_id'] = gdf_tmp.apply(get_base_polygon_id, axis=1)
+                usage: gdf_tmp['polygon_id'] = gdf_tmp.apply(get_base_polygon_field, axis=1, args=('col_name',))
                 --> Returns the parent polygon_id (intersected by the centroid - representative_point() falls inside the polygon)
             '''
             # Convert Centroid POINT to GDF
@@ -260,7 +280,8 @@ class ShapefileSliversMerger():
                 self.polygons.drop(['index_right'], axis=1, inplace=True)
 
             gdf = gpd.sjoin(self.gdf_hist_polygons_total, centroid_gdf, how="inner", predicate="intersects")
-            return None if gdf.empty else gdf.poly_src_id.iloc[0]
+            #return None if gdf.empty else gdf.poly_src_id.iloc[0]
+            return None if gdf.empty else gdf[col_name].iloc[0]
 
 #        import ipdb; ipdb.set_trace()
 #        self.save_global_intersecting_polygons(self.gdf_hist_polygons_total, 'silrec_polygonhistory')
@@ -280,13 +301,13 @@ class ShapefileSliversMerger():
             self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
             self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
 
-            gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon')
-            import ipdb; ipdb.set_trace()
+            gdf_hist = self.get_polygons_gdf(self.gdf_single, 'tmp_polygon')
+            #import ipdb; ipdb.set_trace()
 
             # ---- TEMP
             gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
             gdf_hist.set_geometry('geometry', inplace=True)
-            gdf_hist.set_crs(settings.CRS_GDA94)
+            gdf_hist.set_crs(settings.CRS_GDA94, inplace=True)
             #return self.gdf_single, gdf_hist
             # ----
 
@@ -297,12 +318,12 @@ class ShapefileSliversMerger():
             intersects_mask_single = gdf_hist.geometry.intersects(self.gdf_shpfile.unary_union)
             gdf_polygons_intersecting_single = gdf_hist[intersects_mask_single]
 
-            import ipdb; ipdb.set_trace()
             # non overlapping overlayed geometries (creates independent partitioned geometries)
             self.gdf_polygons_partitioned = gpd.overlay(self.gdf_single[['geometry']], gdf_polygons_intersecting_single, how='union')
             self.gdf_polygons_partitioned = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area>1] # drop tiny areas
             self.gdf_polygons_partitioned = self.gdf_polygons_partitioned.explode() # explode multipolys to indep polys
             self.gdf_polygons_partitioned.reset_index(inplace=True)
+            #import ipdb; ipdb.set_trace()
 
             #import ipdb; ipdb.set_trace()
             base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
@@ -332,81 +353,93 @@ class ShapefileSliversMerger():
             gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
 
             # identify and assign the src polygon from active hist polygon (silrec_v3)
-            gdf_result['poly_src_id'] = gdf_result.apply(get_base_polygon_id, axis=1) # add column for the corresponding hist polygon_id
+            gdf_result['poly_src_id'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('poly_src_id',)) # add column for the corresponding hist polygon_id
+            gdf_result['name'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('name',)) # add column for the corresponding hist polygon_id
+            gdf_result['compartment'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('compartment',)) # add column for the corresponding hist polygon_id
+            gdf_result['sp_code'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('sp_code',)) # add column for the corresponding hist polygon_id
             gdf_result['poly_src_id'] = gdf_result['poly_src_id'].fillna(0).astype(int)
+            gdf_result['area_ha'] = gdf_result.area/10000
+            gdf_result['iter_seq'] = idx_count
+            gdf_result['proposal_id'] = self.proposal_id
+            gdf_result.drop(columns=['index','is_sliver','sliver_ratio', 'area', 'length','intersect_area', 'overlap_perc'], inplace=True)
+            gdf_result = find_and_merge(gdf_result, threshold)
 
             if 'index_right' in gdf_result.columns:
                 gdf_result.drop('index_right', axis=1, inplace=True)
 
             # identify the 'cookie-cut' polygons
-            gdf_within = gpd.sjoin(self.gdf_polygons_partitioned, gdf_result, how="inner", predicate="within")
-            gdf_within_not = gpd.overlay(self.gdf_polygons_partitioned, gdf_within, how='difference') # with indices from self.gdf_result
-            gdf_within_not_with_idx = gpd.sjoin(gdf_result, gdf_within_not, how="inner", predicate="within") # with indices from self.gdf_polygons_partitioned
-            indices = gdf_within_not_with_idx.index.to_list()
-            gdf_result.loc[indices,'poly_type'] = 'CUT'
+#            gdf_within = gpd.sjoin(self.gdf_polygons_partitioned, gdf_result, how="inner", predicate="within")
+#            gdf_within_not = gpd.overlay(self.gdf_polygons_partitioned, gdf_within, how='difference') # with indices from self.gdf_result
+#            gdf_within_not_with_idx = gpd.sjoin(gdf_result, gdf_within_not, how="inner", predicate="within") # with indices from self.gdf_polygons_partitioned
+#            indices = gdf_within_not_with_idx.index.to_list()
+#            gdf_result.loc[indices,'poly_type'] = 'CUT'
 
-            #gdf_result_filtered = gdf_result[['poly_src_id', 'name', 'geometry']]
-            gdf_result_filtered = gdf_result[['poly_src_id', 'poly_type', 'geometry']]
-            #gdf_result_filtered['iter_seq'] = self.next_iter_seq
-            gdf_result_filtered['iter_seq'] = idx_count
-            gdf_result_filtered['proposal_id'] = self.proposal_id
-            #plot_multi([gdf_result_filtered, gdf_result_filtered], use_random_cols=False)
-            gdf_result_filtered = find_and_merge(gdf_result_filtered, threshold)
-
+#            gdf_result_filtered = gdf_result[['poly_src_id', 'poly_type', 'geometry']]
+#            gdf_result_filtered['iter_seq'] = idx_count
+#            gdf_result_filtered['proposal_id'] = self.proposal_id
+#            gdf_result_filtered = find_and_merge(gdf_result_filtered, threshold)
+            #gdf_result_filtered = gdf_result_filtered.sort_values(by=['poly_src_id', 'area_ha'])
 
             # set columns not previously set in gdf's
-            #import ipdb; ipdb.set_trace()
-            gdf_shpfile = self.set_data(gdf_shpfile, iter_seq=idx_count, poly_type='BASE')
-            gdf_slivers = self.set_data(gdf_slivers, iter_seq=idx_count, poly_type='SLVR')
-            gdf_slivers_plus_base = self.set_data(gdf_slivers_plus_base, iter_seq=idx_count, poly_type='SLVR')
+            import ipdb; ipdb.set_trace()
+#            gdf_shpfile = self.set_data(gdf_shpfile, iter_seq=idx_count, poly_type='BASE')
+#            gdf_slivers = self.set_data(gdf_slivers, iter_seq=idx_count, poly_type='SLVR')
+#            gdf_slivers_plus_base = self.set_data(gdf_slivers_plus_base, iter_seq=idx_count, poly_type='SLVR')
 
             #slivers_all = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area/self.gdf_polygons_partitioned.length < 5]
             #slivers_all = self.set_data(slivers_all, iter_seq=idx_count, poly_type='SLVR')
 
+#            list_state = [
+#                gdf_shpfile,
+#                gdf_hist,
+#                self.gdf_single,
+#                self.gdf_polygons_partitioned,
+#                gdf_slivers,
+#                #slivers_all,
+#                #find_and_merge(self.gdf_polygons_partitioned, threshold),
+#                # gdf_excl_slivers,
+#                gdf_slivers_plus_base,
+#                # gdf_excl_slivers_plus_base,
+#                gdf_slivers_merged,
+#                #gdf_result,
+#                gdf_result_filtered,
+#            ]
+
+#            # add column identifying store type
+#            gdf_shpfile['state']                   = "gdf_shpfile".upper()
+#            gdf_hist['state']                      = "gdf_hist".upper()
+#            self.gdf_single['state']               = "gdf_single".upper()
+#            self.gdf_polygons_partitioned['state'] = "gdf_polygons_partitioned".upper()
+#            base_polygon['state']                  = "base_polygon".upper()
+#            gdf_slivers['state']                   = "gdf_slivers".upper()
+#            #slivers_all['state']                   = "slivers_all".upper()
+#            gdf_excl_slivers['state']              = "gdf_excl_slivers".upper()
+#            gdf_slivers_plus_base['state']         = "gdf_slivers_plus_base".upper()
+#            gdf_excl_slivers_plus_base['state']    = "gdf_excl_slivers_plus_base".upper()
+#            gdf_slivers_merged['state']            = "gdf_slivers_merged".upper()
+#            gdf_result['state']                    = "gdf_result".upper()
+#            gdf_result_filtered['state']           = "gdf_result_filtered".upper()
+
             list_state = [
-                gdf_shpfile,
                 gdf_hist,
                 self.gdf_single,
-                self.gdf_polygons_partitioned,
-                gdf_slivers,
-                #slivers_all,
-                #find_and_merge(self.gdf_polygons_partitioned, threshold),
-                # gdf_excl_slivers,
-                gdf_slivers_plus_base,
-                # gdf_excl_slivers_plus_base,
-                gdf_slivers_merged,
-                #gdf_result,
-                gdf_result_filtered,
+                gdf_result,
             ]
 
             # add column identifying store type
-            gdf_shpfile['state']                   = "gdf_shpfile".upper()
-            gdf_hist['state']                      = "gdf_hist".upper()
-            self.gdf_single['state']               = "gdf_single".upper()
-            self.gdf_polygons_partitioned['state'] = "gdf_polygons_partitioned".upper()
-            base_polygon['state']                  = "base_polygon".upper()
-            gdf_slivers['state']                   = "gdf_slivers".upper()
-            #slivers_all['state']                   = "slivers_all".upper()
-            gdf_excl_slivers['state']              = "gdf_excl_slivers".upper()
-            gdf_slivers_plus_base['state']         = "gdf_slivers_plus_base".upper()
-            gdf_excl_slivers_plus_base['state']    = "gdf_excl_slivers_plus_base".upper()
-            gdf_slivers_merged['state']            = "gdf_slivers_merged".upper()
-            gdf_result['state']                    = "gdf_result".upper()
-            gdf_result_filtered['state']           = "gdf_result_filtered".upper()
+            gdf_hist['state']        = "gdf_hist".upper()
+            self.gdf_single['state'] = "gdf_single".upper()
+            gdf_result['state']      = "gdf_result".upper()
 
             #import ipdb; ipdb.set_trace()
 
             #self.gdf_merge_store = self.store_state(list_state)
             self.store_state(list_state)
-            gdf_hist = gdf_result_filtered.copy()
+            gdf_hist = gdf_result.copy()
             gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
             #import ipdb; ipdb.set_trace()
-            #gdf_merge_store = pd.concat([gdf_merge_store, gdf_hist])
 
-            #import ipdb; ipdb.set_trace()
             pass
-
-            #self.save_global_intersecting_polygons(gdf_result_filtered, 'silrec_polygonhistory')
 
         return self.gdf_merge_store
 

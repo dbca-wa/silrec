@@ -369,44 +369,44 @@ class ProposalGeometry(models.Model):
         return self.area.sq_m / 10000
 
 
-class PolygonHistory(models.Model):
-    ''' Iteratively stores the Intersecting Historical Polygons (from forest_blocks.Polygon) at each base polygon split.
-        Updates the version_id at each NEW base polygon split.
-    '''
-    #polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
-    version_id = models.IntegerField()
-    geom = MultiPolygonField(srid=28350)
-    proposal = models.ForeignKey(
-        Proposal, on_delete=models.CASCADE, related_name="polygonhistory"
-    )
-    polygon_src = models.OneToOneField(Polygon, on_delete=models.DO_NOTHING, related_name='polygon', blank=True, null=True)
-    name = models.CharField(max_length=10, blank=True, null=True)
-    area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon')
-    created_on = models.DateTimeField(auto_now_add=True, null=False, blank=False)
-    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID')
-    updated_on = models.DateTimeField(auto_now_add=True, null=False, blank=False)
-    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID')
-    closed = models.DateField(blank=True, null=True)
-    reason_closed = models.CharField(max_length=250, blank=True, null=True)
-    info = JSONField(blank=True, null=True)
-
-#    compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
-#    sp_code = models.ForeignKey(SpatialPrecisionLkp, on_delete=models.CASCADE, db_column='sp_code', blank=True, null=True, db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table')
-#    zcoupeid = models.CharField(db_column='zCoupeID', max_length=5, blank=True, null=True)  # Field name made lowercase.
-#    zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
-#    zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
-#    zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
-
-    class Meta:
-        app_label = "silrec"
-
-#    def save(self, *args, **kwargs):
-#        poly_history_qs = PolygonHistory.objects.filter(proposal_id=self.proposal.id)
-#        self.version_id = poly_history_qs.aggregate(models.Max('version_id'))['version_id__max'] + 1 if not poly_history_qs.empty else 0
-#        if self.geom:
-#            self.area_ha = self.geom.area/10000
+#class PolygonHistory(models.Model):
+#    ''' Iteratively stores the Intersecting Historical Polygons (from forest_blocks.Polygon) at each base polygon split.
+#        Updates the version_id at each NEW base polygon split.
+#    '''
+#    #polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+#    version_id = models.IntegerField()
+#    geom = MultiPolygonField(srid=28350)
+#    proposal = models.ForeignKey(
+#        Proposal, on_delete=models.CASCADE, related_name="polygonhistory"
+#    )
+#    polygon_src = models.OneToOneField(Polygon, on_delete=models.DO_NOTHING, related_name='polygon', blank=True, null=True)
+#    name = models.CharField(max_length=10, blank=True, null=True)
+#    area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon')
+#    created_on = models.DateTimeField(auto_now_add=True, null=False, blank=False)
+#    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID')
+#    updated_on = models.DateTimeField(auto_now_add=True, null=False, blank=False)
+#    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID')
+#    closed = models.DateField(blank=True, null=True)
+#    reason_closed = models.CharField(max_length=250, blank=True, null=True)
+#    info = JSONField(blank=True, null=True)
 #
-#        super().save(*args, **kwargs)
+##    compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
+##    sp_code = models.ForeignKey(SpatialPrecisionLkp, on_delete=models.CASCADE, db_column='sp_code', blank=True, null=True, db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table')
+##    zcoupeid = models.CharField(db_column='zCoupeID', max_length=5, blank=True, null=True)  # Field name made lowercase.
+##    zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
+##    zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
+##    zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
+#
+#    class Meta:
+#        app_label = "silrec"
+#
+##    def save(self, *args, **kwargs):
+##        poly_history_qs = PolygonHistory.objects.filter(proposal_id=self.proposal.id)
+##        self.version_id = poly_history_qs.aggregate(models.Max('version_id'))['version_id__max'] + 1 if not poly_history_qs.empty else 0
+##        if self.geom:
+##            self.area_ha = self.geom.area/10000
+##
+##        super().save(*args, **kwargs)
 
 
 class AmendmentReason(models.Model):

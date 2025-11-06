@@ -49,12 +49,23 @@ class  TasksAttLkpAdmin(admin.ModelAdmin):
     readonly_fields = ("addition_attrib",)
     search_fields = ["addition_attrib", "description"]
 
-
 @admin.register(ObjectiveLkp)
 class ObjectiveLkpAdmin(admin.ModelAdmin):
     list_display = ["obj_code", "definition", "cut", "forest_type", "fmis_code"]
-    readonly_fields = ("obj_code",)
     search_fields = ["obj_code", "fmis_code", "cut", "forest_type", "fmis_code"]
+
+    def get_readonly_fields(self, request, obj=None):
+        # If obj exists, we're editing an existing record
+        if obj:
+            return ("obj_code",)
+        # If obj is None, we're adding a new record
+        return ()
+
+#@admin.register(ObjectiveLkp)
+#class ObjectiveLkpAdmin(admin.ModelAdmin):
+#    list_display = ["obj_code", "definition", "cut", "forest_type", "fmis_code"]
+#    readonly_fields = ("obj_code",)
+#    search_fields = ["obj_code", "fmis_code", "cut", "forest_type", "fmis_code"]
 
 
 @admin.register(SpeciesApiLkp)

@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import geopandas as gpd
 import pandas as pd
 import numpy as np
@@ -15,8 +15,12 @@ from silrec.utils.plot_utils import plot_gdf as plot
 from silrec.utils.plot_utils import plot_overlay, plot_multi
 from silrec.utils.plot_canvas import create_tabbed_charts
 from silrec.utils.sliver_merge import find_and_merge
-
 from silrec.utils.sliver_test1 import identify_slivers
+
+from silrec.utils.write_polygons_to_db import write_gdf_to_tmp_polygon
+from silrec.utils.write_cohort_to_db import create_cohort_record
+from silrec.utils.create_temp_tables import create_temp_tables_django_models, clear_temp_tables_django
+
 #from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
@@ -255,6 +259,15 @@ class ShapefileSliversMerger():
         #import ipdb; ipdb.set_trace()
         return gdf
 
+#    def create_cohort_record(obj_code, op_id, year):
+#        cohort_id = create_cohort_record(
+#            engine=self.conn_engine,
+#            obj_code=obje_code,
+#            op_id=op_id,
+#            year=year
+#        )
+#        return cohort_id
+
     def create_gdf(self):
         '''
         from silrec.utils.plot_utils import create_dummy_polygons, plot_gdf, plot_overlay, create_gdf
@@ -265,7 +278,7 @@ class ShapefileSliversMerger():
         plot_gdf(gdf_new_hist_polygons)
         '''
 
-        def get_base_polygon_field(row, col_name):
+        def get_base_polygon_field(row, col_name, gdf_hist):
             ''' for given split polygon, returns the polygon_id of the parent (historical polygons gdf) polygon
                 usage: gdf_tmp['polygon_id'] = gdf_tmp.apply(get_base_polygon_field, axis=1, args=('col_name',))
                 --> Returns the parent polygon_id (intersected by the centroid - representative_point() falls inside the polygon)
@@ -276,10 +289,12 @@ class ShapefileSliversMerger():
             data = {'geometry': [centroid_point]}
             centroid_gdf = gpd.GeoDataFrame(data, geometry='geometry', crs=settings.CRS_GDA94)
 
-            if 'index_right' in self.gdf_hist_polygons_total.columns:
+            #if 'index_right' in self.gdf_hist_polygons_total.columns:
+            if 'index_right' in gdf_hist.columns:
                 self.polygons.drop(['index_right'], axis=1, inplace=True)
 
-            gdf = gpd.sjoin(self.gdf_hist_polygons_total, centroid_gdf, how="inner", predicate="intersects")
+            #gdf = gpd.sjoin(self.gdf_hist_polygons_total, centroid_gdf, how="inner", predicate="intersects")
+            gdf = gpd.sjoin(gdf_hist, centroid_gdf, how="inner", predicate="intersects")
             return None if gdf.empty else gdf[col_name].iloc[0]
 
 #        import ipdb; ipdb.set_trace()
@@ -291,6 +306,11 @@ class ShapefileSliversMerger():
         #gdf_hist = self.gdf_hist_polygons_total.copy()
         self.gdf_merge_store = self.init_gdf_merge_store(self.gdf_hist_polygons_total)
         gdf_hist = self.gdf_merge_store.copy()
+
+        # Create the Temp Tables for Testing TODO change to PRD tables later
+        clear_temp_tables_django()
+        create_temp_tables_django_models()
+        cohort_id = create_cohort_record(engine=self.conn_engine, obj_code='THIN', op_id=1, year=2024)
 
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
@@ -322,7 +342,7 @@ class ShapefileSliversMerger():
             self.gdf_polygons_partitioned = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area>1] # drop tiny areas
             self.gdf_polygons_partitioned = self.gdf_polygons_partitioned.explode() # explode multipolys to indep polys
             self.gdf_polygons_partitioned.reset_index(inplace=True)
-            #import ipdb; ipdb.set_trace()
+            import ipdb; ipdb.set_trace()
 
             #import ipdb; ipdb.set_trace()
             base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
@@ -347,77 +367,32 @@ class ShapefileSliversMerger():
             gdf_slivers_merged['polygon_id'] = 0
             gdf_slivers_merged['proposal_id'] = self.proposal_id
 
+            import ipdb; ipdb.set_trace()
             # re-merge merged base_polygon with remaining cookie-cut and hist polygons
             gdf_result = gpd.GeoDataFrame(pd.concat([gdf_excl_slivers_plus_base, gdf_slivers_merged], ignore_index=True))
             gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
 
             # identify and assign the src polygon from active hist polygon (silrec_v3)
-            gdf_result['polygon_id'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('polygon_id',)) # add column for the corresponding hist polygon_id
-            gdf_result['name'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('name',)) # add column for the corresponding hist polygon_id
-            gdf_result['compartment'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('compartment',)) # add column for the corresponding hist polygon_id
-            gdf_result['sp_code'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('sp_code',)) # add column for the corresponding hist polygon_id
+            gdf_result['polygon_id'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('polygon_id', gdf_hist)) # add column for the corresponding hist polygon_id
+            gdf_result['name'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('name', gdf_hist)) # add column for the corresponding hist polygon_id
+            gdf_result['compartment'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('compartment', gdf_hist)) # add column for the corresponding hist polygon_id
+            gdf_result['sp_code'] = gdf_result.apply(get_base_polygon_field, axis=1, args=('sp_code', gdf_hist)) # add column for the corresponding hist polygon_id
             gdf_result['polygon_id'] = gdf_result['polygon_id'].fillna(0).astype(int)
             gdf_result['area_ha'] = gdf_result.area/10000
             gdf_result['iter_seq'] = idx_count
             gdf_result['proposal_id'] = self.proposal_id
             gdf_result.drop(columns=['index','is_sliver','sliver_ratio', 'area', 'length','intersect_area', 'overlap_perc'], inplace=True)
             gdf_result = find_and_merge(gdf_result, threshold)
+            self.add_cht_id_with_sqlalchemy(gdf_result, self.conn_engine)
+            gdf_result = self.classify_polygons(gdf_result, self.gdf_single, tolerance=0.95)
 
             if 'index_right' in gdf_result.columns:
                 gdf_result.drop('index_right', axis=1, inplace=True)
 
-            # identify the 'cookie-cut' polygons
-#            gdf_within = gpd.sjoin(self.gdf_polygons_partitioned, gdf_result, how="inner", predicate="within")
-#            gdf_within_not = gpd.overlay(self.gdf_polygons_partitioned, gdf_within, how='difference') # with indices from self.gdf_result
-#            gdf_within_not_with_idx = gpd.sjoin(gdf_result, gdf_within_not, how="inner", predicate="within") # with indices from self.gdf_polygons_partitioned
-#            indices = gdf_within_not_with_idx.index.to_list()
-#            gdf_result.loc[indices,'poly_type'] = 'CUT'
-
-#            gdf_result_filtered = gdf_result[['poly_src_id', 'poly_type', 'geometry']]
-#            gdf_result_filtered['iter_seq'] = idx_count
-#            gdf_result_filtered['proposal_id'] = self.proposal_id
-#            gdf_result_filtered = find_and_merge(gdf_result_filtered, threshold)
-            #gdf_result_filtered = gdf_result_filtered.sort_values(by=['poly_src_id', 'area_ha'])
-
-            # set columns not previously set in gdf's
-            import ipdb; ipdb.set_trace()
-#            gdf_shpfile = self.set_data(gdf_shpfile, iter_seq=idx_count, poly_type='BASE')
-#            gdf_slivers = self.set_data(gdf_slivers, iter_seq=idx_count, poly_type='SLVR')
-#            gdf_slivers_plus_base = self.set_data(gdf_slivers_plus_base, iter_seq=idx_count, poly_type='SLVR')
-
-            #slivers_all = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area/self.gdf_polygons_partitioned.length < 5]
-            #slivers_all = self.set_data(slivers_all, iter_seq=idx_count, poly_type='SLVR')
-
-#            list_state = [
-#                gdf_shpfile,
-#                gdf_hist,
-#                self.gdf_single,
-#                self.gdf_polygons_partitioned,
-#                gdf_slivers,
-#                #slivers_all,
-#                #find_and_merge(self.gdf_polygons_partitioned, threshold),
-#                # gdf_excl_slivers,
-#                gdf_slivers_plus_base,
-#                # gdf_excl_slivers_plus_base,
-#                gdf_slivers_merged,
-#                #gdf_result,
-#                gdf_result_filtered,
-#            ]
-
-#            # add column identifying store type
-#            gdf_shpfile['state']                   = "gdf_shpfile".upper()
-#            gdf_hist['state']                      = "gdf_hist".upper()
-#            self.gdf_single['state']               = "gdf_single".upper()
-#            self.gdf_polygons_partitioned['state'] = "gdf_polygons_partitioned".upper()
-#            base_polygon['state']                  = "base_polygon".upper()
-#            gdf_slivers['state']                   = "gdf_slivers".upper()
-#            #slivers_all['state']                   = "slivers_all".upper()
-#            gdf_excl_slivers['state']              = "gdf_excl_slivers".upper()
-#            gdf_slivers_plus_base['state']         = "gdf_slivers_plus_base".upper()
-#            gdf_excl_slivers_plus_base['state']    = "gdf_excl_slivers_plus_base".upper()
-#            gdf_slivers_merged['state']            = "gdf_slivers_merged".upper()
-#            gdf_result['state']                    = "gdf_result".upper()
-#            gdf_result_filtered['state']           = "gdf_result_filtered".upper()
+            # add column identifying store type
+            gdf_hist['state']        = "gdf_hist".upper()
+            self.gdf_single['state'] = "gdf_single".upper()
+            gdf_result['state']      = "gdf_result".upper()
 
             list_state = [
                 gdf_hist,
@@ -425,18 +400,18 @@ class ShapefileSliversMerger():
                 gdf_result,
             ]
 
-            # add column identifying store type
-            gdf_hist['state']        = "gdf_hist".upper()
-            self.gdf_single['state'] = "gdf_single".upper()
-            gdf_result['state']      = "gdf_result".upper()
+            import ipdb; ipdb.set_trace()
+            result = write_gdf_to_tmp_polygon(
+                gdf_result=gdf_result,
+                engine=self.conn_engine,
+                current_user="system"
+            )
+            logger.info(f'\nCohort_id:  {cohort_id}')
 
-            #import ipdb; ipdb.set_trace()
 
-            #self.gdf_merge_store = self.store_state(list_state)
             self.store_state(list_state)
             gdf_hist = gdf_result.copy()
             gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
-            #import ipdb; ipdb.set_trace()
 
             pass
 
@@ -535,5 +510,109 @@ class ShapefileSliversMerger():
         #create_tabbed_charts(*gdf_iter_list, chart_titles=[states,states,states])
         create_tabbed_charts(*gdf_iter_list, chart_titles=chart_titles_list)
 
+    def classify_polygons(self, gdf_result, gdf_single, tolerance=0.95):
+        """
+        Classify polygons in gdf_result based on their spatial relationship with gdf_single
+        with area-based tolerance.
+
+        Parameters:
+        gdf_result: GeoDataFrame with polygons to classify
+        gdf_single: GeoDataFrame with reference polygon(s)
+        tolerance: float (0-1), minimum proportion of area that must be inside gdf_single
+                to be classified as 'BASE'. Default 0.95 (95%)
+
+        Returns:
+        GeoDataFrame with added 'poly_type' column
+        """
+
+        # Create a unified geometry from gdf_single for efficient spatial operations
+        if len(gdf_single) > 0:
+            hist_union = gdf_single.unary_union
+        else:
+            # If gdf_single is empty, all polygons are 'CUT'
+            gdf_result = gdf_result.copy()
+            gdf_result['poly_type'] = 'CUT'
+            return gdf_result
+
+        # Initialize the result column
+        gdf_result = gdf_result.copy()
+        poly_types = []
+
+        for geom in gdf_result.geometry:
+            if geom is None or geom.is_empty:
+                poly_types.append('CUT')
+                continue
+
+            # Calculate the intersection area
+            try:
+                intersection = geom.intersection(hist_union)
+                if intersection.is_empty:
+                    # No intersection at all
+                    area_ratio = 0.0
+                else:
+                    # Calculate ratio of intersection area to original area
+                    area_ratio = intersection.area / geom.area
+
+                # Classify based on area ratio
+                if area_ratio >= tolerance:
+                    poly_types.append('BASE')
+                else:
+                    poly_types.append('CUT')
+
+            except Exception as e:
+                # Handle any geometric operation errors
+                print(f"Error processing geometry: {e}")
+                poly_types.append('CUT')
+
+        gdf_result['poly_type'] = poly_types
+        gdf_result['area_ratio'] = [intersection.area / geom.area if geom and not geom.is_empty else 0.0
+                                for geom, intersection in zip(gdf_result.geometry,
+                                                            [g.intersection(hist_union) for g in gdf_result.geometry])]
+        return gdf_result
+
+    def add_cht_id_with_django_orm(self, gdf_result):
+        ''' Django ORM approach
+        '''
+        # Get polygon_ids
+        polygon_ids = gdf_result['polygon_id'].tolist()
+
+        # Query using Django ORM
+        queryset = TmpAssignChtToPly.objects.filter(
+            polygon_id__in=polygon_ids,
+            status_current=True
+        ).values('polygon_id', 'cohort_id')
+
+        # Create mapping dictionary
+        cohort_mapping = {item['polygon_id']: item['cohort_id'] for item in queryset}
+
+        # Apply to GeoDataFrame using apply
+        gdf_result['cht_id_cur'] = gdf_result.apply(
+            lambda row: cohort_mapping.get(row['polygon_id']),
+            axis=1
+        )
+
+        return gdf_result
+
+    def add_cht_id_with_sqlalchemy(self, gdf_result, engine):
+        ''' SQLAlchemy approach
+        '''
+
+        polygon_ids = gdf_result['polygon_id'].tolist()
+
+        # Using text() for safe parameterized queries
+        query = text("""
+            SELECT polygon_id, cohort_id
+            FROM tmp_assign_cht_to_ply
+            WHERE polygon_id = ANY(:polygon_ids) AND status_current = true
+        """)
+
+        with engine.connect() as conn:
+            result = conn.execute(query, {'polygon_ids': polygon_ids})
+            cohort_mapping = {row[0]: row[1] for row in result}
+
+        # Apply using map (more efficient than apply for simple mapping)
+        gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping)
+
+        return gdf_result
 
 

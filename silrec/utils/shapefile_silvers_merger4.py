@@ -205,7 +205,7 @@ class ShapefileSliversMerger():
         #import ipdb; ipdb.set_trace()
 
         gdf['poly_type'] = 'HIST'
-        gdf['iter_seq'] = 0 #self.next_iter_seq
+        gdf['iter_seq'] = 1 #0 #self.next_iter_seq
         gdf['proposal_id'] = self.proposal_id
         #gdf.rename(columns={'polygon_id': 'polygon_id'}, inplace=True)
 
@@ -342,7 +342,7 @@ class ShapefileSliversMerger():
             self.gdf_polygons_partitioned = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area>1] # drop tiny areas
             self.gdf_polygons_partitioned = self.gdf_polygons_partitioned.explode() # explode multipolys to indep polys
             self.gdf_polygons_partitioned.reset_index(inplace=True)
-            import ipdb; ipdb.set_trace()
+            #import ipdb; ipdb.set_trace()
 
             #import ipdb; ipdb.set_trace()
             base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
@@ -367,7 +367,7 @@ class ShapefileSliversMerger():
             gdf_slivers_merged['polygon_id'] = 0
             gdf_slivers_merged['proposal_id'] = self.proposal_id
 
-            import ipdb; ipdb.set_trace()
+            #import ipdb; ipdb.set_trace()
             # re-merge merged base_polygon with remaining cookie-cut and hist polygons
             gdf_result = gpd.GeoDataFrame(pd.concat([gdf_excl_slivers_plus_base, gdf_slivers_merged], ignore_index=True))
             gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
@@ -389,17 +389,6 @@ class ShapefileSliversMerger():
             if 'index_right' in gdf_result.columns:
                 gdf_result.drop('index_right', axis=1, inplace=True)
 
-            # add column identifying store type
-            gdf_hist['state']        = "gdf_hist".upper()
-            self.gdf_single['state'] = "gdf_single".upper()
-            gdf_result['state']      = "gdf_result".upper()
-
-            list_state = [
-                gdf_hist,
-                self.gdf_single,
-                gdf_result,
-            ]
-
             import ipdb; ipdb.set_trace()
             result = write_gdf_to_tmp_polygon(
                 gdf_result=gdf_result,
@@ -408,14 +397,31 @@ class ShapefileSliversMerger():
             )
             logger.info(f'\nCohort_id:  {cohort_id}')
 
+            # add column identifying store type
+            gdf_hist['state']        = "gdf_hist".upper()
+            self.gdf_single['state'] = "gdf_single".upper()
+            gdf_result['state']      = "gdf_result".upper()
 
-            self.store_state(list_state)
+            list_state = [
+                gdf_hist.copy(),
+                self.gdf_single.copy(),
+                gdf_result.copy(),
+            ]
+
+            #import ipdb; ipdb.set_trace()
+            print(gdf_hist)
+            print()
+            print(gdf_result)
+            print()
+            gdf_store = self.store_state(list_state)
+            print(gdf_store)
+            import ipdb; ipdb.set_trace()
             gdf_hist = gdf_result.copy()
             gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
             pass
 
-        return self.gdf_merge_store
+        return gdf_store
 
     def set_data(self, gdf, iter_seq=None, polygon_id=0, poly_type=None):
         gdf['proposal_id'] = self.proposal_id
@@ -447,14 +453,111 @@ class ShapefileSliversMerger():
         return gdf
 
     def store_state(self, gdf_list):
-        for gdf in gdf_list:
-            self.gdf_merge_store = pd.concat([
-                                self.gdf_merge_store,
-                                gdf[['polygon_id','poly_type','iter_seq','proposal_id', 'state', 'geometry']]],
-                                axis=0,
-                                ignore_index=True
-                            )
-        #return self.gdf_merge_store
+        fields = [
+            'name',
+            'polygon_id',
+            'obj_code',
+            'cht_id_cur',
+            'fea_id',
+            'target_ba_',
+            'area_ha',
+            'compartment',
+            'sp_code',
+            'poly_type',
+            'iter_seq',
+            'proposal_id',
+            'state',
+            'Region',
+            'Block',
+            'Block_cpt',
+            'Compno',
+            'Ops_status',
+            'Veg_comple',
+            'Lmu',
+            'herbicide_',
+            'Zone',
+            'compartmen',
+            'vrp_id',
+            'geometry',
+        ]
+
+#        gdf_store = gpd.GeoDataFrame()
+#        for gdf in gdf_list:
+#            gdf_store = pd.concat([
+#                                gdf_store,
+#                                gdf],
+#                                axis=0,
+#                                ignore_index=True
+#                            )
+#            #gdf[['polygon_id','poly_type','iter_seq','proposal_id', 'state', 'geometry']]],
+
+        gdf_store = pd.concat(gdf_list, ignore_index=True)
+        return gdf_store[fields]
+
+    def _store_state(self, gdf_list):
+        fields = [
+            'name',
+            'polygon_id',
+            'obj_code',
+            'cht_id_cur'
+            'fea_id',
+            'target_ba_',
+            'area_ha',
+            'compartment',
+            'sp_code',
+            'poly_type',
+            'iter_seq',
+            'proposal_id',
+            'state',
+            'Region',
+            'Block',
+            'Block_cpt',
+            'Compno',
+            'Ops_status',
+            'Veg_comple',
+            'Lmu',
+            'herbicide_',
+            'Zone',
+            'compartmen',
+            'vrp_id',
+            'geometry',
+        ]
+
+        gdf_store = gpd.GeoDataFrame()
+
+        for i, gdf in enumerate(gdf_list):
+            print(f"Processing GDF {i}: {len(gdf)} rows, columns: {list(gdf.columns)}")
+
+            # Create result dataframe by copying available fields
+            result_gdf = gpd.GeoDataFrame()
+
+            for field in fields:
+                if field in gdf.columns:
+                    print(f"  Field '{field}' found, values: {gdf[field].iloc[0] if len(gdf) > 0 else 'empty'}")
+                    result_gdf[field] = gdf[field].copy()  # Explicit copy
+                else:
+                    print(f"  Field '{field}' not found, adding as None")
+                    result_gdf[field] = [None] * len(gdf)
+
+            # Preserve geometry
+            if hasattr(gdf, 'geometry'):
+                result_gdf = gpd.GeoDataFrame(result_gdf, geometry=gdf.geometry)
+
+            print(f"  Result GDF columns: {list(result_gdf.columns)}")
+            if len(result_gdf) > 0:
+                print(f"  First row sample: {result_gdf.iloc[0].to_dict()}")
+
+            gdf_store = pd.concat([gdf_store, result_gdf], axis=0, ignore_index=True)
+
+        print(f"Final GDF store shape: {gdf_store.shape}")
+        print(f"Columns with non-null values:")
+        for col in gdf_store.columns:
+            non_null_count = gdf_store[col].notna().sum()
+            print(f"  {col}: {non_null_count}/{len(gdf_store)} non-null")
+
+        #import ipdb; ipdb.set_trace()
+
+        return gdf_store
 
     @property
     def gdf_result_filtered(self):

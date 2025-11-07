@@ -4,16 +4,15 @@ import pandas as pd
 from datetime import datetime, date
 from decimal import Decimal
 import json
-
 import logging
 
 def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
     """
     Write GeoDataFrame to tmp_polygon table with handling for repeated polygon_ids
-    and create audit trail.
+    and create audit trail. Prioritizes poly_type in order: 'BASE' > 'CUT' > others.
 
     Args:
-        gdf_result: GeoDataFrame with polygon data
+        gdf_result: GeoDataFrame with polygon data (must contain 'poly_type' column)
         engine: SQLAlchemy engine
         current_user: User performing the operation
 
@@ -40,38 +39,55 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
             'updated_records': 0,
             'skipped_records': 0,
             'new_polygon_ids': [],
-            'updated_polygon_ids': []
+            'updated_polygon_ids': [],
+            'priority_updates': []  # Track which updates were due to priority
         }
 
-        # Process each row in the GeoDataFrame
-        for idx, row in gdf_result.iterrows():
+        # Sort gdf_result by poly_type priority for processing order
+        gdf_sorted = sort_gdf_by_polytype_priority(gdf_result)
+
+        # Store poly_type information for priority decisions
+        poly_type_map = create_poly_type_map(gdf_sorted)
+
+        # Process each row in the sorted GeoDataFrame
+        for idx, row in gdf_sorted.iterrows():
             polygon_id = row['polygon_id']
+            poly_type = row.get('poly_type', 'OTHER')  # Default to 'OTHER' if not specified
 
             # Check if this polygon_id already exists in tmp_polygon
             existing_count = count_existing_polygon_id(session, polygon_id)
 
             if existing_count == 0:
-                # New polygon_id - insert as is
+                # New polygon_id - insert as is (without poly_type since it's not in table)
                 insert_new_polygon(session, row, current_user)
                 operations_summary['new_records'] += 1
                 operations_summary['new_polygon_ids'].append(polygon_id)
-                logger.info(f"Inserted new record with polygon_id: {polygon_id}")
+                logger.info(f"Inserted new record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
             else:
-                # Polygon_id exists - check if we need to create a new record
-                if is_duplicate_in_gdf(gdf_result, polygon_id, idx):
-                    # This is a duplicate in the current gdf_result - create new record with new polygon_id
-                    new_polygon_id = get_next_polygon_id(session)
-                    insert_duplicate_polygon(session, row, new_polygon_id, current_user)
-                    operations_summary['new_records'] += 1
-                    operations_summary['new_polygon_ids'].append(new_polygon_id)
-                    logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}")
+                # Polygon_id exists - check if we need to create a new record or update based on priority
+                if is_duplicate_in_gdf(gdf_sorted, polygon_id, idx):
+                    # This is a duplicate in the current gdf_result - check priority
+                    if should_update_based_on_priority(poly_type_map, polygon_id, poly_type):
+                        # Higher priority poly_type - update existing record
+                        update_existing_polygon(session, row, polygon_id, current_user)
+                        operations_summary['updated_records'] += 1
+                        operations_summary['updated_polygon_ids'].append(polygon_id)
+                        operations_summary['priority_updates'].append(polygon_id)
+                        logger.info(f"Priority update - Updated existing record with polygon_id: {polygon_id}, new poly_type: {poly_type}")
+                    else:
+                        # Lower priority poly_type - create new record with new polygon_id
+                        new_polygon_id = get_next_polygon_id(session)
+                        insert_duplicate_polygon(session, row, new_polygon_id, current_user)
+                        operations_summary['new_records'] += 1
+                        operations_summary['new_polygon_ids'].append(new_polygon_id)
+                        logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
                 else:
-                    # Update existing record
+                    # First occurrence of this polygon_id in gdf - update existing record
                     update_existing_polygon(session, row, polygon_id, current_user)
                     operations_summary['updated_records'] += 1
                     operations_summary['updated_polygon_ids'].append(polygon_id)
-                    logger.info(f"Updated existing record with polygon_id: {polygon_id}")
+                    logger.info(f"Updated existing record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
         # Get final state and create audit records
         final_records = get_current_tmp_polygon_records(session)
@@ -89,21 +105,67 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
     finally:
         session.close()
 
-# Helper functions
-def create_audit_table(session):
-    """Create audit table if it doesn't exist"""
-    session.execute(text("""
-        CREATE TABLE IF NOT EXISTS tmp_polygon_audit (
-            audit_id SERIAL PRIMARY KEY,
-            polygon_id INTEGER,
-            operation_type VARCHAR(10),
-            operation_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            operated_by VARCHAR(50),
-            old_values JSONB,
-            new_values JSONB
-        )
-    """))
+def sort_gdf_by_polytype_priority(gdf):
+    """Sort GeoDataFrame by poly_type priority: CUT > BASE > others"""
+    if 'poly_type' not in gdf.columns:
+        # If no poly_type column, return as is
+        return gdf
 
+    # Define priority order - CHANGED: CUT now has highest priority (1), BASE has medium (2)
+    priority_order = {'CUT': 1, 'BASE': 2}  # CHANGED: Swapped CUT and BASE
+
+    # Add priority column
+    gdf_sorted = gdf.copy()
+    gdf_sorted['_priority'] = gdf_sorted['poly_type'].map(priority_order).fillna(3)
+
+    # Sort by priority and then by polygon_id for consistency
+    gdf_sorted = gdf_sorted.sort_values(['_priority', 'polygon_id'])
+    gdf_sorted = gdf_sorted.drop('_priority', axis=1)
+
+    return gdf_sorted
+
+def create_poly_type_map(gdf):
+    """Create a mapping of polygon_id to its highest priority poly_type"""
+    if 'poly_type' not in gdf.columns:
+        return {}
+
+    poly_type_map = {}
+    priority_order = {'CUT': 1, 'BASE': 2}  # CHANGED: Swapped CUT and BASE
+
+    for _, row in gdf.iterrows():
+        polygon_id = row['polygon_id']
+        poly_type = row['poly_type']
+        current_priority = priority_order.get(poly_type, 3)
+
+        # Only keep the highest priority poly_type for each polygon_id
+        if polygon_id not in poly_type_map:
+            poly_type_map[polygon_id] = poly_type
+        else:
+            existing_priority = priority_order.get(poly_type_map[polygon_id], 3)
+            if current_priority < existing_priority:
+                poly_type_map[polygon_id] = poly_type
+
+    return poly_type_map
+
+def should_update_based_on_priority(poly_type_map, polygon_id, new_poly_type):
+    """
+    Check if the new poly_type has higher priority than what we've already processed
+    Returns True if new poly_type should replace existing one
+    """
+    if polygon_id not in poly_type_map:
+        return True
+
+    # Define priority order (lower number = higher priority) - CHANGED: CUT now has highest priority
+    priority_order = {'CUT': 1, 'BASE': 2}  # CHANGED: Swapped CUT and BASE
+
+    existing_poly_type = poly_type_map[polygon_id]
+    existing_priority = priority_order.get(existing_poly_type, 3)
+    new_priority = priority_order.get(new_poly_type, 3)
+
+    # Update if new poly_type has higher priority (lower number)
+    return new_priority < existing_priority
+
+# Modified helper functions (remove poly_type from database queries)
 def get_current_tmp_polygon_records(session):
     """Get current state of tmp_polygon table"""
     result = session.execute(text("""
@@ -111,29 +173,6 @@ def get_current_tmp_polygon_records(session):
         FROM tmp_polygon
     """))
     return {row[0]: dict(row._mapping) for row in result}
-
-def count_existing_polygon_id(session, polygon_id):
-    """Count how many times a polygon_id exists in tmp_polygon"""
-    result = session.execute(
-        text("SELECT COUNT(*) FROM tmp_polygon WHERE polygon_id = :polygon_id"),
-        {'polygon_id': polygon_id}
-    )
-    return result.scalar()
-
-def is_duplicate_in_gdf(gdf, polygon_id, current_index):
-    """Check if this polygon_id appears multiple times in the gdf"""
-    # Count occurrences of this polygon_id in the entire gdf
-    total_count = (gdf['polygon_id'] == polygon_id).sum()
-    # Check if this is not the first occurrence
-    first_occurrence_index = gdf[gdf['polygon_id'] == polygon_id].index[0]
-    return current_index != first_occurrence_index
-
-def get_next_polygon_id(session):
-    """Get the next available polygon_id"""
-    result = session.execute(text("""
-        SELECT COALESCE(MAX(polygon_id), 0) + 1 FROM tmp_polygon
-    """))
-    return result.scalar()
 
 def insert_new_polygon(session, row, current_user):
     """Insert a new polygon record"""
@@ -195,9 +234,44 @@ def update_existing_polygon(session, row, polygon_id, current_user):
         'updated_by': current_user
     })
 
+# Keep the existing helper functions (they remain the same)
+def create_audit_table(session):
+    """Create audit table if it doesn't exist"""
+    session.execute(text("""
+        CREATE TABLE IF NOT EXISTS tmp_polygon_audit (
+            audit_id SERIAL PRIMARY KEY,
+            polygon_id INTEGER,
+            operation_type VARCHAR(10),
+            operation_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            operated_by VARCHAR(50),
+            old_values JSONB,
+            new_values JSONB
+        )
+    """))
+
+def count_existing_polygon_id(session, polygon_id):
+    """Count how many times a polygon_id exists in tmp_polygon"""
+    result = session.execute(
+        text("SELECT COUNT(*) FROM tmp_polygon WHERE polygon_id = :polygon_id"),
+        {'polygon_id': polygon_id}
+    )
+    return result.scalar()
+
+def is_duplicate_in_gdf(gdf, polygon_id, current_index):
+    """Check if this polygon_id appears multiple times in the gdf"""
+    total_count = (gdf['polygon_id'] == polygon_id).sum()
+    first_occurrence_index = gdf[gdf['polygon_id'] == polygon_id].index[0]
+    return current_index != first_occurrence_index
+
+def get_next_polygon_id(session):
+    """Get the next available polygon_id"""
+    result = session.execute(text("""
+        SELECT COALESCE(MAX(polygon_id), 0) + 1 FROM tmp_polygon
+    """))
+    return result.scalar()
+
 def create_audit_records(session, before_state, after_state, current_user):
     """Create audit records for changes made - FIXED parameter syntax"""
-
     def convert_for_json(obj):
         """Convert datetime objects to strings for JSON serialization"""
         if isinstance(obj, dict):
@@ -220,7 +294,7 @@ def create_audit_records(session, before_state, after_state, current_user):
         after_converted = convert_for_json(after) if after else None
 
         if before is None and after is not None:
-            # New record - FIXED parameter syntax
+            # New record
             session.execute(text("""
                 INSERT INTO tmp_polygon_audit
                 (polygon_id, operation_type, operated_by, new_values)
@@ -231,7 +305,7 @@ def create_audit_records(session, before_state, after_state, current_user):
                 'new_values': json.dumps(after_converted) if after_converted else '{}'
             })
         elif before is not None and after is not None:
-            # Updated record - FIXED parameter syntax
+            # Updated record
             if before != after:
                 session.execute(text("""
                     INSERT INTO tmp_polygon_audit
@@ -243,71 +317,6 @@ def create_audit_records(session, before_state, after_state, current_user):
                     'old_values': json.dumps(before_converted) if before_converted else '{}',
                     'new_values': json.dumps(after_converted) if after_converted else '{}'
                 })
-
-#def create_audit_records(session, before_state, after_state, current_user):
-#    """Create audit records for changes made - FIXED VERSION"""
-#    all_polygon_ids = set(before_state.keys()) | set(after_state.keys())
-#
-#    for polygon_id in all_polygon_ids:
-#        before = before_state.get(polygon_id)
-#        after = after_state.get(polygon_id)
-#
-#        if before is None and after is not None:
-#            # New record
-#            session.execute(text("""
-#                INSERT INTO tmp_polygon_audit
-#                (polygon_id, operation_type, operated_by, new_values)
-#                VALUES (:polygon_id, 'INSERT', :operated_by, :new_values)
-#            """), {
-#                'polygon_id': polygon_id,
-#                'operated_by': current_user,
-#                'new_values': json.dumps(after) if after else '{}'
-#            })
-#        elif before is not None and after is not None:
-#            # Updated record - only log if there are actual changes
-#            if before != after:
-#                session.execute(text("""
-#                    INSERT INTO tmp_polygon_audit
-#                    (polygon_id, operation_type, operated_by, old_values, new_values)
-#                    VALUES (:polygon_id, 'UPDATE', :operated_by, :old_values, :new_values)
-#                """), {
-#                    'polygon_id': polygon_id,
-#                    'operated_by': current_user,
-#                    'old_values': json.dumps(before) if before else '{}',
-#                    'new_values': json.dumps(after) if after else '{}'
-#                })
-
-#def create_audit_records(session, before_state, after_state, current_user):
-#    """Create audit records for changes made"""
-#    all_polygon_ids = set(before_state.keys()) | set(after_state.keys())
-#
-#    for polygon_id in all_polygon_ids:
-#        before = before_state.get(polygon_id)
-#        after = after_state.get(polygon_id)
-#
-#        if before is None and after is not None:
-#            # New record
-#            session.execute(text("""
-#                INSERT INTO tmp_polygon_audit
-#                (polygon_id, operation_type, operated_by, new_values)
-#                VALUES (:polygon_id, 'INSERT', :operated_by, :new_values)
-#            """), {
-#                'polygon_id': polygon_id,
-#                'operated_by': current_user,
-#                'new_values': str(after)
-#            })
-#        elif before is not None and after is not None:
-#            # Updated record
-#            session.execute(text("""
-#                INSERT INTO tmp_polygon_audit
-#                (polygon_id, operation_type, operated_by, old_values, new_values)
-#                VALUES (:polygon_id, 'UPDATE', :operated_by, :old_values, :new_values)
-#            """), {
-#                'polygon_id': polygon_id,
-#                'operated_by': current_user,
-#                'old_values': str(before),
-#                'new_values': str(after)
-#            })
 
 # Usage example
 def main():

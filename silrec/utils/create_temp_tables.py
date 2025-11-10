@@ -1,8 +1,14 @@
 from django.db import connection, transaction
 
-def create_temp_tables_django_models():
+
+def clear_temp_tables():
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("TRUNCATE TABLE tmp_polygon, tmp_assign_cht_to_ply, tmp_cohort CASCADE")
+
+def create_temp_tables():
     """
-    Create temporary tables using Django models
+    Copy PROD data to temporary tables
     """
     from silrec.components.forest_blocks.models import Polygon, AssignChtToPly, Cohort
 
@@ -42,7 +48,7 @@ def create_temp_tables_django_models():
                 FOREIGN KEY (cohort_id) REFERENCES tmp_cohort(cohort_id);
             """)
 
-def clear_temp_tables_django():
+def drop_temp_tables_django():
     """
     Clear all tmp_* tables
     """

@@ -9,7 +9,8 @@ import logging
 def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
     """
     Write GeoDataFrame to tmp_polygon table with handling for repeated polygon_ids
-    and create audit trail. Prioritizes poly_type in order: 'BASE' > 'CUT' > others.
+    and create audit trail. Prioritizes poly_type in order: CUT > BASE > others.
+    Also adds 'poly_id_new' column to gdf_result with the final polygon IDs.
 
     Args:
         gdf_result: GeoDataFrame with polygon data (must contain 'poly_type' column)
@@ -17,7 +18,7 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
         current_user: User performing the operation
 
     Returns:
-        dict: Summary of operations performed
+        tuple: (operations_summary, gdf_result_with_new_ids)
     """
     # Set up logging
     logging.basicConfig(level=logging.INFO)
@@ -25,6 +26,10 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
 
     Session = sessionmaker(bind=engine)
     session = Session()
+
+    # Create a copy of gdf_result to add the new IDs
+    gdf_result_with_ids = gdf_result.copy()
+    gdf_result_with_ids['poly_id_new'] = None  # Initialize the new column
 
     try:
         # Create audit table if it doesn't exist
@@ -44,7 +49,7 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
         }
 
         # Sort gdf_result by poly_type priority for processing order
-        gdf_sorted = sort_gdf_by_polytype_priority(gdf_result)
+        gdf_sorted = sort_gdf_by_polytype_priority(gdf_result_with_ids)
 
         # Store poly_type information for priority decisions
         poly_type_map = create_poly_type_map(gdf_sorted)
@@ -62,6 +67,8 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
                 insert_new_polygon(session, row, current_user)
                 operations_summary['new_records'] += 1
                 operations_summary['new_polygon_ids'].append(polygon_id)
+                # Set poly_id_new to the original polygon_id
+                gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
                 logger.info(f"Inserted new record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
             else:
@@ -74,6 +81,8 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
                         operations_summary['updated_records'] += 1
                         operations_summary['updated_polygon_ids'].append(polygon_id)
                         operations_summary['priority_updates'].append(polygon_id)
+                        # Set poly_id_new to the original polygon_id (updated existing record)
+                        gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
                         logger.info(f"Priority update - Updated existing record with polygon_id: {polygon_id}, new poly_type: {poly_type}")
                     else:
                         # Lower priority poly_type - create new record with new polygon_id
@@ -81,12 +90,16 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
                         insert_duplicate_polygon(session, row, new_polygon_id, current_user)
                         operations_summary['new_records'] += 1
                         operations_summary['new_polygon_ids'].append(new_polygon_id)
+                        # Set poly_id_new to the new polygon_id
+                        gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
                         logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
                 else:
                     # First occurrence of this polygon_id in gdf - update existing record
                     update_existing_polygon(session, row, polygon_id, current_user)
                     operations_summary['updated_records'] += 1
                     operations_summary['updated_polygon_ids'].append(polygon_id)
+                    # Set poly_id_new to the original polygon_id (updated existing record)
+                    gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
                     logger.info(f"Updated existing record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
         # Get final state and create audit records
@@ -96,7 +109,8 @@ def write_gdf_to_tmp_polygon(gdf_result, engine, current_user="system"):
         session.commit()
 
         logger.info(f"Operation completed: {operations_summary}")
-        return operations_summary
+        # Return both the operations summary and the updated gdf with new IDs
+        return operations_summary, gdf_result_with_ids
 
     except Exception as e:
         session.rollback()
@@ -323,14 +337,19 @@ def main():
     # Assuming you have your gdf_result and engine
     engine = create_engine('postgresql://user:password@localhost/dbname')
 
-    # Call the function
-    result = write_gdf_to_tmp_polygon(
+    # Call the function - now returns two values
+    operations_summary, gdf_result_with_new_ids = write_gdf_to_tmp_polygon(
         gdf_result=gdf_result,
         engine=engine,
         current_user="your_username"
     )
 
-    print("Operation summary:", result)
+    print("Operation summary:", operations_summary)
+    print("Updated GeoDataFrame with new IDs:")
+    print(gdf_result_with_new_ids[['polygon_id', 'poly_id_new', 'poly_type']])  # Show the ID mapping
+
+    # You can now use gdf_result_with_new_ids which contains the poly_id_new column
+    return gdf_result_with_new_ids
 
 if __name__ == "__main__":
-    main()
+    gdf_with_new_ids = main()

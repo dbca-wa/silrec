@@ -16,7 +16,7 @@
               v-model="layer1Visible" 
               @change="toggleLayer('layer1')"
             >
-            Layer 1
+            Shapefile Layer
           </label>
         </div>
         <div class="layer-item" v-if="hasLayer2">
@@ -26,9 +26,10 @@
               v-model="layer2Visible" 
               @change="toggleLayer('layer2')"
             >
-            Layer 2
+            Historical Layer
           </label>
         </div>
+        <!--
         <div class="layer-item" v-if="hasLayer3">
           <label>
             <input 
@@ -39,6 +40,7 @@
             Layer 3
           </label>
         </div>
+        -->
         <!-- New Layer 4 with nested radio buttons -->
         <div class="layer-item" v-if="hasLayer4">
           <label>
@@ -554,7 +556,7 @@ export default {
       
       this.hasLayer3 = true;
       this.layer3Visible = true;
-      this.layer3.setVisible(true);
+      this.layer3.setVisible(false);
       
       const format = new GeoJSON();
       const features = format.readFeatures(geoJSON, {

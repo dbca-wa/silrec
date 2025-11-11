@@ -111,6 +111,53 @@ class ShapefileSliversMerger():
 
     gdf_result_filtered = ssm.gdf_merge_store[(ssm.gdf_merge_store.state=='GDF_RESULT_FILTERED') & (ssm.gdf_merge_store.iter_seq==1)]
 
+
+    ----------------------
+    11-Nov-2025
+
+    import geopandas as gpd
+    from silrec.utils.plot_utils import plot_gdf, plot_multi, plot_overlay
+    from silrec.utils.shapefile_silvers_merger5 import ShapefileSliversMerger
+    import json
+    from silrec.utils.create_temp_tables import create_temp_tables, drop_temp_tables_django
+
+    drop_temp_tables_django()
+    create_temp_tables()
+
+    gdf_shp_0 = gpd.read_file('silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_0/gdf_0.shp')
+    gdf_shp_0.to_crs('EPSG:28350', inplace=True)
+
+    gdf_shp_16 = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+    gdf_shp_16.to_crs('EPSG:28350', inplace=True)
+
+    ssm = ShapefileSliversMerger(gdf_shp_0, proposal_id=1)
+    gdf_store = ssm.create_gdf()
+
+    drop_temp_tables_django()
+    create_temp_tables()
+    ssm = ShapefileSliversMerger(gdf_shp_0, proposal_id=1)
+    gdf_store = ssm.create_gdf()
+
+    gdf_store.state
+
+    gdf_hist   = gdf_store[(gdf_store.state=='GDF_HIST') & (gdf_store.iter_seq==1)]
+    gdf_single = gdf_store[(gdf_store.state=='GDF_SINGLE') & (gdf_store.iter_seq==1)]
+    gdf_result = gdf_store[(gdf_store.state=='GDF_RESULT') & (gdf_store.iter_seq==1)]
+
+    plot_gdf(gdf_shp_0)
+    plot_gdf(gdf_hist)
+    plot_gdf(gdf_single)
+    plot_gdf(gdf_result)
+
+    plot_overlay(gdf_hist, gdf_single)
+    plot_multi([gdf_hist, gdf_single, gdf_result])
+
+    cols_init = ['polygon_id','cohort_id', 'cht2ply_id', 'name', 'area_ha_orig', 'obj_code', 'fea_id', 'complete_date', 'target_ba_m2ha', 'status_current']
+    cols_new = ['polygon_id', 'cohort_id', 'area_ha', 'fea_id', 'obj_code', 'target_ba_', 'status_current', 'desc']
+
+    gdf_store[(gdf_store.state=='GDF_CHT_INIT') & (gdf_store.iter_seq==1)][cols_init]
+    gdf_store[(gdf_store.state=='GDF_CHT_NEW') & (gdf_store.iter_seq==1)][cols_new]
+
     '''
     def __init__(self, gdf_shpfile, proposal_id, threshold=None, sql_polygons=None):
         self.gdf_shpfile = gdf_shpfile
@@ -281,7 +328,7 @@ class ShapefileSliversMerger():
 
         idx_count = 0
         gdf_shpfile = self.gdf_shpfile.copy()
-        cohort_id = create_cohort_record(engine=self.conn_engine, obj_code='THIN', op_id=1, year=2024)
+        cohort_id = create_cohort_record(engine=self.conn_engine, obj_code='JCROP1', op_id=1, year=2024)
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
@@ -347,11 +394,11 @@ class ShapefileSliversMerger():
             gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id)
 
             # get init 'polygon - assign_cht_to_ply - cohort' state
-            #gdf_cht_init = self.merge_cohort_data_with_sqlalchemy(gdf_result, self.conn_engine)
-            #cohort_df = self.get_cht_ids_sql(gdf_result, cohort_id)
             import ipdb; ipdb.set_trace()
             gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
             gdf_cht_new = self.merge_cohort_data_new(gdf_result, cohort_gdf_init, cohort_id)
+            gdf_cht_init['iter_seq'] = idx_count
+            gdf_cht_new['iter_seq'] = idx_count
 
             # add column identifying store type
             gdf_hist['state']        = "gdf_hist".upper()
@@ -366,6 +413,7 @@ class ShapefileSliversMerger():
                 self.gdf_single.copy(),
                 gdf_result.copy(),
                 gdf_cht_init.copy(),
+                gdf_cht_new.copy(),
             ]
 
             gdf_store = self.store_state(list_state)
@@ -397,42 +445,8 @@ class ShapefileSliversMerger():
         return gdf
 
     def store_state(self, gdf_list):
-        fields = [
-            'name',
-            'polygon_id',
-            'poly_id_new',
-            'poly_type',
-            'cht_type',
-            'cht_id_cur',
-            'cht_id_new',
-            'area_ha_orig',
-            'area_ha',
-            'state',
-            'op_id',
-            'complete_date',
-            'obj_code',
-            'fea_id',
-            'target_ba_',
-            'compartment',
-            'sp_code',
-            'iter_seq',
-            'proposal_id',
-            'Region',
-            'Block',
-            'Block_cpt',
-            'Compno',
-            'Ops_status',
-            'Veg_comple',
-            'Lmu',
-            'herbicide_',
-            'Zone',
-            'compartmen',
-            'vrp_id',
-            'geometry',
-        ]
-
         gdf_store = pd.concat(gdf_list, ignore_index=True)
-        return gdf_store[fields]
+        return gdf_store
 
     @property
     def gdf_result_filtered(self):
@@ -492,6 +506,7 @@ class ShapefileSliversMerger():
         """
         Classify polygons in gdf_result based on their spatial relationship with gdf_single
         with area-based tolerance.
+        i.e. set gdf_result.poly_type = 'BASE' or 'CUT', with area tolerance
 
         Parameters:
         gdf_result: GeoDataFrame with polygons to classify
@@ -544,12 +559,13 @@ class ShapefileSliversMerger():
 
         gdf_result['poly_type'] = poly_types
         gdf_result['area_ratio'] = [intersection.area / geom.area if geom and not geom.is_empty else 0.0
-                                for geom, intersection in zip(gdf_result.geometry,
-                                                            [g.intersection(hist_union) for g in gdf_result.geometry])]
+        for geom, intersection in zip(gdf_result.geometry,
+            [g.intersection(hist_union) for g in gdf_result.geometry])]
+
         return gdf_result
 
-    def add_cht_id_with_django_orm(self, gdf_result):
-        ''' Django ORM approach
+    def add_cht_id_to_gdf_sql_orm(self, gdf_result):
+        ''' Query the DB table tmp_assign_cht_to_ply for ply_id's, cht_id's
         '''
         # Get polygon_ids
         polygon_ids = gdf_result['polygon_id'].tolist()
@@ -571,8 +587,8 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
-    def add_cht_id_with_sqlalchemy(self, gdf_result):
-        ''' SQLAlchemy approach
+    def add_cht_id_to_gdf_sql(self, gdf_result):
+        ''' Query the DB table tmp_assign_cht_to_ply for ply_id's, cht_id's
         '''
 
         polygon_ids = gdf_result['polygon_id'].tolist()
@@ -581,7 +597,7 @@ class ShapefileSliversMerger():
         query = text("""
             SELECT polygon_id, cohort_id
             FROM tmp_assign_cht_to_ply
-            WHERE polygon_id = ANY(:polygon_ids) AND status_current = true
+            WHERE polygon_id = ANY(:polygon_ids) AND status_current = True
         """)
 
         with self.conn_engine.connect() as conn:
@@ -593,48 +609,47 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
-    def get_cht_ids_sql(self, gdf_result, cohort_id_new):
-        """
-        Query PostgreSQL for cohort data and merge with GeoDataFrame
-        Uses parameterized query for security
-        """
-        cohort_ids = gdf_result.cht_id_cur.to_list()
-        cohort_ids = list(set(cohort_ids))
-        if len(cohort_ids) == 0:
-            return None
-
-        query = text("""
-            SELECT
-                tp.polygon_id,
-                tp.name,
-                tp.area_ha,
-                tp.compartment,
-                tp.sp_code,
-                tactp.cht2ply_id,
-                tactp.polygon_id as assign_polygon_id,
-                tactp.cohort_id as assign_cohort_id,
-                tactp.status_current,
-                tc.cohort_id,
-                tc.obj_code,
-                tc.op_id,
-                tc.complete_date,
-                tc.target_ba_m2ha
-            FROM tmp_polygon tp
-            LEFT JOIN tmp_assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
-            LEFT JOIN tmp_cohort tc ON tactp.cohort_id = tc.cohort_id
-            WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.status_current='True';
-        """)
-
-        with self.conn_engine.connect() as conn:
-            cohort_df = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
-
-        return cohort_df
-
+#    def get_cht_ids_sql(self, gdf_result, cohort_id_new):
+#        """
+#        Query DB for cohort data.
+#        Namely, from 'polygon - assign_cht_to_ply - cohort' triple using SQL JOIN and merge with gdf
+#        """
+#        cohort_ids = gdf_result.cht_id_cur.to_list()
+#        cohort_ids = list(set(cohort_ids))
+#        if len(cohort_ids) == 0:
+#            return None
+#
+#        query = text("""
+#            SELECT
+#                tp.polygon_id,
+#                tp.name,
+#                tp.area_ha,
+#                tp.compartment,
+#                tp.sp_code,
+#                tactp.cht2ply_id,
+#                tactp.polygon_id as assign_polygon_id,
+#                tactp.cohort_id as assign_cohort_id,
+#                tactp.status_current,
+#                tc.cohort_id,
+#                tc.obj_code,
+#                tc.op_id,
+#                tc.complete_date,
+#                tc.target_ba_m2ha
+#            FROM tmp_polygon tp
+#            LEFT JOIN tmp_assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
+#            LEFT JOIN tmp_cohort tc ON tactp.cohort_id = tc.cohort_id
+#            WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.status_current=True;
+#        """)
+#
+#        with self.conn_engine.connect() as conn:
+#            cohort_df = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
+#
+#        return cohort_df
 
     def merge_cohort_data_init(self, gdf_result):
         """
-        Query PostgreSQL for cohort data and merge with GeoDataFrame
-        Uses parameterized query for security
+        Query DB for cohort data.
+        Namely, from 'polygon - assign_cht_to_ply - cohort' triple using SQL JOIN and merge with gdf
         """
 
         cols = ['polygon_id', 'area_ha_orig', 'poly_type', 'cht_type', 'cht_id_cur', 'obj_code', 'iter_seq', 'proposal_id']
@@ -668,7 +683,7 @@ class ShapefileSliversMerger():
             FROM tmp_polygon tp
             LEFT JOIN tmp_assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
             LEFT JOIN tmp_cohort tc ON tactp.cohort_id = tc.cohort_id
-            WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.status_current='True';
+            WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.status_current=True;
         """)
 
         with self.conn_engine.connect() as conn:
@@ -694,33 +709,13 @@ class ShapefileSliversMerger():
         gdf_cht_init['obj_code'] = gdf_cht_init['obj_code'].str.strip()
         #gdf_cht_init = gdf_cht_init.rename(columns={'area_ha_orig': 'area_ha'})
 
-        return gdf_cht_init, cohort_gdf_init
+        cols_reqd = ['cohort_id', 'polygon_id', 'cht2ply_id', 'name', 'area_ha_orig', 'obj_code', 'complete_date', 'target_ba_m2ha', 'status_current']
+        import ipdb; ipdb.set_trace()
+        return gdf_cht_init[cols_reqd], cohort_gdf_init
 
     def merge_cohort_data_new(self, gdf_result, cohort_gdf_init, cohort_ids):
         """
-        Query PostgreSQL for cohort data and merge with GeoDataFrame
-        Uses parameterized query for security
-
-        import geopandas as gpd
-        from silrec.utils.plot_utils import plot_gdf, plot_multi, plot_overlay
-        from silrec.utils.shapefile_silvers_merger4 import ShapefileSliversMerger
-        import json
-        from silrec.utils.create_temp_tables import create_temp_tables, clear_temp_tables
-
-        clear_temp_tables()
-        create_temp_tables()
-
-        gdf_shp_0 = gpd.read_file('silrec/utils/Shapefiles/poly_Ap2c_cohort/gdf_0/gdf_0.shp')
-        gdf_shp_0.to_crs('EPSG:28350', inplace=True)
-        ssm = ShapefileSliversMerger(gdf_shp_0, proposal_id=1)
-        gdf_store = ssm.create_gdf(True)
-
-        cols = ['polygon_id', 'area_ha_orig', 'poly_type', 'cht_type', 'cht_id_cur', 'obj_code', 'iter_seq', 'proposal_id']
-        cols2 = cols + ['op_id', 'complete_date', 'target_ba_m2ha']
-
-        gdf_cht_init[cols2]
-        OR
-        gdf_store[(gdf_store.state=='GDF_CHT_INIT') & (gdf_store.iter_seq==1)][cols2]
+        Set the gdf.status_current = True/False and merge with gdf_cht_new
         """
 
         def merge_gdfs(gdf1, gdf2, cols):
@@ -745,50 +740,52 @@ class ShapefileSliversMerger():
             cohort_ids = [cohort_ids]
 
         # select cohort_id, obj_code, complete_date, target_ba_m2ha from tmp_cohort where cohort_id=191351;
-        query = text("""
-            SELECT
-                cohort_id,
-                obj_code,
-                op_id,
-                complete_date,
-                target_ba_m2ha
-            FROM tmp_cohort
-            WHERE cohort_id = ANY(:cohort_ids);
-        """)
-
-        with self.conn_engine.connect() as conn:
-            cohort_df = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
+#        query = text("""
+#            SELECT
+#                cohort_id,
+#                obj_code,
+#                op_id,
+#                complete_date,
+#                target_ba_m2ha
+#            FROM tmp_cohort
+#            WHERE cohort_id = ANY(:cohort_ids);
+#        """)
+#
+#        with self.conn_engine.connect() as conn:
+#            cohort_df = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
 
         cols1 = ['poly_id_new', 'area_ha', 'cht_id_new', 'fea_id', 'obj_code', 'target_ba_']
         cols2 = ['poly_id_new', 'area_ha', 'cht_id_cur', 'fea_id', 'obj_code', 'target_ba_']
 
-        import ipdb; ipdb.set_trace()
         # For assigning ASSIGN_CHT_TO_PLY - for the orig polygons assigned to ORIG cohort_id(s) - These don't need saving since they should already be present
         # in the ASSIGN_CHT_TO_PLY table
-        gdf_cht_orig_Y = gdf_result[(gdf_result.poly_type=='CUT') & (gdf_result.cht_type=='ORIG')][['poly_id_new','area_ha','cht_id_new']]
-        gdf_cht_orig_Y['status_cur'] = 'Y'
+        #gdf_cht_orig_Y = gdf_result[(gdf_result.poly_type=='CUT') & (gdf_result.cht_type=='ORIG')][['poly_id_new','area_ha','cht_id_new']]
+        gdf_cht_orig_Y = gdf_result[(gdf_result.poly_type=='CUT') & (gdf_result.cht_type=='ORIG')][cols1]
+        gdf_cht_orig_Y['status_current'] = True
         gdf_cht_orig_Y['desc'] = 'CUT-ORIG_Y'
         gdf_cht_orig_Y = gdf_cht_orig_Y.rename(columns={'poly_id_new': 'polygon_id', 'cht_id_new': 'cohort_id'})
 
         # For assigning ASSIGN_CHT_TO_PLY - for the new polygons assigned to NEW cohort_id(s)
-        gdf_cht_new_Y = gdf_result[(gdf_result.poly_type=='BASE') & (gdf_result.cht_type=='NEW')][['poly_id_new','area_ha','cht_id_new']]
-        gdf_cht_new_Y['status_cur'] = 'Y'
+        #gdf_cht_new_Y = gdf_result[(gdf_result.poly_type=='BASE') & (gdf_result.cht_type=='NEW')][['poly_id_new','area_ha','cht_id_new']]
+        gdf_cht_new_Y = gdf_result[(gdf_result.poly_type=='BASE') & (gdf_result.cht_type=='NEW')][cols1]
+        gdf_cht_new_Y['status_current'] = True
         gdf_cht_new_Y['desc'] = 'NEW-BASE_Y'
         gdf_cht_new_Y = gdf_cht_new_Y.rename(columns={'poly_id_new': 'polygon_id', 'cht_id_new': 'cohort_id'})
 
         # For assigning ASSIGN_CHT_TO_PLY - for the new polygon id's assigned to OLD cohort_id(s)
-        gdf_cht_new_N = gdf_result[(gdf_result.poly_type=='BASE') & (gdf_result.cht_type=='NEW')][['poly_id_new','area_ha','cht_id_cur']]
-        gdf_cht_new_N['status_cur'] = 'N'
+        #gdf_cht_new_N = gdf_result[(gdf_result.poly_type=='BASE') & (gdf_result.cht_type=='NEW')][['poly_id_new','area_ha','cht_id_cur']]
+        gdf_cht_new_N = gdf_result[(gdf_result.poly_type=='BASE') & (gdf_result.cht_type=='NEW')][cols2]
+        gdf_cht_new_N['status_current'] = False
         gdf_cht_new_N['desc'] = 'NEW-BASE_N'
         gdf_cht_new_N = gdf_cht_new_N.rename(columns={'poly_id_new': 'polygon_id', 'cht_id_cur': 'cohort_id'})
 
         # For assigning ASSIGN_CHT_TO_PLY - for the new polygon id's assigned to OLD cohort_id(s), that are not 'CUT' (not 'BASE')
-        gdf_cht_new_Y_newcut = gdf_result[(gdf_result.poly_type=='CUT') & (gdf_result.cht_type=='NEW')][['poly_id_new','area_ha','cht_id_cur']]
-        gdf_cht_new_Y_newcut['status_cur'] = 'Y'
+        #gdf_cht_new_Y_newcut = gdf_result[(gdf_result.poly_type=='CUT') & (gdf_result.cht_type=='NEW')][['poly_id_new','area_ha','cht_id_cur']]
+        gdf_cht_new_Y_newcut = gdf_result[(gdf_result.poly_type=='CUT') & (gdf_result.cht_type=='NEW')][cols2]
+        gdf_cht_new_Y_newcut['status_current'] = True
         gdf_cht_new_Y_newcut['desc'] = 'NEW-CUT_Y'
         gdf_cht_new_Y_newcut = gdf_cht_new_Y_newcut.rename(columns={'poly_id_new': 'polygon_id', 'cht_id_cur': 'cohort_id'})
 
-        #import ipdb; ipdb.set_trace()
         gdf_cht_combined = pd.concat(
             [gdf_cht_orig_Y, gdf_cht_new_Y, gdf_cht_new_N, gdf_cht_new_Y_newcut],
             ignore_index=True,      # Reset index
@@ -797,14 +794,13 @@ class ShapefileSliversMerger():
 
         gdf_cht_combined = gdf_cht_combined.rename(columns={'poly_id_new': 'polygon_id'})
 
-        import ipdb; ipdb.set_trace()
-        # Merge with original GeoDataFrame
-        gdf_cht_combined = gdf_cht_combined.merge(
-            cohort_df,
-            left_on='cohort_id',
-            right_on='cohort_id',
-            how='left'
-        )
+        # Merge with sql query lookup gdf
+#        gdf_cht_combined = gdf_cht_combined.merge(
+#            cohort_df,
+#            left_on='cohort_id',
+#            right_on='cohort_id',
+#            how='left'
+#        )
 
         # update with data from cohort_get_init
         gdf_cht_combined = merge_gdfs(
@@ -813,6 +809,8 @@ class ShapefileSliversMerger():
             ['cohort_id', 'obj_code', 'complete_date', 'target_ba_m2ha']
         )
 
+        gdf_cht_combined['obj_code'] = gdf_cht_combined['obj_code'].str.strip()
+        import ipdb; ipdb.set_trace()
         return gdf_cht_combined
 
     def assemble_gdf_result(self, gdf_result, gdf_hist, cohort_id):
@@ -823,7 +821,7 @@ class ShapefileSliversMerger():
                  a. No changes necessary to assign_cht_to_ply table records, since Area already updated in Polygon table
             2. Where the cht_type=='NEW',
                  b. update/set original cohort_id's cohort.status_current to False
-                 c. add new records to assign_cht_to_ply table --> link ''poly_id_new' to ''cht_id_new' (cohort.status_current=True)
+                 c. add new records to assign_cht_to_ply table --> link 'poly_id_new' to 'cht_id_new' (cohort.status_current=True)
         '''
 
 
@@ -854,9 +852,9 @@ class ShapefileSliversMerger():
         gdf_result['polygon_id'] = gdf_result['polygon_id'].fillna(0).astype(int)
         gdf_result['area_ha'] = gdf_result.area/10000
         gdf_result['proposal_id'] = self.proposal_id
-        gdf_result.drop(columns=['index','is_sliver','sliver_ratio', 'area', 'length','intersect_area', 'overlap_perc'], inplace=True)
+        gdf_result.drop(columns=['index','is_sliver','sliver_ratio', 'area', 'length','intersect_area', 'overlap_perc'], inplace=True) # not reqd
         gdf_result = find_and_merge(gdf_result, self.threshold)
-        gdf_result = self.add_cht_id_with_sqlalchemy(gdf_result)
+        gdf_result = self.add_cht_id_to_gdf_sql(gdf_result)
         gdf_result = self.classify_polygons(gdf_result, self.gdf_single, tolerance=0.95)
 
         # add data from shapefile attributes
@@ -875,7 +873,7 @@ class ShapefileSliversMerger():
         )
         logger.info(f'\nCohort_id:  {cohort_id}')
 
-        # Add new colum cht_id_cur
+        # Add new column cht_id_cur
         gdf_result['cht_id_new'] = gdf_result['cht_id_cur'] # initialize column
         gdf_result.loc[gdf_result['poly_type']=='BASE', 'cht_id_new'] = cohort_id # assign tp new cohort
 

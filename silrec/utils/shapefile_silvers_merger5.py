@@ -158,6 +158,8 @@ class ShapefileSliversMerger():
     gdf_store[(gdf_store.state=='GDF_CHT_INIT') & (gdf_store.iter_seq==1)][cols_init]
     gdf_store[(gdf_store.state=='GDF_CHT_NEW') & (gdf_store.iter_seq==1)][cols_new]
 
+    plot_multi([gdf_hist, gdf_result, gdf_result], user_defined_label=['polygon_id', 'polygon_id', 'poly_id_new'])
+    plot_multi([gdf_hist, gdf_result, gdf_result])
     '''
     def __init__(self, gdf_shpfile, proposal_id, threshold=None, sql_polygons=None):
         self.gdf_shpfile = gdf_shpfile
@@ -191,42 +193,17 @@ class ShapefileSliversMerger():
         )
         return engine
 
-#    @property
-#    def next_iter_seq(self):
-#        iter_seq = PolygonHistory.objects.filter(proposal_id=self.proposal_id).aggregate(models.Max('iter_seq'))['iter_seq__max']
-#        return iter_seq + 1 if iter_seq is not None else 0
-#
-#    def save_global_intersecting_polygons(self, gdf, table_name='silrec_polygonhistory'):
-#        ''' Save all polygons from forest_blocks.polygon (to PolygonHistory) that intersect the global (input) shapefile '''
-#        gdf.to_postgis(table_name, con=self.conn_engine, if_exists='append', schema='silrec')
-
     def get_polygons_gdf(self, gdf, table_name, sql=None):
         ''' Get intersecting polygons from forest_blocks.polygon - intersecting with the given base polygon
 
             Returns --> SQL query result as gdf
         '''
 
-        #import ipdb; ipdb.set_trace()
         if not sql:
             srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; ' # SRID=28350;
-            #base_polygon_wkt = srid + gdf.dissolve().iloc[0].geometry.wkt
-            #base_polygon_wkt = srid + gdf.iloc[0].geometry.wkt
             combined_geometry = unary_union(gdf['geometry'])
             base_polygon_wkt = srid + combined_geometry.wkt
             min_area_tolerance = 10
-
-            #sql = f'''SELECT ph.polygon_id, ph.name, ph.geom FROM {table_name} AS ph WHERE ph.closed IS NULL AND ST_Intersects(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'));'''
-
-#            sql = f'''SELECT ph.polygon_id, ph.name, ph.area_ha, ph.compartment, ph.sp_code, ph.geom
-#                FROM {table_name} AS ph
-#                WHERE ph.closed IS NULL
-#                AND (
-#                    ST_Overlaps(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
-#                    OR ST_Contains(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
-#                    OR ST_Within(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
-#                    OR ST_Crosses(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
-#                    AND ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) > {min_area_tolerance}
-#                );'''
 
             sql = f'''SELECT
                     ph.polygon_id,
@@ -249,7 +226,6 @@ class ShapefileSliversMerger():
 
 
         gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
-        #import ipdb; ipdb.set_trace()
 
         gdf['poly_type'] = 'HIST'
         gdf['iter_seq'] = 1 #0 #self.next_iter_seq
@@ -297,24 +273,6 @@ class ShapefileSliversMerger():
         merged_clean = merged_buffered.buffer(-buffer_distance)
 
         return gpd.GeoDataFrame([1], geometry=[merged_clean], crs=gdf.crs)
-
-    def init_gdf_merge_store(self, gdf_hist):
-        gdf = gdf_hist.copy()
-        #gdf['iter_seq'] = 0 #self.next_iter_seq
-        gdf['iter_seq'] = 1
-        gdf.rename(columns={'geom': 'geometry'}, inplace=True)
-        gdf.set_geometry('geometry', inplace=True)
-        gdf.set_crs(settings.CRS_GDA94)
-        #import ipdb; ipdb.set_trace()
-        return gdf
-
-#        cohort_id = create_cohort_record(
-#            engine=self.conn_engine,
-#            obj_code=obje_code,
-#            op_id=op_id,
-#            year=year
-#        )
-#        return cohort_id
 
     def create_gdf(self):
         '''
@@ -446,6 +404,10 @@ class ShapefileSliversMerger():
 
     def store_state(self, gdf_list):
         gdf_store = pd.concat(gdf_list, ignore_index=True)
+        gdf_store['polygon_id'] = gdf_store['polygon_id'].fillna(0).astype(int)
+        gdf_store['cohort_id']  = gdf_store['cohort_id'].fillna(0).astype(int)
+        gdf_store['cht2ply_id'] = gdf_store['cht2ply_id'].fillna(0).astype(int)
+        gdf_store['target_ba_'] = gdf_store['target_ba_'].fillna(-1).astype(int)
         return gdf_store
 
     @property
@@ -609,43 +571,6 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
-#    def get_cht_ids_sql(self, gdf_result, cohort_id_new):
-#        """
-#        Query DB for cohort data.
-#        Namely, from 'polygon - assign_cht_to_ply - cohort' triple using SQL JOIN and merge with gdf
-#        """
-#        cohort_ids = gdf_result.cht_id_cur.to_list()
-#        cohort_ids = list(set(cohort_ids))
-#        if len(cohort_ids) == 0:
-#            return None
-#
-#        query = text("""
-#            SELECT
-#                tp.polygon_id,
-#                tp.name,
-#                tp.area_ha,
-#                tp.compartment,
-#                tp.sp_code,
-#                tactp.cht2ply_id,
-#                tactp.polygon_id as assign_polygon_id,
-#                tactp.cohort_id as assign_cohort_id,
-#                tactp.status_current,
-#                tc.cohort_id,
-#                tc.obj_code,
-#                tc.op_id,
-#                tc.complete_date,
-#                tc.target_ba_m2ha
-#            FROM tmp_polygon tp
-#            LEFT JOIN tmp_assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
-#            LEFT JOIN tmp_cohort tc ON tactp.cohort_id = tc.cohort_id
-#            WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.status_current=True;
-#        """)
-#
-#        with self.conn_engine.connect() as conn:
-#            cohort_df = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
-#
-#        return cohort_df
-
     def merge_cohort_data_init(self, gdf_result):
         """
         Query DB for cohort data.
@@ -653,7 +578,6 @@ class ShapefileSliversMerger():
         """
 
         cols = ['polygon_id', 'area_ha_orig', 'poly_type', 'cht_type', 'cht_id_cur', 'obj_code', 'iter_seq', 'proposal_id']
-        #cols2 = cols + ['op_id', 'complete_date', 'target_ba_m2ha']
         gdf_cht_init = gdf_result[gdf_result.polygon_id==gdf_result.poly_id_new][cols].copy()
 
         if gdf_cht_init.empty:

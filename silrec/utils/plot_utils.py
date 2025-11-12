@@ -7,7 +7,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union, polygonize
 
-def annotate_plot(gdf, ax, label_prefix=None):
+def annotate_plot(gdf, ax, user_defined_label=None, label_prefix=None):
     row_idx = 0
     for idx, row in gdf.iterrows():
         # Get the centroid of the geometry for label placement
@@ -26,8 +26,14 @@ def annotate_plot(gdf, ax, label_prefix=None):
         # Get the label text from a column in your GeoDataFrame (e.g., 'name_column')
         if 'origin' in row.keys().to_list() and row.origin == 'BASE':
             label_prefix = 'BASE'
-        label = f'{label_prefix} ({idx})' if label_prefix else str(idx)
-        #label = label_prefix + '_' + str(idx) if label_prefix else f'{idx} ({row_idx})'
+
+        label = str(idx)
+        if label_prefix:
+            label = f'{label_prefix} ({idx})'
+        else:
+            if user_defined_label:
+                if user_defined_label in gdf.columns:
+                    label = row[user_defined_label]
 
         # Add the label using annotate
         ax.annotate(text=label, xy=(x, y),
@@ -39,14 +45,22 @@ def annotate_plot(gdf, ax, label_prefix=None):
         row_idx += 1
     return ax
 
-def plot_gdf(gdf, annotate=True):
+def plot_gdf(gdf, annotate=True, user_defined_label=None):
     ''' Annotate the plot with a feature index
 
         from silrec.utils.plot_utils import plot_gdf
         plot_gdf(gdf)
+
+        plot_gdf(gdf_result)
+        plot_gdf(gdf_result, user_defined_label='polygon_id')
     '''
     def get_random_color():
-        return "#%06x" % np.random.randint(0, 0xFFFFFF)
+        # Generate colors where at least one component is bright
+        r = np.random.randint(128, 256)  # 128-255
+        g = np.random.randint(128, 256)  # 128-255
+        b = np.random.randint(128, 256)  # 128-255
+        return f"#{r:02x}{g:02x}{b:02x}"
+
 
     # Create a list of random colors, one for each feature in the GeoDataFrame
     random_colors = [get_random_color() for _ in range(len(gdf))]
@@ -61,7 +75,7 @@ def plot_gdf(gdf, annotate=True):
 
     # annotate the plot
     if annotate:
-        annotate_plot(gdf, ax, label_prefix=None)
+        annotate_plot(gdf, ax, user_defined_label, label_prefix=None)
 
     plt.show()
 
@@ -99,11 +113,20 @@ def plot_overlay(gdf_base, gdf_hist, annotate=False):
 
     plt.show()
 
-def plot_multi(gdf_list, use_random_cols=True):
+def plot_multi(gdf_list, use_random_cols=True, user_defined_label=None):
+    '''
+    plot_multi([gdf_hist, gdf_result, gdf_result])
+    plot_multi([gdf_hist, gdf_result, gdf_result], user_defined_label=['polygon_id', 'polygon_id', 'poly_id_new'])
+    '''
 
     def get_random_color():
-        return "#%06x" % np.random.randint(0, 0xFFFFFF)
+        # Generate colors where at least one component is bright
+        r = np.random.randint(128, 256)  # 128-255
+        g = np.random.randint(128, 256)  # 128-255
+        b = np.random.randint(128, 256)  # 128-255
+        return f"#{r:02x}{g:02x}{b:02x}"
 
+    user_label = None
     if len(gdf_list)<=3:
         nrows = 1
     elif len(gdf_list)>3 and len(gdf_list)<=6:
@@ -146,21 +169,25 @@ def plot_multi(gdf_list, use_random_cols=True):
         npolys = len(gdf)
         area_ha = round(gdf.area.sum()/10000, 2)
         if nrows==1:
+            if user_defined_label:
+                user_label = user_defined_label[i] if type(user_defined_label)==list else user_defined_label
             col = i % 3   # Calculate column index
             #gdf.plot(ax=axs[col], color='blue', edgecolor='black')
             #gdf.plot(ax=axs[col], color=random_colors[:npolys+1], edgecolor='black')
             gdf.plot(ax=axs[col], color=random_colors, edgecolor='black')
             #gdf.plot(ax=axs[col], color='blue', edgecolor='black')
             axs[col].set_title(f'Polys {npolys}. Area Ha {area_ha}')
-            annotate_plot(gdf, axs[col], label_prefix=None)
+            annotate_plot(gdf, axs[col], user_label, label_prefix=None)
         else:
+            if user_defined_label:
+                user_label = user_defined_label[i] if type(user_defined_label)==list else user_defined_label
             row = i // 3  # Calculate row index
             col = i % 3   # Calculate column index
             #gdf.plot(ax=axs[row, col], color=random_colors[:npolys+1], edgecolor='black', linewidth=0.5)
             gdf.plot(ax=axs[row, col], color=random_colors, edgecolor='black', linewidth=0.5)
             #gdf.plot(ax=axs[row, col], color='blue', edgecolor='black', linewidth=0.5)
             axs[row,col].set_title(f'Polys {npolys}. Area Ha {area_ha}')
-            annotate_plot(gdf, axs[row,col], label_prefix=None)
+            annotate_plot(gdf, axs[row,col], user_label, label_prefix=None)
 
     # Handle extra subplots if number of GDFs is less than 6
     if len(gdf_list) > 3 and len(gdf_list) < 6:

@@ -30,6 +30,7 @@
           </label>
         </div>
         <!--
+        -->
         <div class="layer-item" v-if="hasLayer3">
           <label>
             <input 
@@ -37,10 +38,9 @@
               v-model="layer3Visible" 
               @change="toggleLayer('layer3')"
             >
-            Layer 3
+            Processed
           </label>
         </div>
-        -->
         <!-- New Layer 4 with nested radio buttons -->
         <div class="layer-item" v-if="hasLayer4">
           <label>
@@ -66,7 +66,7 @@
                   v-model="selectedGeometryIndex"
                   @change="toggleGeometryCollection(index)"
                 >
-                Geometry {{ index + 1 }}
+                Polygon {{ index + 1 }} ({{ index + 1  }}st iteration)
               </label>
             </div>
           </div>
@@ -556,7 +556,7 @@ export default {
       
       this.hasLayer3 = true;
       this.layer3Visible = true;
-      this.layer3.setVisible(false);
+      this.layer3.setVisible(true);
       
       const format = new GeoJSON();
       const features = format.readFeatures(geoJSON, {

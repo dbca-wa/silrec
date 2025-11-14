@@ -53,23 +53,33 @@
           </label>
           
           <!-- Nested radio buttons for geometry collections -->
-          <div v-if="layer4Visible" class="nested-radio-group">
-            <div 
-              v-for="(geometry, index) in geometryCollections" 
-              :key="index"
-              class="radio-item"
-            >
-              <label>
-                <input 
-                  type="radio" 
-                  :value="index"
-                  v-model="selectedGeometryIndex"
-                  @change="toggleGeometryCollection(index)"
-                >
-                Polygon {{ index + 1 }} ({{ index + 1  }}st iteration)
-              </label>
+            <div v-if="layer4Visible" class="nested-radio-group">
+              <div 
+                v-for="(geometry, index) in geometryCollections" 
+                :key="index"
+                class="radio-item"
+              >
+                <div class="geometry-item-header">
+                    <div class="radio-label">
+                        <input 
+                        type="radio" 
+                        :value="index"
+                        v-model="selectedGeometryIndex"
+                        @change="toggleGeometryCollection(index)"
+                        >
+                        <span>Polygon {{ index + 1 }} ({{ index + 1 }}st iter)</span>
+                    </div>
+                    <button 
+                        v-if="geometry.cht_init || geometry.cht_new"
+                        @click="openChtDialog(index)"
+                        class="cht-link-btn"
+                        title="View Cohort Data"
+                    >
+                        <i class="bi bi-table"></i>
+                    </button>
+                </div>
+              </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
@@ -124,6 +134,72 @@
       </div>
     </div>
 
+    <!-- CHT Data Dialog -->
+    <div v-if="showChtDialog && currentChtData" class="cht-dialog-overlay" @click="showChtDialog = false">
+    <div class="cht-dialog" @click.stop>
+        <div class="popup-header">
+        <h3>Cohort Data - Polygon {{ selectedGeometryIndex + 1 }}</h3>
+        <div class="header-actions">
+            <button @click="exportChtToExcel" class="export-excel-btn" title="Export to Excel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
+                <path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14h13.5V2zM15 17H9v-1.5h6zm0-3.5H9V12h6zm0-3.5H9V8.5h6z"/>
+            </svg>
+            Export Excel
+            </button>
+            <button @click="showChtDialog = false" class="close-btn">×</button>
+        </div>
+        </div>
+
+        <div class="cht-content">
+        <!-- CHT Init Table -->
+        <div class="cht-table-section" v-if="currentChtData.cht_init">
+            <h4>Initial  - 'Polygon - AP2C - Cohort'</h4>
+            <div class="table-container">
+            <table class="cht-table">
+                <thead>
+                <tr>
+                    <th v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key">
+                    {{ key }}
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(row, index) in parseChtData(currentChtData.cht_init)" :key="'init-row-' + index">
+                    <td v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key + '-' + index">
+                    {{ row[key] }}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- CHT New Table -->
+        <div class="cht-table-section" v-if="currentChtData.cht_new">
+            <h4>New - 'Polygon - AP2C - Cohort'</h4>
+            <div class="table-container">
+            <table class="cht-table">
+                <thead>
+                <tr>
+                    <th v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key">
+                    {{ key }}
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(row, index) in parseChtData(currentChtData.cht_new)" :key="'new-row-' + index">
+                    <td v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key + '-' + index">
+                    {{ row[key] }}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+
     <!-- Map control buttons -->
     <div class="map-controls">
       <button 
@@ -174,6 +250,7 @@ import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
+import * as XLSX from 'xlsx';
 
 export default {
   name: 'MapComponent',
@@ -269,7 +346,10 @@ export default {
             width: 2
             })
         });
-      }
+      },
+      showChtDialog: false,
+      currentChtData: null,
+      selectedGeometryIndex: null,
     };
   },
   computed: {
@@ -338,6 +418,98 @@ export default {
     document.removeEventListener('keydown', this.handleEscape);
   },
   methods: {
+
+    exportChtToExcel() {
+        if (!this.currentChtData) return;
+
+        try {
+          // Create workbook
+          const workbook = XLSX.utils.book_new();
+          
+          // Add CHT Init sheet if available
+          if (this.currentChtData.cht_init) {
+            const initData = this.parseChtData(this.currentChtData.cht_init);
+            if (initData.length > 0) {
+              const initWorksheet = XLSX.utils.json_to_sheet(initData);
+              XLSX.utils.book_append_sheet(workbook, initWorksheet, 'Initial_Cohorts');
+            }
+          }
+          
+          // Add CHT New sheet if available
+          if (this.currentChtData.cht_new) {
+            const newData = this.parseChtData(this.currentChtData.cht_new);
+            if (newData.length > 0) {
+              const newWorksheet = XLSX.utils.json_to_sheet(newData);
+              XLSX.utils.book_append_sheet(workbook, newWorksheet, 'New_Cohorts');
+            }
+          }
+          
+          // Generate filename with timestamp
+          const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+          const filename = `cohort_data_polygon_${this.selectedGeometryIndex + 1}_${timestamp}.xlsx`;
+          
+          // Export to Excel
+          XLSX.writeFile(workbook, filename);
+          
+        } catch (error) {
+          console.error('Error exporting to Excel:', error);
+          alert('Error exporting data to Excel. Please try again.');
+        }
+    },
+    openChtDialog(geometryIndex) {
+        const geometry = this.geometryCollections[geometryIndex];
+        if (geometry && (geometry.cht_init || geometry.cht_new)) {
+        this.selectedGeometryIndex = geometryIndex;
+        this.currentChtData = {
+            cht_init: geometry.cht_init,
+            cht_new: geometry.cht_new
+        };
+        this.showChtDialog = true;
+        }
+    },
+
+    parseChtData(chtJsonString) {
+        try {
+        const data = JSON.parse(chtJsonString);
+        // Convert the object format to array of rows
+        const keys = Object.keys(data);
+        if (keys.length === 0) return [];
+        
+        const rowCount = data[keys[0]] ? Object.keys(data[keys[0]]).length : 0;
+        const rows = [];
+        
+        for (let i = 0; i < rowCount; i++) {
+            const row = {};
+            keys.forEach(key => {
+            row[key] = data[key] ? data[key][i] : null;
+            });
+            rows.push(row);
+        }
+        
+        return rows;
+        } catch (error) {
+        console.error('Error parsing CHT data:', error);
+        return [];
+        }
+    },
+
+  getChtInitKeys(chtInitJson) {
+    try {
+      const data = JSON.parse(chtInitJson);
+      return Object.keys(data);
+    } catch (error) {
+      return [];
+    }
+  },
+
+  getChtNewKeys(chtNewJson) {
+    try {
+      const data = JSON.parse(chtNewJson);
+      return Object.keys(data);
+    } catch (error) {
+      return [];
+    }
+  },
     initializeMap() {
       // Create vector sources and layers
       const layer1Source = new VectorSource();
@@ -598,7 +770,8 @@ export default {
     },
 
     displayGeometryCollection(geometryIndex) {
-      console.log('GEOM1: ' + JSON.stringify(this.geometryCollections[geometryIndex]))
+      //console.log('GEOM1: ' + JSON.stringify(this.geometryCollections[geometryIndex]))
+      console.log('GEOM1: ' + JSON.stringify(this.geometryCollections))
       if (!this.layer4 || !this.geometryCollections[geometryIndex]) {
         console.log('Cannot display geometry - layer4:', this.layer4, 'geometry at index:', geometryIndex);
         return;
@@ -931,4 +1104,105 @@ export default {
   font-weight: 500;
   word-break: break-word;
 }
+
+.geometry-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.cht-link-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.cht-link-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.cht-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.cht-dialog {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 90vw;
+  max-height: 90vh;
+  width: 950px;
+  overflow: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.cht-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.cht-table-section {
+  margin-bottom: 25px;
+}
+
+.cht-table-section h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 5px;
+}
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.cht-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cht-table th,
+.cht-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.cht-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  position: sticky;
+  top: 0;
+}
+
+.cht-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+.cht-table th:last-child,
+.cht-table td:last-child {
+  border-right: none;
+}
+
 </style>

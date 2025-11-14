@@ -385,7 +385,7 @@ export default {
 //            let proposalgeometries = {
 //                ...(proposal_geometry ? proposal_geometry : {}),
 //            };
-            console.log('JM1: ' + JSON.stringify(proposalgeometries))
+            //console.log('JM1: ' + JSON.stringify(proposalgeometries))
 
             //return featureCollection; // TODO - JM
 
@@ -428,7 +428,7 @@ export default {
 //            let proposalgeometries = {
 //                ...(proposal_geometry ? proposal_geometry : {}),
 //            };
-            console.log('JM1: ' + JSON.stringify(proposalgeometries))
+            //console.log('JM1: ' + JSON.stringify(proposalgeometries))
 
             //return featureCollection; // TODO - JM
 
@@ -471,7 +471,7 @@ export default {
 //            let proposalgeometries = {
 //                ...(proposal_geometry ? proposal_geometry : {}),
 //            };
-            console.log('JM1: ' + JSON.stringify(proposalgeometries))
+            //console.log('JM1: ' + JSON.stringify(proposalgeometries))
 
             //return featureCollection; // TODO - JM
 
@@ -506,18 +506,25 @@ export default {
                 ...(vm.proposal.proposalgeometry_processed_iters ? vm.proposal.proposalgeometry_processed_iters : {}),
             };
 
-            //console.log('JM44: ' + JSON.stringify(proposalgeometries))
+          //console.log('JM4: ' + JSON.stringify(proposalgeometries))
           const resultList = [];
           for (const key in proposalgeometries) {
             let featureCollection = {
                 type: 'FeatureCollection',
                 features: [],
+                cht_init: Object,
+                cht_new: Object,
             };
+            console.log('CHT_INIT: ' + JSON.stringify(proposalgeometries[key]['cht_init']))
+            console.log('CHT_NEW: ' + JSON.stringify(proposalgeometries[key]['cht_init']))
 
 
             //return featureCollection; // TODO - JM
 
             if (Object.keys(proposalgeometries[key]).length !== 0) {
+                //console.log('JM3: ' + JSON.stringify(proposalgeometries))
+                //let cht_init = proposalgeometries[key]['cht_init']
+                //let cht_new = proposalgeometries[key]['cht_new']
                 for (let feature of proposalgeometries[key]['features']) {
                     feature['properties']['source'] = 'Proposal';
                     let model = {
@@ -535,6 +542,8 @@ export default {
                     feature['model'] = model;
                     featureCollection['features'].push(feature);
                 }
+                featureCollection['cht_init'] = proposalgeometries[key]['cht_init'];
+                featureCollection['cht_new'] = proposalgeometries[key]['cht_new'];
                 console.log('featureCollection: ' + featureCollection)
             } else {
                 console.log('WARN: Shapefile featureCollection is empty')

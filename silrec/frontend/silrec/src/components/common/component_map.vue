@@ -255,15 +255,21 @@ export default {
           width: 3
         })
       }),
-      layer4Style: new Style({
-        fill: new Fill({
-          color: 'rgba(255, 165, 0, 0.3)'
-        }),
-        stroke: new Stroke({
-          color: 'rgba(255, 165, 0, 0.8)',
-          width: 2
-        })
-      })
+      layer4Style: function(feature) {
+        const polyType = feature.get('poly_type');
+        const baseColor = 'rgba(255, 255, 255, 0.6)'; // Darker color for BASE
+        const defaultColor = 'rgba(255, 255, 0, 0.5)'; // Original color for others
+        
+        return new Style({
+            fill: new Fill({
+            color: polyType === 'BASE' ? baseColor : defaultColor
+            }),
+            stroke: new Stroke({
+            color: 'rgba(255, 165, 0, 0.8)',
+            width: 2
+            })
+        });
+      }
     };
   },
   computed: {
@@ -393,7 +399,7 @@ export default {
 
       this.layer4 = new VectorLayer({
         source: layer4Source,
-        style: this.layer4Style,
+        style: this.layer4Style, // Now using the style function
         visible: this.layer4Visible,
         zIndex: 10
       });

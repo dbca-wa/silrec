@@ -2,8 +2,6 @@
     <div v-if="proposal" id="internalProposal" class="container">
         <div v-if="debug">internal/proposals/proposal.vue</div>
         <div class="row">
-	    <!--
-	    -->
             <h3>
                 {{ proposal.lodgement_number }} -
                 {{
@@ -26,154 +24,10 @@
                     :comms_add_url="comms_add_url"
                     :disable_add_entry="false"
                 />
-
-	        <!--
-                <Submission
-                    v-if="canSeeSubmission || debug"
-                    :can-see-submission="canSeeSubmission"
-                    :showing-proposal="showingProposal"
-                    :proposal="proposal"
-                    :submitter_first_name="submitter_first_name"
-                    :submitter_last_name="submitter_last_name"
-                    :lodgement_date="proposal.lodgement_date"
-                    class="mt-2"
-                    @revision-to-display="revisionToDisplay"
-                />
-
-                <Workflow
-                    ref="workflow"
-                    :proposal="proposal"
-                    :on-current-revision="onCurrentRevision"
-                    :is-finalised="isFinalised"
-                    :can-action="canAction"
-                    :can-assess="canAssess"
-                    :is-referee="isReferee"
-                    :can_user_edit="proposal.can_user_edit"
-                    :profile="profile"
-                    class="mt-2"
-                    @toggle-proposal="toggleProposal"
-                    @toggle-requirements="toggleRequirements"
-                    @back-to-assessor="backToAssessor"
-                    @switch-status="switchStatus"
-                    @enter-conditions="enterConditions"
-                    @complete-referral="completeReferral"
-                    @amendment-request="amendmentRequest"
-                    @proposed-decline="proposedDecline"
-                    @proposed-approval="proposedApproval"
-                    @issue-approval="issueApproval"
-                    @decline-proposal="declineProposal"
-                    @assign-request-user="assignRequestUser"
-                    @assign-to="assignTo"
-                    @complete-editing="validateInvoicingForm"
-                    @update-proposal-data="updateProposalData"
-                    @update-assigned-approver="updateAssignedApprover"
-                    @update-assigned-officer="updateAssignedOfficer"
-                />
-                -->
             </div>
 
             <div class="col-md-9">
-	        <!--
-                <BootstrapAlert v-if="showTransferInformation">
-                    Proposal to transfer
-                    <span class="fw-bold"
-                        >{{ proposal.approval.approval_type_name }}
-                        {{ proposal.approval.lodgement_number }}
-                    </span>
-                    from
-                    <span class="fw-bold">{{ proposal.approval.holder }}</span>
-                    to
-                    <span class="fw-bold">{{ proposal.applicant }}</span>
-                </BootstrapAlert>
-		-->
                 <!-- Main contents -->
-	        <!--
-                <template v-if="display_approval_screen">
-                    <ApprovalScreen
-                        ref="approval_screen"
-                        :proposal="proposal"
-                        :readonly="readonly"
-                        @update-invoicing-details="updateInvoicingDetails"
-                    />
-                </template>
-		-->
-
-	        <!--
-                <template v-if="display_requirements">
-                    <Requirements
-                        :key="requirementsKey"
-                        :proposal="proposal"
-                        :profile="profile"
-                        @refresh-proposal="fetchProposal"
-                        @update-requirement="updateRequirement"
-                    />
-                </template>
-		-->
-
-		<!--
-                <template
-                    v-if="
-                        (showingProposal &&
-                            [
-                                'with_approver',
-                                'approved_application',
-                                'approved',
-                                'declined',
-                            ].includes(proposal.processing_status_id)) ||
-                        (canSeeSubmission &&
-                            ![
-                                'with_approver',
-                                'approved_application',
-                                'approved',
-                                'declined',
-                            ].includes(proposal.processing_status_id)) ||
-                        (!canSeeSubmission && showingProposal)
-                    "
-                >
-		-->
-                    <FormSection
-                        :form-collapse="false"
-                        label="Proposal"
-                        index="application"
-                    >
-                        <!--
-			<ApplicationForm
-                            :proposal="proposal"
-                            :is_internal="true"
-                        />
-		        -->
-                        <ApplicationForm
-                            v-if="proposal"
-                            ref="application_form"
-                            :key="computedProposalId"
-                            :proposal="proposal"
-                            :show_application_title="false"
-                            :is_external="false"
-                            :is_internal="true"
-                            :can_assess="canAssess"
-                            :is_referee="isReferee"
-                            :readonly="readonly"
-                            :submitter-id="submitter_id"
-                            :show_related_items_tab="true"
-                            :registration-of-interest="isRegistrationOfInterest"
-                            :lease-licence="isLeaseLicence"
-                            :navbar-buttons-disabled="navbarButtonsDisabled"
-                            :saving-in-progress="savingProposal"
-                            @refresh-from-response="refreshFromResponse"
-                            @form-mounted="applicationFormMounted"
-                            @update:gis-data="updateGisData"
-                            @finished-drawing="onFinishedDrawing"
-                            @deleted-features="onFinishedDrawing"
-                        />
-
-		    </FormSection>
-		<!--
-		<template>
-			<ApplicationForm
-                            :proposal="proposal"
-                            :is_internal="true"
-                        />
-
                     <FormSection
                         :form-collapse="false"
                         label="Proposal"
@@ -201,26 +55,13 @@
                             @update:gis-data="updateGisData"
                             @finished-drawing="onFinishedDrawing"
                             @deleted-features="onFinishedDrawing"
-                        >
-                            <template #slot_section_related_items>
-                                <FormSection
-                                    :form-collapse="false"
-                                    label="Related Items"
-                                    index="related_items"
-                                >
-                                    <TableRelatedItems
-                                        :ajax-url="related_items_ajax_url"
-                                    />
-                                </FormSection>
-                            </template>
-                        </ApplicationForm>
+                        />
+
                     </FormSection>
-                </template>
-		-->
             </div>
         </div>
 
-	<!--
+    <!--
         <ProposedApproval
             v-if="showProposedModals"
             ref="proposed_approval"
@@ -246,7 +87,7 @@
             :proposed-approval-key="proposedApprovalKey"
         />
         <AmendmentRequest ref="amendment_request" :proposal="proposal" />
-	-->
+    -->
 
         <div v-if="displaySaveBtns" class="navbar fixed-bottom bg-navbar">
             <div class="container">
@@ -1860,7 +1701,7 @@ export default {
                 })
                 .then((data) => {
                     vm.proposal = Object.assign({}, data);
-     		    console.log('poposal.vue ' + vm.proposal.id)
+                console.log('poposal.vue ' + vm.proposal.id)
 //                    // Dict of the latest revision's parameters
 //                    vm.latest_revision = Object.assign(
 //                        {},

@@ -9,6 +9,7 @@ from shapely.ops import unary_union, polygonize
 
 import json
 import os
+from django.utils import timezone
 from confy import database
 
 from silrec.utils.plot_utils import plot_gdf as plot
@@ -21,7 +22,6 @@ from silrec.utils.write_polygons_to_db import write_gdf_to_tmp_polygon
 from silrec.utils.write_cohort_to_db import create_cohort_record
 #from silrec.utils.create_temp_tables import create_temp_tables_django_models, clear_temp_tables_django
 
-#from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
 mpl.use('TkAgg')
@@ -375,6 +375,8 @@ class ShapefileSliversMerger():
             ]
 
             gdf_store = self.store_state(list_state)
+            import ipdb; ipdb.set_trace()
+            self.save_cht_new_to_db(gdf_cht_new)
             gdf_hist = gdf_result.copy()
             gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
@@ -841,4 +843,278 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
+    def _save_cht_new_to_db(self, gdf_cht_new):
+        """
+        Save filtered gdf_cht_new data to PostgreSQL table tmp_assign_cht_to_ply
+        using pandas to_sql with ON CONFLICT handling
+        Returns list of cht2ply_id that were created or updated
+        """
+
+        # Filter data for 'NEW-BASE_Y' description
+        filtered_gdf = gdf_cht_new[gdf_cht_new['desc'] == 'NEW-BASE_Y'].copy()
+
+        if filtered_gdf.empty:
+            logger.info("No records found with desc='NEW-BASE_Y'. Nothing to update.")
+            return []
+
+        # Map column names and handle missing op_id
+        filtered_gdf['op_id'] = filtered_gdf.get('op_id', None)
+
+        # Convert to proper Python types
+        db_data = filtered_gdf[['poly_id_new', 'cohort_id', 'op_id', 'status_current']].copy()
+        db_data.columns = ['polygon_id', 'cohort_id', 'op_id', 'status_current']
+
+        # Ensure correct data types and handle empty strings/NaN values
+        db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
+        db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
+        db_data['status_current'] = db_data['status_current'].astype(bool)
+
+        # Handle op_id - convert empty strings to None and then to proper integer with NaN support
+        if 'op_id' in db_data.columns:
+            # Replace empty strings with NaN, then convert to numeric
+            db_data['op_id'] = db_data['op_id'].replace('', None)
+            db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
+
+        # Remove duplicate cohort_id values - keep the last occurrence
+        db_data = db_data.drop_duplicates(subset=['cohort_id'], keep='last')
+
+        logger.info(f"Processing {len(db_data)} unique records after removing duplicates")
+
+        try:
+            # Create temporary table
+            temp_table_name = 'temp_cht_data'
+
+            db_data.to_sql(
+                temp_table_name,
+                self.conn_engine,
+                if_exists='replace',
+                index=False
+            )
+
+            with self.conn_engine.connect() as conn:
+                # Use ON CONFLICT query
+                upsert_query = text("""
+                    INSERT INTO tmp_assign_cht_to_ply (polygon_id, cohort_id, op_id, status_current)
+                    SELECT polygon_id, cohort_id, op_id, status_current
+                    FROM temp_cht_data
+                    ON CONFLICT (cohort_id)
+                    DO UPDATE SET
+                        polygon_id = EXCLUDED.polygon_id,
+                        op_id = EXCLUDED.op_id,
+                        status_current = EXCLUDED.status_current
+                    RETURNING cht2ply_id, cohort_id
+                """)
+
+                result = conn.execute(upsert_query)
+                affected_records = result.fetchall()
+                conn.commit()
+
+                # Extract cht2ply_id from results
+                cht2ply_ids = [record[0] for record in affected_records]
+
+                # Drop temporary table
+                conn.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+
+                logger.info(f"Successfully upserted {len(cht2ply_ids)} records for 'NEW-BASE_Y'")
+                logger.info(f"{cht2ply_ids}")
+
+                return cht2ply_ids
+
+        except Exception as e:
+            logger.error(f"Error saving data to PostgreSQL: {str(e)}")
+            raise
+
+
+    def __save_cht_new_to_db(self, gdf_cht_new, user=None):
+        """
+        Save filtered gdf_cht_new data to db
+        Returns list of cht2ply_id that were created or updated
+        """
+
+        # Filter data for 'NEW-BASE_Y' description
+        filtered_gdf = gdf_cht_new[gdf_cht_new['desc'] == 'NEW-BASE_Y'].copy()
+
+        if filtered_gdf.empty:
+            logger.info("No records found with desc='NEW-BASE_Y'. Nothing to update.")
+            return []
+
+        # Map column names and handle missing op_id
+        filtered_gdf['op_id'] = filtered_gdf.get('op_id', None)
+
+        # Convert to proper Python types
+        db_data = filtered_gdf[['poly_id_new', 'cohort_id', 'op_id', 'status_current']].copy()
+        db_data.columns = ['polygon_id', 'cohort_id', 'op_id', 'status_current']
+
+        # Ensure correct data types
+        db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
+        db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
+        db_data['status_current'] = db_data['status_current'].astype(bool)
+
+        # Handle op_id
+        if 'op_id' in db_data.columns:
+            db_data['op_id'] = db_data['op_id'].replace('', None)
+            db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
+
+        # Remove duplicate cohort_id values
+        db_data = db_data.drop_duplicates(subset=['cohort_id'], keep='last')
+
+        cht2ply_ids = []
+        current_time = timezone.now()
+        username = user.username if user else 'system'
+
+        try:
+            for _, row in db_data.iterrows():
+                # Try to get existing record
+                try:
+                    obj, created = TmpAssignChtToPly.objects.get_or_create(
+                        cohort_id=row['cohort_id'],
+                        defaults={
+                            'polygon_id': row['polygon_id'],
+                            'op_id': row['op_id'],
+                            'status_current': row['status_current'],
+                            'created_on': current_time,
+                            'created_by': username,
+                            'updated_on': current_time,
+                            'updated_by': username,
+                        }
+                    )
+
+                    if not created:
+                        # Update existing record
+                        obj.polygon_id = row['polygon_id']
+                        obj.op_id = row['op_id']
+                        obj.status_current = row['status_current']
+                        obj.updated_on = current_time
+                        obj.updated_by = username
+                        obj.save()
+
+                    cht2ply_ids.append(obj.cht2ply_id)
+
+                except Exception as e:
+                    logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
+                    continue
+
+            logger.info(f"Successfully processed {len(cht2ply_ids)} records for 'NEW-BASE_Y'")
+            return cht2ply_ids
+
+        except Exception as e:
+            logger.error(f"Error saving data to PostgreSQL: {str(e)}")
+            raise
+
+    def save_cht_new_to_db(self, gdf_cht_new, user=None):
+        """
+        Version using Django ORM with proper model import and NA value handling
+        """
+
+        # Import the model dynamically to avoid circular imports
+        #tmp_assign_cht_to_ply = apps.get_model('your_app_name', 'tmp_assign_cht_to_ply')
+        from silrec.components.forest_blocks.models import TmpAssignChtToPly
+
+        # Filter data for 'NEW-BASE_Y' description
+        filtered_gdf = gdf_cht_new[gdf_cht_new['desc'] == 'NEW-BASE_Y'].copy()
+
+        if filtered_gdf.empty:
+            logger.info("No records found with desc='NEW-BASE_Y'. Nothing to update.")
+            return []
+
+        logger.info(f"Found {len(filtered_gdf)} records with 'NEW-BASE_Y'")
+
+        # Map column names and handle missing op_id
+        filtered_gdf['op_id'] = filtered_gdf.get('op_id', None)
+
+        # Convert to proper Python types
+        db_data = filtered_gdf[['poly_id_new', 'cohort_id', 'op_id', 'status_current']].copy()
+        db_data.columns = ['polygon_id', 'cohort_id', 'op_id', 'status_current']
+
+        # Ensure correct data types
+        db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
+        db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
+
+        # Handle op_id - convert pandas NA to None
+        if 'op_id' in db_data.columns:
+            db_data['op_id'] = db_data['op_id'].replace('', None)
+            db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
+            # Convert pandas Int64 NA to Python None
+            db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
+
+        # Handle status_current
+        db_data['status_current'] = db_data['status_current'].fillna(False)
+        db_data['status_current'] = db_data['status_current'].astype(bool)
+
+        # Remove duplicate cohort_id values
+        initial_count = len(db_data)
+        db_data = db_data.drop_duplicates(subset=['cohort_id'], keep='last')
+        duplicate_count = initial_count - len(db_data)
+        if duplicate_count > 0:
+            logger.info(f"Removed {duplicate_count} duplicate cohort_id records")
+
+        cht2ply_ids = []
+        current_time = timezone.now()
+        username = user.username if user else 'system'
+        success_count = 0
+        error_count = 0
+
+        try:
+            for index, row in db_data.iterrows():
+                try:
+                    # Convert all values to native Python types
+                    polygon_id = int(row['polygon_id'])
+                    cohort_id = int(row['cohort_id'])
+
+                    # Handle op_id - convert pandas NA to None explicitly
+                    op_id = row['op_id']
+                    if pd.isna(op_id) or op_id is None:
+                        op_id = None
+                    else:
+                        op_id = int(op_id)
+
+                    status_current = bool(row['status_current'])
+
+                    logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
+
+                    # Try to get existing record
+                    obj, created = TmpAssignChtToPly.objects.get_or_create(
+                        cohort_id=cohort_id,
+                        defaults={
+                            'polygon_id': polygon_id,
+                            'op_id': op_id,
+                            'status_current': status_current,
+                            'created_on': current_time,
+                            'created_by': username,
+                            'updated_on': current_time,
+                            'updated_by': username,
+                        }
+                    )
+
+                    if not created:
+                        # Update existing record
+                        obj.polygon_id = polygon_id
+                        obj.op_id = op_id
+                        obj.status_current = status_current
+                        obj.updated_on = current_time
+                        obj.updated_by = username
+                        obj.save()
+                        action = "updated"
+                    else:
+                        action = "created"
+
+                    cht2ply_ids.append(obj.cht2ply_id)
+                    success_count += 1
+                    logger.info(f"Successfully {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
+
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
+                    logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
+                    # Log the full traceback for debugging
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
+                    continue
+
+            logger.info(f"Successfully processed {success_count} records, {error_count} errors for 'NEW-BASE_Y'")
+            return cht2ply_ids
+
+        except Exception as e:
+            logger.error(f"Error saving data to PostgreSQL: {str(e)}")
+            raise
 

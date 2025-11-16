@@ -23,6 +23,8 @@ from silrec.components.proposals import api as proposal_api
 #from sqs.components.gisquery import api as gisquery_api
 #from sqs.components.gisquery import views as gisquery_views
 
+from silrec.components.forest_blocks import views as forest_blocks_views
+
 #schema_view = get_swagger_view(title='SQS API')
 
 # API patterns
@@ -74,6 +76,8 @@ router.register(r"proposal_paginated", proposal_api.ProposalPaginatedViewSet, ba
 
 router.register(r"application_types", main_api.ApplicationTypeViewSet)
 
+router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableViewSet, basename='polygon_cohort_table')
+
 api_patterns = [
     #re_path(r'api/', include(router.urls)),
     re_path(r"^api/", include(router.urls)),
@@ -111,6 +115,14 @@ urlpatterns = [
         proposal_api.GetApplicationStatusesDict.as_view(),
         name="get-application-statuses-dict",
     ),
+#    re_path(
+#        r"^api/polygon_cohort_table(?P<pk>\d+)/$",
+#        forest_blocks_api.PolygonCohortTableViewSet.as_view(),
+#        name="polygon_cohort_table",
+#    ),
+    #router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableViewSet, basename='polygon_cohort_table')
+
+    re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]
 
 if settings.ENABLE_DJANGO_LOGIN:

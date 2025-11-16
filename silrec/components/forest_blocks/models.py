@@ -16,7 +16,9 @@ from silrec.components.lookups.models import (
     TreatmentStatusLkp,
 )
 
-# Create your models here.
+from silrec.components.proposals.models import (
+    Proposal
+)
 
 class AssignCategoryToTask(models.Model):
     tsk2cat_id = models.AutoField(primary_key=True)
@@ -400,6 +402,9 @@ class Operation(models.Model):
 
 class Polygon(models.Model):
     polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    proposal = models.ForeignKey(
+        Proposal, on_delete=models.CASCADE, related_name="polygons", blank=True, null=True
+    )
     name = models.CharField(max_length=10, blank=True, null=True, db_comment="Formerly 'PolyID'\nName of the polygon, usually descriptive of the administrative unit containing the polygon, e.g. code for forest block and compartment")
     compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
     area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon, as measured on flat/2D plane\nTrigger to calculate & populate ON UPDATE, ON CREATE')
@@ -785,6 +790,9 @@ class FpcHarvestTracker(models.Model):
 
 class TmpPolygon(models.Model):
     polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+#    proposal = models.ForeignKey(
+#        Proposal, on_delete=models.CASCADE, related_name="tmp_polygons"
+#    )
     name = models.CharField(max_length=10, blank=True, null=True, db_comment="Formerly 'PolyID'\nName of the polygon, usually descriptive of the administrative unit containing the polygon, e.g. code for forest block and compartment")
     compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
     area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon, as measured on flat/2D plane\nTrigger to calculate & populate ON UPDATE, ON CREATE')

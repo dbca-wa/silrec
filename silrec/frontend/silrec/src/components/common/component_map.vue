@@ -1,239 +1,252 @@
 <template>
-  <div class="map-container" :class="{ 'maximised': isMaximised }">
-    <div ref="mapContainer" class="map"></div>
-    
-    <!-- Layer control popup -->
-    <div v-if="showLayerControl" class="layer-control-popup">
-      <div class="popup-header">
-        <h3>Layers</h3>
-        <button @click="showLayerControl = false" class="close-btn">×</button>
-      </div>
-      <div class="layer-list">
-        <div class="layer-item">
-          <label>
-            <input 
-              type="checkbox" 
-              v-model="layer1Visible" 
-              @change="toggleLayer('layer1')"
-            >
-            Shapefile Layer
-          </label>
-        </div>
-        <div class="layer-item" v-if="hasLayer2">
-          <label>
-            <input 
-              type="checkbox" 
-              v-model="layer2Visible" 
-              @change="toggleLayer('layer2')"
-            >
-            Historical Layer
-          </label>
-        </div>
-        <!--
-        -->
-        <div class="layer-item" v-if="hasLayer3">
-          <label>
-            <input 
-              type="checkbox" 
-              v-model="layer3Visible" 
-              @change="toggleLayer('layer3')"
-            >
-            Processed
-          </label>
-        </div>
-        <!-- New Layer 4 with nested radio buttons -->
-        <div class="layer-item" v-if="hasLayer4">
-          <label>
-            <input 
-              type="checkbox" 
-              v-model="layer4Visible" 
-              @change="toggleLayer('layer4')"
-            >
-            Geometry Collections
-          </label>
-          
-          <!-- Nested radio buttons for geometry collections -->
-            <div v-if="layer4Visible" class="nested-radio-group">
-              <div 
-                v-for="(geometry, index) in geometryCollections" 
-                :key="index"
-                class="radio-item"
-              >
-                <div class="geometry-item-header">
-                    <div class="radio-label">
-                        <input 
-                        type="radio" 
-                        :value="index"
-                        v-model="selectedGeometryIndex"
-                        @change="toggleGeometryCollection(index)"
-                        >
-                        <span>Polygon {{ index + 1 }} ({{ index + 1 }}st iter)</span>
-                    </div>
-                    <button 
-                        v-if="geometry.cht_init || geometry.cht_new"
-                        @click="openChtDialog(index)"
-                        class="cht-link-btn"
-                        title="View Cohort Data"
-                    >
-                        <i class="bi bi-table"></i>
-                    </button>
-                </div>
-              </div>
-            </div>
-        </div>
-      </div>
-    </div>
+  <div>
+    <div class="map-container" :class="{ 'maximised': isMaximised }">
+        <div ref="mapContainer" class="map"></div>
 
-    <!-- Feature info popup -->
-    <div v-if="selectedFeature" class="feature-popup">
-      <div class="popup-header">
-        <h3>Feature Details</h3>
-        <button @click="closeFeaturePopup" class="close-btn">×</button>
-      </div>
-      <div class="feature-content">
-        <!-- Basic attributes table -->
-        <table class="feature-table basic-attributes">
-          <tbody>
-            <tr v-for="field in displayFields" :key="field.key">
-              <th class="field-label">{{ field.label }}:</th>
-              <td class="field-value">{{ getFeatureValue(selectedFeature, field.key) }}</td>
-            </tr>
-          </tbody>
-        </table>
-        
-        <!-- Information icon toggle -->
-        <div class="info-toggle-section">
-          <button 
-            class="info-toggle-btn"
-            @click="showAdditionalInfo = !showAdditionalInfo"
-            :title="showAdditionalInfo ? 'Hide additional details' : 'Show additional details'"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-            </svg>
-            <span class="toggle-text">
-              {{ showAdditionalInfo ? 'Less details' : 'More details...' }}
-            </span>
-          </button>
-        </div>
-
-        <!-- Additional attributes in multi-column layout -->
-        <div v-if="showAdditionalInfo && additionalFields.length > 0" class="additional-attributes">
-          <h4 class="additional-title">Additional Information</h4>
-          <div class="attributes-grid">
-            <div 
-              v-for="field in additionalFields" 
-              :key="field.key"
-              class="attribute-item"
-            >
-              <span class="attribute-label">{{ field.label }}:</span>
-              <span class="attribute-value">{{ getFeatureValue(selectedFeature, field.key) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CHT Data Dialog -->
-    <div v-if="showChtDialog && currentChtData" class="cht-dialog-overlay" @click="showChtDialog = false">
-    <div class="cht-dialog" @click.stop>
+        <!-- Layer control popup -->
+        <div v-if="showLayerControl" class="layer-control-popup">
         <div class="popup-header">
-        <h3>Cohort Data - Polygon {{ selectedGeometryIndex + 1 }}</h3>
-        <div class="header-actions">
-            <button @click="exportChtToExcel" class="export-excel-btn" title="Export to Excel">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
-                <path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14h13.5V2zM15 17H9v-1.5h6zm0-3.5H9V12h6zm0-3.5H9V8.5h6z"/>
-            </svg>
-            Export Excel
+            <h3>Layers</h3>
+            <button @click="showLayerControl = false" class="close-btn">×</button>
+        </div>
+        <div class="layer-list">
+            <div class="layer-item">
+            <label>
+                <input 
+                type="checkbox" 
+                v-model="layer1Visible" 
+                @change="toggleLayer('layer1')"
+                >
+                Shapefile Layer
+            </label>
+            </div>
+            <div class="layer-item" v-if="hasLayer2">
+            <label>
+                <input 
+                type="checkbox" 
+                v-model="layer2Visible" 
+                @change="toggleLayer('layer2')"
+                >
+                Historical Layer
+            </label>
+            </div>
+            <!--
+            -->
+            <div class="layer-item" v-if="hasLayer3">
+            <label>
+                <input 
+                type="checkbox" 
+                v-model="layer3Visible" 
+                @change="toggleLayer('layer3')"
+                >
+                Processed
+            </label>
+            </div>
+            <!-- New Layer 4 with nested radio buttons -->
+            <div class="layer-item" v-if="hasLayer4">
+            <label>
+                <input 
+                type="checkbox" 
+                v-model="layer4Visible" 
+                @change="toggleLayer('layer4')"
+                >
+                Geometry Collections
+            </label>
+            
+            <!-- Nested radio buttons for geometry collections -->
+                <div v-if="layer4Visible" class="nested-radio-group">
+                <div 
+                    v-for="(geometry, index) in geometryCollections" 
+                    :key="index"
+                    class="radio-item"
+                >
+                    <div class="geometry-item-header">
+                        <div class="radio-label">
+                            <input 
+                            type="radio" 
+                            :value="index"
+                            v-model="selectedGeometryIndex"
+                            @change="toggleGeometryCollection(index)"
+                            >
+                            <span>Polygon {{ index + 1 }} ({{ index + 1 }}st iter)</span>
+                        </div>
+                        <button 
+                            v-if="geometry.cht_init || geometry.cht_new"
+                            @click="openChtDialog(index)"
+                            class="cht-link-btn"
+                            title="View Cohort Data"
+                        >
+                            <i class="bi bi-table"></i>
+                        </button>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Feature info popup -->
+        <div v-if="selectedFeature" class="feature-popup">
+        <div class="popup-header">
+            <h3>Feature Details</h3>
+            <button @click="closeFeaturePopup" class="close-btn">×</button>
+        </div>
+        <div class="feature-content">
+            <!-- Basic attributes table -->
+            <table class="feature-table basic-attributes">
+            <tbody>
+                <tr v-for="field in displayFields" :key="field.key">
+                <th class="field-label">{{ field.label }}:</th>
+                <td class="field-value">{{ getFeatureValue(selectedFeature, field.key) }}</td>
+                </tr>
+            </tbody>
+            </table>
+            
+            <!-- Information icon toggle -->
+            <div class="info-toggle-section">
+            <button 
+                class="info-toggle-btn"
+                @click="showAdditionalInfo = !showAdditionalInfo"
+                :title="showAdditionalInfo ? 'Hide additional details' : 'Show additional details'"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+                <span class="toggle-text">
+                {{ showAdditionalInfo ? 'Less details' : 'More details...' }}
+                </span>
             </button>
-            <button @click="showChtDialog = false" class="close-btn">×</button>
-        </div>
-        </div>
-
-        <div class="cht-content">
-        <!-- CHT Init Table -->
-        <div class="cht-table-section" v-if="currentChtData.cht_init">
-            <h4>Initial  - 'Polygon - AP2C - Cohort'</h4>
-            <div class="table-container">
-            <table class="cht-table">
-                <thead>
-                <tr>
-                    <th v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key">
-                    {{ key }}
-                    </th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(row, index) in parseChtData(currentChtData.cht_init)" :key="'init-row-' + index">
-                    <td v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key + '-' + index">
-                    {{ row[key] }}
-                    </td>
-                </tr>
-                </tbody>
-            </table>
             </div>
-        </div>
 
-        <!-- CHT New Table -->
-        <div class="cht-table-section" v-if="currentChtData.cht_new">
-            <h4>New - 'Polygon - AP2C - Cohort'</h4>
-            <div class="table-container">
-            <table class="cht-table">
-                <thead>
-                <tr>
-                    <th v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key">
-                    {{ key }}
-                    </th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(row, index) in parseChtData(currentChtData.cht_new)" :key="'new-row-' + index">
-                    <td v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key + '-' + index">
-                    {{ row[key] }}
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <!-- Additional attributes in multi-column layout -->
+            <div v-if="showAdditionalInfo && additionalFields.length > 0" class="additional-attributes">
+            <h4 class="additional-title">Additional Information</h4>
+            <div class="attributes-grid">
+                <div 
+                v-for="field in additionalFields" 
+                :key="field.key"
+                class="attribute-item"
+                >
+                <span class="attribute-label">{{ field.label }}:</span>
+                <span class="attribute-value">{{ getFeatureValue(selectedFeature, field.key) }}</span>
+                </div>
+            </div>
             </div>
         </div>
         </div>
-    </div>
+
+        <!-- CHT Data Dialog -->
+        <div v-if="showChtDialog && currentChtData" class="cht-dialog-overlay" @click="showChtDialog = false">
+        <div class="cht-dialog" @click.stop>
+            <div class="popup-header">
+            <h3>Cohort Data - Polygon {{ selectedGeometryIndex + 1 }}</h3>
+            <div class="header-actions">
+                <button @click="exportChtToExcel" class="export-excel-btn" title="Export to Excel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
+                    <path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14h13.5V2zM15 17H9v-1.5h6zm0-3.5H9V12h6zm0-3.5H9V8.5h6z"/>
+                </svg>
+                Export Excel
+                </button>
+                <button @click="showChtDialog = false" class="close-btn">×</button>
+            </div>
+            </div>
+
+            <div class="cht-content">
+            <!-- CHT Init Table -->
+            <div class="cht-table-section" v-if="currentChtData.cht_init">
+                <h4>Initial  - 'Polygon - AC2P - Cohort'</h4>
+                <div class="table-container">
+                <table class="cht-table">
+                    <thead>
+                    <tr>
+                        <th v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key">
+                        {{ key }}
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(row, index) in parseChtData(currentChtData.cht_init)" :key="'init-row-' + index">
+                        <td v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key + '-' + index">
+                        {{ row[key] }}
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <!-- CHT New Table -->
+            <div class="cht-table-section" v-if="currentChtData.cht_new">
+                <h4>New - 'Polygon - AC2P - Cohort'</h4>
+                <div class="table-container">
+                <table class="cht-table">
+                    <thead>
+                    <tr>
+                        <th v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key">
+                        {{ key }}
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(row, index) in parseChtData(currentChtData.cht_new)" :key="'new-row-' + index">
+                        <td v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key + '-' + index">
+                        {{ row[key] }}
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Map control buttons -->
+        <div class="map-controls">
+        <button 
+            class="control-btn maximise-btn"
+            @click="toggleMaximise"
+            :title="isMaximised ? 'Minimise map' : 'Maximise map'"
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+            </svg>
+        </button>
+        
+        <button 
+            class="control-btn zoom-to-layer-btn"
+            @click="zoomToActiveLayer"
+            :title="getZoomToLayerTitle"
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
+            </svg>
+        </button>
+        
+        <button 
+            class="control-btn layer-control-btn"
+            @click="showLayerControl = !showLayerControl"
+            title="Toggle Layers"
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+            </svg>
+        </button>
+        </div>
     </div>
 
-    <!-- Map control buttons -->
-    <div class="map-controls">
-      <button 
-        class="control-btn maximise-btn"
-        @click="toggleMaximise"
-        :title="isMaximised ? 'Minimise map' : 'Maximise map'"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-          <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
-        </svg>
-      </button>
-      
-      <button 
-        class="control-btn zoom-to-layer-btn"
-        @click="zoomToActiveLayer"
-        :title="getZoomToLayerTitle"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-          <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
-        </svg>
-      </button>
-      
-      <button 
-        class="control-btn layer-control-btn"
-        @click="showLayerControl = !showLayerControl"
-        title="Toggle Layers"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
-        </svg>
-      </button>
+
+    <div>
+        <PolygonCohortTable 
+        :proposalId="currentProposalId"
+        :initialVisible="showDataTable"
+        @polygon-selected="onPolygonSelected"
+        @zoom-to-polygon="onZoomToPolygon"
+        />
     </div>
+
   </div>
 </template>
 
@@ -251,10 +264,18 @@ import OSM from 'ol/source/OSM';
 import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 import * as XLSX from 'xlsx';
+import PolygonCohortTable from '@/components/common/table_polygon_cohort.vue';
 
 export default {
   name: 'MapComponent',
+  components: {
+    PolygonCohortTable
+  },
   props: {
+    proposalId: {
+      type: [Number, String],
+      default: null
+    },
     proposalIds: {
       type: Array,
       default: () => [-1]
@@ -350,6 +371,9 @@ export default {
       showChtDialog: false,
       currentChtData: null,
       selectedGeometryIndex: null,
+
+      currentProposalId: null,
+      showDataTable: true,
     };
   },
   computed: {
@@ -395,11 +419,65 @@ export default {
         this.updateLayer4(newGeometryList);
       },
       deep: true
+    },
+
+    // datatable related
+
+    // Watch for changes in proposal ID sources
+    proposalId: {
+      handler(newVal) {
+        this.currentProposalId = this.ensureNumber(newVal);
+      },
+      immediate: true
+    },
+
+    '$route.params.proposal_id': {
+      handler(newVal) {
+        if (newVal && !this.currentProposalId) {
+          this.currentProposalId = this.ensureNumber(newVal);
+        }
+      },
+      immediate: true
+    },
+
+    context: {
+      handler(newVal) {
+        if (newVal && newVal.id && !this.currentProposalId) {
+          this.currentProposalId = this.ensureNumber(newVal.id);
+        }
+      },
+      deep: true,
+      immediate: true
     }
+
   },
   mounted() {
     this.$nextTick(() => {
       this.initializeMap();
+
+      //this.currentProposalId = this.$route.params.proposal_id || this.proposalId;
+      // Extract proposal ID from multiple possible sources and ensure it's a number
+      let proposalId = null;
+        
+      // Priority 1: From props
+      if (this.proposalId) {
+        proposalId = this.ensureNumber(this.proposalId);
+      }
+        
+      // Priority 2: From route parameters
+      if (!proposalId && this.$route.params.proposal_id) {
+        proposalId = this.ensureNumber(this.$route.params.proposal_id);
+      }
+        
+      // Priority 3: From context prop
+      if (!proposalId && this.context && this.context.id) {
+        proposalId = this.ensureNumber(this.context.id);
+      }
+        
+      this.currentProposalId = proposalId;
+        
+      console.log('Current proposal ID:', this.currentProposalId, typeof this.currentProposalId);
+
       this.hasLayer2 = !!this.featureCollection2;
       this.layer2Visible = this.hasLayer2;
 
@@ -856,7 +934,34 @@ export default {
 
       this.layer4.getSource().changed();
       this.map.render();
+    },
+
+   // Polygon - Cohort Table
+
+    onPolygonSelected(polygonId) {
+      // Handle polygon selection from table
+      console.log('Polygon selected:', polygonId);
+      // You can highlight the polygon on the map or show details
+    },
+    
+    onZoomToPolygon(polygonId) {
+      // Handle zoom to polygon from table
+      console.log('Zoom to polygon:', polygonId);
+      // Implement zoom logic to the specific polygon
+    },
+    
+    // Method to show/hide table
+    toggleDataTable() {
+      this.showDataTable = !this.showDataTable;
+    },
+
+    // Helper method to ensure number type
+    ensureNumber(value) {
+      if (value === null || value === undefined) return null;
+      const num = Number(value);
+      return isNaN(num) ? null : num;
     }
+
   }
 };
 </script>

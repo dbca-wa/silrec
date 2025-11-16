@@ -24,9 +24,9 @@ from silrec.components.main.models import (
     SecureFileField,
     RevisionedMixin,
 )
-from silrec.components.forest_blocks.models import (
-    Polygon,
-)
+#from silrec.components.forest_blocks.models import (
+#    Polygon,
+#)
 
 
 def update_proposal_doc_filename(instance, filename):

@@ -66,6 +66,10 @@ export default {
     tenures: '/api/tenures/',
     vestings: '/api/vestings/',
 
+    // ------------------- Polygon-Cohort Data Endpoints -------------------
+    //
+    polygon_cohort_table: '/api/polygon_cohort_table/',
+
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;
     },

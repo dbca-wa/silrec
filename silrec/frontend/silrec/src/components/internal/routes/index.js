@@ -16,6 +16,13 @@ import Approval from '@/components/internal/approvals/approval.vue';
 import CompetitiveProcess from '@/components/internal/competitive_process/competitive_process.vue';
 import ProposalMigrate from '@/components/internal/proposal_migrate.vue';
 
+//import { createRouter, createWebHistory  } from 'vue-router'
+//import ProposalMap from '@/components/ProposalMap.vue'
+import CohortDetail from '@/components/internal/cohorts/cohort_detail.vue'
+import TreatmentDetail from '@/components/internal/treatments/treatment_detail.vue'
+import TreatmentExtraDetail from '@/components/internal/treatments/treatment_extra_detail.vue'
+
+
 export default {
     path: '/internal',
     component: RouterView,
@@ -105,6 +112,45 @@ export default {
             path: 'competitive_process/:competitive_process_id',
             component: CompetitiveProcess,
             name: 'internal-competitive-process',
+        },
+        {
+            path: 'proposal/:proposal_id/cohorts/:cohortId/polygon/:polygonId',
+            name: 'cohort-detail',
+            component: CohortDetail,
+            props: true
+
+        },
+        {
+            path: 'cohorts/:cohortId',
+            name: 'cohort-detail-simple',
+            component: CohortDetail,
+            props: true
+
+        },
+        // New treatment routes
+        {
+            path: 'treatment/:treatmentId',
+            name: 'treatment-detail',
+            component: TreatmentDetail,
+            props: true
+        },
+        {
+            path: 'treatment-extra/:treatmentExtraId',
+            name: 'treatment-extra-detail',
+            component: TreatmentExtraDetail,
+            props: true
+        },
+        {
+            path: 'cohort/:cohortId/treatment/new',
+            name: 'new-treatment',
+            component: TreatmentDetail,
+            props: true
+        },
+        {
+            path: 'treatment/:treatmentId/extra/new',
+            name: 'new-treatment-extra',
+            component: TreatmentExtraDetail,
+            props: true
         },
     ],
 };

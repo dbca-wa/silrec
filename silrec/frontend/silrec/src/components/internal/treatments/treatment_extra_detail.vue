@@ -1,0 +1,116 @@
+<template>
+  <div class="treatment-extra-detail-container">
+    <div class="header-actions mb-4">
+      <button class="btn btn-secondary" @click="goBack">
+        <i class="bi bi-arrow-left"></i> Back
+      </button>
+      <h2 class="page-title">
+        {{ isNew ? 'Add Treatment Details' : 'Edit Treatment Details' }}
+      </h2>
+    </div>
+
+    <div v-if="loading" class="text-center">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <div v-if="error" class="alert alert-danger">
+      {{ error }}
+    </div>
+
+    <div v-if="!loading && !error" class="card">
+      <div class="card-body">
+        <TreatmentExtraForm
+          :treatment-id="treatmentId"
+          :extra-data="extraData"
+          :read-only="readOnly"
+          @extra-saved="handleExtraSaved"
+          @cancel="goBack"
+          @error="handleError"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import TreatmentExtraForm from './treatments_extras_form.vue';
+import { api_endpoints } from '@/utils/hooks';
+
+export default {
+  name: 'TreatmentExtraDetail',
+  components: {
+    TreatmentExtraForm
+  },
+  props: {
+    treatmentExtraId: {
+      type: [Number, String],
+      default: null
+    },
+    treatmentId: {
+      type: [Number, String],
+      required: true
+    }
+  },
+  data() {
+    return {
+      loading: false,
+      error: null,
+      extraData: null,
+      readOnly: false
+    };
+  },
+  computed: {
+    isNew() {
+      return !this.treatmentExtraId;
+    }
+  },
+  methods: {
+    goBack() {
+      this.$router.go(-1);
+    },
+    handleExtraSaved(extraData) {
+      this.$emit('extra-saved', extraData);
+      this.goBack();
+    },
+    handleError(errorMessage) {
+      this.error = errorMessage;
+    },
+    async loadExtraData() {
+      if (this.isNew) return;
+      
+      this.loading = true;
+      try {
+        const response = await this.$http.get(`${api_endpoints.treatment_extras}${this.treatmentExtraId}/`);
+        this.extraData = response.data;
+      } catch (error) {
+        console.error('Error loading treatment extra data:', error);
+        this.error = 'Failed to load treatment details';
+      } finally {
+        this.loading = false;
+      }
+    }
+  },
+  mounted() {
+    this.loadExtraData();
+  }
+};
+</script>
+
+<style scoped>
+.treatment-extra-detail-container {
+  padding: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.page-title {
+  margin: 0;
+  color: #333;
+}
+</style>

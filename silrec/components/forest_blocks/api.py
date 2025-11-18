@@ -9,6 +9,9 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
+#from rest_framework import viewsets, permissions
+
+
 from rest_framework import viewsets, serializers, status, generics, views
 #from rest_framework.decorators import detail_route, list_route,renderer_classes
 from rest_framework.decorators import action
@@ -17,7 +20,7 @@ from rest_framework.decorators import action as list_route
 from rest_framework.decorators import renderer_classes
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, BasePermission
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, BasePermission, SAFE_METHODS
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
 from rest_framework_datatables.filters import DatatablesFilterBackend
@@ -30,6 +33,7 @@ from silrec.components.forest_blocks.models import   (
     Polygon,
     Cohort,
     Treatment,
+    TreatmentXtra,
     AssignChtToPly,
 )
 from silrec.components.users.serializers import   (
@@ -38,6 +42,7 @@ from silrec.components.users.serializers import   (
 )
 from silrec.components.forest_blocks.serializers import   (
     TreatmentSerializer,
+    TreatmentXtraSerializer,
     CohortSerializer,
     SimpleCohortSerializer,
     PolygonSerializer,
@@ -47,6 +52,8 @@ from silrec.components.forest_blocks.serializers import   (
     PolygonCohortDataSerializer,
 )
 
+#from .models import Cohort, Treatment, TreatmentXtra
+#from .serializers import CohortSerializer, TreatmentSerializer, TreatmentXtraSerializer
 
 class GetProfile(views.APIView):
     renderer_classes = [JSONRenderer,]
@@ -565,4 +572,72 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
 #        serializer = PolygonCohortDataSerializer(result_page, context={'request':request}, many=True)
 #        return paginator.get_paginated_response(serializer.data)
 
+class IsOfficer(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.groups.filter(name='Officers').exists()
+
+class IsAssessor(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.groups.filter(name='Assessors').exists()
+
+class IsReviewer(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.groups.filter(name='Reviewers').exists()
+
+class IsSilrecAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.groups.filter(name='Silrec Admin').exists()
+
+class ReadOnlyPermission(BasePermission):
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return False
+
+class CohortViewSet(viewsets.ModelViewSet):
+    queryset = Cohort.objects.all()
+    serializer_class = CohortSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+        return [permission() for permission in permission_classes]
+
+class TreatmentViewSet(viewsets.ModelViewSet):
+    queryset = Treatment.objects.all()
+    serializer_class = TreatmentSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        queryset = Treatment.objects.all()
+        cohort_id = self.request.query_params.get('cohort_id')
+        if cohort_id:
+            queryset = queryset.filter(cohort_id=cohort_id)
+        return queryset
+
+class TreatmentXtraViewSet(viewsets.ModelViewSet):
+    queryset = TreatmentXtra.objects.all()
+    serializer_class = TreatmentXtraSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        queryset = TreatmentXtra.objects.all()
+        treatment_id = self.request.query_params.get('treatment_id')
+        if treatment_id:
+            queryset = queryset.filter(treatment_id=treatment_id)
+        return queryset
 

@@ -305,6 +305,18 @@ export default {
                         className: 'action-column',
                         render: function(data, type, row) {
                             let actions = '';
+                            // Get the first cohort ID for navigation
+                            const cohortId = row.assigned_cohorts && row.assigned_cohorts.length > 0 ? row.assigned_cohorts[0].cohort : null;
+                            console.log('JM 8: ' + JSON.stringify(row.proposal_id))
+
+                            if (cohortId) {
+                                actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">
+                                <i class="bi bi-pencil"></i> Edit 1</a>`;
+                            } else {
+                                actions += `<button class="btn btn-sm btn-outline-secondary me-1" disabled title="No Cohort Assigned">
+                                <i class="bi bi-pencil"></i> Edit</button>`;
+                            }
+
                             actions += `<button class="btn btn-sm btn-outline-primary me-1 view-polygon-btn" data-polygon-id="${data}" title="View Details">
                                 <i class="bi bi-eye"></i>
                             </button>`;

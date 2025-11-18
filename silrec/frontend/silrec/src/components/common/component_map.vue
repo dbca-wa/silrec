@@ -938,83 +938,12 @@ export default {
       this.map.render();
     },
 
-   // Polygon - Cohort Table
+    // Polygon - Cohort Table
 
     // Method to show/hide table
     toggleDataTable() {
       this.showDataTable = !this.showDataTable;
     },
-
-//    onPolygonSelected(polygonId) {
-//        // Handle polygon selection from table
-//        console.log('Polygon selected:', polygonId);
-//
-//        // Store the selected polygon ID
-//        this.selectedPolygonId = polygonId;
-//
-//        // Clear any existing feature selection
-//        this.closeFeaturePopup();
-//
-//        // Try to find and highlight the polygon in all layers
-//        this.highlightPolygonInLayers(polygonId);
-//    },
-//
-//    highlightPolygonInLayers(polygonId) {
-//        if (!this.map || !polygonId) return;
-//
-//        // Search through all vector layers for the polygon with matching ID
-//        const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
-//
-//        for (const layer of layers) {
-//            if (!layer || !layer.getVisible()) continue;
-//
-//            const source = layer.getSource();
-//            const features = source.getFeatures();
-//
-//            const foundFeature = features.find(feature => {
-//            // Try different property names that might contain the polygon ID
-//            const featureId = feature.get('id') || 
-//                            feature.get('polygon_id') || 
-//                            feature.get('poly_id') ||
-//                            feature.get('name') ||
-//                            (feature.get('properties') && feature.get('properties').id);
-//
-//            return featureId && featureId.toString() === polygonId.toString();
-//            });
-//
-//            if (foundFeature) {
-//            // Highlight the found feature
-//            this.selectInteraction.getFeatures().clear();
-//            this.selectInteraction.getFeatures().push(foundFeature);
-//
-//            // Show feature details in popup
-//            this.selectedFeature = foundFeature;
-//            this.showAdditionalInfo = false;
-//
-//            // Zoom to the selected feature
-//            this.zoomToFeature(foundFeature);
-//
-//            console.log('Found and highlighted polygon in layer:', layer);
-//            return; // Stop searching after finding the first match
-//            }
-//        }
-//
-//        console.warn('Polygon with ID', polygonId, 'not found in any visible layer');
-//    },
-//
-//    zoomToFeature(feature) {
-//        if (!feature || !this.map) return;
-//
-//        const geometry = feature.getGeometry();
-//        if (geometry) {
-//            const extent = geometry.getExtent();
-//            this.map.getView().fit(extent, {
-//            padding: [50, 50, 50, 50], // Add some padding around the feature
-//            duration: 1000,
-//            maxZoom: 15 // Optional: prevent zooming in too close
-//            });
-//        }
-//    },
 
     // Helper method to ensure number type
     ensureNumber(value) {

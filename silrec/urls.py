@@ -64,8 +64,8 @@ if settings.INCLUDE_ROOT_VIEW:
 router.register(r'users', users_api.UserViewSet, basename='users')
 router.register("proposal", proposal_api.ProposalViewSet, basename="proposal")
 #router.register(r"lookup_tbls", lookup_tbls_api.MainViewSet, basename="lookup_tbls")
-router.register(r'cohorts', forest_blocks_api.CohortViewSet, basename='cohorts')
-router.register(r'treatments', forest_blocks_api.TreatmentViewSet, basename='treatments')
+#router.register(r'cohorts', forest_blocks_api.CohortViewSet, basename='cohorts')
+#router.register(r'treatments', forest_blocks_api.TreatmentViewSet, basename='treatments')
 router.register(r'polygon', forest_blocks_api.PolygonViewSet, basename='polygon')
 router.register(r'polygon2', forest_blocks_api.Polygon2ViewSet, basename='polygon2')
 router.register(r'polygon3', forest_blocks_api.PolygonGeometryViewSet, basename='polygon3')
@@ -78,6 +78,10 @@ router.register(r"application_types", main_api.ApplicationTypeViewSet)
 
 router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableViewSet, basename='polygon_cohort_table')
 
+router.register(r'cohorts', forest_blocks_api.CohortViewSet)
+router.register(r'treatments', forest_blocks_api.TreatmentViewSet)
+router.register(r'treatment-extras', forest_blocks_api.TreatmentXtraViewSet)
+
 api_patterns = [
     #re_path(r'api/', include(router.urls)),
     re_path(r"^api/", include(router.urls)),
@@ -86,7 +90,6 @@ api_patterns = [
     #re_path(r"^api/cohorts/<int:cohort_id>/get_cohort$", forest_blocks_api.CohortViewSet.as_view({'get': 'get_cohort'}), name="get-cohort"),
     #re_path(r'^api/cohorts/<int:cohort_id>/get_cohort$', forest_blocks_api.CohortViewSet.as_view({'get': 'get_cohort'}), name='get-cohort'),
     re_path(r"^api/proposal_type$", proposal_api.GetProposalType.as_view(), name="get-proposal-type"),
-
 ]
 
 urlpatterns = [
@@ -121,6 +124,14 @@ urlpatterns = [
 #        name="polygon_cohort_table",
 #    ),
     #router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableViewSet, basename='polygon_cohort_table')
+
+#    # Cohort detail page (served by Vue frontend)
+#    re_path('cohorts/<int:cohort_id>/polygon/<int:polygon_id>/',
+#         views.CohortDetailView.as_view(), name='cohort-detail'),
+#
+#    # Alternative URL pattern without polygon_id
+#    re_path('cohorts/<int:cohort_id>/',
+#         views.CohortDetailView.as_view(), name='cohort-detail-simple'),
 
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]

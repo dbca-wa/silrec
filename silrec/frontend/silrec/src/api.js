@@ -69,6 +69,10 @@ export default {
     // ------------------- Polygon-Cohort Data Endpoints -------------------
     //
     polygon_cohort_table: '/api/polygon_cohort_table/',
+    cohorts: '/api/cohorts/',
+    treatments: '/api/treatments/',
+    treatment_extras: '/api/treatment-extras/',
+    tasks: '/api/tasks/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

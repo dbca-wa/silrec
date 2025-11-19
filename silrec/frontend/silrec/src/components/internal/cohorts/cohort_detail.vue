@@ -2,7 +2,7 @@
   <div class="cohort-detail-container">
     <div v-if="debug">internal/proposals/cohorts/cohort_detail.vue</div>
     <div class="header-actions mb-4">
-      <button class="btn btn-secondary" @click="$router.push('/')">
+      <button class="btn btn-secondary" @click="confirmCancel">
         <i class="bi bi-arrow-left"></i> Back to Map
       </button>
       <h2 class="page-title">
@@ -33,24 +33,61 @@
       {{ error }}
     </div>
 
-    <!-- Cohort Information -->
-    <div v-if="!loading && !error" class="card mb-4">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Cohort Information</h5>
-      </div>
-      <div class="card-body">
-        <CohortForm 
-          :cohort-id="$route.params.cohortId"
-          :polygon-id="$route.params.polygonId"
-          :read-only="!canEdit"
-          @cohort-updated="handleCohortUpdated"
-          @error="handleError"
-        />
-      </div>
+    <!-- Combined Cohort Form -->
+    <div v-if="!loading && !error && cohortData.cohort_id">
+      <form @submit.prevent="saveAndContinue">
+        <!-- Cohort Information -->
+        <div class="card mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              Cohort Information
+              <button 
+                type="button"
+                class="btn btn-sm btn-outline-info ms-2"
+                @click="showSystemInfo = true"
+                title="View System Information"
+              >
+                <i class="bi bi-info-circle"></i>
+              </button>
+            </h5>
+          </div>
+          <div class="card-body">
+            <CohortForm 
+              ref="cohortForm"
+              :cohort-data="cohortData"
+              :read-only="!canEdit"
+            />
+          </div>
+        </div>
+
+        <!-- Additional Cohort Fields (Collapsible) -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <button 
+                type="button"
+                class="btn btn-link p-0 border-0 text-decoration-none"
+                @click="showAdditionalFields = !showAdditionalFields"
+              >
+                <i class="bi" :class="showAdditionalFields ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+                Additional Cohort Fields
+              </button>
+            </h5>
+          </div>
+          <div v-if="showAdditionalFields" class="card-body">
+            <AdditionalCohortFields 
+              :key="additionalFieldsKey"
+              ref="additionalFields"
+              :cohort-data="cohortData"
+              :read-only="!canEdit"
+            />
+          </div>
+        </div>
+      </form>
     </div>
 
-    <!-- Treatments Section -->
-    <div v-if="!loading && !error" class="card">
+    <!-- Treatments Section (Separate from the form) -->
+    <div v-if="!loading && !error && cohortData.cohort_id" class="card mb-4">
       <div class="card-header">
         <h5 class="card-title mb-0">Treatments</h5>
       </div>
@@ -63,11 +100,99 @@
         />
       </div>
     </div>
+
+    <!-- Sticky Action Buttons -->
+    <div v-if="!loading && !error && cohortData.cohort_id && canEdit" class="sticky-action-buttons">
+      <div class="action-buttons-container">
+        <div class="action-buttons">
+          <button 
+            type="button" 
+            class="btn btn-secondary btn-lg"
+            @click="confirmCancel"
+          >
+            <i class="bi bi-x-circle"></i> Cancel
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary btn-lg"
+            @click="saveAndContinue"
+            :disabled="saving"
+          >
+            <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
+            <i class="bi bi-check-circle"></i> {{ saving ? 'Saving...' : 'Save and Continue' }}
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-success btn-lg"
+            @click="saveAndExit"
+            :disabled="saving"
+          >
+            <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
+            <i class="bi bi-check-lg"></i> {{ saving ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+        <div class="action-buttons-help">
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i> 
+            Cancel: Discard all changes and return to map | 
+            Save and Continue: Save changes and stay on this page | 
+            Save: Save changes and return to map
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Information Modal -->
+    <div v-if="showSystemInfo" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">System Information</h5>
+            <button type="button" class="btn-close" @click="showSystemInfo = false"></button>
+          </div>
+          <div class="modal-body">
+            <SystemInformation 
+              :cohort-data="cohortData"
+            />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="showSystemInfo = false">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel Confirmation Modal -->
+    <div v-if="showCancelConfirm" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Cancel</h5>
+            <button type="button" class="btn-close" @click="showCancelConfirm = false"></button>
+          </div>
+          <div class="modal-body">
+            <p><i class="bi bi-exclamation-triangle text-warning"></i> All unsaved changes will be lost. Are you sure you want to cancel?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="showCancelConfirm = false">
+              Continue Editing
+            </button>
+            <button type="button" class="btn btn-danger" @click="cancelChanges">
+              Discard Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import CohortForm from '@/components/internal/cohorts/cohort_form.vue';
+import AdditionalCohortFields from '@/components/internal/cohorts/additional_cohort_fields.vue';
+import SystemInformation from '@/components/internal/cohorts/system_info_cohort.vue';
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
 
@@ -75,6 +200,8 @@ export default {
   name: 'CohortDetail',
   components: {
     CohortForm,
+    AdditionalCohortFields,
+    SystemInformation,
     TreatmentsTable
   },
   data() {
@@ -82,7 +209,14 @@ export default {
       loading: false,
       error: null,
       cohortData: {},
-      userPermissions: []
+      userPermissions: [],
+      showAdditionalFields: false,
+      showSystemInfo: false,
+      showCancelConfirm: false,
+      additionalFieldsKey: 0,
+      saving: false,
+      readOnly: false,
+      hasUnsavedChanges: false
     };
   },
   computed: {
@@ -104,9 +238,10 @@ export default {
         this.error = null;
         
         try {
-          console.log('Loading cohort data from:', `${api_endpoints.cohorts}${this.$route.params.cohortId}/`);
+          const url = `${api_endpoints.cohorts}${this.$route.params.cohortId}/`;
+          console.log('Loading cohort data from:', url);
           
-          const response = await fetch(`${api_endpoints.cohorts}${this.$route.params.cohortId}/`);
+          const response = await fetch(url);
           
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -124,25 +259,132 @@ export default {
         }
     },
 
-    handleCohortUpdated(updatedData) {
-      this.cohortData = { ...this.cohortData, ...updatedData };
-      this.$emit('cohort-updated');
+    toggleAdditionalFields() {
+      this.showAdditionalFields = !this.showAdditionalFields;
+      if (this.showAdditionalFields) {
+        this.additionalFieldsKey += 1;
+      }
     },
+
+    async saveAllFields() {
+      this.saving = true;
+      this.error = null;
+      
+      try {
+        // Get data from both form components
+        const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
+        const additionalFormData = this.$refs.additionalFields ? this.$refs.additionalFields.formData : {};
+        
+        // Combine all data
+        const combinedData = {
+          ...mainFormData,
+          ...additionalFormData
+        };
+
+        console.log('Saving combined data JM:', combinedData);
+
+        console.log('SaveAllFields: ' + `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`);
+        const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+          },
+          body: JSON.stringify(combinedData)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+        }
+
+        const updatedData = await response.json();
+        this.cohortData = { ...this.cohortData, ...updatedData };
+        this.hasUnsavedChanges = false;
+        console.log('All fields saved successfully:', updatedData);
+        
+        return true;
+        
+      } catch (error) {
+        console.error('Error saving all fields:', error);
+        this.error = `Failed to save changes: ${error.message}`;
+        return false;
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    async saveAndContinue() {
+      const success = await this.saveAllFields();
+      if (success) {
+        this.$emit('success', 'Changes saved successfully');
+      }
+    },
+
+    async saveAndExit() {
+      const success = await this.saveAllFields();
+      if (success) {
+        this.$router.push('/');
+      }
+    },
+
+    confirmCancel() {
+      this.showCancelConfirm = true;
+    },
+
+    cancelChanges() {
+      this.showCancelConfirm = false;
+      this.$router.push('/');
+    },
+
     refreshTreatments() {
       if (this.$refs.treatmentsTable) {
         this.$refs.treatmentsTable.refreshData();
       }
     },
-    handleError(errorMessage) {
-      this.error = errorMessage;
-    },
+    
     loadUserPermissions() {
       this.userPermissions = helpers.getUserPermissions();
+    },
+
+    getCSRFToken() {
+      const name = 'csrftoken';
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    },
+
+    // Detect unsaved changes (you can enhance this with form change detection)
+    markUnsavedChanges() {
+      this.hasUnsavedChanges = true;
     }
   },
   mounted() {
     this.loadCohortData();
-    this.loadUserPermissions();
+    //this.loadUserPermissions();
+    
+    // Add beforeunload handler to warn about unsaved changes
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+  },
+  beforeUnmount() {
+    // Remove the beforeunload handler
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+  },
+  beforeUnloadHandler(event) {
+    if (this.hasUnsavedChanges) {
+      event.preventDefault();
+      event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+    }
   },
   watch: {
     '$route.params.cohortId': {
@@ -166,5 +408,103 @@ export default {
 .page-title {
   margin: 0;
   flex-grow: 1;
+}
+
+.card-header .btn-link {
+  color: #333;
+  font-weight: 600;
+}
+
+.card-header .btn-link:hover {
+  color: #0056b3;
+  text-decoration: none;
+}
+
+.card-header .btn-outline-info {
+  border: none;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.card-header .btn-outline-info:hover {
+  background-color: #0dcaf0;
+  color: white;
+}
+
+/* Sticky Action Buttons */
+.sticky-action-buttons {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid #dee2e6;
+  padding: 15px 0;
+  margin-top: 20px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.action-buttons-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.action-buttons .btn-lg {
+  min-width: 180px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.action-buttons-help {
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .action-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .action-buttons .btn-lg {
+    min-width: 100%;
+    width: 100%;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .page-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Button icons */
+.btn i {
+  margin-right: 8px;
+}
+
+/* Success button specific styling */
+.btn-success {
+  background-color: #198754;
+  border-color: #198754;
+}
+
+.btn-success:hover {
+  background-color: #157347;
+  border-color: #146c43;
 }
 </style>

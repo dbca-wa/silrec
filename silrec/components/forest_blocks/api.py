@@ -359,10 +359,88 @@ class CohortViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
 
+
+class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
+    """
+    Custom filter backend for datatables treatment filtering
+    """
+    def filter_queryset(self, request, queryset, view):
+        total_count = queryset.count()
+
+        # Apply custom filters for treatments
+        filter_task = request.query_params.get('filter_task', '')
+        filter_status = request.query_params.get('filter_status', 'all')
+        filter_plan_year = request.query_params.get('filter_plan_year', '')
+        filter_plan_month = request.query_params.get('filter_plan_month', 'all')
+        filter_complete_date_from = request.query_params.get('filter_complete_date_from', '')
+        filter_complete_date_to = request.query_params.get('filter_complete_date_to', '')
+        filter_machine = request.query_params.get('filter_machine', '')
+        filter_operator = request.query_params.get('filter_operator', '')
+
+        # Filter by task name
+        if filter_task:
+            queryset = queryset.filter(task__name__icontains=filter_task)
+
+        # Filter by status
+        if filter_status != 'all':
+            queryset = queryset.filter(status=filter_status)
+
+        # Filter by planned year
+        if filter_plan_year:
+            try:
+                plan_year = int(filter_plan_year)
+                queryset = queryset.filter(plan_yr=plan_year)
+            except ValueError:
+                pass
+
+        # Filter by planned month
+        if filter_plan_month != 'all':
+            try:
+                plan_month = int(filter_plan_month)
+                queryset = queryset.filter(plan_mth=plan_month)
+            except ValueError:
+                pass
+
+        # Filter by complete date range
+        if filter_complete_date_from:
+            try:
+                complete_date_from = datetime.strptime(filter_complete_date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(complete_date__gte=complete_date_from)
+            except ValueError:
+                pass
+
+        if filter_complete_date_to:
+            try:
+                complete_date_to = datetime.strptime(filter_complete_date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(complete_date__lte=complete_date_to)
+            except ValueError:
+                pass
+
+        # Filter by machine (from TreatmentXtra)
+        if filter_machine:
+            queryset = queryset.filter(
+                treatmentxtra__machine__icontains=filter_machine
+            ).distinct()
+
+        # Filter by operator (from TreatmentXtra)
+        if filter_operator:
+            queryset = queryset.filter(
+                treatmentxtra__operator__icontains=filter_operator
+            ).distinct()
+
+        filtered_count = queryset.count()
+
+        setattr(view, '_datatables_total_count', total_count)
+        setattr(view, '_datatables_filtered_count', filtered_count)
+
+        return queryset
+
+
 class TreatmentViewSet(viewsets.ModelViewSet):
     queryset = Treatment.objects.all()
     serializer_class = TreatmentSerializer
     pagination_class = DatatablesPageNumberPagination
+    filter_backends = (TreatmentDatatablesFilterBackend,)
 
 #    def get_permissions(self):
 #        #import ipdb; ipdb.set_trace()

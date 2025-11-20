@@ -347,6 +347,11 @@ class CohortViewSet(viewsets.ModelViewSet):
     queryset = Cohort.objects.all()
     serializer_class = CohortSerializer
 
+#    def get_queryset(self):
+#        #import ipdb; ipdb.set_trace()
+#        print(self.request.query_params)
+#        pass
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
@@ -357,12 +362,50 @@ class CohortViewSet(viewsets.ModelViewSet):
 class TreatmentViewSet(viewsets.ModelViewSet):
     queryset = Treatment.objects.all()
     serializer_class = TreatmentSerializer
+    pagination_class = DatatablesPageNumberPagination
+
+#    def get_permissions(self):
+#        #import ipdb; ipdb.set_trace()
+#        if self.action in ['list', 'retrieve', 'create', 'update']:
+#            permission_classes = [IsAuthenticated]
+#        else:
+#            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+#        return [permission() for permission in permission_classes]
+#
+#    def get_queryset(self):
+#        queryset = Treatment.objects.all()
+#        #cohort_id = self.request.query_params.get('cohort_id')
+#        cohort_id = self.request.data.get('cohort')
+#        if cohort_id:
+#            queryset = queryset.filter(cohort_id=cohort_id)
+#        return queryset
+#
+#    def _create(self, request):
+#        import ipdb; ipdb.set_trace()
+#
+#        serializer = self.get_serializer(data=request.data)
+#        serializer.is_valid(raise_exception=True)
+#
+#        pass
+#
+#    def create(self, request, *args, **kwargs):
+#        try:
+#            response = super().create(request, *args, **kwargs)
+#        except Exception as e:
+#            print(str(e))
+#        return response
 
     def get_permissions(self):
+        print(f"TreatmentViewSet - Action: {self.action}")
+        print(f"TreatmentViewSet - User: {self.request.user}")
+        print(f"TreatmentViewSet - User groups: {[g.name for g in self.request.user.groups.all()]}")
+
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         else:
             permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+
+        print(f"TreatmentViewSet - Permission classes: {permission_classes}")
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
@@ -371,6 +414,32 @@ class TreatmentViewSet(viewsets.ModelViewSet):
         if cohort_id:
             queryset = queryset.filter(cohort_id=cohort_id)
         return queryset
+
+    def _create(self, request, *args, **kwargs):
+        print(f"Create treatment - Data: {request.data}")
+        print(f"Create treatment - User: {request.user}")
+        print(f"Create treatment - self.request.query_params: {self.request.query_params}")
+
+        try:
+            # Add debug logging
+            serializer = self.get_serializer(data=request.data)
+            print(f"Serializer is valid: {serializer.is_valid()}")
+            if not serializer.is_valid():
+                print(f"Serializer errors: {serializer.errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        except Exception as e:
+            print(f"Error creating treatment: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            return Response(
+                {"error": f"Internal server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class TreatmentXtraViewSet(viewsets.ModelViewSet):
     queryset = TreatmentXtra.objects.all()

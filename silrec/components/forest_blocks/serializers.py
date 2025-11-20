@@ -295,8 +295,8 @@ class TreatmentSerializer(serializers.ModelSerializer):
 
         # Set extra_info flag based on task type or other criteria
         task = validated_data.get('task')
-        if task and task.requires_extra_info:  # Assuming TaskLkp has this field
-            validated_data['zextra_info'] = True
+#        if task and task.requires_extra_info:  # Assuming TaskLkp has this field
+#            validated_data['zextra_info'] = True
 
         return super().create(validated_data)
 

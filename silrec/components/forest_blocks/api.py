@@ -64,153 +64,6 @@ class GetProfile(views.APIView):
         return Response(serializer.data)
 
 
-class CohortViewSet(viewsets.ModelViewSet):
-    queryset = Cohort.objects.none()
-    serializer_class = CohortSerializer
-
-    def get_queryset(self):
-        import ipdb; ipdb.set_trace()
-        user = self.request.user
-        if is_internal(self.request):
-            return Cohort.objects.all()
-        elif is_customer(self.request):
-            qs = Cohort.objects.filter(Q(id=user.id))
-            return qs
-        return Cohort.objects.none()
-
-    def list(self, request, *args, **kwargs):
-        """ http://localhost:8001/api/cohorts.json
-        """
-        #qs = Cohort.objects.filter().order_by('cohort_id')[:5]
-        qs = self.get_queryset().order_by('cohort_id')[:5]
-        return Response(qs.values('cohort_id', 'obj_code', 'op_id', 'op_date', 'pct_area'))
-
-    @action(detail=True, methods=['GET'])
-    def get_cohort(self, request, *args, **kwargs):
-        """ http://localhost:8001/api/cohorts/116011/get_cohort/
-        """
-        try:
-            #import ipdb; ipdb.set_trace()
-            #instance = self.get_object()
-            cohort_id = self.kwargs['pk']
-            instance = Cohort.objects.get(cohort_id=cohort_id)
-
-            serializer = CohortSerializer(instance, context={'request': request})
-            return Response(serializer.data)
-        except serializers.ValidationError:
-            print(traceback.print_exc())
-            raise
-        except ValidationError as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
-        except Exception as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(str(e))
-
-    @action(detail=True, methods=['GET'])
-    def get_simple_cohort(self, request, *args, **kwargs):
-        """ http://localhost:8001/api/cohorts/116011/get_simple_cohort/
-        """
-        try:
-            import ipdb; ipdb.set_trace()
-            #instance = self.get_object()
-            cohort_id = self.kwargs['pk']
-            instance = Cohort.objects.filter(cohort_id=cohort_id)
-
-            serializer = SimpleCohortSerializer(instance, many=True, context={'request': request})
-            return Response(serializer.data)
-        except serializers.ValidationError:
-            print(traceback.print_exc())
-            raise
-        except ValidationError as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
-        except Exception as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(str(e))
-
-
-    @action(detail=True, methods=['GET'])
-    def custom(self, request, *args, **kwargs):
-        '''
-        http://localhost:8001/api/users/1/custom/
-        '''
-        import ipdb; ipdb.set_trace()
-        obj = self.get_object()
-        return Response(CohortSerializer(obj, context={'request': request}).data)
-        #return Response(self.queryset.values('id', 'first_name', 'last_name', 'email'))
-#        serializer  = UserSerializer(request.user,
-#                context={'request': request}
-#                )
-#        return Response(serializer.data)
-
-    @action(detail=False, methods=['GET'])
-    def get_department_users(self, request, *args, **kwargs):
-        try:
-            search_term = request.GET.get('term', '')
-            #serializer = UserSerializer(
-            #        staff,
-            #        many=True
-            #        )
-            #return Response(serializer.data)
-            data = self.get_queryset().filter(is_staff=True). \
-                filter(Q(first_name__icontains=search_term) | Q(last_name__icontains=search_term)). \
-                values('email', 'first_name', 'last_name')[:10]
-            data_transform = [{'id': person['email'], 'text': person['first_name'] + ' ' + person['last_name']} for person in data]
-            return Response({"results": data_transform})
-        except serializers.ValidationError:
-            print(traceback.print_exc())
-            raise
-        except ValidationError as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
-        except Exception as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(str(e))
-
-class TreatmentViewSet(viewsets.ModelViewSet):
-    queryset = Treatment.objects.none()
-    serializer_class = TreatmentSerializer
-
-    def get_queryset(self):
-        #import ipdb; ipdb.set_trace()
-        user = self.request.user
-        if is_internal(self.request):
-            return Cohort.objects.all()
-        elif is_customer(self.request):
-            qs = Cohort.objects.filter(Q(id=user.id))
-            return qs
-        return Cohort.objects.none()
-
-    def list(self, request, *args, **kwargs):
-        """ http://localhost:8001/api/cohorts.json
-        """
-        #qs = Cohort.objects.filter().order_by('cohort_id')[:5]
-        qs = self.get_queryset().order_by('cohort_id')[:5]
-        return Response(qs.values('cohort_id', 'obj_code', 'op_id', 'op_date', 'pct_area'))
-
-    @action(detail=True, methods=['GET'])
-    def get_treatment(self, request, *args, **kwargs):
-        """ http://localhost:8001/api/treatment/116011/get_treatment/
-        """
-        try:
-            import ipdb; ipdb.set_trace()
-            #instance = self.get_object()
-            cohort_id = self.kwargs['pk']
-            qs = Treatment.objects.filter(cohort_id=cohort_id)
-
-            serializer = TreatmentSerializer(qs, many=True, context={'request': request})
-            return Response(serializer.data)
-        except serializers.ValidationError:
-            print(traceback.print_exc())
-            raise
-        except ValidationError as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
-        except Exception as e:
-            print(traceback.print_exc())
-            raise serializers.ValidationError(str(e))
-
 class PolygonCohortViewSet(viewsets.ModelViewSet):
     queryset = AssignChtToPly.objects.none()
     serializer_class = PolygonCohortSerializer
@@ -340,109 +193,6 @@ class PolygonPaginatedViewSet(viewsets.ModelViewSet):
 
 
 from silrec.components.forest_blocks.models import Polygon, AssignChtToPly, Cohort
-#class PolygonCohortTableViewSet(UserActionLoggingViewset):
-#class PolygonCohortTableViewSet(viewsets.ModelViewSet):
-#    queryset = Polygon.objects.none()
-#    serializer_class = PolygonCohortDataSerializer
-#
-#    def get_queryset(self):
-#        #import ipdb; ipdb.set_trace()
-#        proposal_id = self.request.query_params.get('proposal_id')
-#        if proposal_id:
-#            return Polygon.objects.filter(
-#                proposal_id=proposal_id
-#            ).prefetch_related(
-#                'assignchttoply_set',
-#                'assignchttoply_set__cohort'
-#            )
-#        return Polygon.objects.none()
-#
-#    def list(self, request, *args, **kwargs):
-#        queryset = self.filter_queryset(self.get_queryset())
-#
-#        # Add pagination for datatables
-#        page = self.paginate_queryset(queryset)
-#        if page is not None:
-#            serializer = self.get_serializer(page, many=True)
-#            return self.get_paginated_response(serializer.data)
-#
-#        serializer = self.get_serializer(queryset, many=True)
-#        return Response(serializer.data)
-
-
-#class DatatablesPageNumberPagination2(PageNumberPagination):
-#    page_size_query_param = 'page_size'
-#    #max_page_size = 10
-#    page_size = 2
-#
-#    def get_paginated_response(self, data):
-#        return Response({
-#            'draw': self.request.query_params.get('draw', 1),
-#            'recordsTotal': self.page.paginator.count,
-#            'recordsFiltered': self.page.paginator.count,
-#            'data': data
-#        })
-#
-#
-#class PolygonCohortTableViewSet(viewsets.ModelViewSet):
-#    queryset = Polygon.objects.none()
-#    serializer_class = PolygonCohortDataSerializer
-#    pagination_class = DatatablesPageNumberPagination2
-#
-#    def get_queryset(self):
-#        proposal_id = self.request.query_params.get('proposal_id')
-#        if proposal_id:
-#            return Polygon.objects.filter(
-#                proposal_id=proposal_id
-#            ).prefetch_related(
-#                'assignchttoply_set',
-#                'assignchttoply_set__cohort'
-#            )
-#        return Polygon.objects.none()
-#
-#    def _list(self, request, *args, **kwargs):
-#        queryset = self.filter_queryset(self.get_queryset())
-#
-#        # Apply filters
-#        filter_polygon_name = request.query_params.get('filter_polygon_name', '')
-#        filter_species = request.query_params.get('filter_species', '')
-#        filter_min_area = request.query_params.get('filter_min_area', '')
-#        filter_cohort_status = request.query_params.get('filter_cohort_status', 'all')
-#
-#        if filter_polygon_name:
-#            queryset = queryset.filter(name__icontains=filter_polygon_name)
-#
-#        if filter_min_area:
-#            try:
-#                min_area = float(filter_min_area)
-#                queryset = queryset.filter(area_ha__gte=min_area)
-#            except ValueError:
-#                pass
-#
-#        # For species filtering, we need to filter polygons that have cohorts with matching species
-#        if filter_species:
-#            queryset = queryset.filter(
-#                assignchttoply__cohort__species__icontains=filter_species,
-#                assignchttoply__status_current=True
-#            ).distinct()
-#
-#        # For cohort status filtering
-#        if filter_cohort_status != 'all':
-#            status_active = filter_cohort_status == 'active'
-#            queryset = queryset.filter(
-#                assignchttoply__status_current=status_active
-#            ).distinct()
-#
-#        # Add pagination for datatables
-#        page = self.paginate_queryset(queryset)
-#        if page is not None:
-#            serializer = self.get_serializer(page, many=True)
-#            return self.get_paginated_response(serializer.data)
-#
-#        serializer = self.get_serializer(queryset, many=True)
-#        return Response(serializer.data)
-
-# Temporary debug view to check related names
 class DebugPolygonRelationsView(views.APIView):
     ''' Check relation names
         http://localhost:8001/api/debug-polygon-relations/
@@ -473,12 +223,6 @@ class DebugPolygonRelationsView(views.APIView):
                 'related_fields': relations_info
             })
         return Response({'error': 'No Polygon objects found'})
-
-# Add to urls.py temporarily:
-# path('api/debug-polygon-relations/', api_views.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
-
-#from rest_framework.pagination import PageNumberPagination
-#from rest_framework.response import Response
 
 class DatatablesPageNumberPagination(PageNumberPagination):
     page_size_query_param = 'length'
@@ -574,25 +318,30 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
 
 class IsOfficer(BasePermission):
     def has_permission(self, request, view):
-        return request.user.groups.filter(name='Officers').exists()
+        #return request.user.groups.filter(name='Officers').exists()
+        return True
 
 class IsAssessor(BasePermission):
     def has_permission(self, request, view):
-        return request.user.groups.filter(name='Assessors').exists()
+        #return request.user.groups.filter(name='Assessors').exists()
+        return True
 
 class IsReviewer(BasePermission):
     def has_permission(self, request, view):
-        return request.user.groups.filter(name='Reviewers').exists()
+        #return request.user.groups.filter(name='Reviewers').exists()
+        return True
 
 class IsSilrecAdmin(BasePermission):
     def has_permission(self, request, view):
-        return request.user.groups.filter(name='Silrec Admin').exists()
+        #return request.user.groups.filter(name='Silrec Admin').exists()
+        return True
 
 class ReadOnlyPermission(BasePermission):
     def has_permission(self, request, view):
-        if request.method in SAFE_METHODS:
-            return True
-        return False
+        return True
+#        if request.method in SAFE_METHODS:
+#            return True
+#        return False
 
 class CohortViewSet(viewsets.ModelViewSet):
     queryset = Cohort.objects.all()

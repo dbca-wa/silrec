@@ -67,7 +67,7 @@
               <button 
                 type="button"
                 class="btn btn-link p-0 border-0 text-decoration-none"
-                @click="showAdditionalFields = !showAdditionalFields"
+                @click="toggleAdditionalFields"
               >
                 <i class="bi" :class="showAdditionalFields ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
                 Additional Cohort Fields
@@ -259,10 +259,66 @@ export default {
         }
     },
 
-    toggleAdditionalFields() {
+    async toggleAdditionalFields() {
+      console.log('toggleAdd: 1 - Current state:', this.showAdditionalFields);
+      
+      // If currently showing and about to collapse, check for changes
+      if (this.showAdditionalFields && this.$refs.additionalFields) {
+        console.log('toggleAdd: 2 - Checking for changes before collapse');
+        const hasChanges = this.$refs.additionalFields.checkForChanges();
+        console.log('toggleAdd: 3 - Has changes:', hasChanges);
+        
+        if (hasChanges) {
+          console.log('toggleAdd: 4 - Auto-saving changes');
+          await this.autoSaveAdditionalFields();
+        }
+      }
+      
+      // Toggle the visibility
       this.showAdditionalFields = !this.showAdditionalFields;
-      if (this.showAdditionalFields) {
-        this.additionalFieldsKey += 1;
+      console.log('toggleAdd: 5 - New state:', this.showAdditionalFields);
+    },
+
+    async autoSaveAdditionalFields() {
+      console.log('autoSaveAdditionalFields: 1 - Starting auto-save');
+      try {
+        const additionalFormData = this.$refs.additionalFields.getFormDataForAPI();
+        const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
+        
+        const combinedData = {
+          ...mainFormData,
+          ...additionalFormData
+        };
+
+        console.log('autoSaveAdditionalFields: 2 - Combined data:', combinedData);
+
+        if (!combinedData.obj_code || !combinedData.regen_method) {
+          console.log('autoSaveAdditionalFields: 3 - Missing required fields, skipping save');
+          return;
+        }
+
+        const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
+        console.log('autoSaveAdditionalFields: 4 - Making API call to:', url);
+        
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+          },
+          body: JSON.stringify(combinedData)
+        });
+
+        if (response.ok) {
+          const updatedData = await response.json();
+          this.cohortData = { ...this.cohortData, ...updatedData };
+          this.$refs.additionalFields.resetChangeTracking();
+          console.log('autoSaveAdditionalFields: 5 - Auto-save successful');
+        } else {
+          console.error('autoSaveAdditionalFields: 6 - API error:', response.status);
+        }
+      } catch (error) {
+        console.error('autoSaveAdditionalFields: 7 - Error:', error);
       }
     },
 
@@ -273,7 +329,7 @@ export default {
       try {
         // Get data from both form components
         const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
-        const additionalFormData = this.$refs.additionalFields ? this.$refs.additionalFields.formData : {};
+        const additionalFormData = this.$refs.additionalFields ? this.$refs.additionalFields.getFormDataForAPI() : {};
         
         // Combine all data
         const combinedData = {
@@ -281,9 +337,16 @@ export default {
           ...additionalFormData
         };
 
-        console.log('Saving combined data JM:', combinedData);
+        console.log('Saving combined data:', combinedData);
 
-        console.log('SaveAllFields: ' + `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`);
+        // Validate required fields
+        if (!combinedData.obj_code) {
+          throw new Error('Objective Code is required');
+        }
+        if (!combinedData.regen_method) {
+          throw new Error('Regeneration Method is required');
+        }
+
         const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
         const response = await fetch(url, {
           method: 'PUT',
@@ -302,6 +365,12 @@ export default {
         const updatedData = await response.json();
         this.cohortData = { ...this.cohortData, ...updatedData };
         this.hasUnsavedChanges = false;
+        
+        // Reset change tracking in additional fields
+        if (this.$refs.additionalFields) {
+          this.$refs.additionalFields.resetChangeTracking();
+        }
+        
         console.log('All fields saved successfully:', updatedData);
         
         return true;

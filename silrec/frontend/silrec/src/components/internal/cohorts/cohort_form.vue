@@ -3,7 +3,7 @@
     <div class="row">
       <div class="col-md-6">
         <div class="form-group mb-3">
-          <label for="objCode" class="form-label">Objective Code *</label>
+          <label for="objCode" class="form-label required">Objective Code</label>
           <input
             id="objCode"
             v-model="formData.obj_code"
@@ -28,6 +28,35 @@
             maxlength="3"
           />
           <div class="form-text">Dominant overstorey API species</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group mb-3">
+          <label for="regenMethod" class="form-label required">Regeneration Method</label>
+          <input
+            id="regenMethod"
+            v-model="formData.regen_method"
+            type="text"
+            class="form-control"
+            :readonly="readOnly"
+            required
+          />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group mb-3">
+          <label for="siteQuality" class="form-label">Site Quality</label>
+          <input
+            id="siteQuality"
+            v-model="formData.site_quality"
+            type="text"
+            class="form-control"
+            :readonly="readOnly"
+            maxlength="6"
+          />
         </div>
       </div>
     </div>
@@ -63,14 +92,14 @@
       </div>
       <div class="col-md-4">
         <div class="form-group mb-3">
-          <label for="siteQuality" class="form-label">Site Quality</label>
+          <label for="targetSpha" class="form-label">Target SPHA</label>
           <input
-            id="siteQuality"
-            v-model="formData.site_quality"
-            type="text"
+            id="targetSpha"
+            v-model.number="formData.target_spha"
+            type="number"
+            min="0"
             class="form-control"
             :readonly="readOnly"
-            maxlength="6"
           />
         </div>
       </div>
@@ -127,8 +156,10 @@ export default {
       this.formData = {
         obj_code: cohortData.obj_code || '',
         species: cohortData.species || '',
+        regen_method: cohortData.regen_method || '',
         target_ba_m2ha: cohortData.target_ba_m2ha || null,
         resid_ba_m2ha: cohortData.resid_ba_m2ha || null,
+        target_spha: cohortData.target_spha || null,
         site_quality: cohortData.site_quality || '',
         comments: cohortData.comments || ''
       };
@@ -149,6 +180,11 @@ export default {
 .form-label {
   font-weight: 500;
   margin-bottom: 0.5rem;
+}
+
+.form-label.required::after {
+  content: " *";
+  color: #dc3545;
 }
 
 .form-control:read-only {

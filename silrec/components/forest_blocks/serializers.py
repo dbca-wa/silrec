@@ -587,31 +587,6 @@ class Polygon2Serializer(serializers.ModelSerializer):
         )
 
 
-
-#class _CohortSerializer(serializers.ModelSerializer):
-#    class Meta:
-#        model = Cohort
-#        #fields = ['id', 'first_name', 'last_name', 'email']
-#        fields = '__all__'
-#
-#
-#class _SimpleCohortSerializer(serializers.ModelSerializer):
-#    treatments = TreatmentSerializer(source='treatment_set', many=True)
-#
-#    class Meta:
-#        model = Cohort
-#        #fields = '__all__'
-#        fields = (
-#			"obj_code",
-#			"op_id",
-#			"op_date",
-#			"pct_area",
-#			"year_last_cut",
-#			"regen_date",
-#
-#			"treatments",
-#        )
-
 class PolygonCohortSerializer(serializers.ModelSerializer):
     polygon = PolygonSerializer()
     cohort = CohortSerializer()
@@ -641,62 +616,6 @@ class UserSerializerSimple(serializers.ModelSerializer):
 # 16-Nov-2025 -------------------
 
 from silrec.components.forest_blocks.models import Polygon, AssignChtToPly, Cohort
-
-#class CohortDataSerializer(serializers.ModelSerializer):
-#    class Meta:
-#        model = Cohort
-#        fields = (
-#            'cohort_id',
-#            'obj_code',
-#            'target_ba_m2ha',
-#            'resid_ba_m2ha',
-#            'target_spha',
-#            'resid_spha',
-#            'species',
-#            'regen_method',
-#            'site_quality'
-#        )
-#
-#class AssignChtToPlySerializer(serializers.ModelSerializer):
-#    cohort_details = CohortDataSerializer(source='cohort', read_only=True)
-#
-#    class Meta:
-#        model = AssignChtToPly
-#        fields = (
-#            'cht2ply_id',
-#            'cohort',
-#            'cohort_details',
-#            'cohort_closed',
-#            'status_current',
-#            'created_on',
-#            'updated_on'
-#        )
-#
-#class PolygonCohortDataSerializer(serializers.ModelSerializer):
-#    assigned_cohorts = serializers.SerializerMethodField()
-#    proposal_id = serializers.IntegerField(source='proposal.id', read_only=True)
-#
-#    class Meta:
-#        model = Polygon
-#        fields = (
-#            'polygon_id',
-#            'proposal_id',
-#            'name',
-#            'compartment',
-#            'area_ha',
-#            'zfea_id',
-#            'created_on',
-#            'updated_on',
-#            'assigned_cohorts'
-#        )
-#
-#    def get_assigned_cohorts(self, obj):
-#        assigned_cht = AssignChtToPly.objects.filter(
-#            polygon=obj,
-#            status_current=True
-#        ).select_related('cohort')
-#        return AssignChtToPlySerializer(assigned_cht, many=True).data
-
 class CohortDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cohort

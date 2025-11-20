@@ -60,6 +60,7 @@ export default {
           url: api_endpoints.treatments,
           dataSrc: 'data',
           data: function(d) {
+            console.log('JM 11: ' + api_endpoints.treatments)
             d.cohort_id = vm.cohortId;
           }
         },
@@ -70,7 +71,7 @@ export default {
             visible: false
           },
           {
-            data: 'task_name',
+            data: 'task',
             name: 'task__name',
             orderable: true
           },
@@ -157,7 +158,17 @@ export default {
     async deleteTreatment(treatmentId) {
       if (confirm('Are you sure you want to delete this treatment?')) {
         try {
-          await this.$http.delete(`${api_endpoints.treatments}${treatmentId}/`);
+          const response = await fetch(`${api_endpoints.treatments}${treatmentId}/`, {
+            method: 'DELETE',
+            headers: {
+              'X-CSRFToken': this.getCSRFToken()
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
           this.refreshData();
           this.$emit('treatment-updated');
         } catch (error) {
@@ -165,6 +176,21 @@ export default {
           alert('Failed to delete treatment');
         }
       }
+    },
+    getCSRFToken() {
+      const name = 'csrftoken';
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
     }
   }
 };

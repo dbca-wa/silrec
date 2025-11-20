@@ -54,6 +54,7 @@
           <div class="card-body">
             <CohortForm 
               ref="cohortForm"
+              :cohortId="cohortId"
               :cohort-data="cohortData"
               :read-only="!canEdit"
             />
@@ -86,18 +87,54 @@
       </form>
     </div>
 
-    <!-- Treatments Section (Separate from the form) -->
+    <!-- Treatments Section (Collapsible) -->
     <div v-if="!loading && !error && cohortData.cohort_id" class="card mb-4">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Treatments</h5>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+          <button 
+            type="button"
+            class="btn btn-link p-0 border-0 text-decoration-none"
+            @click="toggleTreatments"
+          >
+            <i class="bi" :class="showTreatments ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+            Treatments 
+            <span class="badge bg-secondary ms-2">{{ treatmentsCount }}</span>
+          </button>
+        </h5>
+        <div>
+          <router-link 
+            v-if="canEdit"
+            :to="`/internal/cohort/${$route.params.cohortId}/treatment/new`"
+            class="btn btn-primary btn-sm"
+          >
+            <i class="bi bi-plus"></i> Add Treatment
+          </router-link>
+          <button 
+            v-if="showTreatments"
+            type="button" 
+            class="btn btn-outline-secondary btn-sm ms-2"
+            @click="refreshTreatments"
+            title="Refresh Treatments"
+          >
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
       </div>
-      <div class="card-body">
-        <TreatmentsTable 
-          ref="treatmentsTable"
-          :cohort-id="$route.params.cohortId"
-          :read-only="!canEdit"
-          @treatment-updated="refreshTreatments"
-        />
+      <div v-if="showTreatments" class="card-body">
+        <div v-if="treatmentsLoading" class="text-center">
+          <div class="spinner-border spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading treatments...</span>
+          </div>
+          <span class="ms-2">Loading treatments...</span>
+        </div>
+        <div v-else>
+          <TreatmentsTable 
+            ref="treatmentsTable"
+            :cohort-id="$route.params.cohortId"
+            :read-only="!canEdit"
+            @treatment-updated="refreshTreatments"
+          />
+        </div>
       </div>
     </div>
 
@@ -204,6 +241,20 @@ export default {
     SystemInformation,
     TreatmentsTable
   },
+  props: {
+    proposal_id: {
+      type: [Number, String],
+      default: null
+    },
+    cohortId: {
+      type: [Number, String],
+      required: true
+    },
+    polygonId: {
+      type: [Number, String],
+      default: null
+    }
+  },
   data() {
     return {
       loading: false,
@@ -211,12 +262,15 @@ export default {
       cohortData: {},
       userPermissions: [],
       showAdditionalFields: false,
+      showTreatments: false,
       showSystemInfo: false,
       showCancelConfirm: false,
       additionalFieldsKey: 0,
       saving: false,
       readOnly: false,
-      hasUnsavedChanges: false
+      hasUnsavedChanges: false,
+      treatmentsLoading: false,
+      treatmentsCount: 0
     };
   },
   computed: {
@@ -238,7 +292,9 @@ export default {
         this.error = null;
         
         try {
-          const url = `${api_endpoints.cohorts}${this.$route.params.cohortId}/`;
+          // Use the prop cohortId instead of $route.params.cohortId
+          const cohortId = this.cohortId || this.$route.params.cohortId;
+          const url = `${api_endpoints.cohorts}${cohortId}/`;
           console.log('Loading cohort data from:', url);
           
           const response = await fetch(url);
@@ -257,6 +313,60 @@ export default {
         } finally {
           this.loading = false;
         }
+    },
+
+    async toggleTreatments() {
+      // Toggle the visibility
+      this.showTreatments = !this.showTreatments;
+      
+      // If we're expanding the treatments section, refresh the data
+      if (this.showTreatments) {
+        await this.refreshTreatments();
+      }
+    },
+
+    async refreshTreatments() {
+      if (!this.showTreatments) return;
+      
+      this.treatmentsLoading = true;
+      try {
+        // Refresh the treatments table
+        if (this.$refs.treatmentsTable) {
+          this.$refs.treatmentsTable.refreshData();
+        }
+        
+        // Also fetch the treatments count for the badge
+        await this.loadTreatmentsCount();
+        
+      } catch (error) {
+        console.error('Error refreshing treatments:', error);
+      } finally {
+        this.treatmentsLoading = false;
+      }
+    },
+
+    async loadTreatmentsCount() {
+      try {
+        const cohortId = this.cohortId || this.$route.params.cohortId;
+        const response = await fetch(`${api_endpoints.treatments}?cohort_id=${cohortId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Handle both array and paginated responses
+          if (Array.isArray(data)) {
+            this.treatmentsCount = data.length;
+          } else if (data.results) {
+            this.treatmentsCount = data.results.length;
+          } else if (data.data) {
+            this.treatmentsCount = data.data.length;
+          } else {
+            this.treatmentsCount = 0;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading treatments count:', error);
+        this.treatmentsCount = 0;
+      }
     },
 
     async toggleAdditionalFields() {
@@ -406,12 +516,6 @@ export default {
       this.showCancelConfirm = false;
       this.$router.push('/');
     },
-
-    refreshTreatments() {
-      if (this.$refs.treatmentsTable) {
-        this.$refs.treatmentsTable.refreshData();
-      }
-    },
     
     loadUserPermissions() {
       this.userPermissions = helpers.getUserPermissions();
@@ -442,6 +546,9 @@ export default {
     this.loadCohortData();
     //this.loadUserPermissions();
     
+    // Load treatments count initially
+    this.loadTreatmentsCount();
+    
     // Add beforeunload handler to warn about unsaved changes
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
   },
@@ -456,11 +563,19 @@ export default {
     }
   },
   watch: {
+    // Watch both the prop and route param for cohortId changes
+    cohortId: {
+      handler() {
+        this.loadCohortData();
+        this.loadTreatmentsCount();
+      },
+      immediate: true
+    },
     '$route.params.cohortId': {
       handler() {
         this.loadCohortData();
-      },
-      immediate: true
+        this.loadTreatmentsCount();
+      }
     }
   }
 };
@@ -538,6 +653,22 @@ export default {
   margin-top: 8px;
 }
 
+/* Badge styling */
+.badge {
+  font-size: 0.75rem;
+}
+
+/* Refresh button styling */
+.btn-outline-secondary {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  color: white;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .action-buttons {
@@ -559,6 +690,16 @@ export default {
   .page-title {
     font-size: 1.25rem;
   }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .card-header .btn-sm {
+    align-self: flex-end;
+  }
 }
 
 /* Button icons */
@@ -575,5 +716,11 @@ export default {
 .btn-success:hover {
   background-color: #157347;
   border-color: #146c43;
+}
+
+/* Loading spinner for treatments */
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
 }
 </style>

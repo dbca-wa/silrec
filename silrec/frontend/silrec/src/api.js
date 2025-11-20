@@ -72,7 +72,7 @@ export default {
     cohorts: '/api/cohorts/',
     treatments: '/api/treatments/',
     treatment_extras: '/api/treatment-extras/',
-    tasks: '/api/tasks/',
+    tasks: '/api/lookups/tasks/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

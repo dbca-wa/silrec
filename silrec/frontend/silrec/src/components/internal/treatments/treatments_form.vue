@@ -13,8 +13,8 @@
               required
             >
               <option value="">Select Task</option>
-              <option v-for="task in tasks" :key="task.id" :value="task.id">
-                {{ task.name }}
+              <option v-for="task in tasks" :key="task.id" :value="task.task">
+                {{ task.task_name }} ({{ task.task }})
               </option>
             </select>
           </div>
@@ -225,8 +225,12 @@ export default {
     async loadTreatmentData() {
       if (this.treatmentId) {
         try {
-          const response = await this.$http.get(`${api_endpoints.treatments}${this.treatmentId}/`);
-          this.treatmentData = { ...response.data };
+          const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          this.treatmentData = { ...data };
         } catch (error) {
           console.error('Error loading treatment data:', error);
           this.$emit('error', 'Failed to load treatment data');
@@ -235,8 +239,12 @@ export default {
     },
     async loadTasks() {
       try {
-        const response = await this.$http.get(api_endpoints.tasks);
-        this.tasks = response.data;
+        const response = await fetch(api_endpoints.tasks);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        this.tasks = data.results || data;
       } catch (error) {
         console.error('Error loading tasks:', error);
         this.$emit('error', 'Failed to load task list');
@@ -249,16 +257,54 @@ export default {
 
       this.saving = true;
       try {
-        let response;
+        let url, method;
         if (this.treatmentId) {
-          response = await this.$http.put(
-            `${api_endpoints.treatments}${this.treatmentId}/`,
-            this.treatmentData
-          );
+          url = `${api_endpoints.treatments}${this.treatmentId}/`;
+          method = 'PUT';
         } else {
-          response = await this.$http.post(api_endpoints.treatments, this.treatmentData);
+          url = api_endpoints.treatments;
+          method = 'POST';
         }
-        this.$emit('treatment-saved', response.data);
+
+        console.log('Saving treatment data:', this.treatmentData);
+        console.log('URL:', url, 'Method:', method);
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+          },
+          body: JSON.stringify(this.treatmentData)
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        // Clone the response before reading it to avoid "body stream already read" error
+        const responseClone = response.clone();
+        
+        if (!response.ok) {
+          let errorDetail = '';
+          try {
+            // Try to parse as JSON first
+            const errorData = await responseClone.json();
+            errorDetail = JSON.stringify(errorData);
+          } catch (e) {
+            // If JSON parsing fails, try as text
+            try {
+              errorDetail = await responseClone.text();
+            } catch (textError) {
+              errorDetail = 'Could not read error response';
+            }
+          }
+          throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetail}`);
+        }
+
+        const responseData = await response.json();
+        console.log('Treatment saved successfully:', responseData);
+        
+        this.$emit('treatment-saved', responseData);
         this.$emit('success', `Treatment ${this.treatmentId ? 'updated' : 'created'} successfully`);
       } catch (error) {
         console.error('Error saving treatment:', error);
@@ -287,14 +333,39 @@ export default {
     },
     handleSaveError(error) {
       let errorMessage = 'Failed to save treatment';
-      if (error.response && error.response.data) {
-        const errors = error.response.data;
-        if (typeof errors === 'object') {
-          errorMessage = Object.values(errors).flat().join(', ');
-        } else {
-          errorMessage = errors;
+      
+      // Check if it's a permission error
+      if (error.message && error.message.includes('403')) {
+        errorMessage = 'You do not have permission to create or update treatments. Please contact an administrator.';
+      } 
+      // Check if it's a validation error from the server
+      else if (error.message && error.message.includes('details:')) {
+        try {
+          const details = error.message.split('details:')[1];
+          // Try to parse the details as JSON for structured errors
+          try {
+            const errorData = JSON.parse(details);
+            if (typeof errorData === 'object') {
+              // Handle Django REST framework validation errors
+              if (errorData.error) {
+                errorMessage = errorData.error;
+              } else {
+                errorMessage = Object.values(errorData).flat().join(', ');
+              }
+            } else {
+              errorMessage = details;
+            }
+          } catch (e) {
+            // If not JSON, use the raw details
+            errorMessage = details;
+          }
+        } catch (e) {
+          errorMessage = error.message;
         }
+      } else {
+        errorMessage = error.message || 'Unknown error occurred';
       }
+      
       this.$emit('error', errorMessage);
     },
     cancel() {
@@ -302,7 +373,21 @@ export default {
     },
     refreshExtras() {
       // This will be handled by the TreatmentExtrasTable component itself
-      // through its internal data loading
+    },
+    getCSRFToken() {
+      const name = 'csrftoken';
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
     }
   },
   mounted() {

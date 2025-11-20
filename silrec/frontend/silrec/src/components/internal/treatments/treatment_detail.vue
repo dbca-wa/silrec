@@ -36,7 +36,6 @@
 
 <script>
 import TreatmentForm from './treatments_form.vue';
-import { api_endpoints } from '@/utils/hooks';
 
 export default {
   name: 'TreatmentDetail',
@@ -82,8 +81,11 @@ export default {
       
       this.loading = true;
       try {
-        const response = await this.$http.get(`${api_endpoints.treatments}${this.treatmentId}/`);
-        this.treatmentData = response.data;
+        const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        this.treatmentData = await response.json();
       } catch (error) {
         console.error('Error loading treatment data:', error);
         this.error = 'Failed to load treatment data';

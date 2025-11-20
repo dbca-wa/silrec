@@ -16,7 +16,7 @@ from rest_framework_swagger.views import get_swagger_view
 from silrec import views
 
 from silrec.components.users import api as users_api
-from silrec.components.lookups import api as lookup_tbls_api
+from silrec.components.lookups import api as lookups_api
 from silrec.components.forest_blocks import api as forest_blocks_api
 from silrec.components.main import api as main_api
 from silrec.components.proposals import api as proposal_api
@@ -63,7 +63,7 @@ if settings.INCLUDE_ROOT_VIEW:
 #router.register(r"users", users_api.UserViewSet)
 router.register(r'users', users_api.UserViewSet, basename='users')
 router.register("proposal", proposal_api.ProposalViewSet, basename="proposal")
-#router.register(r"lookup_tbls", lookup_tbls_api.MainViewSet, basename="lookup_tbls")
+#router.register(r"lookup_tbls", lookups_api.MainViewSet, basename="lookup_tbls")
 #router.register(r'cohorts', forest_blocks_api.CohortViewSet, basename='cohorts')
 #router.register(r'treatments', forest_blocks_api.TreatmentViewSet, basename='treatments')
 router.register(r'polygon', forest_blocks_api.PolygonViewSet, basename='polygon')
@@ -81,6 +81,22 @@ router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableVie
 router.register(r'cohorts', forest_blocks_api.CohortViewSet)
 router.register(r'treatments', forest_blocks_api.TreatmentViewSet)
 router.register(r'treatment-extras', forest_blocks_api.TreatmentXtraViewSet)
+
+# Lookups
+# Add to your existing urlpatterns in urls.py
+
+router.register(r'lookups/cohort-metrics', lookups_api.CohortMetricsLkpViewSet, basename='cohort-metrics')
+router.register(r'lookups/machines', lookups_api.MachineLkpViewSet, basename='machines')
+router.register(r'lookups/objectives', lookups_api.ObjectiveLkpViewSet, basename='objectives')
+router.register(r'lookups/organisations', lookups_api.OrganisationLkpViewSet, basename='organisations')
+router.register(r'lookups/regeneration-methods', lookups_api.RegenerationMethodsLkpViewSet, basename='regeneration-methods')
+router.register(r'lookups/reschedule-reasons', lookups_api.RescheduleReasonsLkpViewSet, basename='reschedule-reasons')
+router.register(r'lookups/spatial-precision', lookups_api.SpatialPrecisionLkpViewSet, basename='spatial-precision')
+router.register(r'lookups/species', lookups_api.SpeciesApiLkpViewSet, basename='species')
+router.register(r'lookups/tasks', lookups_api.TaskLkpViewSet, basename='tasks')
+router.register(r'lookups/task-attributes', lookups_api.TasksAttLkpViewSet, basename='task-attributes')
+router.register(r'lookups/treatment-statuses', lookups_api.TreatmentStatusLkpViewSet, basename='treatment-statuses')
+router.register(r'lookups/summary', lookups_api.LookupSummaryViewSet, basename='lookup-summary')
 
 api_patterns = [
     #re_path(r'api/', include(router.urls)),

@@ -228,7 +228,7 @@ export default {
   props: {
     cohortId: {
       type: [Number, String],
-      required: true
+      required: false
     },
     readOnly: {
       type: Boolean,

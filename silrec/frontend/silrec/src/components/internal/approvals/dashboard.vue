@@ -1,104 +1,47 @@
 <template>
-    <div id="approvalsDash" class="container">
-        <ul id="pills-tab" class="nav nav-pills" role="tablist">
-            <li class="nav-item">
-                <a
-                    id="pills-approvals-tab"
-                    class="nav-link active"
-                    data-bs-toggle="pill"
-                    href="#pills-approvals"
-                    role="tab"
-                    aria-controls="pills-approvals"
-                    aria-selected="true"
-                    @click="tabClicked('approvals')"
-                    >Approvals</a
-                >
-            </li>
-            <li class="nav-item">
-                <a
-                    id="pills-map-tab"
-                    class="nav-link"
-                    data-bs-toggle="pill"
-                    href="#pills-map"
-                    role="tab"
-                    aria-controls="pills-map"
-                    aria-selected="false"
-                    @click="mapTabClicked"
-                    >Map</a
-                >
-            </li>
-        </ul>
-        <div id="pills-tabContent" class="tab-content">
-            <div
-                id="pills-approvals"
-                class="tab-pane active"
-                role="tabpanel"
-                aria-labelledby="pills-approvals-tab"
-            >
-                <FormSection
-                    :form-collapse="false"
-                    label="Approvals"
-                    index="approvals"
-                >
-                    <ApprovalsTable
-                        ref="approvals_table"
-                        level="internal"
-                        :approval-type-filter="approvalTypeFilter"
-                    />
-                </FormSection>
-            </div>
-            <div
-                id="pills-map"
-                class="tab-pane"
-                role="tabpanel"
-                aria-labelledby="pills-map-tab"
-            >
-                <FormSection
-                    v-if="loadMap"
-                    :form-collapse="false"
-                    label="Map"
-                    index="map"
-                >
-                    <MapComponent
-                        ref="component_map_with_filters"
-                        level="internal"
-                    />
-                </FormSection>
-            </div>
-        </div>
+    <div id="TreatmentsDash" class="container">
+        <TreatmentsTable
+            ref="treatmentsTable"
+            :read-only="false"
+            @treatment-updated="refreshTreatments"
+        />
     </div>
 </template>
 
 <script>
-import FormSection from '@/components/forms/section_toggle.vue';
-import ApprovalsTable from '@/components/common/table_approvals.vue';
-import MapComponent from '@/components/common/component_map.vue';
+import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
 
 export default {
-    name: 'InternalApprovalsDashboard',
+    name: 'InternalTreatmentsDashboard',
     components: {
-        FormSection,
-        ApprovalsTable,
-        MapComponent,
+        TreatmentsTable,
     },
     data() {
         return {
-            approvalTypeFilter: ['ml', 'aap', 'aup'],
-            loadMap: false,
+            // You can add any dashboard-level data here if needed
         };
     },
     methods: {
-        tabClicked: function (param) {
-            if (param == 'approvals') {
-                this.$refs.approvals_table.adjust_table_width();
+        async refreshTreatments() {
+            // Refresh the treatments table data
+            if (this.$refs.treatmentsTable && this.$refs.treatmentsTable.refresh) {
+                await this.$refs.treatmentsTable.refresh();
             }
         },
-        mapTabClicked: function () {
-            this.loadMap = true;
-            // this.$nextTick(() => {
-            //     this.$refs.component_map_with_filters.forceToRefreshMap()
-            // })
-        },
+    },
+    mounted() {
+        // You can add any initialization logic here
+        console.log('Treatments dashboard mounted');
     },
 };
 </script>
+
+<style scoped>
+#TreatmentsDash {
+    padding: 20px;
+}
+.container {
+    width: 100%;
+    height: 100%;
+}
+</style>

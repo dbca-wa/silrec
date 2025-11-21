@@ -21,6 +21,7 @@ import ProposalMigrate from '@/components/internal/proposal_migrate.vue';
 import CohortDetail from '@/components/internal/cohorts/cohort_detail.vue'
 import TreatmentDetail from '@/components/internal/treatments/treatment_detail.vue'
 import TreatmentExtraDetail from '@/components/internal/treatments/treatment_extra_detail.vue'
+import TreatmentsDash from '@/components/internal/treatments/dashboard.vue';
 
 
 export default {
@@ -32,11 +33,17 @@ export default {
             component: InternalDashboard,
             name: 'internal-dashboard',
         },
+//        {
+//            path: 'approvals',
+//            component: ApprovalDash,
+//            name: 'internal-approvals-dash',
+//        },
         {
-            path: 'approvals',
-            component: ApprovalDash,
-            name: 'internal-approvals-dash',
+            path: 'treatments',
+            component: TreatmentsDash,
+            name: 'internal-treatments-dash',
         },
+
         {
             path: 'approval/:approval_id',
             component: Approval,

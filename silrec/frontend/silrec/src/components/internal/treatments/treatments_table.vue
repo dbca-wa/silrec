@@ -27,36 +27,73 @@
         @created="collapsible_component_mounted"
       >
         <div class="row mt-1 p-2">
+          <!-- Task Filter -->
           <div class="col-md-3">
             <div class="form-group">
               <label for="filterTask">Task</label>
-              <input
-                v-model="filterTask"
-                type="text"
-                class="form-control"
-                id="filterTask"
-                placeholder="Filter by task..."
-              />
+              <div class="searchable-select">
+                <input
+                  id="filterTask"
+                  v-model="taskSearch"
+                  type="text"
+                  class="form-control"
+                  placeholder="Type to search tasks..."
+                  @focus="showTaskDropdown = true"
+                  @blur="onTaskBlur"
+                  @input="filterTasks"
+                />
+                <div v-if="showTaskDropdown" class="dropdown-options">
+                  <div 
+                    v-for="task in filteredTasks" 
+                    :key="task.id"
+                    class="dropdown-option"
+                    @mousedown="selectTask(task)"
+                  >
+                    <strong>{{ task.task }}</strong> - {{ task.task_name || 'No description' }}
+                  </div>
+                  <div v-if="filteredTasks.length === 0" class="dropdown-option no-results">
+                    No tasks found
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
+          <!-- Status Filter -->
           <div class="col-md-3">
             <div class="form-group">
               <label for="filterStatus">Status</label>
-              <select
-                v-model="filterStatus"
-                class="form-select"
-                id="filterStatus"
-              >
-                <option value="all">All Status</option>
-                <option value="P">Planned</option>
-                <option value="D">Completed</option>
-                <option value="C">Cancelled</option>
-                <option value="F">Failed</option>
-                <option value="W">Written Off</option>
-                <option value="X">Not Required</option>
-              </select>
+              <div class="searchable-select">
+                <input
+                  id="filterStatus"
+                  v-model="statusSearch"
+                  type="text"
+                  class="form-control"
+                  placeholder="Type to search statuses..."
+                  @focus="showStatusDropdown = true"
+                  @blur="onStatusBlur"
+                  @input="filterStatuses"
+                />
+                <div v-if="showStatusDropdown" class="dropdown-options">
+                  <div class="dropdown-option" @mousedown="selectStatus({ status: 'all', name: 'All Status' })">
+                    All Status
+                  </div>
+                  <div 
+                    v-for="status in filteredStatuses" 
+                    :key="status.id"
+                    class="dropdown-option"
+                    @mousedown="selectStatus(status)"
+                  >
+                    <strong>{{ status.status }}</strong> - {{ status.name || 'No description' }}
+                  </div>
+                  <div v-if="filteredStatuses.length === 0" class="dropdown-option no-results">
+                    No statuses found
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
           <div class="col-md-3">
             <div class="form-group">
               <label for="filterPlanYear">Planned Year</label>
@@ -119,28 +156,36 @@
               />
             </div>
           </div>
+
+          <!-- Machine Filter -->
           <div class="col-md-3">
             <div class="form-group">
               <label for="filterMachine">Machine</label>
-              <input
-                v-model="filterMachine"
-                type="text"
-                class="form-control"
-                id="filterMachine"
-                placeholder="Filter by machine..."
-              />
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="form-group">
-              <label for="filterOperator">Operator</label>
-              <input
-                v-model="filterOperator"
-                type="text"
-                class="form-control"
-                id="filterOperator"
-                placeholder="Filter by operator..."
-              />
+              <div class="searchable-select">
+                <input
+                  id="filterMachine"
+                  v-model="machineSearch"
+                  type="text"
+                  class="form-control"
+                  placeholder="Type to search machines..."
+                  @focus="showMachineDropdown = true"
+                  @blur="onMachineBlur"
+                  @input="filterMachines"
+                />
+                <div v-if="showMachineDropdown" class="dropdown-options">
+                  <div 
+                    v-for="machine in filteredMachines" 
+                    :key="machine.id"
+                    class="dropdown-option"
+                    @mousedown="selectMachine(machine)"
+                  >
+                    <strong>{{ machine.manufacturer }} {{ machine.model }}</strong> - {{ machine.machine_type || 'No type' }}
+                  </div>
+                  <div v-if="filteredMachines.length === 0" class="dropdown-option no-results">
+                    No machines found
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -194,7 +239,7 @@ export default {
     return {
       datatableId: 'treatments-table-' + uuid(),
       
-      // Filters
+      // Original filters
       filterTask: '',
       filterStatus: 'all',
       filterPlanYear: '',
@@ -203,6 +248,30 @@ export default {
       filterCompleteDateTo: '',
       filterMachine: '',
       filterOperator: '',
+
+      // Lookup data
+      lookups: {
+        tasks: [],
+        treatment_statuses: [],
+        machines: []
+      },
+      loadingLookups: false,
+      lookupError: null,
+
+      // Search and dropdown states for Task
+      taskSearch: '',
+      showTaskDropdown: false,
+      filteredTasks: [],
+
+      // Search and dropdown states for Status
+      statusSearch: '',
+      showStatusDropdown: false,
+      filteredStatuses: [],
+
+      // Search and dropdown states for Machine
+      machineSearch: '',
+      showMachineDropdown: false,
+      filteredMachines: []
     };
   },
   computed: {
@@ -352,12 +421,122 @@ export default {
     }
   },
   methods: {
+    async loadLookups() {
+      this.loadingLookups = true;
+      this.lookupError = null;
+      
+      try {
+        const response = await fetch(api_endpoints.combined_lookups);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Extract the lookup data we need
+        this.lookups.tasks = data.tasks || [];
+        this.lookups.treatment_statuses = data.treatment_statuses || [];
+        this.lookups.machines = data.machines || [];
+        
+        // Initialize filtered lists with all items
+        this.filteredTasks = [...this.lookups.tasks];
+        this.filteredStatuses = [...this.lookups.treatment_statuses];
+        this.filteredMachines = [...this.lookups.machines];
+        
+        console.log('Lookups loaded successfully:', {
+          tasks: this.lookups.tasks.length,
+          treatment_statuses: this.lookups.treatment_statuses.length,
+          machines: this.lookups.machines.length
+        });
+        
+      } catch (error) {
+        console.error('Error loading lookups:', error);
+        this.lookupError = error.message;
+      } finally {
+        this.loadingLookups = false;
+      }
+    },
+
+    // Task methods
+    filterTasks() {
+      const searchTerm = this.taskSearch.toLowerCase();
+      this.filteredTasks = this.lookups.tasks.filter(task => 
+        task.task.toLowerCase().includes(searchTerm) ||
+        (task.task_name && task.task_name.toLowerCase().includes(searchTerm))
+      );
+    },
+    
+    selectTask(task) {
+      this.filterTask = task.task;
+      this.taskSearch = `${task.task} - ${task.task_name || ''}`;
+      this.showTaskDropdown = false;
+      this.refreshData();
+    },
+    
+    onTaskBlur() {
+      setTimeout(() => {
+        this.showTaskDropdown = false;
+      }, 200);
+    },
+
+    // Status methods
+    filterStatuses() {
+      const searchTerm = this.statusSearch.toLowerCase();
+      this.filteredStatuses = this.lookups.treatment_statuses.filter(status => 
+        status.status.toLowerCase().includes(searchTerm) ||
+        (status.name && status.name.toLowerCase().includes(searchTerm))
+      );
+    },
+    
+    selectStatus(status) {
+      if (status.status === 'all') {
+        this.filterStatus = 'all';
+        this.statusSearch = 'All Status';
+      } else {
+        this.filterStatus = status.status;
+        this.statusSearch = `${status.status} - ${status.name || ''}`;
+      }
+      this.showStatusDropdown = false;
+      this.refreshData();
+    },
+    
+    onStatusBlur() {
+      setTimeout(() => {
+        this.showStatusDropdown = false;
+      }, 200);
+    },
+
+    // Machine methods
+    filterMachines() {
+      const searchTerm = this.machineSearch.toLowerCase();
+      this.filteredMachines = this.lookups.machines.filter(machine => 
+        (machine.manufacturer && machine.manufacturer.toLowerCase().includes(searchTerm)) ||
+        (machine.model && machine.model.toLowerCase().includes(searchTerm)) ||
+        (machine.machine_type && machine.machine_type.toLowerCase().includes(searchTerm))
+      );
+    },
+    
+    selectMachine(machine) {
+      this.filterMachine = machine.model || machine.manufacturer;
+      this.machineSearch = `${machine.manufacturer} ${machine.model}`;
+      this.showMachineDropdown = false;
+      this.refreshData();
+    },
+    
+    onMachineBlur() {
+      setTimeout(() => {
+        this.showMachineDropdown = false;
+      }, 200);
+    },
+
     refreshData() {
       if (this.$refs.treatments_datatable && this.$refs.treatments_datatable.vmDataTable) {
         this.$refs.treatments_datatable.vmDataTable.ajax.reload();
       }
     },
     clearFilters() {
+      // Clear original filter values
       this.filterTask = '';
       this.filterStatus = 'all';
       this.filterPlanYear = '';
@@ -366,6 +545,12 @@ export default {
       this.filterCompleteDateTo = '';
       this.filterMachine = '';
       this.filterOperator = '';
+
+      // Clear search inputs
+      this.taskSearch = '';
+      this.statusSearch = 'All Status';
+      this.machineSearch = '';
+
       this.refreshData();
     },
     collapsible_component_mounted() {
@@ -489,6 +674,7 @@ export default {
   },
   mounted() {
     console.log('Treatments table mounted, initial filter state:', this.filterWarningIcon);
+    this.loadLookups();
     this.$nextTick(() => this.updateFilterIconColor());
   }
 };
@@ -538,6 +724,55 @@ export default {
   width: 100px;
 }
 
+/* Searchable select styles */
+.searchable-select {
+  position: relative;
+}
+
+.dropdown-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ced4da;
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 9999; /* High z-index to dominate other components */
+}
+
+.dropdown-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-option:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.dropdown-option.no-results {
+  color: #6c757d;
+  font-style: italic;
+  cursor: default;
+}
+
+.dropdown-option.no-results:hover {
+  background-color: white;
+}
+
+.dropdown-option strong {
+  color: #495057;
+}
+
 /* More specific filter warning icon styles */
 :deep(.collapsible-component .filter_warning_icon) {
   transition: color 0.3s ease !important;
@@ -563,10 +798,35 @@ export default {
 :deep(div.collapsible-component i.filter_warning_icon.filter-clear) {
   color: #28a745 !important;
 }
+
+/* Ensure the searchable select has high z-index when dropdown is open */
+.searchable-select:has(.dropdown-options) {
+  z-index: 9998; /* High z-index for the container when dropdown is present */
+}
+
+/* Additional styling for when dropdown is visible */
+.searchable-select .form-control:focus {
+  z-index: 9999; /* Ensure the input is above other elements when focused */
+  position: relative;
+}
 </style>
 
-<!-- Add a global style as a last resort -->
 <style>
+/* Global styles to ensure dropdown appears above ALL other elements */
+.searchable-select .dropdown-options {
+  z-index: 10000 !important; /* Very high z-index to dominate everything */
+}
+
+/* Ensure dropdowns appear above modals and other high-z-index elements */
+.modal .searchable-select .dropdown-options {
+  z-index: 10050 !important; /* Even higher than modals */
+}
+
+/* Prevent other elements from interfering */
+.searchable-select {
+  isolation: isolate; /* Creates a new stacking context */
+}
+
 /* Global style that will definitely work */
 .treatments-table-container .collapsible-component .filter_warning_icon.filter-active {
   color: #dc3545 !important;

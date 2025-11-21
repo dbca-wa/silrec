@@ -61,6 +61,7 @@ from silrec.components.lookups.serializers import (
     TreatmentStatusLkpSerializer,
     ObjectiveLkpDetailSerializer,
     TaskLkpDetailSerializer,
+    CombinedLkpSerializer,
 )
 
 
@@ -324,12 +325,12 @@ class TaskLkpViewSet(viewsets.ReadOnlyModelViewSet):
     API endpoint for Task Lookup
     Provides task codes, definitions and specifications
     """
-    pagination_class = None
     queryset = TaskLkp.objects.filter(effective_to__isnull=True)
     serializer_class = TaskLkpSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['forest_type', 'regen_init', 'addition_attribs', 'zavailable']
     search_fields = ['task', 'task_name', 'definition', 'financial_activity']
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -644,3 +645,15 @@ class LookupSummaryViewSet(viewsets.ViewSet):
         }
 
         return Response(examples)
+
+
+class CombinedLkpView(views.APIView):
+    """ http://localhost:8001/api/combined_lookups/
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get(self, request):
+        serializer = CombinedLkpSerializer({})
+        return Response(serializer.data)
+

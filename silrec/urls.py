@@ -134,6 +134,12 @@ urlpatterns = [
         proposal_api.GetApplicationStatusesDict.as_view(),
         name="get-application-statuses-dict",
     ),
+    re_path(
+        r"^api/combined_lookups/$",
+        lookups_api.CombinedLkpView.as_view(),
+        name="combined-lookups",
+    ),
+
 #    re_path(
 #        r"^api/polygon_cohort_table(?P<pk>\d+)/$",
 #        forest_blocks_api.PolygonCohortTableViewSet.as_view(),

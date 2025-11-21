@@ -1,5 +1,8 @@
 from django.contrib.auth.models import User
 
+from django.utils import timezone
+from django.db.models import Q
+
 from rest_framework import serializers
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
@@ -390,3 +393,198 @@ class SimpleTreatmentStatusLkpSerializer(serializers.ModelSerializer):
         model = TreatmentStatusLkp
         fields = ['status', 'name']
 
+
+
+class CombinedLkpSerializer(serializers.Serializer):
+    """ Combined serializer for all lookup tables
+    """
+    cohort_metrics = serializers.SerializerMethodField()
+    machines = serializers.SerializerMethodField()
+    objectives = serializers.SerializerMethodField()
+    organisations = serializers.SerializerMethodField()
+    regeneration_methods = serializers.SerializerMethodField()
+    reschedule_reasons = serializers.SerializerMethodField()
+    spatial_precision = serializers.SerializerMethodField()
+    species = serializers.SerializerMethodField()
+    tasks = serializers.SerializerMethodField()
+    task_attributes = serializers.SerializerMethodField()
+    treatment_statuses = serializers.SerializerMethodField()
+
+    def get_cohort_metrics(self, obj):
+        """Get first 4 fields from CohortMetricsLkp with effective date filtering"""
+        from silrec.components.forest_blocks.models import CohortMetricsLkp
+        from django.utils import timezone
+
+        current_date = timezone.now()
+        queryset = CohortMetricsLkp.objects.filter(
+            Q(effective_from__lte=current_date) &
+            Q(effective_to__gte=current_date) |
+            Q(effective_from__isnull=True) &
+            Q(effective_to__isnull=True)
+        )
+
+        return [
+            {
+                'id': item.pk,
+                'name': getattr(item, 'name', None),
+                'definition': getattr(item, 'definition', None),
+                'rating': getattr(item, 'rating', None),
+            }
+            for item in queryset
+        ]
+
+    def get_machines(self, obj):
+        """Get first 4 fields from MachineLkp"""
+        from silrec.components.forest_blocks.models import MachineLkp
+        queryset = MachineLkp.objects.all()
+        return [
+            {
+                'id': item.pk,
+                'manufacturer': getattr(item, 'manufacturer', None),
+                'model': getattr(item, 'model', None),
+                'machine_type': getattr(item, 'machine_type', None),
+            }
+            for item in queryset
+        ]
+
+    def get_objectives(self, obj):
+        """Get first 4 fields from ObjectiveLkp with effective date filtering"""
+        from silrec.components.forest_blocks.models import ObjectiveLkp
+        from django.utils import timezone
+
+        current_date = timezone.now()
+        queryset = ObjectiveLkp.objects.filter(
+            Q(effective_from__lte=current_date) &
+            Q(effective_to__gte=current_date) |
+            Q(effective_from__isnull=True) &
+            Q(effective_to__isnull=True)
+        )
+
+        return [
+            {
+                'id': item.obj_code,
+                'obj_code': item.obj_code,
+                'description': getattr(item, 'description', None),
+                'definition': getattr(item, 'definition', None),
+            }
+            for item in queryset
+        ]
+
+    def get_organisations(self, obj):
+        """Get first 4 fields from OrganisationLkp"""
+        from silrec.components.forest_blocks.models import OrganisationLkp
+        queryset = OrganisationLkp.objects.all()
+        return [
+            {
+                'id': item.organisation,
+                'organisation': item.organisation,
+                'description': getattr(item, 'description', None),
+                'created_on': getattr(item, 'created_on', None),
+            }
+            for item in queryset
+        ]
+
+    def get_regeneration_methods(self, obj):
+        """Get first 4 fields from RegenerationMethodsLkp"""
+        from silrec.components.forest_blocks.models import RegenerationMethodsLkp
+        queryset = RegenerationMethodsLkp.objects.all()
+        return [
+            {
+                'id': item.regen_method,
+                'regen_method': item.regen_method,
+                'description': getattr(item, 'description', None),
+            }
+            for item in queryset
+        ]
+
+    def get_reschedule_reasons(self, obj):
+        """Get first 4 fields from RescheduleReasonsLkp"""
+        from silrec.components.forest_blocks.models import RescheduleReasonsLkp
+        queryset = RescheduleReasonsLkp.objects.all()
+        return [
+            {
+                'id': item.rescheduled_reason,
+                'rescheduled_reason': item.rescheduled_reason,
+                'description': getattr(item, 'description', None),
+                'created_on': getattr(item, 'created_on', None),
+            }
+            for item in queryset
+        ]
+
+    def get_spatial_precision(self, obj):
+        """Get first 4 fields from SpatialPrecisionLkp"""
+        from silrec.components.forest_blocks.models import SpatialPrecisionLkp
+        queryset = SpatialPrecisionLkp.objects.all()
+        return [
+            {
+                'id': item.precision_code,
+                'precision_code': item.precision_code,
+                'resolution': getattr(item, 'resolution', None),
+                'description': getattr(item, 'description', None),
+            }
+            for item in queryset
+        ]
+
+    def get_species(self, obj):
+        """Get first 4 fields from SpeciesApiLkp"""
+        from silrec.components.forest_blocks.models import SpeciesApiLkp
+        queryset = SpeciesApiLkp.objects.all()
+        return [
+            {
+                'id': item.species,
+                'species': item.species,
+                'short_description': getattr(item, 'short_description', None),
+                'full_description': getattr(item, 'full_description', None),
+            }
+            for item in queryset
+        ]
+
+    def get_tasks(self, obj):
+        """Get first 4 fields from TaskLkp with effective date filtering"""
+        from silrec.components.forest_blocks.models import TaskLkp
+        from django.utils import timezone
+
+        current_date = timezone.now()
+        queryset = TaskLkp.objects.filter(
+            Q(effective_from__lte=current_date) &
+            Q(effective_to__gte=current_date) |
+            Q(effective_from__isnull=True) &
+            Q(effective_to__isnull=True)
+        )
+
+        return [
+            {
+                'id': item.task,
+                'task': item.task,
+                'task_name': getattr(item, 'task_name', None),
+                'definition': getattr(item, 'definition', None),
+            }
+            for item in queryset
+        ]
+
+    def get_task_attributes(self, obj):
+        """Get first 4 fields from TasksAttLkp"""
+        from silrec.components.forest_blocks.models import TasksAttLkp
+        queryset = TasksAttLkp.objects.all()
+        return [
+            {
+                'id': item.addition_attrib,
+                'addition_attrib': item.addition_attrib,
+                'description': getattr(item, 'description', None),
+            }
+            for item in queryset
+        ]
+
+    def get_treatment_statuses(self, obj):
+        """Get first 4 fields from TreatmentStatusLkp"""
+        from silrec.components.forest_blocks.models import TreatmentStatusLkp
+        queryset = TreatmentStatusLkp.objects.all()
+        return [
+            {
+                'id': item.status,
+                'status': item.status,
+                'name': getattr(item, 'name', None),
+                'definition': getattr(item, 'definition', None),
+            }
+            for item in queryset
+        ]

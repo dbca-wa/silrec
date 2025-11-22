@@ -224,23 +224,46 @@ class DebugPolygonRelationsView(views.APIView):
             })
         return Response({'error': 'No Polygon objects found'})
 
+
 class DatatablesPageNumberPagination(PageNumberPagination):
     page_size_query_param = 'length'
     page_query_param = 'page'
     max_page_size = 1000
+    page_size = 10
+
+    def get_page_number(self, request, paginator):
+        # Calculate page number from DataTables 'start' parameter
+        start = request.query_params.get('start')
+        length = request.query_params.get('length', self.page_size)
+
+        if start and length:
+            try:
+                start = int(start)
+                length = int(length)
+                if length > 0:
+                    page_number = (start // length) + 1
+                    return max(1, page_number)
+            except (ValueError, TypeError):
+                pass
+
+        # Fallback to default page number
+        return super().get_page_number(request, paginator)
 
     def get_paginated_response(self, data):
-        # Calculate datatables-specific values
+        # Get datatables parameters
         draw = int(self.request.query_params.get('draw', 1))
-        start = int(self.request.query_params.get('start', 0))
-        length = int(self.request.query_params.get('length', self.page_size))
+
+        # Get counts
+        total_count = getattr(self.request, '_datatables_total_count', self.page.paginator.count)
+        filtered_count = getattr(self.request, '_datatables_filtered_count', self.page.paginator.count)
 
         return Response({
             'draw': draw,
-            'recordsTotal': self.page.paginator.count,
-            'recordsFiltered': self.page.paginator.count,
+            'recordsTotal': total_count,
+            'recordsFiltered': filtered_count,
             'data': data
         })
+
 
 class DatatablesFilterBackend(DatatablesFilterBackend):
     """
@@ -365,6 +388,7 @@ class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
     Custom filter backend for datatables treatment filtering
     """
     def filter_queryset(self, request, queryset, view):
+        # Get total count before filtering
         total_count = queryset.count()
 
         # Apply custom filters for treatments
@@ -377,9 +401,9 @@ class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
         filter_machine = request.query_params.get('filter_machine', '')
         filter_operator = request.query_params.get('filter_operator', '')
 
-        # Filter by task name
+        # Filter by task
         if filter_task:
-            queryset = queryset.filter(task__name__icontains=filter_task)
+            queryset = queryset.filter(task__task=filter_task)
 
         # Filter by status
         if filter_status != 'all':
@@ -419,19 +443,20 @@ class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
         # Filter by machine (from TreatmentXtra)
         if filter_machine:
             queryset = queryset.filter(
-                treatmentxtra__machine__icontains=filter_machine
+                treatmentxtra__zmachine_id__icontains=filter_machine
             ).distinct()
 
-        # Filter by operator (from TreatmentXtra)
+        # Filter by operator
         if filter_operator:
             queryset = queryset.filter(
-                treatmentxtra__operator__icontains=filter_operator
-            ).distinct()
+                changed_by__icontains=filter_operator
+            )
 
         filtered_count = queryset.count()
 
-        setattr(view, '_datatables_total_count', total_count)
-        setattr(view, '_datatables_filtered_count', filtered_count)
+        # Set counts on the request for the paginator to use
+        setattr(request, '_datatables_total_count', total_count)
+        setattr(request, '_datatables_filtered_count', filtered_count)
 
         return queryset
 
@@ -442,82 +467,75 @@ class TreatmentViewSet(viewsets.ModelViewSet):
     pagination_class = DatatablesPageNumberPagination
     filter_backends = (TreatmentDatatablesFilterBackend,)
 
-#    def get_permissions(self):
-#        #import ipdb; ipdb.set_trace()
-#        if self.action in ['list', 'retrieve', 'create', 'update']:
-#            permission_classes = [IsAuthenticated]
-#        else:
-#            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
-#        return [permission() for permission in permission_classes]
-#
-#    def get_queryset(self):
-#        queryset = Treatment.objects.all()
-#        #cohort_id = self.request.query_params.get('cohort_id')
-#        cohort_id = self.request.data.get('cohort')
-#        if cohort_id:
-#            queryset = queryset.filter(cohort_id=cohort_id)
-#        return queryset
-#
-#    def _create(self, request):
-#        import ipdb; ipdb.set_trace()
-#
-#        serializer = self.get_serializer(data=request.data)
-#        serializer.is_valid(raise_exception=True)
-#
-#        pass
-#
-#    def create(self, request, *args, **kwargs):
-#        try:
-#            response = super().create(request, *args, **kwargs)
-#        except Exception as e:
-#            print(str(e))
-#        return response
+    def get_queryset(self):
+        # Start with a properly ordered queryset
+        queryset = Treatment.objects.all().select_related('task', 'cohort').order_by('treatment_id')
+
+        # Handle cohort filtering
+        cohort_id = self.request.query_params.get('cohort_id')
+        if cohort_id:
+            queryset = queryset.filter(cohort_id=cohort_id)
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        # Always use datatables format for list requests
+        return self.datatables_list(request, *args, **kwargs)
+
+    def datatables_list(self, request, *args, **kwargs):
+        """Custom list method for datatables format"""
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Apply ordering from DataTables if provided
+        ordering = self.get_ordering(request, queryset)
+        if ordering:
+            queryset = queryset.order_by(*ordering)
+
+        # Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def get_ordering(self, request, queryset):
+        """Extract ordering from DataTables request"""
+        order_column_index = request.query_params.get('order[0][column]')
+        order_direction = request.query_params.get('order[0][dir]', 'asc')
+
+        if order_column_index is not None:
+            # Map DataTables column index to model field
+            column_map = {
+                '0': 'treatment_id',  # ID column
+                '1': 'task__name',     # Task column
+                '2': 'plan_yr',        # Planned Year column
+                '3': 'plan_mth',       # Planned Month column
+                '4': 'status',         # Status column
+                '5': 'complete_date',  # Complete Date column
+            }
+
+            field_name = column_map.get(order_column_index)
+            if field_name:
+                if order_direction == 'desc':
+                    field_name = '-' + field_name
+                return [field_name]
+
+        # Default ordering if none specified
+        return ['treatment_id']
 
     def get_permissions(self):
         print(f"TreatmentViewSet - Action: {self.action}")
         print(f"TreatmentViewSet - User: {self.request.user}")
-        print(f"TreatmentViewSet - User groups: {[g.name for g in self.request.user.groups.all()]}")
 
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         else:
             permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
 
-        print(f"TreatmentViewSet - Permission classes: {permission_classes}")
         return [permission() for permission in permission_classes]
 
-    def get_queryset(self):
-        queryset = Treatment.objects.all()
-        cohort_id = self.request.query_params.get('cohort_id')
-        if cohort_id:
-            queryset = queryset.filter(cohort_id=cohort_id)
-        return queryset
-
-    def _create(self, request, *args, **kwargs):
-        print(f"Create treatment - Data: {request.data}")
-        print(f"Create treatment - User: {request.user}")
-        print(f"Create treatment - self.request.query_params: {self.request.query_params}")
-
-        try:
-            # Add debug logging
-            serializer = self.get_serializer(data=request.data)
-            print(f"Serializer is valid: {serializer.is_valid()}")
-            if not serializer.is_valid():
-                print(f"Serializer errors: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-        except Exception as e:
-            print(f"Error creating treatment: {str(e)}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            return Response(
-                {"error": f"Internal server error: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
 
 class TreatmentXtraViewSet(viewsets.ModelViewSet):
     queryset = TreatmentXtra.objects.all()

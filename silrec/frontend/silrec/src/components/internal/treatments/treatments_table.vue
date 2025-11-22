@@ -37,12 +37,18 @@
                   v-model="taskSearch"
                   type="text"
                   class="form-control"
-                  placeholder="Type to search tasks..."
-                  @focus="showTaskDropdown = true"
+                  :placeholder="taskPlaceholder"
+                  @focus="onTaskFocus"
                   @blur="onTaskBlur"
                   @input="filterTasks"
                 />
                 <div v-if="showTaskDropdown" class="dropdown-options">
+                  <div 
+                    class="dropdown-option all-tasks-option"
+                    @mousedown="selectAllTasks"
+                  >
+                    <strong>All Tasks</strong>
+                  </div>
                   <div 
                     v-for="task in filteredTasks" 
                     :key="task.id"
@@ -51,7 +57,7 @@
                   >
                     <strong>{{ task.task }}</strong> - {{ task.task_name || 'No description' }}
                   </div>
-                  <div v-if="filteredTasks.length === 0" class="dropdown-option no-results">
+                  <div v-if="filteredTasks.length === 0 && taskSearch !== '' && taskSearch !== 'All Tasks'" class="dropdown-option no-results">
                     No tasks found
                   </div>
                 </div>
@@ -69,8 +75,8 @@
                   v-model="statusSearch"
                   type="text"
                   class="form-control"
-                  placeholder="Type to search statuses..."
-                  @focus="showStatusDropdown = true"
+                  :placeholder="statusPlaceholder"
+                  @focus="onStatusFocus"
                   @blur="onStatusBlur"
                   @input="filterStatuses"
                 />
@@ -239,7 +245,6 @@ export default {
     return {
       datatableId: 'treatments-table-' + uuid(),
       
-      // Original filters
       filterTask: '',
       filterStatus: 'all',
       filterPlanYear: '',
@@ -249,7 +254,6 @@ export default {
       filterMachine: '',
       filterOperator: '',
 
-      // Lookup data
       lookups: {
         tasks: [],
         treatment_statuses: [],
@@ -258,17 +262,16 @@ export default {
       loadingLookups: false,
       lookupError: null,
 
-      // Search and dropdown states for Task
       taskSearch: '',
       showTaskDropdown: false,
       filteredTasks: [],
+      taskInputFocused: false,
 
-      // Search and dropdown states for Status
       statusSearch: '',
       showStatusDropdown: false,
       filteredStatuses: [],
+      statusInputFocused: false,
 
-      // Search and dropdown states for Machine
       machineSearch: '',
       showMachineDropdown: false,
       filteredMachines: []
@@ -277,7 +280,7 @@ export default {
   computed: {
     dtHeaders() {
       const headers = [
-        'ID',
+        'Treatment ID',
         'Task',
         'Planned Year',
         'Planned Month',
@@ -296,9 +299,14 @@ export default {
         serverSide: true,
         searching: true,
         processing: true,
+        ordering: true,
+        paging: true,
+        pageLength: 10,
+        lengthMenu: [10, 25, 50, 100],
+        
         ajax: {
           url: api_endpoints.treatments,
-          dataSrc: 'data',
+          type: 'GET',
           data: function(d) {
             d.cohort_id = vm.cohortId;
             d.filter_task = vm.filterTask;
@@ -309,13 +317,18 @@ export default {
             d.filter_complete_date_to = vm.filterCompleteDateTo;
             d.filter_machine = vm.filterMachine;
             d.filter_operator = vm.filterOperator;
+          },
+          dataSrc: function (json) {
+            return json.data;
           }
         },
+        
         columns: [
           {
             data: 'treatment_id',
             name: 'treatment_id',
-            visible: false
+            visible: false,
+            orderable: true
           },
           {
             data: 'task',
@@ -393,18 +406,28 @@ export default {
             }
           }
         ],
+        
         dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
              "<'row'<'col-sm-12'tr>>" +
              "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+             
         language: {
-          processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+          processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+          emptyTable: 'No treatments found',
+          info: 'Showing _START_ to _END_ of _TOTAL_ treatments',
+          infoEmpty: 'Showing 0 to 0 of 0 treatments',
+          infoFiltered: '(filtered from _MAX_ total treatments)',
+          lengthMenu: 'Show _MENU_ treatments',
+          loadingRecords: 'Loading...',
+          search: 'Search:',
+          zeroRecords: 'No matching treatments found'
         },
+        
         drawCallback: function(settings) {
           vm.attachEventListeners();
         }
       };
     },
-    // Check if any filter is active
     areFiltersActive() {
       return this.filterTask !== '' ||
              this.filterStatus !== 'all' ||
@@ -415,9 +438,14 @@ export default {
              this.filterMachine !== '' ||
              this.filterOperator !== '';
     },
-    // Determine filter warning icon state - return class name string
     filterWarningIcon() {
       return this.areFiltersActive ? 'filter-active' : 'filter-clear';
+    },
+    taskPlaceholder() {
+      return (this.taskSearch === '' || this.taskInputFocused) ? 'Type to search tasks...' : '';
+    },
+    statusPlaceholder() {
+      return (this.statusSearch === '' || this.statusInputFocused) ? 'Type to search statuses...' : '';
     }
   },
   methods: {
@@ -434,21 +462,13 @@ export default {
         
         const data = await response.json();
         
-        // Extract the lookup data we need
         this.lookups.tasks = data.tasks || [];
         this.lookups.treatment_statuses = data.treatment_statuses || [];
         this.lookups.machines = data.machines || [];
         
-        // Initialize filtered lists with all items
         this.filteredTasks = [...this.lookups.tasks];
         this.filteredStatuses = [...this.lookups.treatment_statuses];
         this.filteredMachines = [...this.lookups.machines];
-        
-        console.log('Lookups loaded successfully:', {
-          tasks: this.lookups.tasks.length,
-          treatment_statuses: this.lookups.treatment_statuses.length,
-          machines: this.lookups.machines.length
-        });
         
       } catch (error) {
         console.error('Error loading lookups:', error);
@@ -458,29 +478,54 @@ export default {
       }
     },
 
-    // Task methods
     filterTasks() {
       const searchTerm = this.taskSearch.toLowerCase();
-      this.filteredTasks = this.lookups.tasks.filter(task => 
-        task.task.toLowerCase().includes(searchTerm) ||
-        (task.task_name && task.task_name.toLowerCase().includes(searchTerm))
-      );
+      
+      if (searchTerm === '' || searchTerm === 'all tasks') {
+        this.filteredTasks = [...this.lookups.tasks];
+      } else {
+        this.filteredTasks = this.lookups.tasks.filter(task => 
+          task.task.toLowerCase().includes(searchTerm) ||
+          (task.task_name && task.task_name.toLowerCase().includes(searchTerm))
+        );
+      }
+    },
+    
+    onTaskFocus() {
+      this.taskInputFocused = true;
+      this.showTaskDropdown = true;
+      if (this.taskSearch === 'All Tasks') {
+        this.taskSearch = '';
+      }
+    },
+    
+    selectAllTasks() {
+      this.filterTask = '';
+      this.taskSearch = 'All Tasks';
+      this.taskInputFocused = false;
+      this.showTaskDropdown = false;
+      this.filteredTasks = [...this.lookups.tasks];
+      this.refreshData();
     },
     
     selectTask(task) {
       this.filterTask = task.task;
       this.taskSearch = `${task.task} - ${task.task_name || ''}`;
+      this.taskInputFocused = false;
       this.showTaskDropdown = false;
       this.refreshData();
     },
     
     onTaskBlur() {
+      this.taskInputFocused = false;
       setTimeout(() => {
         this.showTaskDropdown = false;
+        if (this.taskSearch === '') {
+          this.taskSearch = 'All Tasks';
+        }
       }, 200);
     },
 
-    // Status methods
     filterStatuses() {
       const searchTerm = this.statusSearch.toLowerCase();
       this.filteredStatuses = this.lookups.treatment_statuses.filter(status => 
@@ -489,25 +534,38 @@ export default {
       );
     },
     
+    onStatusFocus() {
+      this.statusInputFocused = true;
+      this.showStatusDropdown = true;
+      if (this.statusSearch === 'All Status') {
+        this.statusSearch = '';
+      }
+    },
+    
     selectStatus(status) {
       if (status.status === 'all') {
         this.filterStatus = 'all';
         this.statusSearch = 'All Status';
+        this.filteredStatuses = [...this.lookups.treatment_statuses];
       } else {
         this.filterStatus = status.status;
         this.statusSearch = `${status.status} - ${status.name || ''}`;
       }
+      this.statusInputFocused = false;
       this.showStatusDropdown = false;
       this.refreshData();
     },
     
     onStatusBlur() {
+      this.statusInputFocused = false;
       setTimeout(() => {
         this.showStatusDropdown = false;
+        if (this.statusSearch === '') {
+          this.statusSearch = 'All Status';
+        }
       }, 200);
     },
 
-    // Machine methods
     filterMachines() {
       const searchTerm = this.machineSearch.toLowerCase();
       this.filteredMachines = this.lookups.machines.filter(machine => 
@@ -532,11 +590,11 @@ export default {
 
     refreshData() {
       if (this.$refs.treatments_datatable && this.$refs.treatments_datatable.vmDataTable) {
-        this.$refs.treatments_datatable.vmDataTable.ajax.reload();
+        this.$refs.treatments_datatable.vmDataTable.ajax.reload(null, false);
       }
     },
+
     clearFilters() {
-      // Clear original filter values
       this.filterTask = '';
       this.filterStatus = 'all';
       this.filterPlanYear = '';
@@ -546,24 +604,25 @@ export default {
       this.filterMachine = '';
       this.filterOperator = '';
 
-      // Clear search inputs
       this.taskSearch = '';
-      this.statusSearch = 'All Status';
+      this.statusSearch = '';
       this.machineSearch = '';
+
+      this.taskInputFocused = false;
+      this.statusInputFocused = false;
+
+      this.filteredTasks = [...this.lookups.tasks];
+      this.filteredStatuses = [...this.lookups.treatment_statuses];
+      this.filteredMachines = [...this.lookups.machines];
 
       this.refreshData();
     },
     collapsible_component_mounted() {
-      // Filter warning icon logic is now handled by computed property
-      console.log('Filters mounted, current state:', this.filterWarningIcon);
-      
-      // Force update the icon color after mount
       this.$nextTick(() => {
         this.updateFilterIconColor();
       });
     },
     updateFilterIconColor() {
-      // Directly manipulate the icon element if needed
       const filterIcon = this.$el.querySelector('.filter_warning_icon');
       if (filterIcon) {
         if (this.areFiltersActive) {
@@ -576,7 +635,6 @@ export default {
     attachEventListeners() {
       const vm = this;
       
-      // Remove existing listeners to prevent duplicates
       $(this.$el).off('click', '.delete-treatment-btn');
       
       $(this.$el).on('click', '.delete-treatment-btn', function() {
@@ -631,7 +689,6 @@ export default {
       },
       immediate: true
     },
-    // Watch all filters and refresh data when they change
     filterTask() {
       this.refreshData();
       this.$nextTick(() => this.updateFilterIconColor());
@@ -664,16 +721,13 @@ export default {
       this.refreshData();
       this.$nextTick(() => this.updateFilterIconColor());
     },
-    // Debug watch to see when filterWarningIcon changes
     filterWarningIcon: {
       handler(newVal) {
-        console.log('Filter warning icon changed to:', newVal);
         this.$nextTick(() => this.updateFilterIconColor());
       }
     }
   },
   mounted() {
-    console.log('Treatments table mounted, initial filter state:', this.filterWarningIcon);
     this.loadLookups();
     this.$nextTick(() => this.updateFilterIconColor());
   }
@@ -705,7 +759,6 @@ export default {
   background-color: #f8f9fa;
 }
 
-/* Ensure datatable responsive design */
 :deep(.dataTables_wrapper) {
   font-size: 0.875rem;
 }
@@ -724,7 +777,6 @@ export default {
   width: 100px;
 }
 
-/* Searchable select styles */
 .searchable-select {
   position: relative;
 }
@@ -741,7 +793,7 @@ export default {
   border-top: none;
   border-radius: 0 0 0.375rem 0.375rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  z-index: 9999; /* High z-index to dominate other components */
+  z-index: 9999;
 }
 
 .dropdown-option {
@@ -773,7 +825,6 @@ export default {
   color: #495057;
 }
 
-/* More specific filter warning icon styles */
 :deep(.collapsible-component .filter_warning_icon) {
   transition: color 0.3s ease !important;
 }
@@ -786,7 +837,6 @@ export default {
   color: #28a745 !important;
 }
 
-/* Even more specific targeting */
 :deep(div.collapsible-component i.filter_warning_icon) {
   transition: color 0.3s ease !important;
 }
@@ -799,35 +849,38 @@ export default {
   color: #28a745 !important;
 }
 
-/* Ensure the searchable select has high z-index when dropdown is open */
 .searchable-select:has(.dropdown-options) {
-  z-index: 9998; /* High z-index for the container when dropdown is present */
+  z-index: 9998;
 }
 
-/* Additional styling for when dropdown is visible */
 .searchable-select .form-control:focus {
-  z-index: 9999; /* Ensure the input is above other elements when focused */
+  z-index: 9999;
   position: relative;
+}
+
+.form-control::placeholder {
+  color: #6c757d;
+  opacity: 0.8;
+}
+
+.form-control:focus::placeholder {
+  opacity: 0.6;
 }
 </style>
 
 <style>
-/* Global styles to ensure dropdown appears above ALL other elements */
 .searchable-select .dropdown-options {
-  z-index: 10000 !important; /* Very high z-index to dominate everything */
+  z-index: 10000 !important;
 }
 
-/* Ensure dropdowns appear above modals and other high-z-index elements */
 .modal .searchable-select .dropdown-options {
-  z-index: 10050 !important; /* Even higher than modals */
+  z-index: 10050 !important;
 }
 
-/* Prevent other elements from interfering */
 .searchable-select {
-  isolation: isolate; /* Creates a new stacking context */
+  isolation: isolate;
 }
 
-/* Global style that will definitely work */
 .treatments-table-container .collapsible-component .filter_warning_icon.filter-active {
   color: #dc3545 !important;
 }

@@ -327,7 +327,7 @@ export default {
           {
             data: 'treatment_id',
             name: 'treatment_id',
-            visible: false,
+            visible: true,
             orderable: true
           },
           {
@@ -335,7 +335,7 @@ export default {
             name: 'task__name',
             orderable: true,
             render: function(data, type, row) {
-              return data?.name || 'N/A';
+              return row?.task || 'N/A';
             }
           },
           {
@@ -391,7 +391,7 @@ export default {
             render: function(data, type, row) {
               let actions = '';
               if (!vm.readOnly) {
-                actions += `<a href="#/internal/treatment/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Treatment">
+                actions += `<a href="/internal/treatment/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Treatment">
                   <i class="bi bi-pencil"></i>
                 </a>`;
                 actions += `<button class="btn btn-sm btn-outline-danger delete-treatment-btn" data-treatment-id="${data}" title="Delete Treatment">

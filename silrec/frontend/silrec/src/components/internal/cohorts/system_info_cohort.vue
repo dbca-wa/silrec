@@ -2,7 +2,7 @@
   <div class="system-information">
     <div class="system-info-grid">
       <div class="info-section">
-        <h6 class="section-title">Creation Information</h6>
+        <h6 class="section-title">Created Details</h6>
         <div class="info-row">
           <div class="info-label">Created On:</div>
           <div class="info-value">{{ formatDateTime(cohortData.created_on) }}</div>
@@ -25,6 +25,7 @@
         </div>
       </div>
 
+<!--
       <div class="info-section">
         <h6 class="section-title">Cohort Metadata</h6>
         <div class="info-row">
@@ -68,9 +69,11 @@
           </div>
         </div>
       </div>
+-->
     </div>
 
     <!-- Additional technical details -->
+<!--
     <div class="technical-details mt-4">
       <h6 class="section-title">Technical Details</h6>
       <div class="details-grid">
@@ -92,6 +95,7 @@
         </div>
       </div>
     </div>
+-->
   </div>
 </template>
 

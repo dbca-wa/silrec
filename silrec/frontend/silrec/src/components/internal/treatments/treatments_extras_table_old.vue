@@ -60,13 +60,13 @@
               <span v-else class="text-muted">-</span>
             </td>
             <td v-if="!readOnly" class="action-column">
-              <router-link 
-                :to="`/internal/treatment-extra/${extra.treatment_xtra_id}`"
+              <button 
                 class="btn btn-sm btn-outline-primary me-1"
+                @click="editExtra(extra)"
                 title="Edit Details"
               >
                 <i class="bi bi-pencil"></i>
-              </router-link>
+              </button>
               <button 
                 class="btn btn-sm btn-outline-danger"
                 @click="deleteExtra(extra.treatment_xtra_id)"
@@ -78,15 +78,27 @@
           </tr>
         </tbody>
       </table>
-      
-      <!-- Add Extra Button -->
-      <div v-if="!readOnly && treatmentId" class="mt-3">
-        <router-link 
-          :to="`/internal/treatment/${treatmentId}/extra/new`"
-          class="btn btn-outline-primary btn-sm"
-        >
-          <i class="bi bi-plus"></i> Add Treatment Details
-        </router-link>
+    </div>
+
+    <!-- Edit Treatment Extra Modal -->
+    <div v-if="showEditModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              {{ editingExtra ? 'Edit' : 'Add' }} Treatment Details
+            </h5>
+            <button type="button" class="btn-close" @click="closeEditModal"></button>
+          </div>
+          <div class="modal-body">
+            <TreatmentExtraForm
+              :treatment-id="treatmentId"
+              :extra-data="editingExtra"
+              @extra-saved="handleExtraSaved"
+              @cancel="closeEditModal"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -126,42 +138,22 @@ export default {
     }
   },
   methods: {
-    getCSRFToken() {
-      const name = 'csrftoken';
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    },
     async loadTreatmentExtras() {
+      if (!this.treatmentId) {
+        this.error = 'No treatment ID provided';
+        return;
+      }
+
       this.loading = true;
       this.error = null;
-
+      
       try {
-        const response = await fetch(`${api_endpoints.treatment_extras}?treatment_id=${this.treatmentId}`);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Handle both array and paginated response formats
-        if (Array.isArray(data)) {
-          this.treatmentExtras = data;
-        } else if (data.results && Array.isArray(data.results)) {
-          this.treatmentExtras = data.results;
-        } else {
-          this.treatmentExtras = [];
-        }
+        const response = await this.$http.get(api_endpoints.treatment_extras, {
+          params: {
+            treatment_id: this.treatmentId
+          }
+        });
+        this.treatmentExtras = response.data;
       } catch (error) {
         console.error('Error loading treatment extras:', error);
         this.error = 'Failed to load treatment details';
@@ -169,51 +161,36 @@ export default {
         this.loading = false;
       }
     },
-
-//    editExtra(extra) {
-//      this.editingExtra = extra;
-//      this.showEditModal = true;
-//    },
-//    
-//    addExtra() {
-//      this.editingExtra = null;
-//      this.showEditModal = true;
-//    },
-
-    async deleteExtra(treatmentExtraId) {
+    
+    editExtra(extra) {
+      this.editingExtra = extra;
+      this.showEditModal = true;
+    },
+    
+    addExtra() {
+      this.editingExtra = null;
+      this.showEditModal = true;
+    },
+    
+    async deleteExtra(extraId) {
       if (!confirm('Are you sure you want to delete these treatment details?')) {
         return;
       }
-
+      
       try {
-        const response = await fetch(`${api_endpoints.treatment_extras}${treatmentExtraId}/`, {
-          method: 'DELETE',
-          headers: {
-            'X-CSRFToken': this.getCSRFToken()
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Remove from local array
-        this.treatmentExtras = this.treatmentExtras.filter(extra => 
-          extra.treatment_xtra_id !== treatmentExtraId
-        );
-
-        this.$emit('extra-updated');
-        this.$emit('success', 'Treatment details deleted successfully');
+        await this.$http.delete(`${api_endpoints.treatment_extras}${extraId}/`);
+        this.$emit('extra-deleted');
+        this.loadTreatmentExtras(); // Reload the list
       } catch (error) {
         console.error('Error deleting treatment extra:', error);
-        this.$emit('error', 'Failed to delete treatment details');
+        alert('Failed to delete treatment details');
       }
     },
-
-//    closeEditModal() {
-//      this.showEditModal = false;
-//      this.editingExtra = null;
-//    },
+    
+    closeEditModal() {
+      this.showEditModal = false;
+      this.editingExtra = null;
+    },
     
     handleExtraSaved() {
       this.closeEditModal();

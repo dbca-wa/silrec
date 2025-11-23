@@ -144,13 +144,13 @@
       <!-- Treatment Extras Section -->
       <div class="mt-4" v-if="treatmentId && !isNew">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6>Additional Treatment Details</h6>
+          <h6>Treatment Extra Details</h6>
           <router-link 
             v-if="!readOnly"
             :to="`/internal/treatment/${treatmentId}/extra/new`"
             class="btn btn-outline-primary btn-sm"
           >
-            <i class="bi bi-plus"></i> Add Details
+            <i class="bi bi-plus"></i> Add Treatment Extra Details
           </router-link>
         </div>
         

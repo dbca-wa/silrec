@@ -405,41 +405,85 @@ export default {
     },
     
     async saveExtra() {
+      if (!this.validateForm()) {
+        return;
+      }
+
       this.saving = true;
       
       try {
-        let response;
+        let url, method, dataToSave;
         
         if (this.isEditing) {
           // Update existing
-          response = await this.$http.put(
-            `${api_endpoints.treatment_extras}${this.formData.treatment_xtra_id}/`,
-            this.formData
-          );
+          url = `${api_endpoints.treatment_extras}${this.formData.treatment_xtra_id}/`;
+          method = 'PUT';
+          dataToSave = this.formData;
         } else {
           // Create new
-          const dataToSave = {
+          url = api_endpoints.treatment_extras;
+          method = 'POST';
+          dataToSave = {
             ...this.formData,
             treatment: this.treatmentId
           };
-          response = await this.$http.post(api_endpoints.treatment_extras, dataToSave);
         }
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+          },
+          body: JSON.stringify(dataToSave)
+        });
+
+        if (!response.ok) {
+          let errorDetail = '';
+          try {
+            const errorData = await response.json();
+            errorDetail = JSON.stringify(errorData);
+          } catch (e) {
+            try {
+              errorDetail = await response.text();
+            } catch (textError) {
+              errorDetail = 'Could not read error response';
+            }
+          }
+          throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetail}`);
+        }
+
+        const responseData = await response.json();
         
-        this.$emit('extra-saved', response.data);
+        this.$emit('extra-saved', responseData);
         this.$emit('success', `Treatment details ${this.isEditing ? 'updated' : 'added'} successfully`);
         
       } catch (error) {
         console.error('Error saving treatment extra:', error);
         
         let errorMessage = 'Failed to save treatment details';
-        if (error.response && error.response.data) {
-          // Handle validation errors from Django
-          const errors = error.response.data;
-          if (typeof errors === 'object') {
-            errorMessage = Object.values(errors).flat().join(', ');
-          } else {
-            errorMessage = errors;
+        if (error.message && error.message.includes('details:')) {
+          try {
+            const details = error.message.split('details:')[1];
+            try {
+              const errorData = JSON.parse(details);
+              if (typeof errorData === 'object') {
+                if (errorData.error) {
+                  errorMessage = errorData.error;
+                } else {
+                  errorMessage = Object.values(errorData).flat().join(', ');
+                }
+              } else {
+                errorMessage = details;
+              }
+            } catch (e) {
+              errorMessage = details;
+            }
+          } catch (e) {
+            errorMessage = error.message;
           }
+        } else {
+          errorMessage = error.message || 'Unknown error occurred';
         }
         
         this.$emit('error', errorMessage);
@@ -463,6 +507,21 @@ export default {
       }
       
       return true;
+    },
+    getCSRFToken() {
+      const name = 'csrftoken';
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
     }
   },
   mounted() {
@@ -480,10 +539,12 @@ export default {
 </script>
 
 <style scoped>
+/*
 .treatment-extra-form {
   max-height: 70vh;
   overflow-y: auto;
 }
+*/
 
 .card {
   border: 1px solid #dee2e6;

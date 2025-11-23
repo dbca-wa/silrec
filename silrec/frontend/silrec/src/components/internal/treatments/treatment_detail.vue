@@ -1,5 +1,5 @@
 <template>
-  <div class="treatment-detail-container">
+  <div class="container">
     <div class="header-actions mb-4">
       <button class="btn btn-secondary" @click="goBack">
         <i class="bi bi-arrow-left"></i> Back
@@ -31,11 +31,14 @@
         />
       </div>
     </div>
+<!--
+-->
   </div>
 </template>
 
 <script>
 import TreatmentForm from './treatments_form.vue';
+import { api_endpoints } from '@/utils/hooks';
 
 export default {
   name: 'TreatmentDetail',
@@ -82,6 +85,7 @@ export default {
       this.loading = true;
       try {
         const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
+        console.log("JM2 :" + `${api_endpoints.treatments}${this.treatmentId}/`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

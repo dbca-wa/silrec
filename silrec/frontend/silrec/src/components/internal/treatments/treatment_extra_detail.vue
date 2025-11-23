@@ -1,11 +1,11 @@
 <template>
-  <div class="treatment-extra-detail-container">
+  <div class="container">
     <div class="header-actions mb-4">
       <button class="btn btn-secondary" @click="goBack">
         <i class="bi bi-arrow-left"></i> Back
       </button>
       <h2 class="page-title">
-        {{ isNew ? 'Add Treatment Details' : 'Edit Treatment Details' }}
+        {{ isNew ? 'Add Treatment Extra Details' : 'Edit Treatment Extra Details' }}
       </h2>
     </div>
 
@@ -82,8 +82,13 @@ export default {
       
       this.loading = true;
       try {
-        const response = await this.$http.get(`${api_endpoints.treatment_extras}${this.treatmentExtraId}/`);
-        this.extraData = response.data;
+        const response = await fetch(`${api_endpoints.treatment_extras}${this.treatmentExtraId}/`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        this.extraData = await response.json();
       } catch (error) {
         console.error('Error loading treatment extra data:', error);
         this.error = 'Failed to load treatment details';

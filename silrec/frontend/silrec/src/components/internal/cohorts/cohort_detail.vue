@@ -1,5 +1,5 @@
 <template>
-  <div class="cohort-detail-container">
+  <div class="container">
     <div v-if="debug">internal/proposals/cohorts/cohort_detail.vue</div>
     <div class="header-actions mb-4">
       <button class="btn btn-secondary" @click="confirmCancel">
@@ -45,7 +45,7 @@
                 type="button"
                 class="btn btn-sm btn-outline-info ms-2"
                 @click="showSystemInfo = true"
-                title="View System Information"
+                title="View Creation Details"
               >
                 <i class="bi bi-info-circle"></i>
               </button>
@@ -184,7 +184,7 @@
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">System Information</h5>
+            <h5 class="modal-title">Created/Updated Details</h5>
             <button type="button" class="btn-close" @click="showSystemInfo = false"></button>
           </div>
           <div class="modal-body">

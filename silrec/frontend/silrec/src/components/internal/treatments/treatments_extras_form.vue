@@ -1,5 +1,6 @@
 <template>
   <div class="treatment-extra-form">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/treatments/treatments_extras_form.vue</div>
     <form @submit.prevent="saveExtra">
       <div class="row">
         <div class="col-md-6">
@@ -373,155 +374,177 @@ export default {
   },
   methods: {
     initializeForm() {
-      if (this.extraData) {
-        // Editing existing extra
-        this.formData = { ...this.extraData };
-      } else {
-        // Creating new extra - reset form
-        this.formData = {
-          treatment_xtra_id: null,
-          rescheduled_reason: '',
-          success_rate_pct: null,
-          stocking_rate_spha: null,
-          api_species_assessed: '',
-          zassessment_type: '',
-          zresult_standard: '',
-          zspecies1_planted: null,
-          zplanting_rate1_spha: null,
-          zspecies2_planted: null,
-          zplanting_rate2_spha: null,
-          zseed_source: '',
-          qty1: null,
-          qty2: null,
-          qty3: null,
-          qty4: null,
-          zmachine_id: null,
-          zpatch: '',
-          zsilvic: '',
-          ztaskid: '',
-          ztreatno: null
-        };
-      }
+        if (this.extraData) {
+            // Editing existing extra
+            this.formData = { ...this.extraData };
+        } else {
+            // Creating new extra - reset form
+            this.formData = {
+                treatment_xtra_id: null,
+                rescheduled_reason: '',
+                success_rate_pct: null,
+                stocking_rate_spha: null,
+                api_species_assessed: '',
+                zassessment_type: '',
+                zresult_standard: '',
+                zspecies1_planted: null,
+                zplanting_rate1_spha: null,
+                zspecies2_planted: null,
+                zplanting_rate2_spha: null,
+                zseed_source: '',
+                qty1: null,
+                qty2: null,
+                qty3: null,
+                qty4: null,
+                zmachine_id: null,
+                zpatch: '',
+                zsilvic: '',
+                ztaskid: '',
+                ztreatno: null
+            };
+        }
     },
     
     async saveExtra() {
-      if (!this.validateForm()) {
-        return;
-      }
-
-      this.saving = true;
-      
-      try {
-        let url, method, dataToSave;
-        
-        if (this.isEditing) {
-          // Update existing
-          url = `${api_endpoints.treatment_extras}${this.formData.treatment_xtra_id}/`;
-          method = 'PUT';
-          dataToSave = this.formData;
-        } else {
-          // Create new
-          url = api_endpoints.treatment_extras;
-          method = 'POST';
-          dataToSave = {
-            ...this.formData,
-            treatment: this.treatmentId
-          };
+        if (!this.validateForm()) {
+            return;
         }
 
-        const response = await fetch(url, {
-          method: method,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCSRFToken()
-          },
-          body: JSON.stringify(dataToSave)
-        });
-
-        if (!response.ok) {
-          let errorDetail = '';
-          try {
-            const errorData = await response.json();
-            errorDetail = JSON.stringify(errorData);
-          } catch (e) {
-            try {
-              errorDetail = await response.text();
-            } catch (textError) {
-              errorDetail = 'Could not read error response';
+        this.saving = true;
+        
+        try {
+            let url, method, dataToSave;
+            
+            if (this.isEditing) {
+                // Update existing
+                url = `${api_endpoints.treatment_extras}${this.formData.treatment_xtra_id}/`;
+                method = 'PUT';
+                dataToSave = this.formData;
+            } else {
+                // Create new
+                url = api_endpoints.treatment_extras;
+                method = 'POST';
+                dataToSave = {
+                    ...this.formData,
+                    treatment: this.treatmentId
+                };
             }
-          }
-          throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetail}`);
-        }
 
-        const responseData = await response.json();
-        
-        this.$emit('extra-saved', responseData);
-        this.$emit('success', `Treatment details ${this.isEditing ? 'updated' : 'added'} successfully`);
-        
-      } catch (error) {
-        console.error('Error saving treatment extra:', error);
-        
-        let errorMessage = 'Failed to save treatment details';
-        if (error.message && error.message.includes('details:')) {
-          try {
-            const details = error.message.split('details:')[1];
-            try {
-              const errorData = JSON.parse(details);
-              if (typeof errorData === 'object') {
-                if (errorData.error) {
-                  errorMessage = errorData.error;
-                } else {
-                  errorMessage = Object.values(errorData).flat().join(', ');
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(dataToSave)
+            });
+
+            if (!response.ok) {
+                let errorDetail = '';
+                try {
+                    const errorData = await response.json();
+                    errorDetail = JSON.stringify(errorData);
+                } catch (e) {
+                    try {
+                        errorDetail = await response.text();
+                    } catch (textError) {
+                        errorDetail = 'Could not read error response';
+                    }
                 }
-              } else {
-                errorMessage = details;
-              }
-            } catch (e) {
-              errorMessage = details;
+                throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetail}`);
             }
-          } catch (e) {
-            errorMessage = error.message;
-          }
-        } else {
-          errorMessage = error.message || 'Unknown error occurred';
+
+            const responseData = await response.json();
+            
+            this.$emit('extra-saved', responseData);
+            
+            await swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: `Treatment details ${this.isEditing ? 'updated' : 'added'} successfully`,
+                timer: 3000,
+                showConfirmButton: false
+            });
+            
+        } catch (error) {
+            console.error('Error saving treatment extra:', error);
+            
+            let errorMessage = 'Failed to save treatment details';
+            if (error.message && error.message.includes('details:')) {
+                try {
+                    const details = error.message.split('details:')[1];
+                    try {
+                        const errorData = JSON.parse(details);
+                        if (typeof errorData === 'object') {
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            } else {
+                                errorMessage = Object.values(errorData).flat().join(', ');
+                            }
+                        } else {
+                            errorMessage = details;
+                        }
+                    } catch (e) {
+                        errorMessage = details;
+                    }
+                } catch (e) {
+                    errorMessage = error.message;
+                }
+            } else {
+                errorMessage = error.message || 'Unknown error occurred';
+            }
+            
+            await swal.fire({
+                icon: 'error',
+                title: 'Save Error',
+                text: errorMessage,
+                confirmButtonText: 'OK'
+            });
+            
+        } finally {
+            this.saving = false;
         }
-        
-        this.$emit('error', errorMessage);
-        
-      } finally {
-        this.saving = false;
-      }
     },
     
     validateForm() {
-      // Basic validation - you can expand this as needed
-      if (this.formData.success_rate_pct !== null && 
-          (this.formData.success_rate_pct < 0 || this.formData.success_rate_pct > 100)) {
-        this.$emit('error', 'Success rate must be between 0 and 100');
-        return false;
-      }
-      
-      if (this.formData.stocking_rate_spha !== null && this.formData.stocking_rate_spha < 0) {
-        this.$emit('error', 'Stocking rate cannot be negative');
-        return false;
-      }
-      
-      return true;
+        // Basic validation - you can expand this as needed
+        if (this.formData.success_rate_pct !== null && 
+            (this.formData.success_rate_pct < 0 || this.formData.success_rate_pct > 100)) {
+            swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Success rate must be between 0 and 100',
+                confirmButtonText: 'OK'
+            });
+            return false;
+        }
+        
+        if (this.formData.stocking_rate_spha !== null && this.formData.stocking_rate_spha < 0) {
+            swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Stocking rate cannot be negative',
+                confirmButtonText: 'OK'
+            });
+            return false;
+        }
+        
+        return true;
     },
     getCSRFToken() {
-      const name = 'csrftoken';
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
         }
-      }
-      return cookieValue;
+        return cookieValue;
     }
   },
   mounted() {

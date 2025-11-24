@@ -1,5 +1,6 @@
 <template>
   <div class="treatment-form">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/treatments/treatments_form.vue</div>
     <form @submit.prevent="saveTreatment">
       <div class="row">
         <div class="col-md-6">
@@ -223,171 +224,216 @@ export default {
   },
   methods: {
     async loadTreatmentData() {
-      if (this.treatmentId) {
-        try {
-          const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          const data = await response.json();
-          this.treatmentData = { ...data };
-        } catch (error) {
-          console.error('Error loading treatment data:', error);
-          this.$emit('error', 'Failed to load treatment data');
+        if (this.treatmentId) {
+            try {
+                const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Format the complete_date for the date input
+                if (data.complete_date) {
+                    data.complete_date = data.complete_date.split('T')[0]; // Extract just the date part
+                }
+                
+                this.treatmentData = { ...data };
+            } catch (error) {
+                console.error('Error loading treatment data:', error);
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Load Failed',
+                    text: 'Failed to load treatment data',
+                    confirmButtonText: 'OK'
+                });
+            }
         }
-      }
     },
     async loadTasks() {
-      try {
-        const response = await fetch(api_endpoints.tasks);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch(api_endpoints.tasks);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            this.tasks = data.results || data;
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+            await swal.fire({
+                icon: 'error',
+                title: 'Load Failed',
+                text: 'Failed to load task list',
+                confirmButtonText: 'OK'
+            });
         }
-        const data = await response.json();
-        this.tasks = data.results || data;
-      } catch (error) {
-        console.error('Error loading tasks:', error);
-        this.$emit('error', 'Failed to load task list');
-      }
     },
     async saveTreatment() {
-      if (!this.validateForm()) {
-        return;
-      }
-
-      this.saving = true;
-      try {
-        let url, method;
-        if (this.treatmentId) {
-          url = `${api_endpoints.treatments}${this.treatmentId}/`;
-          method = 'PUT';
-        } else {
-          url = api_endpoints.treatments;
-          method = 'POST';
+        if (!this.validateForm()) {
+            return;
         }
 
-        console.log('Saving treatment data:', this.treatmentData);
-        console.log('URL:', url, 'Method:', method);
-
-        const response = await fetch(url, {
-          method: method,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCSRFToken()
-          },
-          body: JSON.stringify(this.treatmentData)
-        });
-
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
-        // Clone the response before reading it to avoid "body stream already read" error
-        const responseClone = response.clone();
-        
-        if (!response.ok) {
-          let errorDetail = '';
-          try {
-            // Try to parse as JSON first
-            const errorData = await responseClone.json();
-            errorDetail = JSON.stringify(errorData);
-          } catch (e) {
-            // If JSON parsing fails, try as text
-            try {
-              errorDetail = await responseClone.text();
-            } catch (textError) {
-              errorDetail = 'Could not read error response';
+        this.saving = true;
+        try {
+            let url, method;
+            if (this.treatmentId) {
+                url = `${api_endpoints.treatments}${this.treatmentId}/`;
+                method = 'PUT';
+            } else {
+                url = api_endpoints.treatments;
+                method = 'POST';
             }
-          }
-          throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetail}`);
-        }
 
-        const responseData = await response.json();
-        console.log('Treatment saved successfully:', responseData);
-        
-        this.$emit('treatment-saved', responseData);
-        this.$emit('success', `Treatment ${this.treatmentId ? 'updated' : 'created'} successfully`);
-      } catch (error) {
-        console.error('Error saving treatment:', error);
-        this.handleSaveError(error);
-      } finally {
-        this.saving = false;
-      }
+            console.log('Saving treatment data:', this.treatmentData);
+            console.log('URL:', url, 'Method:', method);
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(this.treatmentData)
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+
+            // Clone the response before reading it to avoid "body stream already read" error
+            const responseClone = response.clone();
+            
+            if (!response.ok) {
+                let errorDetail = '';
+                try {
+                    // Try to parse as JSON first
+                    const errorData = await responseClone.json();
+                    errorDetail = JSON.stringify(errorData);
+                } catch (e) {
+                    // If JSON parsing fails, try as text
+                    try {
+                        errorDetail = await responseClone.text();
+                    } catch (textError) {
+                        errorDetail = 'Could not read error response';
+                    }
+                }
+                throw new Error(`HTTP error! status: ${response.status}, details: ${errorDetail}`);
+            }
+
+            const responseData = await response.json();
+            console.log('Treatment saved successfully:', responseData);
+            
+            this.$emit('treatment-saved', responseData);
+            
+            // Show success message
+            await swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: `Treatment ${this.treatmentId ? 'updated' : 'created'} successfully`,
+                timer: 3000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error saving treatment:', error);
+            await this.handleSaveError(error);
+        } finally {
+            this.saving = false;
+        }
     },
     validateForm() {
-      if (!this.treatmentData.task) {
-        this.$emit('error', 'Task is required');
-        return false;
-      }
-      
-      if (this.treatmentData.plan_mth && (this.treatmentData.plan_mth < 1 || this.treatmentData.plan_mth > 12)) {
-        this.$emit('error', 'Planned month must be between 1 and 12');
-        return false;
-      }
-      
-      if (this.treatmentData.pct_area && (this.treatmentData.pct_area < 0 || this.treatmentData.pct_area > 100)) {
-        this.$emit('error', 'Area percentage must be between 0 and 100');
-        return false;
-      }
-      
-      return true;
-    },
-    handleSaveError(error) {
-      let errorMessage = 'Failed to save treatment';
-      
-      // Check if it's a permission error
-      if (error.message && error.message.includes('403')) {
-        errorMessage = 'You do not have permission to create or update treatments. Please contact an administrator.';
-      } 
-      // Check if it's a validation error from the server
-      else if (error.message && error.message.includes('details:')) {
-        try {
-          const details = error.message.split('details:')[1];
-          // Try to parse the details as JSON for structured errors
-          try {
-            const errorData = JSON.parse(details);
-            if (typeof errorData === 'object') {
-              // Handle Django REST framework validation errors
-              if (errorData.error) {
-                errorMessage = errorData.error;
-              } else {
-                errorMessage = Object.values(errorData).flat().join(', ');
-              }
-            } else {
-              errorMessage = details;
-            }
-          } catch (e) {
-            // If not JSON, use the raw details
-            errorMessage = details;
-          }
-        } catch (e) {
-          errorMessage = error.message;
+        if (!this.treatmentData.task) {
+            swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Task is required',
+                confirmButtonText: 'OK'
+            });
+            return false;
         }
-      } else {
-        errorMessage = error.message || 'Unknown error occurred';
-      }
-      
-      this.$emit('error', errorMessage);
+        
+        if (this.treatmentData.plan_mth && (this.treatmentData.plan_mth < 1 || this.treatmentData.plan_mth > 12)) {
+            swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Planned month must be between 1 and 12',
+                confirmButtonText: 'OK'
+            });
+            return false;
+        }
+        
+        if (this.treatmentData.pct_area && (this.treatmentData.pct_area < 0 || this.treatmentData.pct_area > 100)) {
+            swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Area percentage must be between 0 and 100',
+                confirmButtonText: 'OK'
+            });
+            return false;
+        }
+        
+        return true;
+    },
+    async handleSaveError(error) {
+        let errorMessage = 'Failed to save treatment';
+        
+        // Check if it's a permission error
+        if (error.message && error.message.includes('403')) {
+            errorMessage = 'You do not have permission to create or update treatments. Please contact an administrator.';
+        } 
+        // Check if it's a validation error from the server
+        else if (error.message && error.message.includes('details:')) {
+            try {
+                const details = error.message.split('details:')[1];
+                // Try to parse the details as JSON for structured errors
+                try {
+                    const errorData = JSON.parse(details);
+                    if (typeof errorData === 'object') {
+                        // Handle Django REST framework validation errors
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        } else {
+                            errorMessage = Object.values(errorData).flat().join(', ');
+                        }
+                    } else {
+                        errorMessage = details;
+                    }
+                } catch (e) {
+                    // If not JSON, use the raw details
+                    errorMessage = details;
+                }
+            } catch (e) {
+                errorMessage = error.message;
+            }
+        } else {
+            errorMessage = error.message || 'Unknown error occurred';
+        }
+        
+        await swal.fire({
+            icon: 'error',
+            title: 'Save Error',
+            text: errorMessage,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#d33'
+        });
     },
     cancel() {
-      this.$emit('cancel');
+        this.$emit('cancel');
     },
     refreshExtras() {
-      // This will be handled by the TreatmentExtrasTable component itself
+        // This will be handled by the TreatmentExtrasTable component itself
     },
     getCSRFToken() {
-      const name = 'csrftoken';
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
         }
-      }
-      return cookieValue;
+        return cookieValue;
     }
   },
   mounted() {

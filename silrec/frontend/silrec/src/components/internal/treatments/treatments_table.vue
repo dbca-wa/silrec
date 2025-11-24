@@ -1,5 +1,6 @@
 <template>
   <div class="treatments-table-container">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/treatments/treatments_table.vue</div>
     <div class="table-controls mb-3">
       <div class="row align-items-center">
         <div class="col-md-6">
@@ -450,34 +451,39 @@ export default {
   },
   methods: {
     async loadLookups() {
-      this.loadingLookups = true;
-      this.lookupError = null;
-      
-      try {
-        const response = await fetch(api_endpoints.combined_lookups);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        this.lookups.tasks = data.tasks || [];
-        this.lookups.treatment_statuses = data.treatment_statuses || [];
-        this.lookups.machines = data.machines || [];
-        
-        this.filteredTasks = [...this.lookups.tasks];
-        this.filteredStatuses = [...this.lookups.treatment_statuses];
-        this.filteredMachines = [...this.lookups.machines];
-        
-      } catch (error) {
-        console.error('Error loading lookups:', error);
-        this.lookupError = error.message;
-      } finally {
-        this.loadingLookups = false;
-      }
-    },
+        this.loadingLookups = true;
+        this.lookupError = null;
 
+        try {
+            const response = await fetch(api_endpoints.combined_lookups);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            this.lookups.tasks = data.tasks || [];
+            this.lookups.treatment_statuses = data.treatment_statuses || [];
+            this.lookups.machines = data.machines || [];
+
+            this.filteredTasks = [...this.lookups.tasks];
+            this.filteredStatuses = [...this.lookups.treatment_statuses];
+            this.filteredMachines = [...this.lookups.machines];
+
+        } catch (error) {
+            console.error('Error loading lookups:', error);
+            this.lookupError = error.message;
+            await swal.fire({
+                icon: 'error',
+                title: 'Load Failed',
+                text: 'Failed to load lookup data',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            this.loadingLookups = false;
+        }
+    },
     filterTasks() {
       const searchTerm = this.taskSearch.toLowerCase();
       
@@ -634,50 +640,75 @@ export default {
     },
     attachEventListeners() {
       const vm = this;
-      
+
       $(this.$el).off('click', '.delete-treatment-btn');
-      
+
       $(this.$el).on('click', '.delete-treatment-btn', function() {
         const treatmentId = $(this).data('treatment-id');
         vm.deleteTreatment(treatmentId);
       });
     },
     async deleteTreatment(treatmentId) {
-      if (confirm('Are you sure you want to delete this treatment?')) {
-        try {
-          const response = await fetch(`${api_endpoints.treatments}${treatmentId}/`, {
-            method: 'DELETE',
-            headers: {
-              'X-CSRFToken': this.getCSRFToken()
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          this.refreshData();
-          this.$emit('treatment-updated');
-        } catch (error) {
-          console.error('Error deleting treatment:', error);
-          alert('Failed to delete treatment');
+        const result = await swal.fire({
+            icon: 'warning',
+            title: 'Are you sure?',
+            text: 'Are you sure you want to delete this treatment?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#d33'
+        });
+
+        if (!result.isConfirmed) {
+            return;
         }
-      }
+
+        try {
+            const response = await fetch(`${api_endpoints.treatments}${treatmentId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            this.refreshData();
+            this.$emit('treatment-updated');
+
+            await swal.fire({
+                icon: 'success',
+                title: 'Deleted!',
+                text: 'Treatment deleted successfully',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error deleting treatment:', error);
+            await swal.fire({
+                icon: 'error',
+                title: 'Delete Failed',
+                text: 'Failed to delete treatment',
+                confirmButtonText: 'OK'
+            });
+        }
     },
     getCSRFToken() {
-      const name = 'csrftoken';
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
         }
-      }
-      return cookieValue;
+        return cookieValue;
     }
   },
   watch: {

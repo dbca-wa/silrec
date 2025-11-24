@@ -1,5 +1,6 @@
 <template>
   <div class="cohort-form">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/cohorts/cohort_form.vue</div>
     <div v-if="loadingLookups" class="text-center">
       <div class="spinner-border" role="status">
         <span class="visually-hidden">Loading lookups...</span>
@@ -276,43 +277,49 @@ export default {
     },
 
     async loadLookups() {
-      this.loadingLookups = true;
-      this.lookupError = null;
-      
-      try {
-        const response = await fetch(api_endpoints.combined_lookups);
+        this.loadingLookups = true;
+        this.lookupError = null;
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch(api_endpoints.combined_lookups);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Extract the lookup data we need
+            this.lookups.objectives = data.objectives || [];
+            this.lookups.species = data.species || [];
+            this.lookups.regeneration_methods = data.regeneration_methods || [];
+            
+            // Initialize filtered lists with all items
+            this.filteredObjectives = [...this.lookups.objectives];
+            this.filteredSpecies = [...this.lookups.species];
+            this.filteredRegenMethods = [...this.lookups.regeneration_methods];
+            
+            // Re-initialize search fields with lookups loaded
+            this.initializeSearchFields();
+            
+            console.log('Lookups loaded successfully:', {
+                objectives: this.lookups.objectives.length,
+                species: this.lookups.species.length,
+                regeneration_methods: this.lookups.regeneration_methods.length
+            });
+            
+        } catch (error) {
+            console.error('Error loading lookups:', error);
+            this.lookupError = error.message;
+            await swal.fire({
+                icon: 'error',
+                title: 'Load Failed',
+                text: 'Failed to load lookup data',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            this.loadingLookups = false;
         }
-        
-        const data = await response.json();
-        
-        // Extract the lookup data we need
-        this.lookups.objectives = data.objectives || [];
-        this.lookups.species = data.species || [];
-        this.lookups.regeneration_methods = data.regeneration_methods || [];
-        
-        // Initialize filtered lists with all items
-        this.filteredObjectives = [...this.lookups.objectives];
-        this.filteredSpecies = [...this.lookups.species];
-        this.filteredRegenMethods = [...this.lookups.regeneration_methods];
-        
-        // Re-initialize search fields with lookups loaded
-        this.initializeSearchFields();
-        
-        console.log('Lookups loaded successfully:', {
-          objectives: this.lookups.objectives.length,
-          species: this.lookups.species.length,
-          regeneration_methods: this.lookups.regeneration_methods.length
-        });
-        
-      } catch (error) {
-        console.error('Error loading lookups:', error);
-        this.lookupError = error.message;
-      } finally {
-        this.loadingLookups = false;
-      }
     },
 
     // Objective methods

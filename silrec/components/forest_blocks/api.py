@@ -541,12 +541,13 @@ class TreatmentXtraViewSet(viewsets.ModelViewSet):
     queryset = TreatmentXtra.objects.all()
     serializer_class = TreatmentXtraSerializer
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
-        return [permission() for permission in permission_classes]
+#    def get_permissions(self):
+#        import ipdb; ipdb.set_trace()
+#        if self.action in ['list', 'retrieve', 'update', 'partial_update']:
+#            permission_classes = [IsAuthenticated]
+#        else:
+#            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+#        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         queryset = TreatmentXtra.objects.all()

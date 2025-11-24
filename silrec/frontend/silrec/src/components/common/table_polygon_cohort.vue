@@ -1,5 +1,6 @@
 <template>
     <div class="polygon-cohort-table-container">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/table_polygon_cohort.vue</div>
         <div class="table-controls mb-3">
             <div class="row align-items-center">
                 <div class="col-md-6">
@@ -349,9 +350,19 @@ export default {
                 });
             }
         },
-        refreshData() {
-            if (this.$refs.polygon_cohort_datatable && this.$refs.polygon_cohort_datatable.vmDataTable) {
-                this.$refs.polygon_cohort_datatable.vmDataTable.ajax.reload();
+        async refreshData() {
+            try {
+                if (this.$refs.polygon_cohort_datatable && this.$refs.polygon_cohort_datatable.vmDataTable) {
+                    await this.$refs.polygon_cohort_datatable.vmDataTable.ajax.reload();
+                }
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Refresh Failed',
+                    text: 'Failed to refresh table data. Please try again.',
+                    confirmButtonText: 'OK'
+                });
             }
         },
         collapsible_component_mounted() {

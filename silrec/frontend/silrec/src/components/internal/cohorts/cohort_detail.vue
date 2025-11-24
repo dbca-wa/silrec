@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <div v-if="debug">internal/proposals/cohorts/cohort_detail.vue</div>
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">internal/proposals/cohorts/cohort_detail.vue</div>
     <div class="header-actions mb-4">
       <button class="btn btn-secondary" @click="confirmCancel">
         <i class="bi bi-arrow-left"></i> Back to Map
@@ -292,29 +292,34 @@ export default {
         this.error = null;
         
         try {
-          // Use the prop cohortId instead of $route.params.cohortId
-          const cohortId = this.cohortId || this.$route.params.cohortId;
-          const url = `${api_endpoints.cohorts}${cohortId}/`;
-          console.log('Loading cohort data from:', url);
-          
-          const response = await fetch(url);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          this.cohortData = data;
-          console.log('Cohort data loaded successfully:', this.cohortData);
-          
+            // Use the prop cohortId instead of $route.params.cohortId
+            const cohortId = this.cohortId || this.$route.params.cohortId;
+            const url = `${api_endpoints.cohorts}${cohortId}/`;
+            console.log('Loading cohort data from:', url);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.cohortData = data;
+            console.log('Cohort data loaded successfully:', this.cohortData);
+            
         } catch (error) {
-          console.error('Error loading cohort data:', error);
-          this.error = 'Failed to load cohort data. Please check if the cohort exists.';
+            console.error('Error loading cohort data:', error);
+            this.error = 'Failed to load cohort data. Please check if the cohort exists.';
+            await swal.fire({
+                icon: 'error',
+                title: 'Load Failed',
+                text: 'Failed to load cohort data. Please check if the cohort exists.',
+                confirmButtonText: 'OK'
+            });
         } finally {
-          this.loading = false;
+            this.loading = false;
         }
     },
-
     async toggleTreatments() {
       // Toggle the visibility
       this.showTreatments = !this.showTreatments;
@@ -326,197 +331,244 @@ export default {
     },
 
     async refreshTreatments() {
-      if (!this.showTreatments) return;
-      
-      this.treatmentsLoading = true;
-      try {
-        // Refresh the treatments table
-        if (this.$refs.treatmentsTable) {
-          this.$refs.treatmentsTable.refreshData();
+        if (!this.showTreatments) return;
+        
+        this.treatmentsLoading = true;
+        try {
+            // Refresh the treatments table
+            if (this.$refs.treatmentsTable) {
+                this.$refs.treatmentsTable.refreshData();
+            }
+            
+            // Also fetch the treatments count for the badge
+            await this.loadTreatmentsCount();
+            
+        } catch (error) {
+            console.error('Error refreshing treatments:', error);
+            await swal.fire({
+                icon: 'error',
+                title: 'Refresh Failed',
+                text: 'Failed to refresh treatments data',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            this.treatmentsLoading = false;
         }
-        
-        // Also fetch the treatments count for the badge
-        await this.loadTreatmentsCount();
-        
-      } catch (error) {
-        console.error('Error refreshing treatments:', error);
-      } finally {
-        this.treatmentsLoading = false;
-      }
     },
-
     async loadTreatmentsCount() {
-      try {
-        const cohortId = this.cohortId || this.$route.params.cohortId;
-        const response = await fetch(`${api_endpoints.treatments}?cohort_id=${cohortId}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          // Handle both array and paginated responses
-          if (Array.isArray(data)) {
-            this.treatmentsCount = data.length;
-          } else if (data.results) {
-            this.treatmentsCount = data.results.length;
-          } else if (data.data) {
-            this.treatmentsCount = data.data.length;
-          } else {
+        try {
+            const cohortId = this.cohortId || this.$route.params.cohortId;
+            const response = await fetch(`${api_endpoints.treatments}?cohort_id=${cohortId}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                // Handle both array and paginated responses
+                if (Array.isArray(data)) {
+                    this.treatmentsCount = data.length;
+                } else if (data.results) {
+                    this.treatmentsCount = data.results.length;
+                } else if (data.data) {
+                    this.treatmentsCount = data.data.length;
+                } else {
+                    this.treatmentsCount = 0;
+                }
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error loading treatments count:', error);
             this.treatmentsCount = 0;
-          }
         }
-      } catch (error) {
-        console.error('Error loading treatments count:', error);
-        this.treatmentsCount = 0;
-      }
     },
-
     async toggleAdditionalFields() {
-      console.log('toggleAdd: 1 - Current state:', this.showAdditionalFields);
-      
-      // If currently showing and about to collapse, check for changes
-      if (this.showAdditionalFields && this.$refs.additionalFields) {
-        console.log('toggleAdd: 2 - Checking for changes before collapse');
-        const hasChanges = this.$refs.additionalFields.checkForChanges();
-        console.log('toggleAdd: 3 - Has changes:', hasChanges);
+        console.log('toggleAdd: 1 - Current state:', this.showAdditionalFields);
         
-        if (hasChanges) {
-          console.log('toggleAdd: 4 - Auto-saving changes');
-          await this.autoSaveAdditionalFields();
+        // If currently showing and about to collapse, check for changes
+        if (this.showAdditionalFields && this.$refs.additionalFields) {
+            console.log('toggleAdd: 2 - Checking for changes before collapse');
+            const hasChanges = this.$refs.additionalFields.checkForChanges();
+            console.log('toggleAdd: 3 - Has changes:', hasChanges);
+            
+            if (hasChanges) {
+                console.log('toggleAdd: 4 - Auto-saving changes');
+                await this.autoSaveAdditionalFields();
+            }
         }
-      }
-      
-      // Toggle the visibility
-      this.showAdditionalFields = !this.showAdditionalFields;
-      console.log('toggleAdd: 5 - New state:', this.showAdditionalFields);
+        
+        // Toggle the visibility
+        this.showAdditionalFields = !this.showAdditionalFields;
+        console.log('toggleAdd: 5 - New state:', this.showAdditionalFields);
     },
-
     async autoSaveAdditionalFields() {
-      console.log('autoSaveAdditionalFields: 1 - Starting auto-save');
-      try {
-        const additionalFormData = this.$refs.additionalFields.getFormDataForAPI();
-        const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
-        
-        const combinedData = {
-          ...mainFormData,
-          ...additionalFormData
-        };
+        console.log('autoSaveAdditionalFields: 1 - Starting auto-save');
+        try {
+            const additionalFormData = this.$refs.additionalFields.getFormDataForAPI();
+            const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
+            
+            const combinedData = {
+                ...mainFormData,
+                ...additionalFormData
+            };
 
-        console.log('autoSaveAdditionalFields: 2 - Combined data:', combinedData);
+            console.log('autoSaveAdditionalFields: 2 - Combined data:', combinedData);
 
-        if (!combinedData.obj_code || !combinedData.regen_method) {
-          console.log('autoSaveAdditionalFields: 3 - Missing required fields, skipping save');
-          return;
+            if (!combinedData.obj_code || !combinedData.regen_method) {
+                console.log('autoSaveAdditionalFields: 3 - Missing required fields, skipping save');
+                await swal.fire({
+                    icon: 'warning',
+                    title: 'Validation Warning',
+                    text: 'Objective Code and Regeneration Method are required fields',
+                    confirmButtonText: 'OK'
+                });
+                return;
+            }
+
+            const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
+            console.log('autoSaveAdditionalFields: 4 - Making API call to:', url);
+            
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(combinedData)
+            });
+
+            if (response.ok) {
+                const updatedData = await response.json();
+                this.cohortData = { ...this.cohortData, ...updatedData };
+                this.$refs.additionalFields.resetChangeTracking();
+                console.log('autoSaveAdditionalFields: 5 - Auto-save successful');
+                
+                await swal.fire({
+                    icon: 'success',
+                    title: 'Auto-saved!',
+                    text: 'Additional fields saved automatically',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                console.error('autoSaveAdditionalFields: 6 - API error:', response.status);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('autoSaveAdditionalFields: 7 - Error:', error);
+            await swal.fire({
+                icon: 'error',
+                title: 'Auto-save Failed',
+                text: 'Failed to auto-save additional fields',
+                confirmButtonText: 'OK'
+            });
         }
-
-        const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
-        console.log('autoSaveAdditionalFields: 4 - Making API call to:', url);
-        
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCSRFToken()
-          },
-          body: JSON.stringify(combinedData)
-        });
-
-        if (response.ok) {
-          const updatedData = await response.json();
-          this.cohortData = { ...this.cohortData, ...updatedData };
-          this.$refs.additionalFields.resetChangeTracking();
-          console.log('autoSaveAdditionalFields: 5 - Auto-save successful');
-        } else {
-          console.error('autoSaveAdditionalFields: 6 - API error:', response.status);
-        }
-      } catch (error) {
-        console.error('autoSaveAdditionalFields: 7 - Error:', error);
-      }
     },
-
     async saveAllFields() {
-      this.saving = true;
-      this.error = null;
-      
-      try {
-        // Get data from both form components
-        const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
-        const additionalFormData = this.$refs.additionalFields ? this.$refs.additionalFields.getFormDataForAPI() : {};
+        this.saving = true;
+        this.error = null;
         
-        // Combine all data
-        const combinedData = {
-          ...mainFormData,
-          ...additionalFormData
-        };
+        try {
+            // Get data from both form components
+            const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
+            const additionalFormData = this.$refs.additionalFields ? this.$refs.additionalFields.getFormDataForAPI() : {};
+            
+            // Combine all data
+            const combinedData = {
+                ...mainFormData,
+                ...additionalFormData
+            };
 
-        console.log('Saving combined data:', combinedData);
+            console.log('Saving combined data:', combinedData);
 
-        // Validate required fields
-        if (!combinedData.obj_code) {
-          throw new Error('Objective Code is required');
+            // Validate required fields
+            if (!combinedData.obj_code) {
+                throw new Error('Objective Code is required');
+            }
+            if (!combinedData.regen_method) {
+                throw new Error('Regeneration Method is required');
+            }
+
+            const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(combinedData)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+            }
+
+            const updatedData = await response.json();
+            this.cohortData = { ...this.cohortData, ...updatedData };
+            this.hasUnsavedChanges = false;
+            
+            // Reset change tracking in additional fields
+            if (this.$refs.additionalFields) {
+                this.$refs.additionalFields.resetChangeTracking();
+            }
+            
+            console.log('All fields saved successfully:', updatedData);
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Error saving all fields:', error);
+            this.error = `Failed to save changes: ${error.message}`;
+            await swal.fire({
+                icon: 'error',
+                title: 'Save Failed',
+                text: `Failed to save changes: ${error.message}`,
+                confirmButtonText: 'OK'
+            });
+            return false;
+        } finally {
+            this.saving = false;
         }
-        if (!combinedData.regen_method) {
-          throw new Error('Regeneration Method is required');
-        }
-
-        const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCSRFToken()
-          },
-          body: JSON.stringify(combinedData)
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-        }
-
-        const updatedData = await response.json();
-        this.cohortData = { ...this.cohortData, ...updatedData };
-        this.hasUnsavedChanges = false;
-        
-        // Reset change tracking in additional fields
-        if (this.$refs.additionalFields) {
-          this.$refs.additionalFields.resetChangeTracking();
-        }
-        
-        console.log('All fields saved successfully:', updatedData);
-        
-        return true;
-        
-      } catch (error) {
-        console.error('Error saving all fields:', error);
-        this.error = `Failed to save changes: ${error.message}`;
-        return false;
-      } finally {
-        this.saving = false;
-      }
     },
-
     async saveAndContinue() {
-      const success = await this.saveAllFields();
-      if (success) {
-        this.$emit('success', 'Changes saved successfully');
-      }
+        const success = await this.saveAllFields();
+        if (success) {
+            await swal.fire({
+                icon: 'success',
+                title: 'Saved!',
+                text: 'Changes saved successfully',
+                timer: 3000,
+                showConfirmButton: false
+            });
+            this.$emit('success', 'Changes saved successfully');
+        }
     },
-
     async saveAndExit() {
-      const success = await this.saveAllFields();
-      if (success) {
-        this.$router.push('/');
-      }
+        const success = await this.saveAllFields();
+        if (success) {
+            //this.$router.push('/internal');
+            this.$router.go(-1);
+            await swal.fire({
+                icon: 'success',
+                title: 'Saved!',
+                text: 'Changes saved successfully',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
     },
-
     confirmCancel() {
-      this.showCancelConfirm = true;
+        if (this.hasUnsavedChanges) {
+            this.showCancelConfirm = true;
+        } else {
+            this.cancelChanges();
+        }
+    },
+    cancelChanges() {
+        this.showCancelConfirm = false;
+        //this.$router.push('/internal');
+        this.$router.go(-1);
     },
 
-    cancelChanges() {
-      this.showCancelConfirm = false;
-      this.$router.push('/');
-    },
-    
     loadUserPermissions() {
       this.userPermissions = helpers.getUserPermissions();
     },

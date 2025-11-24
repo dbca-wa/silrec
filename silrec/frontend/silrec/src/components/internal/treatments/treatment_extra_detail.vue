@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/treatments/treatment_extra_detail.vue</div>
     <div class="header-actions mb-4">
       <button class="btn btn-secondary" @click="goBack">
         <i class="bi bi-arrow-left"></i> Back
@@ -20,6 +21,8 @@
     </div>
 
     <div v-if="!loading && !error" class="card">
+      JM2: {{treatmentId}}<br>
+      JM3: {{treatmentExtraId}}
       <div class="card-body">
         <TreatmentExtraForm
           :treatment-id="treatmentId"
@@ -68,33 +71,45 @@ export default {
   },
   methods: {
     goBack() {
-      this.$router.go(-1);
+        this.$router.go(-1);
     },
     handleExtraSaved(extraData) {
-      this.$emit('extra-saved', extraData);
-      this.goBack();
+        this.$emit('extra-saved', extraData);
+        this.goBack();
     },
     handleError(errorMessage) {
-      this.error = errorMessage;
+        this.error = errorMessage;
+        swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: errorMessage,
+            confirmButtonText: 'OK'
+        });
     },
     async loadExtraData() {
-      if (this.isNew) return;
-      
-      this.loading = true;
-      try {
-        const response = await fetch(`${api_endpoints.treatment_extras}${this.treatmentExtraId}/`);
+        if (this.isNew) return;
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        this.loading = true;
+        try {
+            const response = await fetch(`${api_endpoints.treatment_extras}${this.treatmentExtraId}/`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            this.extraData = await response.json();
+        } catch (error) {
+            console.error('Error loading treatment extra data:', error);
+            this.error = 'Failed to load treatment details';
+            await swal.fire({
+                icon: 'error',
+                title: 'Load Failed',
+                text: 'Failed to load treatment details',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            this.loading = false;
         }
-        
-        this.extraData = await response.json();
-      } catch (error) {
-        console.error('Error loading treatment extra data:', error);
-        this.error = 'Failed to load treatment details';
-      } finally {
-        this.loading = false;
-      }
     }
   },
   mounted() {

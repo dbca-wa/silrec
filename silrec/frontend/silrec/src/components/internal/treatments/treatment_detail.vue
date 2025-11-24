@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/treatments/treatment_detail.vue</div>
     <div class="header-actions mb-4">
       <button class="btn btn-secondary" @click="goBack">
         <i class="bi bi-arrow-left"></i> Back
@@ -70,32 +71,44 @@ export default {
   },
   methods: {
     goBack() {
-      this.$router.go(-1);
+        this.$router.go(-1);
     },
     handleTreatmentSaved(treatmentData) {
-      this.$emit('treatment-saved', treatmentData);
-      this.goBack();
+        this.$emit('treatment-saved', treatmentData);
+        this.goBack();
     },
     handleError(errorMessage) {
-      this.error = errorMessage;
+        this.error = errorMessage;
+        swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: errorMessage,
+            confirmButtonText: 'OK'
+        });
     },
     async loadTreatmentData() {
-      if (this.isNew) return;
-      
-      this.loading = true;
-      try {
-        const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
-        console.log("JM2 :" + `${api_endpoints.treatments}${this.treatmentId}/`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (this.isNew) return;
+        
+        this.loading = true;
+        try {
+            const response = await fetch(`${api_endpoints.treatments}${this.treatmentId}/`);
+            console.log("JM2 :" + `${api_endpoints.treatments}${this.treatmentId}/`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            this.treatmentData = await response.json();
+        } catch (error) {
+            console.error('Error loading treatment data:', error);
+            this.error = 'Failed to load treatment data';
+            await swal.fire({
+                icon: 'error',
+                title: 'Load Failed',
+                text: 'Failed to load treatment data',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            this.loading = false;
         }
-        this.treatmentData = await response.json();
-      } catch (error) {
-        console.error('Error loading treatment data:', error);
-        this.error = 'Failed to load treatment data';
-      } finally {
-        this.loading = false;
-      }
     }
   },
   mounted() {

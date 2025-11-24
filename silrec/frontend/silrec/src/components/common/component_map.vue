@@ -498,42 +498,60 @@ export default {
     document.removeEventListener('keydown', this.handleEscape);
   },
   methods: {
-
-    exportChtToExcel() {
+    async exportChtToExcel() {  // Add async here
         if (!this.currentChtData) return;
 
         try {
-          // Create workbook
-          const workbook = XLSX.utils.book_new();
-          
-          // Add CHT Init sheet if available
-          if (this.currentChtData.cht_init) {
-            const initData = this.parseChtData(this.currentChtData.cht_init);
-            if (initData.length > 0) {
-              const initWorksheet = XLSX.utils.json_to_sheet(initData);
-              XLSX.utils.book_append_sheet(workbook, initWorksheet, 'Initial_Cohorts');
+            // Create workbook
+            const workbook = XLSX.utils.book_new();
+
+            // Add CHT Init sheet if available
+            if (this.currentChtData.cht_init) {
+                const initData = this.parseChtData(this.currentChtData.cht_init);
+                if (initData.length > 0) {
+                    const initWorksheet = XLSX.utils.json_to_sheet(initData);
+                    XLSX.utils.book_append_sheet(workbook, initWorksheet, 'Initial_Cohorts');
+                }
             }
-          }
-          
-          // Add CHT New sheet if available
-          if (this.currentChtData.cht_new) {
-            const newData = this.parseChtData(this.currentChtData.cht_new);
-            if (newData.length > 0) {
-              const newWorksheet = XLSX.utils.json_to_sheet(newData);
-              XLSX.utils.book_append_sheet(workbook, newWorksheet, 'New_Cohorts');
+
+            // Add CHT New sheet if available
+            if (this.currentChtData.cht_new) {
+                const newData = this.parseChtData(this.currentChtData.cht_new);
+                if (newData.length > 0) {
+                    const newWorksheet = XLSX.utils.json_to_sheet(newData);
+                    XLSX.utils.book_append_sheet(workbook, newWorksheet, 'New_Cohorts');
+                }
             }
-          }
-          
-          // Generate filename with timestamp
-          const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-          const filename = `cohort_data_polygon_${this.selectedGeometryIndex + 1}_${timestamp}.xlsx`;
-          
-          // Export to Excel
-          XLSX.writeFile(workbook, filename);
-          
+
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `cohort_data_polygon_${this.selectedGeometryIndex + 1}_${timestamp}.xlsx`;
+
+            // Export to Excel
+            XLSX.writeFile(workbook, filename);
+
+            await swal.fire({
+                icon: 'success',
+                title: 'Export Successful',
+                text: `Data exported to ${filename}`,
+                timer: 3000,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'swal2-popup-custom'
+                }
+            });
+
         } catch (error) {
-          console.error('Error exporting to Excel:', error);
-          alert('Error exporting data to Excel. Please try again.');
+            console.error('Error exporting to Excel:', error);
+            await swal.fire({
+                icon: 'error',
+                title: 'Export Failed',
+                text: 'Error exporting data to Excel. Please try again.',
+                confirmButtonText: 'OK',
+                customClass: {
+                    popup: 'swal2-popup-custom'
+                }
+            });
         }
     },
     openChtDialog(geometryIndex) {
@@ -1424,4 +1442,27 @@ export default {
   border-right: none;
 }
 
+:deep(.swal2-container) {
+    z-index: 10002 !important;
+}
+
+:deep(.swal2-popup) {
+    z-index: 10003 !important;
+}
+
+:deep(.swal2-backdrop-show) {
+    z-index: 10001 !important;
+}
+
+</style>
+
+<style>
+/* Global styles for SweetAlert2 in this component context */
+.swal2-popup-custom {
+    z-index: 10003 !important;
+}
+
+.swal2-container {
+    z-index: 10002 !important;
+}
 </style>

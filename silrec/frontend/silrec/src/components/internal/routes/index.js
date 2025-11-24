@@ -142,8 +142,8 @@ export default {
             props: true
         },
         {
-            path: 'treatment_extra/:treatmentExtraId',
-            name: 'treatment_extra_detail',
+            path: 'treatment/:treatmentId/treatment-extra/:treatmentExtraId',
+            name: 'treatment-extra-detail',
             component: TreatmentExtraDetail,
             props: true
         },

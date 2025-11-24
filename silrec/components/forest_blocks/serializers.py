@@ -406,7 +406,7 @@ class TreatmentXtraSerializer(serializers.ModelSerializer):
         if obj.treatment:
             return {
                 'treatment_id': obj.treatment.treatment_id,
-                'task_name': obj.treatment.task.name if obj.treatment.task else None,
+                'task_name': obj.treatment.task.task_name if obj.treatment.task else None,
                 'cohort_id': obj.treatment.cohort.cohort_id if obj.treatment.cohort else None,
             }
         return None

@@ -1,5 +1,6 @@
 <template>
   <div class="additional-cohort-fields">
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/cohorts/additional_cohort_fields.vue</div>
     <div class="row">
       <!-- Operation Information -->
       <div class="col-md-6">

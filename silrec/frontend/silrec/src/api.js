@@ -74,6 +74,7 @@ export default {
     treatment_extras: '/api/treatment-extras/',
     tasks: '/api/lookups/tasks/',
     combined_lookups: '/api/combined_lookups/',
+    silviculturist_comments: '/api/silviculturist-comments/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

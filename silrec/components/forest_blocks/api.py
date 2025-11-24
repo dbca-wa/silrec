@@ -35,6 +35,8 @@ from silrec.components.forest_blocks.models import   (
     Treatment,
     TreatmentXtra,
     AssignChtToPly,
+    Prescription,
+    SilviculturistComment,
 )
 from silrec.components.users.serializers import   (
     UserSerializer,
@@ -44,6 +46,8 @@ from silrec.components.forest_blocks.serializers import   (
     TreatmentSerializer,
     TreatmentXtraSerializer,
     CohortSerializer,
+    PrescriptionSerializer,
+    SilviculturistCommentSerializer,
     SimpleCohortSerializer,
     PolygonSerializer,
     Polygon2Serializer,
@@ -556,3 +560,41 @@ class TreatmentXtraViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(treatment_id=treatment_id)
         return queryset
 
+
+class PrescriptionViewSet(viewsets.ModelViewSet):
+    queryset = Prescription.objects.all()
+    serializer_class = PrescriptionSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        queryset = Prescription.objects.all()
+        #prescription_id = self.request.query_params.get('prescription_id')
+        prescription_id = self.request.query_params.get('prescription')
+        if prescription_id:
+            queryset = queryset.filter(prescription_id=prescription_id)
+        return queryset
+
+
+class SilviculturistCommentViewSet(viewsets.ModelViewSet):
+    queryset = SilviculturistComment.objects.all()
+    serializer_class = SilviculturistCommentSerializer
+
+    def get_queryset(self):
+        queryset = SilviculturistComment.objects.all()
+        treatment_id = self.request.query_params.get('treatment')
+        if treatment_id:
+            queryset = queryset.filter(treatment_id=treatment_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+        return [permission() for permission in permission_classes]

@@ -2,6 +2,7 @@
   <div class="treatment-form">
     <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/treatments/treatments_form.vue</div>
     <form @submit.prevent="saveTreatment">
+      <!-- Existing form fields remain the same -->
       <div class="row">
         <div class="col-md-6">
           <div class="form-group">
@@ -142,24 +143,121 @@
         </div>
       </div>
 
+      <!-- Prescriptions Section - Now Collapsible -->
+      <div class="mt-4" v-if="treatmentId && !isNew">
+        <div class="card">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <button 
+                class="btn btn-link btn-sm text-decoration-none" 
+                type="button" 
+                @click="togglePrescriptionCollapse"
+              >
+                <i class="bi" :class="prescriptionCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+                Prescription Details
+              </button>
+            </h6>
+          </div>
+          
+          <div v-if="!prescriptionCollapsed" class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted">Prescribed tasks and timing for this treatment</span>
+              <button 
+                v-if="!treatmentData.prescription && !readOnly" 
+                type="button"
+                class="btn btn-outline-primary btn-sm"
+                @click="showNewPrescriptionForm"
+              >
+                <i class="bi bi-plus"></i> Add New Prescription
+              </button>
+            </div>
+            
+            <PrescriptionForm
+              v-if="treatmentData.prescription || showPrescriptionForm"
+              :prescription-id="treatmentData.prescription"
+              :treatment-id="treatmentId"
+              :read-only="readOnly"
+              @prescription-saved="handlePrescriptionSaved"
+              @cancel="handlePrescriptionCancel"
+            />
+          </div>
+        </div>
+      </div>
+
       <!-- Treatment Extras Section -->
       <div class="mt-4" v-if="treatmentId && !isNew">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6>Treatment Extra Details</h6>
-          <router-link 
-            v-if="!readOnly"
-            :to="`/internal/treatment/${treatmentId}/extra/new`"
-            class="btn btn-outline-primary btn-sm"
-          >
-            <i class="bi bi-plus"></i> Add Treatment Extra Details
-          </router-link>
+        <div class="card">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <button 
+                class="btn btn-link btn-sm text-decoration-none" 
+                type="button" 
+                @click="toggleExtrasCollapse"
+              >
+                <i class="bi" :class="extrasCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+                Treatment Extra Details
+              </button>
+            </h6>
+          </div>
+          
+          <div v-if="!extrasCollapsed" class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted">Additional treatment information and attributes</span>
+              <router-link 
+                v-if="!readOnly"
+                :to="`/internal/treatment/${treatmentId}/extra/new`"
+                class="btn btn-outline-primary btn-sm"
+              >
+                <i class="bi bi-plus"></i> Add Treatment Extra Details
+              </router-link>
+            </div>
+            
+            <TreatmentExtrasTable
+              :treatment-id="treatmentId"
+              :read-only="readOnly"
+              @extra-updated="refreshExtras"
+            />
+          </div>
         </div>
-        
-        <TreatmentExtrasTable
-          :treatment-id="treatmentId"
-          :read-only="readOnly"
-          @extra-updated="refreshExtras"
-        />
+      </div>
+
+      <!-- Silviculturist Comments Section -->
+      <div class="mt-4" v-if="treatmentId && !isNew">
+        <div class="card">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <button 
+                class="btn btn-link btn-sm text-decoration-none" 
+                type="button" 
+                @click="toggleCommentsCollapse"
+              >
+                <i class="bi" :class="commentsCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+                Silviculturist Comments
+              </button>
+            </h6>
+          </div>
+          
+          <div v-if="!commentsCollapsed" class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted">Comments and observations from silviculturists</span>
+              <button 
+                v-if="!readOnly"
+                type="button"
+                class="btn btn-outline-primary btn-sm"
+                @click="addNewComment"
+              >
+                <i class="bi bi-plus"></i> Add New Silviculturist Comment
+              </button>
+            </div>
+            
+            <SilviculturistComment
+              ref="silviculturistComment"
+              :treatment-id="treatmentId"
+              :read-only="readOnly"
+              @comment-updated="refreshComments"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- Action Buttons -->
@@ -178,12 +276,16 @@
 
 <script>
 import TreatmentExtrasTable from './treatments_extras_table.vue';
+import PrescriptionForm from './prescription_form.vue';
+import SilviculturistComment from './silviculturist_comment.vue';
 import { api_endpoints } from '@/utils/hooks';
 
 export default {
   name: 'TreatmentForm',
   components: {
-    TreatmentExtrasTable
+    TreatmentExtrasTable,
+    PrescriptionForm,
+    SilviculturistComment
   },
   props: {
     treatmentId: {
@@ -211,10 +313,15 @@ export default {
         results: '',
         reference: '',
         organisation: '',
-        cohort: this.cohortId
+        cohort: this.cohortId,
+        prescription: null
       },
       tasks: [],
-      saving: false
+      saving: false,
+      showPrescriptionForm: false,
+      prescriptionCollapsed: true, // Add this and set to true by default
+      extrasCollapsed: true,
+      commentsCollapsed: true
     };
   },
   computed: {
@@ -223,6 +330,26 @@ export default {
     }
   },
   methods: {
+    // Add method to toggle prescription collapse
+    togglePrescriptionCollapse() {
+      this.prescriptionCollapsed = !this.prescriptionCollapsed;
+    },
+    toggleCommentsCollapse() {
+      this.commentsCollapsed = !this.commentsCollapsed;
+    },
+    addNewComment() {
+      if (this.$refs.silviculturistComment) {
+        this.$refs.silviculturistComment.addNewComment();
+      }
+    },
+    refreshComments() {
+      if (this.$refs.silviculturistComment) {
+        this.$refs.silviculturistComment.loadComments();
+      }
+    },
+    toggleExtrasCollapse() {
+      this.extrasCollapsed = !this.extrasCollapsed;
+    },
     async loadTreatmentData() {
         if (this.treatmentId) {
             try {
@@ -234,7 +361,7 @@ export default {
                 
                 // Format the complete_date for the date input
                 if (data.complete_date) {
-                    data.complete_date = data.complete_date.split('T')[0]; // Extract just the date part
+                    data.complete_date = data.complete_date.split('T')[0];
                 }
                 
                 this.treatmentData = { ...data };
@@ -248,6 +375,26 @@ export default {
                 });
             }
         }
+    },
+    showNewPrescriptionForm() {
+      this.showPrescriptionForm = true;
+      // Auto-expand the prescription section when adding new prescription
+      this.prescriptionCollapsed = false;
+    },
+    handlePrescriptionSaved(prescriptionData) {
+      this.treatmentData.prescription = prescriptionData.prescription_id;
+      this.showPrescriptionForm = false;
+      
+      swal.fire({
+        icon: 'success',
+        title: 'Prescription Added',
+        text: 'Prescription has been successfully linked to this treatment',
+        timer: 3000,
+        showConfirmButton: false
+      });
+    },
+    handlePrescriptionCancel() {
+      this.showPrescriptionForm = false;
     },
     async loadTasks() {
         try {
@@ -298,17 +445,14 @@ export default {
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);
 
-            // Clone the response before reading it to avoid "body stream already read" error
             const responseClone = response.clone();
             
             if (!response.ok) {
                 let errorDetail = '';
                 try {
-                    // Try to parse as JSON first
                     const errorData = await responseClone.json();
                     errorDetail = JSON.stringify(errorData);
                 } catch (e) {
-                    // If JSON parsing fails, try as text
                     try {
                         errorDetail = await responseClone.text();
                     } catch (textError) {
@@ -323,7 +467,6 @@ export default {
             
             this.$emit('treatment-saved', responseData);
             
-            // Show success message
             await swal.fire({
                 icon: 'success',
                 title: 'Success!',
@@ -374,19 +517,14 @@ export default {
     async handleSaveError(error) {
         let errorMessage = 'Failed to save treatment';
         
-        // Check if it's a permission error
         if (error.message && error.message.includes('403')) {
             errorMessage = 'You do not have permission to create or update treatments. Please contact an administrator.';
-        } 
-        // Check if it's a validation error from the server
-        else if (error.message && error.message.includes('details:')) {
+        } else if (error.message && error.message.includes('details:')) {
             try {
                 const details = error.message.split('details:')[1];
-                // Try to parse the details as JSON for structured errors
                 try {
                     const errorData = JSON.parse(details);
                     if (typeof errorData === 'object') {
-                        // Handle Django REST framework validation errors
                         if (errorData.error) {
                             errorMessage = errorData.error;
                         } else {
@@ -396,7 +534,6 @@ export default {
                         errorMessage = details;
                     }
                 } catch (e) {
-                    // If not JSON, use the raw details
                     errorMessage = details;
                 }
             } catch (e) {
@@ -421,19 +558,19 @@ export default {
         // This will be handled by the TreatmentExtrasTable component itself
     },
     getCSRFToken() {
-        const name = 'csrftoken';
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+      const name = 'csrftoken';
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
         }
-        return cookieValue;
+      }
+      return cookieValue;
     }
   },
   mounted() {
@@ -448,7 +585,6 @@ export default {
         if (newVal) {
           this.loadTreatmentData();
         } else {
-          // Reset form for new treatment
           this.treatmentData = {
             task: '',
             status: 'P',
@@ -459,8 +595,13 @@ export default {
             results: '',
             reference: '',
             organisation: '',
-            cohort: this.cohortId
+            cohort: this.cohortId,
+            prescription: null
           };
+          this.showPrescriptionForm = false;
+          this.prescriptionCollapsed = true;
+          this.extrasCollapsed = true;
+          this.commentsCollapsed = true;
         }
       },
       immediate: true
@@ -496,5 +637,20 @@ export default {
 .spinner-border-sm {
   width: 1rem;
   height: 1rem;
+}
+
+/* Styles for collapsible sections */
+.card-header {
+  padding: 0.5rem 1rem;
+}
+
+.btn-link {
+  color: #495057;
+  font-weight: 500;
+}
+
+.btn-link:hover {
+  color: #0056b3;
+  text-decoration: none;
 }
 </style>

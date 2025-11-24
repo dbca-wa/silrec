@@ -81,6 +81,8 @@ router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableVie
 router.register(r'cohorts', forest_blocks_api.CohortViewSet)
 router.register(r'treatments', forest_blocks_api.TreatmentViewSet)
 router.register(r'treatment-extras', forest_blocks_api.TreatmentXtraViewSet)
+router.register(r'prescriptions', forest_blocks_api.PrescriptionViewSet)
+router.register(r'silviculturist-comments', forest_blocks_api.SilviculturistCommentViewSet)
 
 # Lookups
 # Add to your existing urlpatterns in urls.py

@@ -16,6 +16,8 @@ from silrec.components.forest_blocks.models import (
     RegenerationMethodsLkp,
     OrganisationLkp,
     SpeciesApiLkp,
+    Prescription,
+    SilviculturistComment,
 )
 
 
@@ -727,4 +729,30 @@ class TreatmentListSerializer(serializers.ModelSerializer):
     def get_has_extras(self, obj):
         return TreatmentXtra.objects.filter(treatment=obj).exists()
 
+class PrescriptionSerializer(serializers.ModelSerializer):
 
+    class Meta:
+        model = Prescription
+        fields = "__all__"
+
+
+class SilviculturistCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SilviculturistComment
+        fields = [
+            's_comment_id',
+            'comment',
+            'scope',
+            'required_action',
+            'action_complete',
+            'treatment',
+            'easting_note_taken',
+            'northing_note_taken',
+            'created_on',
+            'created_by',
+            'updated_on',
+            'updated_by'
+        ]
+        read_only_fields = [
+            's_comment_id', 'created_on', 'created_by', 'updated_on', 'updated_by'
+        ]

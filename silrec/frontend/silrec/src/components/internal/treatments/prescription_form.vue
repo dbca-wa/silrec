@@ -5,18 +5,11 @@
     <div class="card">
       <div class="card-header bg-light">
         <h6 class="mb-0">
-          <button 
-            class="btn btn-link btn-sm text-decoration-none" 
-            type="button" 
-            @click="toggleCollapse"
-          >
-            <i class="bi" :class="isCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
-            {{ isNew ? 'Add New Prescription' : 'Edit Prescription' }}
-          </button>
+          {{ isNew ? 'Add New Prescription' : 'Edit Prescription' }}
         </h6>
       </div>
       
-      <div v-if="!isCollapsed" class="card-body">
+      <div class="card-body">
         <form @submit.prevent="savePrescription">
           <div class="row">
             <div class="col-md-6">
@@ -231,8 +224,7 @@ export default {
       objectives: [],
       tasks: [],
       organisations: [],
-      saving: false,
-      isCollapsed: false
+      saving: false
     };
   },
   computed: {
@@ -241,9 +233,6 @@ export default {
     }
   },
   methods: {
-    toggleCollapse() {
-      this.isCollapsed = !this.isCollapsed;
-    },
     async loadPrescriptionData() {
       if (this.prescriptionId) {
         try {
@@ -357,8 +346,6 @@ export default {
           showConfirmButton: false
         });
 
-        this.isCollapsed = true;
-
       } catch (error) {
         console.error('Error saving prescription:', error);
         await this.handleSaveError(error);
@@ -466,7 +453,6 @@ export default {
       });
     },
     cancel() {
-      this.isCollapsed = true;
       this.$emit('cancel');
     },
     getCSRFToken() {
@@ -498,7 +484,6 @@ export default {
       handler(newVal) {
         if (newVal) {
           this.loadPrescriptionData();
-          this.isCollapsed = false;
         } else {
           this.prescriptionData = {
             obj_code: '',
@@ -527,16 +512,6 @@ export default {
 
 .card-header {
   padding: 0.5rem 1rem;
-}
-
-.btn-link {
-  color: #495057;
-  font-weight: 500;
-}
-
-.btn-link:hover {
-  color: #0056b3;
-  text-decoration: none;
 }
 
 .form-group {

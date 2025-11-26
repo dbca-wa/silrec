@@ -489,22 +489,27 @@ export default {
 }
 
 .modal-header {
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 4px solid #dee2e6;
   padding: 1rem 1.5rem;
+  background-color: white;
 }
 
 .modal-title {
   font-weight: 600;
+  background-color: white;
   color: #495057;
 }
 
 .modal-body {
   padding: 1.5rem;
+  background-color: white;
+  color: #495057;
 }
 
 .modal-footer {
-  border-top: 1px solid #dee2e6;
+  border-top: 4px solid #dee2e6;
   padding: 1rem 1.5rem;
+  background-color: white;
 }
 
 .form-group {

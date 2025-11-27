@@ -197,6 +197,7 @@ export default {
   methods: {
     async loadComments() {
       try {
+        console.log(`${api_endpoints.silviculturist_comments}?treatment=${this.treatmentId}`);
         const response = await fetch(`${api_endpoints.silviculturist_comments}?treatment=${this.treatmentId}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

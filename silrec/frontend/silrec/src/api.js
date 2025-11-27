@@ -74,6 +74,7 @@ export default {
     treatment_extras: '/api/treatment-extras/',
     tasks: '/api/lookups/tasks/',
     combined_lookups: '/api/combined_lookups/',
+    prescriptions: '/api/prescriptions/',
     silviculturist_comments: '/api/silviculturist-comments/',
 
     lookupApprovalDetails: function (id) {

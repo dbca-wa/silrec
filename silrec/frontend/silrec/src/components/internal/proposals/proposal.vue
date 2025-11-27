@@ -28,11 +28,6 @@
 
             <div class="col-md-9">
                 <!-- Main contents -->
-                    <FormSection
-                        :form-collapse="false"
-                        label="Proposal"
-                        index="application"
-                    >
                         <ApplicationForm
                             v-if="proposal"
                             ref="application_form"
@@ -57,7 +52,6 @@
                             @deleted-features="onFinishedDrawing"
                         />
 
-                    </FormSection>
             </div>
         </div>
 

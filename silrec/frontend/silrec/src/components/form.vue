@@ -1,17 +1,11 @@
 <template lang="html">
     <div class="">
-        <div v-if="proposal">
-		    JM - {{proposal.id}}
-        </div>
-        <div v-if="debug">components/form.vue</div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/form.vue</div>
         <div
             v-if="proposal"
             id="scrollspy-heading"
             class=""
         >
-            <h3>
-		    {{proposal.id}}
-            </h3>
         </div>
 	            <!--JM {{geometriesToFeatureCollection}}-->
                     <FormSection
@@ -295,12 +289,12 @@ export default {
         };
     },
     computed: {
-        debug: function () {
-            if (this.$route.query.debug) {
-                return this.$route.query.debug === 'true';
-            }
-            return false;
-        },
+//        debug: function () {
+//            if (this.$route.query.debug) {
+//                return this.$route.query.debug === 'true';
+//            }
+//            return false;
+//        },
         proposalId: function () {
 	    console.log('form.vue ' + this.proposal);
             return this.proposal ? this.proposal.id : null;

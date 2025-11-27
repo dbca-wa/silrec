@@ -139,8 +139,8 @@
     </div>
 
     <!-- Sticky Action Buttons -->
-    <div v-if="!loading && !error && cohortData.cohort_id && canEdit" class="sticky-action-buttons">
-      <div class="action-buttons-container">
+    <div v-if="!loading && !error && cohortData.cohort_id && canEdit" class="navbar fixed-bottom bg-navbar">
+      <div class="container">
         <div class="action-buttons">
           <button 
             type="button" 
@@ -694,7 +694,7 @@ export default {
 }
 
 .action-buttons .btn-lg {
-  min-width: 180px;
+  min-width: 225px;
   padding: 12px 20px;
   font-size: 1rem;
   font-weight: 500;

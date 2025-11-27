@@ -12,6 +12,7 @@
       <div class="card-body">
         <form @submit.prevent="savePrescription">
           <div class="row">
+            <!--
             <div class="col-md-6">
               <div class="form-group">
                 <label for="objCode">Objective Code *</label>
@@ -29,6 +30,21 @@
                 </select>
               </div>
             </div>
+            -->
+
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="sequence">Objective Code *</label>
+                <input
+                  id="objCode"
+                  v-model.number="prescriptionData.obj_code"
+                  type="text"
+                  class="form-control"
+                  :readonly="true"
+                />
+              </div>
+            </div>
+
             <div class="col-md-6">
               <div class="form-group">
                 <label for="sequence">Sequence *</label>

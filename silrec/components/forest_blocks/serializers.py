@@ -159,159 +159,18 @@ class CohortSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class TreatmentSerializer(serializers.ModelSerializer):
-    # Read-only display fields
-    task_name = serializers.CharField(source='task.name', read_only=True)
-    task_description = serializers.CharField(source='task.description', read_only=True)
-    cohort_info = serializers.SerializerMethodField()
-    treatment_extras_count = serializers.SerializerMethodField()
-
-    # Foreign key fields (writeable)
-    prescription_id = serializers.PrimaryKeyRelatedField(
-        source='prescription',
-        queryset=Treatment.objects.all(),
-        required=False,
-        allow_null=True
-    )
-
-    # Status choices for frontend
-    status_choices = serializers.SerializerMethodField()
+class PrescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = Treatment
-        fields = [
-            'treatment_id',
-            'prescription',
-            'prescription_id',
-            'cohort',
-            'cohort_info',
-            'task',
-            'task_name',
-            'task_description',
-            'plan_mth',
-            'plan_yr',
-            'pct_area',
-            'complete_date',
-            'results',
-            'status',
-            'changed_by',
-            'reference',
-            'organisation',
-            'initial_plan_yr',
-            'can_reschedule',
-            'created_on',
-            'created_by',
-            'updated_on',
-            'updated_by',
-            'ztreatment_method',
-            'zoperation',
-            'zstand',
-            'zsilvic',
-            'ztreatno',
-            'zcomplmo',
-            'zcompl_yr',
-            'zscheduleconfirmed',
-            'zextra_info',
-            # Computed fields
-            'treatment_extras_count',
-            'status_choices',
-        ]
-        read_only_fields = [
-            'treatment_id', 'created_on', 'created_by', 'updated_on', 'updated_by',
-            'treatment_extras_count', 'status_choices'
-        ]
+        model = Prescription
+        fields = "__all__"
 
-    def get_cohort_info(self, obj):
-        """Get basic cohort information"""
-        if obj.cohort:
-            return {
-                'cohort_id': obj.cohort.cohort_id,
-                'obj_code': obj.cohort.obj_code,
-                'species': obj.cohort.species,
-            }
-        return None
 
-    def get_treatment_extras_count(self, obj):
-        """Count of treatment extras for this treatment"""
-        return TreatmentXtra.objects.filter(treatment=obj).count()
+class TreatmentXtra2Serializer(serializers.ModelSerializer):
 
-    def get_status_choices(self, obj):
-        """Get status choices for frontend dropdown"""
-        return {
-            'P': 'Planned',
-            'D': 'Completed',
-            'C': 'Cancelled',
-            'F': 'Failed',
-            'W': 'Written Off',
-            'X': 'Not Required'
-        }
-
-    def validate_pct_area(self, value):
-        """Validate percentage area is between 0 and 100"""
-        if value is not None and (value < 0 or value > 100):
-            raise serializers.ValidationError("Percentage area must be between 0 and 100")
-        return value
-
-    def validate_plan_mth(self, value):
-        """Validate planned month is between 1 and 12"""
-        if value is not None and (value < 1 or value > 12):
-            raise serializers.ValidationError("Planned month must be between 1 and 12")
-        return value
-
-    def validate_plan_yr(self, value):
-        """Validate planned year is reasonable"""
-        if value is not None and value < 2000:
-            raise serializers.ValidationError("Planned year seems too far in the past")
-        return value
-
-    def validate_complete_date(self, value):
-        """Validate complete date is not in the future"""
-        from django.utils import timezone
-        if value and value > timezone.now():
-            raise serializers.ValidationError("Complete date cannot be in the future")
-        return value
-
-    def validate(self, data):
-        """Cross-field validation"""
-        # If status is completed, complete_date should be set
-        if data.get('status') == 'D' and not data.get('complete_date'):
-            raise serializers.ValidationError({
-                'complete_date': 'Complete date is required when status is "Completed"'
-            })
-
-        # If complete_date is set, status should probably be completed
-        if data.get('complete_date') and data.get('status') != 'D':
-            # This is just a warning, not an error
-            pass
-
-        return data
-
-    def create(self, validated_data):
-        """Create a new treatment with current user info"""
-        request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            validated_data['created_by'] = request.user.username
-            # Set changed_by if not provided
-            if not validated_data.get('changed_by'):
-                validated_data['changed_by'] = request.user.username
-
-        # Set extra_info flag based on task type or other criteria
-        task = validated_data.get('task')
-#        if task and task.requires_extra_info:  # Assuming TaskLkp has this field
-#            validated_data['zextra_info'] = True
-
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """Update treatment with current user info"""
-        request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            validated_data['updated_by'] = request.user.username
-            # Update changed_by if status or timing changes
-            if any(field in validated_data for field in ['status', 'plan_yr', 'plan_mth', 'complete_date']):
-                validated_data['changed_by'] = request.user.username
-
-        return super().update(instance, validated_data)
+    class Meta:
+        model = TreatmentXtra
+        fields = "__all__"
 
 
 class TreatmentXtraSerializer(serializers.ModelSerializer):
@@ -499,6 +358,170 @@ class TreatmentXtraSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update treatment extra with validation"""
         return super().update(instance, validated_data)
+
+
+class TreatmentSerializer(serializers.ModelSerializer):
+    #prescription = PrescriptionSerializer() 
+    # Read-only display fields
+    task_name = serializers.CharField(source='task.name', read_only=True)
+    task_description = serializers.CharField(source='task.description', read_only=True)
+    cohort_info = serializers.SerializerMethodField()
+    treatment_extras_count = serializers.SerializerMethodField()
+    #treatment_extras = serializers.SerializerMethodField()
+    #treatment_extras = TreatmentXtra2Serializer(many=True)
+
+    # Foreign key fields (writeable)
+    prescription_id = serializers.PrimaryKeyRelatedField(
+        source='prescription',
+        queryset=Treatment.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    # Status choices for frontend
+    status_choices = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Treatment
+        fields = [
+            'treatment_id',
+            'prescription',
+            'prescription_id',
+            'cohort',
+            'cohort_info',
+            'task',
+            'task_name',
+            'task_description',
+            'plan_mth',
+            'plan_yr',
+            'pct_area',
+            'complete_date',
+            'results',
+            'status',
+            'changed_by',
+            'reference',
+            'organisation',
+            'initial_plan_yr',
+            'can_reschedule',
+            'created_on',
+            'created_by',
+            'updated_on',
+            'updated_by',
+            'ztreatment_method',
+            'zoperation',
+            'zstand',
+            'zsilvic',
+            'ztreatno',
+            'zcomplmo',
+            'zcompl_yr',
+            'zscheduleconfirmed',
+            'zextra_info',
+            # Computed fields
+            'treatment_extras_count',
+            #'treatment_extras',
+            'status_choices',
+        ]
+        read_only_fields = [
+            'treatment_id', 'created_on', 'created_by', 'updated_on', 'updated_by',
+            'treatment_extras_count', 'status_choices'
+        ]
+
+    def get_cohort_info(self, obj):
+        """Get basic cohort information"""
+        if obj.cohort:
+            return {
+                'cohort_id': obj.cohort.cohort_id,
+                'obj_code': obj.cohort.obj_code,
+                'species': obj.cohort.species,
+            }
+        return None
+
+    def get_treatment_extras_count(self, obj):
+        """Count of treatment extras for this treatment"""
+        return TreatmentXtra.objects.filter(treatment=obj).count()
+
+    def _get_treatment_extras(self, obj):
+        """Count of treatment extras for this treatment"""
+        return TreatmentXtra.objects.filter(treatment=obj)
+
+    def get_status_choices(self, obj):
+        """Get status choices for frontend dropdown"""
+        return {
+            'P': 'Planned',
+            'D': 'Completed',
+            'C': 'Cancelled',
+            'F': 'Failed',
+            'W': 'Written Off',
+            'X': 'Not Required'
+        }
+
+    def validate_pct_area(self, value):
+        """Validate percentage area is between 0 and 100"""
+        if value is not None and (value < 0 or value > 100):
+            raise serializers.ValidationError("Percentage area must be between 0 and 100")
+        return value
+
+    def validate_plan_mth(self, value):
+        """Validate planned month is between 1 and 12"""
+        if value is not None and (value < 1 or value > 12):
+            raise serializers.ValidationError("Planned month must be between 1 and 12")
+        return value
+
+    def validate_plan_yr(self, value):
+        """Validate planned year is reasonable"""
+        if value is not None and value < 2000:
+            raise serializers.ValidationError("Planned year seems too far in the past")
+        return value
+
+    def validate_complete_date(self, value):
+        """Validate complete date is not in the future"""
+        from django.utils import timezone
+        if value and value > timezone.now():
+            raise serializers.ValidationError("Complete date cannot be in the future")
+        return value
+
+    def validate(self, data):
+        """Cross-field validation"""
+        # If status is completed, complete_date should be set
+        if data.get('status') == 'D' and not data.get('complete_date'):
+            raise serializers.ValidationError({
+                'complete_date': 'Complete date is required when status is "Completed"'
+            })
+
+        # If complete_date is set, status should probably be completed
+        if data.get('complete_date') and data.get('status') != 'D':
+            # This is just a warning, not an error
+            pass
+
+        return data
+
+    def create(self, validated_data):
+        """Create a new treatment with current user info"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['created_by'] = request.user.username
+            # Set changed_by if not provided
+            if not validated_data.get('changed_by'):
+                validated_data['changed_by'] = request.user.username
+
+        # Set extra_info flag based on task type or other criteria
+        task = validated_data.get('task')
+#        if task and task.requires_extra_info:  # Assuming TaskLkp has this field
+#            validated_data['zextra_info'] = True
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Update treatment with current user info"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['updated_by'] = request.user.username
+            # Update changed_by if status or timing changes
+            if any(field in validated_data for field in ['status', 'plan_yr', 'plan_mth', 'complete_date']):
+                validated_data['changed_by'] = request.user.username
+
+        return super().update(instance, validated_data)
+
 
 
 
@@ -728,12 +751,6 @@ class TreatmentListSerializer(serializers.ModelSerializer):
 
     def get_has_extras(self, obj):
         return TreatmentXtra.objects.filter(treatment=obj).exists()
-
-class PrescriptionSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Prescription
-        fields = "__all__"
 
 
 class SilviculturistCommentSerializer(serializers.ModelSerializer):

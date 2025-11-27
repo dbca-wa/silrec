@@ -27,7 +27,7 @@
                 v-model="layer2Visible" 
                 @change="toggleLayer('layer2')"
                 >
-                Historical Layer
+                Pre-processed (current) Layer
             </label>
             </div>
             <!--
@@ -356,7 +356,7 @@ export default {
       layer4Style: function(feature) {
         const polyType = feature.get('poly_type');
         const baseColor = 'rgba(255, 255, 255, 0.6)'; // Darker color for BASE
-        const defaultColor = 'rgba(255, 255, 0, 0.5)'; // Original color for others
+        const defaultColor = 'rgba(100, 100, 100, 0.5)'; // Original color for others
         
         return new Style({
             fill: new Fill({

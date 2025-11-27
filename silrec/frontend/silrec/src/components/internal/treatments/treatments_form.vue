@@ -221,8 +221,10 @@
         </div>
       </div>
 
-      <!-- Silviculturist Comments Section -->
-      <div class="mt-4" v-if="treatmentId && !isNew">
+    </form>
+
+    <!-- Silviculturist Comments Section -->
+    <div class="mt-4" v-if="treatmentId && !isNew">
         <div class="card">
           <div class="card-header bg-light">
             <h6 class="mb-0">
@@ -269,8 +271,7 @@
         <button type="button" class="btn btn-secondary" @click="cancel">
           Cancel
         </button>
-      </div>
-    </form>
+    </div>
   </div>
 </template>
 

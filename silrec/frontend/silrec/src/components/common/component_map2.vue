@@ -57,48 +57,198 @@
             </div>
 
             <div v-if="tableVisible" class="card-body">
-                <!-- Filters -->
+                <!-- Updated Filters with Combined Select and Search Components -->
                 <div class="row mb-3">
+                    <!-- Objective Code Filter -->
                     <div class="col-md-2">
                         <label for="filterObjCode" class="form-label">Objective Code</label>
-                        <input
-                            v-model="filters.obj_code"
-                            type="text"
-                            class="form-control form-control-sm"
-                            id="filterObjCode"
-                            placeholder="Filter by obj_code..."
-                        />
+                        <div class="dropdown" ref="objectiveDropdown">
+                            <button class="form-select form-select-sm text-start dropdown-toggle" 
+                                    type="button" 
+                                    @click="toggleDropdown('objective')"
+                                    :class="{ 'text-muted': !filters.obj_code }">
+                                {{ getObjectiveDisplayText }}
+                            </button>
+                            <div class="dropdown-menu p-2" 
+                                 :class="{ 'show': dropdowns.objective }" 
+                                 style="width: 100%; max-height: 300px; overflow-y: auto;">
+                                <div class="mb-2">
+                                    <input
+                                        v-model="objectiveSearch"
+                                        type="text"
+                                        class="form-control form-control-sm"
+                                        placeholder="Search objectives..."
+                                        @input="filterObjectiveOptions"
+                                        @click.stop
+                                    />
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <button 
+                                    class="dropdown-item small" 
+                                    :class="{ 'active': !filters.obj_code }"
+                                    @click="selectObjective('')"
+                                >
+                                    All Objectives
+                                </button>
+                                <button 
+                                    v-for="objective in filteredObjectives" 
+                                    :key="objective.obj_code" 
+                                    class="dropdown-item small text-truncate"
+                                    :class="{ 'active': filters.obj_code === objective.obj_code }"
+                                    @click="selectObjective(objective.obj_code)"
+                                    :title="objective.obj_code + ' - ' + objective.description"
+                                >
+                                    <strong>{{ objective.obj_code }}</strong> - {{ objective.description }}
+                                </button>
+                                <div v-if="filteredObjectives.length === 0" class="dropdown-item text-muted small">
+                                    No objectives found
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Compartment Filter -->
                     <div class="col-md-2">
                         <label for="filterCompartment" class="form-label">Compartment</label>
-                        <input
-                            v-model="filters.compartment"
-                            type="text"
-                            class="form-control form-control-sm"
-                            id="filterCompartment"
-                            placeholder="Filter by compartment..."
-                        />
+                        <div class="dropdown" ref="compartmentDropdown">
+                            <button class="form-select form-select-sm text-start dropdown-toggle" 
+                                    type="button" 
+                                    @click="toggleDropdown('compartment')"
+                                    :class="{ 'text-muted': !filters.compartment }">
+                                {{ getCompartmentDisplayText }}
+                            </button>
+                            <div class="dropdown-menu p-2" 
+                                 :class="{ 'show': dropdowns.compartment }" 
+                                 style="width: 100%; max-height: 300px; overflow-y: auto;">
+                                <div class="mb-2">
+                                    <input
+                                        v-model="compartmentSearch"
+                                        type="text"
+                                        class="form-control form-control-sm"
+                                        placeholder="Search compartments..."
+                                        @input="filterCompartmentOptions"
+                                        @click.stop
+                                    />
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <button 
+                                    class="dropdown-item small" 
+                                    :class="{ 'active': !filters.compartment }"
+                                    @click="selectCompartment('')"
+                                >
+                                    All Compartments
+                                </button>
+                                <button 
+                                    v-for="compartment in filteredCompartments" 
+                                    :key="compartment.id" 
+                                    class="dropdown-item small"
+                                    :class="{ 'active': filters.compartment === compartment.id }"
+                                    @click="selectCompartment(compartment.id)"
+                                >
+                                    {{ compartment.id }}
+                                </button>
+                                <div v-if="filteredCompartments.length === 0" class="dropdown-item text-muted small">
+                                    No compartments found
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Block Filter -->
                     <div class="col-md-2">
                         <label for="filterBlock" class="form-label">Block</label>
-                        <input
-                            v-model="filters.block"
-                            type="text"
-                            class="form-control form-control-sm"
-                            id="filterBlock"
-                            placeholder="Filter by block..."
-                        />
+                        <div class="dropdown" ref="blockDropdown">
+                            <button class="form-select form-select-sm text-start dropdown-toggle" 
+                                    type="button" 
+                                    @click="toggleDropdown('block')"
+                                    :class="{ 'text-muted': !filters.block }">
+                                {{ getBlockDisplayText }}
+                            </button>
+                            <div class="dropdown-menu p-2" 
+                                 :class="{ 'show': dropdowns.block }" 
+                                 style="width: 100%; max-height: 300px; overflow-y: auto;">
+                                <div class="mb-2">
+                                    <input
+                                        v-model="blockSearch"
+                                        type="text"
+                                        class="form-control form-control-sm"
+                                        placeholder="Search blocks..."
+                                        @input="filterBlockOptions"
+                                        @click.stop
+                                    />
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <button 
+                                    class="dropdown-item small" 
+                                    :class="{ 'active': !filters.block }"
+                                    @click="selectBlock('')"
+                                >
+                                    All Blocks
+                                </button>
+                                <button 
+                                    v-for="block in filteredBlocks" 
+                                    :key="block" 
+                                    class="dropdown-item small"
+                                    :class="{ 'active': filters.block === block }"
+                                    @click="selectBlock(block)"
+                                >
+                                    {{ block }}
+                                </button>
+                                <div v-if="filteredBlocks.length === 0" class="dropdown-item text-muted small">
+                                    No blocks found
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- District Filter -->
                     <div class="col-md-2">
                         <label for="filterDistrict" class="form-label">District</label>
-                        <input
-                            v-model="filters.district"
-                            type="text"
-                            class="form-control form-control-sm"
-                            id="filterDistrict"
-                            placeholder="Filter by district..."
-                        />
+                        <div class="dropdown" ref="districtDropdown">
+                            <button class="form-select form-select-sm text-start dropdown-toggle" 
+                                    type="button" 
+                                    @click="toggleDropdown('district')"
+                                    :class="{ 'text-muted': !filters.district }">
+                                {{ getDistrictDisplayText }}
+                            </button>
+                            <div class="dropdown-menu p-2" 
+                                 :class="{ 'show': dropdowns.district }" 
+                                 style="width: 100%; max-height: 300px; overflow-y: auto;">
+                                <div class="mb-2">
+                                    <input
+                                        v-model="districtSearch"
+                                        type="text"
+                                        class="form-control form-control-sm"
+                                        placeholder="Search districts..."
+                                        @input="filterDistrictOptions"
+                                        @click.stop
+                                    />
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <button 
+                                    class="dropdown-item small" 
+                                    :class="{ 'active': !filters.district }"
+                                    @click="selectDistrict('')"
+                                >
+                                    All Districts
+                                </button>
+                                <button 
+                                    v-for="district in filteredDistricts" 
+                                    :key="district" 
+                                    class="dropdown-item small"
+                                    :class="{ 'active': filters.district === district }"
+                                    @click="selectDistrict(district)"
+                                >
+                                    {{ district }}
+                                </button>
+                                <div v-if="filteredDistricts.length === 0" class="dropdown-item text-muted small">
+                                    No districts found
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- FEA ID Filter (keeping as text input since it's free text) -->
                     <div class="col-md-2">
                         <label for="filterZfeaId" class="form-label">FEA ID</label>
                         <input
@@ -109,6 +259,8 @@
                             placeholder="Filter by FEA ID..."
                         />
                     </div>
+
+                    <!-- Treatment Status Filter -->
                     <div class="col-md-2">
                         <label for="filterTreatmentStatus" class="form-label">Treatment Status</label>
                         <select
@@ -125,6 +277,8 @@
                             <option value="X">Not Required</option>
                         </select>
                     </div>
+
+                    <!-- Date Filters -->
                     <div class="col-md-2">
                         <label for="filterCreatedFrom" class="form-label">Created From</label>
                         <input
@@ -236,6 +390,34 @@ export default {
         })
       }),
 
+      // Lookup data
+      lookupData: {
+        objectives: [],
+        compartments: [],
+        blocks: [],
+        districts: []
+      },
+      
+      // Search terms for filterable selects
+      objectiveSearch: '',
+      compartmentSearch: '',
+      blockSearch: '',
+      districtSearch: '',
+
+      // Filtered options for display
+      filteredObjectives: [],
+      filteredCompartments: [],
+      filteredBlocks: [],
+      filteredDistricts: [],
+
+      // Dropdown state
+      dropdowns: {
+        objective: false,
+        compartment: false,
+        block: false,
+        district: false
+      },
+
       // DataTable related data
       datatable_id: 'polygon-map-table-' + uuid(),
       tableVisible: true,
@@ -261,6 +443,20 @@ export default {
     },
     getZoomToLayerTitle() {
       return 'Zoom to visible features';
+    },
+    getObjectiveDisplayText() {
+      if (!this.filters.obj_code) return 'All Objectives';
+      const objective = this.lookupData.objectives.find(obj => obj.obj_code === this.filters.obj_code);
+      return objective ? `${objective.obj_code} - ${objective.description}` : this.filters.obj_code;
+    },
+    getCompartmentDisplayText() {
+      return this.filters.compartment || 'All Compartments';
+    },
+    getBlockDisplayText() {
+      return this.filters.block || 'All Blocks';
+    },
+    getDistrictDisplayText() {
+      return this.filters.district || 'All Districts';
     },
     dtHeaders() {
       return [
@@ -445,13 +641,19 @@ export default {
       deep: true
     }
   },
-  mounted() {
+  async mounted() {
     this.$nextTick(() => {
       this.initializeMap();
     });
     
     // Setup debounced refresh
     this.debouncedRefreshData = this.debounce(this.refreshData, 500);
+    
+    // Load lookup data
+    await this.loadLookupData();
+    
+    // Add click outside listener to close dropdowns
+    document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
     if (this.map) {
@@ -459,6 +661,7 @@ export default {
     }
     window.removeEventListener('resize', this.handleResize);
     document.removeEventListener('keydown', this.handleEscape);
+    document.removeEventListener('click', this.handleClickOutside);
   },
   methods: {
     initializeMap() {
@@ -630,6 +833,153 @@ export default {
 
     refreshFromResponse() {
       this.$emit('refresh-from-response');
+    },
+
+    // Lookup data methods
+    async loadLookupData() {
+      try {
+        const response = await fetch(api_endpoints.combined_lookups, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        this.lookupData = data;
+        
+        // Initialize filtered options with all data
+        this.filteredObjectives = this.lookupData.objectives || [];
+        this.filteredCompartments = this.lookupData.compartments || [];
+        this.filteredBlocks = this.lookupData.blocks || [];
+        this.filteredDistricts = this.lookupData.districts || [];
+        
+      } catch (error) {
+        console.error('Error loading lookup data:', error);
+        await swal.fire({
+          icon: 'error',
+          title: 'Load Failed',
+          text: 'Failed to load filter options. Please try again.',
+          confirmButtonText: 'OK'
+        });
+      }
+    },
+
+    // Dropdown management methods
+    toggleDropdown(dropdownName) {
+      // Close all other dropdowns first
+      Object.keys(this.dropdowns).forEach(key => {
+        if (key !== dropdownName) {
+          this.dropdowns[key] = false;
+        }
+      });
+      
+      // Toggle the current dropdown
+      this.dropdowns[dropdownName] = !this.dropdowns[dropdownName];
+    },
+
+    closeAllDropdowns() {
+      Object.keys(this.dropdowns).forEach(key => {
+        this.dropdowns[key] = false;
+      });
+    },
+
+    handleClickOutside(event) {
+      // Check if click is outside any dropdown
+      const objectiveDropdown = this.$refs.objectiveDropdown;
+      const compartmentDropdown = this.$refs.compartmentDropdown;
+      const blockDropdown = this.$refs.blockDropdown;
+      const districtDropdown = this.$refs.districtDropdown;
+
+      if (objectiveDropdown && !objectiveDropdown.contains(event.target) &&
+          compartmentDropdown && !compartmentDropdown.contains(event.target) &&
+          blockDropdown && !blockDropdown.contains(event.target) &&
+          districtDropdown && !districtDropdown.contains(event.target)) {
+        this.closeAllDropdowns();
+      }
+    },
+
+    // Selection methods
+    selectObjective(value) {
+      this.filters.obj_code = value;
+      this.objectiveSearch = ''; // Clear search when selection is made
+      this.filterObjectiveOptions(); // Reset filtered list
+      this.closeAllDropdowns(); // Close dropdown after selection
+    },
+
+    selectCompartment(value) {
+      this.filters.compartment = value;
+      this.compartmentSearch = '';
+      this.filterCompartmentOptions();
+      this.closeAllDropdowns();
+    },
+
+    selectBlock(value) {
+      this.filters.block = value;
+      this.blockSearch = '';
+      this.filterBlockOptions();
+      this.closeAllDropdowns();
+    },
+
+    selectDistrict(value) {
+      this.filters.district = value;
+      this.districtSearch = '';
+      this.filterDistrictOptions();
+      this.closeAllDropdowns();
+    },
+
+    // Filtering methods
+    filterObjectiveOptions() {
+      if (!this.objectiveSearch) {
+        this.filteredObjectives = this.lookupData.objectives || [];
+        return;
+      }
+      
+      const searchTerm = this.objectiveSearch.toLowerCase();
+      this.filteredObjectives = (this.lookupData.objectives || []).filter(obj => 
+        (obj.obj_code && obj.obj_code.toLowerCase().includes(searchTerm)) ||
+        (obj.description && obj.description.toLowerCase().includes(searchTerm))
+      );
+    },
+
+    filterCompartmentOptions() {
+      if (!this.compartmentSearch) {
+        this.filteredCompartments = this.lookupData.compartments || [];
+        return;
+      }
+      
+      const searchTerm = this.compartmentSearch.toLowerCase();
+      this.filteredCompartments = (this.lookupData.compartments || []).filter(comp => 
+        comp.id && comp.id.toLowerCase().includes(searchTerm)
+      );
+    },
+
+    filterBlockOptions() {
+      if (!this.blockSearch) {
+        this.filteredBlocks = this.lookupData.blocks || [];
+        return;
+      }
+      
+      const searchTerm = this.blockSearch.toLowerCase();
+      this.filteredBlocks = (this.lookupData.blocks || []).filter(block => 
+        block && block.toLowerCase().includes(searchTerm)
+      );
+    },
+
+    filterDistrictOptions() {
+      if (!this.districtSearch) {
+        this.filteredDistricts = this.lookupData.districts || [];
+        return;
+      }
+      
+      const searchTerm = this.districtSearch.toLowerCase();
+      this.filteredDistricts = (this.lookupData.districts || []).filter(district => 
+        district && district.toLowerCase().includes(searchTerm)
+      );
     },
 
     // DataTable methods
@@ -896,5 +1246,47 @@ export default {
 
 :deep(.table) {
   margin-bottom: 0;
+}
+
+/* Additional styles for the filter dropdowns */
+.dropdown-toggle::after {
+  float: right;
+  margin-top: 0.5rem;
+}
+
+.dropdown-menu {
+  min-width: 100%;
+}
+
+.dropdown-item.active {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+  color: #000;
+}
+
+.dropdown-item.active:hover {
+  background-color: #0b5ed7;
+  color: white;
+}
+
+/* Ensure the search inputs are properly styled */
+.form-control-sm {
+  font-size: 0.875rem;
+}
+
+/* Style for truncated text in dropdown items */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Custom dropdown show class */
+.dropdown-menu.show {
+  display: block;
 }
 </style>

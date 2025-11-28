@@ -1,6 +1,6 @@
 <template>
     <div id="externalDash" class="container">
-        <div v-if="is_debug">src/components/internal/dashboard.vue</div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/dashboard.vue</div>
         <ul
             v-if="show_tabs"
             id="pills-tab"
@@ -113,7 +113,7 @@
                 aria-labelledby="pills-map-tab"
             >
                 <FormSection :form-collapse="false" label="Map" index="map">
-                    <MapComponent
+                    <MapComponent2
                         v-if="loadMap"
                         ref="component_map_with_filters"
                         level="internal"
@@ -130,7 +130,7 @@ import FormSection from '@/components/forms/section_toggle.vue';
 import ApplicationsTable from '@/components/common/table_proposals.vue';
 import ApplicationsReferredToMeTable from '@/components/common/table_proposals.vue';
 import CompetitiveProcessesTable from '@/components/common/table_competitive_processes.vue';
-import MapComponent from '@/components/common/component_map.vue';
+import MapComponent2 from '@/components/common/component_map2.vue';
 import { api_endpoints } from '@/utils/hooks.js';
 
 export default {
@@ -140,7 +140,7 @@ export default {
         ApplicationsTable,
         ApplicationsReferredToMeTable,
         CompetitiveProcessesTable,
-        MapComponent,
+        MapComponent2,
     },
     data() {
         return {

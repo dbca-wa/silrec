@@ -361,7 +361,7 @@ class TreatmentXtraSerializer(serializers.ModelSerializer):
 
 
 class TreatmentSerializer(serializers.ModelSerializer):
-    #prescription = PrescriptionSerializer() 
+    #prescription = PrescriptionSerializer()
     # Read-only display fields
     task_name = serializers.CharField(source='task.name', read_only=True)
     task_description = serializers.CharField(source='task.description', read_only=True)
@@ -698,18 +698,48 @@ class PolygonCohortDataSerializer(serializers.ModelSerializer):
 
 
 class SimpleCohortSerializer(serializers.ModelSerializer):
-    """Simplified cohort serializer for nested representations"""
+    """Simplified cohort serializer for search results"""
     class Meta:
         model = Cohort
-        fields = ['cohort_id', 'obj_code', 'species', 'site_quality']
+        fields = [
+            'cohort_id', 'obj_code', 'species', 'target_ba_m2ha',
+            'resid_ba_m2ha', 'site_quality', 'regen_date', 'complete_date',
+            'regen_method', 'year_last_cut', 'treatments'
+        ]
+
 
 class SimpleTreatmentSerializer(serializers.ModelSerializer):
-    """Simplified treatment serializer for nested representations"""
+    """Simplified treatment serializer for search results"""
     task_name = serializers.CharField(source='task.name', read_only=True)
+    task_description = serializers.CharField(source='task.description', read_only=True)
 
     class Meta:
         model = Treatment
-        fields = ['treatment_id', 'task', 'task_name', 'status', 'complete_date']
+        fields = [
+            'treatment_id', 'task', 'task_name', 'task_description',
+            'status', 'plan_yr', 'plan_mth', 'complete_date',
+            'pct_area', 'results', 'organisation'
+        ]
+
+
+class SimpleAssignChtToPlySerializer(serializers.ModelSerializer):
+    """Simplified assignment serializer for search results"""
+    cohort_details = SimpleCohortSerializer(source='cohort', read_only=True)
+
+    class Meta:
+        model = AssignChtToPly
+        fields = [
+            'cht2ply_id', 'cohort', 'cohort_details', 'cohort_closed',
+            'status_current', 'created_on', 'updated_on'
+        ]
+
+
+class CompartmentSerializer(serializers.ModelSerializer):
+    """Serializer for compartment details"""
+    class Meta:
+        model = Compartments
+        fields = ['compartment', 'block', 'district', 'supply', 'region']
+
 
 class TaskCategorySerializer(serializers.ModelSerializer):
     """Serializer for task categories"""
@@ -773,3 +803,151 @@ class SilviculturistCommentSerializer(serializers.ModelSerializer):
         read_only_fields = [
             's_comment_id', 'created_on', 'created_by', 'updated_on', 'updated_by'
         ]
+
+
+class PolygonSearchSerializer(serializers.ModelSerializer):
+    """Comprehensive serializer for polygon search with related data"""
+    # Basic polygon fields
+    compartment_details = CompartmentSerializer(source='compartment', read_only=True)
+
+    # Related data
+    assigned_cohorts = serializers.SerializerMethodField()
+    treatments = serializers.SerializerMethodField()
+    cohorts_count = serializers.SerializerMethodField()
+    treatments_count = serializers.SerializerMethodField()
+    active_cohorts_count = serializers.SerializerMethodField()
+
+    # Computed fields for easy access in datatable
+    obj_codes = serializers.SerializerMethodField()
+    species_list = serializers.SerializerMethodField()
+    treatment_statuses = serializers.SerializerMethodField()
+
+    # Formatted dates
+    created_on_formatted = serializers.SerializerMethodField()
+    updated_on_formatted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Polygon
+        fields = [
+            # Basic polygon info
+            'polygon_id', 'name', 'area_ha', 'created_on', 'updated_on',
+            'created_by', 'updated_by', 'closed', 'reason_closed',
+            'zcoupeid', 'zstandno', 'zmslink', 'zfea_id', 'geom',
+
+            # Compartment details
+            'compartment', 'compartment_details',
+
+            # Spatial precision
+            'sp_code',
+
+            # Proposal relation
+            'proposal',
+
+            # Computed fields for datatable
+            'obj_codes', 'species_list', 'treatment_statuses',
+            'created_on_formatted', 'updated_on_formatted',
+
+            # Related data
+            'assigned_cohorts', 'treatments',
+            'cohorts_count', 'treatments_count', 'active_cohorts_count'
+        ]
+
+    def get_assigned_cohorts(self, obj):
+        """Get all cohort assignments for this polygon"""
+        assignments = obj.assignchttoply_set.all().select_related('cohort')
+        return SimpleAssignChtToPlySerializer(assignments, many=True).data
+
+    def get_treatments(self, obj):
+        """Get all treatments for cohorts assigned to this polygon"""
+        # Get all cohort IDs assigned to this polygon
+        cohort_ids = obj.assignchttoply_set.values_list('cohort_id', flat=True)
+
+        # Get treatments for these cohorts
+        treatments = Treatment.objects.filter(
+            cohort_id__in=cohort_ids
+        ).select_related('task').order_by('-complete_date', '-plan_yr', '-plan_mth')
+
+        return SimpleTreatmentSerializer(treatments, many=True).data
+
+    def get_cohorts_count(self, obj):
+        """Count of all cohorts assigned to this polygon"""
+        return obj.assignchttoply_set.count()
+
+    def get_treatments_count(self, obj):
+        """Count of all treatments for cohorts in this polygon"""
+        cohort_ids = obj.assignchttoply_set.values_list('cohort_id', flat=True)
+        return Treatment.objects.filter(cohort_id__in=cohort_ids).count()
+
+    def get_active_cohorts_count(self, obj):
+        """Count of active cohorts assigned to this polygon"""
+        return obj.assignchttoply_set.filter(status_current=True).count()
+
+    def get_obj_codes(self, obj):
+        """Get list of unique objective codes for datatable display"""
+        assignments = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
+        obj_codes = list(set(ass.cohort.obj_code for ass in assignments if ass.cohort.obj_code))
+        return ', '.join(obj_codes) if obj_codes else 'N/A'
+
+    def get_species_list(self, obj):
+        """Get list of unique species for datatable display"""
+        assignments = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
+        species_list = list(set(ass.cohort.species for ass in assignments if ass.cohort.species))
+        return ', '.join(species_list) if species_list else 'N/A'
+
+    def get_treatment_statuses(self, obj):
+        """Get list of unique treatment statuses for datatable display"""
+        cohort_ids = obj.assignchttoply_set.values_list('cohort_id', flat=True)
+        treatments = Treatment.objects.filter(cohort_id__in=cohort_ids)
+
+        status_map = {
+            'P': 'Planned',
+            'D': 'Completed',
+            'C': 'Cancelled',
+            'F': 'Failed',
+            'W': 'Written Off',
+            'X': 'Not Required'
+        }
+
+        statuses = list(set(
+            status_map.get(treat.status, treat.status)
+            for treat in treatments
+            if treat.status
+        ))
+        return ', '.join(statuses) if statuses else 'N/A'
+
+    def get_created_on_formatted(self, obj):
+        """Get formatted created date"""
+        if obj.created_on:
+            return obj.created_on.strftime('%Y-%m-%d')
+        return None
+
+    def get_updated_on_formatted(self, obj):
+        """Get formatted updated date"""
+        if obj.updated_on:
+            return obj.updated_on.strftime('%Y-%m-%d')
+        return None
+
+    def to_representation(self, instance):
+        """Custom representation to optimize data structure"""
+        data = super().to_representation(instance)
+
+        # Add some computed fields for easier access in frontend
+        data['has_active_cohorts'] = self.get_active_cohorts_count(instance) > 0
+        data['has_treatments'] = self.get_treatments_count(instance) > 0
+
+        # Add first cohort details for quick access (useful for polygons with single cohort)
+        assignments = instance.assignchttoply_set.filter(status_current=True).select_related('cohort').first()
+        if assignments and assignments.cohort:
+            data['primary_cohort'] = {
+                'cohort_id': assignments.cohort.cohort_id,
+                'obj_code': assignments.cohort.obj_code,
+                'species': assignments.cohort.species,
+                'target_ba_m2ha': assignments.cohort.target_ba_m2ha,
+                'resid_ba_m2ha': assignments.cohort.resid_ba_m2ha,
+                'site_quality': assignments.cohort.site_quality
+            }
+        else:
+            data['primary_cohort'] = None
+
+        return data
+

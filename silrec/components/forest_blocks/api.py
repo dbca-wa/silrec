@@ -7,7 +7,11 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.db.models.functions import Transform
 from django.core.exceptions import ValidationError
+
+
 
 #from rest_framework import viewsets, permissions
 
@@ -26,9 +30,9 @@ from rest_framework_datatables.pagination import DatatablesPageNumberPagination
 from rest_framework_datatables.filters import DatatablesFilterBackend
 
 from datetime import datetime, timedelta, date
+import json
 
 from silrec.helpers import is_customer, is_internal
-
 from silrec.components.forest_blocks.models import   (
     Polygon,
     Cohort,
@@ -51,6 +55,7 @@ from silrec.components.forest_blocks.serializers import   (
     SimpleCohortSerializer,
     PolygonSerializer,
     Polygon2Serializer,
+    PolygonSearchSerializer,
     PolygonCohortSerializer,
     PolygonGeometrySerializer,
     PolygonCohortDataSerializer,
@@ -598,3 +603,128 @@ class SilviculturistCommentViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
+
+
+class PolygonSearchViewSet(viewsets.ModelViewSet):
+    queryset = Polygon.objects.none()
+    serializer_class = PolygonSearchSerializer
+    pagination_class = DatatablesPageNumberPagination
+    filter_backends = (DatatablesFilterBackend,)
+
+    def get_queryset(self):
+        # Transform geometry to EPSG:4326 at the database level
+        queryset = Polygon.objects.all().annotate(
+            geom_4326=Transform('geom', 4326)
+        ).prefetch_related(
+            'compartment',
+            'assignchttoply_set',
+            'assignchttoply_set__cohort',
+            'assignchttoply_set__cohort__treatment_set',
+            'assignchttoply_set__cohort__treatment_set__task'
+        ).select_related(
+            'compartment',
+            'sp_code'
+        ).order_by('polygon_id')
+
+        # Apply filters
+        obj_code = self.request.query_params.get('obj_code')
+        compartment = self.request.query_params.get('compartment')
+        block = self.request.query_params.get('block')
+        district = self.request.query_params.get('district')
+        zfea_id = self.request.query_params.get('zfea_id')
+        treatment_status = self.request.query_params.get('treatment_status')
+        created_from = self.request.query_params.get('created_from')
+        created_to = self.request.query_params.get('created_to')
+        return_empty = self.request.query_params.get('return_empty')
+
+        # Return empty if no filters provided and return_empty is set
+        if return_empty and not any([obj_code, compartment, zfea_id, treatment_status, created_from, created_to]):
+            return Polygon.objects.none()
+
+        if obj_code:
+            queryset = queryset.filter(
+                assignchttoply__cohort__obj_code__icontains=obj_code,
+                assignchttoply__status_current=True
+            ).distinct()
+
+        if compartment:
+            queryset = queryset.filter(compartment__compartment__icontains=compartment)
+
+        if block:
+            queryset = queryset.filter(compartment__block__icontains=block)
+
+        if district:
+            queryset = queryset.filter(compartment__district__icontains=district)
+
+        #import ipdb; ipdb.set_trace()
+        if zfea_id:
+            queryset = queryset.filter(zfea_id__icontains=zfea_id)
+
+        if treatment_status:
+            queryset = queryset.filter(
+                assignchttoply__cohort__treatment__status=treatment_status,
+                assignchttoply__status_current=True
+            ).distinct()
+
+        if created_from:
+            try:
+                created_from_date = datetime.strptime(created_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(created_on__gte=created_from_date)
+            except ValueError:
+                pass
+
+        if created_to:
+            try:
+                created_to_date = datetime.strptime(created_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(created_on__lte=created_to_date)
+            except ValueError:
+                pass
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            # Manually serialize to handle geometry transformation
+            serializer = self.get_serializer(page, many=True)
+
+            # Transform geometry data in the response
+            response_data = self.transform_geometry_in_response(serializer.data)
+
+            return self.get_paginated_response(response_data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        response_data = self.transform_geometry_in_response(serializer.data)
+        return Response(response_data)
+
+    def transform_geometry_in_response(self, data):
+        """
+        Transform geometry data in the response to ensure it's in EPSG:4326
+        """
+        for item in data:
+            if 'geom' in item and item['geom']:
+                try:
+                    # If we have the transformed geometry from the annotation, use it
+                    polygon = Polygon.objects.filter(polygon_id=item['polygon_id']).annotate(
+                        geom_4326=Transform('geom', 4326)
+                    ).first()
+
+                    if polygon and hasattr(polygon, 'geom_4326'):
+                        # Convert to GeoJSON format
+                        item['geom'] = json.loads(polygon.geom_4326.geojson)
+                    else:
+                        # Fallback: transform using GEOSGeometry
+                        geom = GEOSGeometry(item['geom'])
+                        geom.transform(4326)
+                        item['geom'] = json.loads(geom.geojson)
+
+                except Exception as e:
+                    print(f"Error transforming geometry for polygon {item['polygon_id']}: {e}")
+                    # Keep original geometry if transformation fails
+                    pass
+
+        return data
+

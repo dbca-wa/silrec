@@ -1,5 +1,6 @@
 <template>
   <div>
+    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/component_map.vue</div>
     <div class="map-container" :class="{ 'maximised': isMaximised }">
         <div ref="mapContainer" class="map"></div>
 

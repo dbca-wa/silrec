@@ -83,6 +83,7 @@ router.register(r'treatments', forest_blocks_api.TreatmentViewSet)
 router.register(r'treatment-extras', forest_blocks_api.TreatmentXtraViewSet)
 router.register(r'prescriptions', forest_blocks_api.PrescriptionViewSet)
 router.register(r'silviculturist-comments', forest_blocks_api.SilviculturistCommentViewSet)
+router.register(r'polygon_search', forest_blocks_api.PolygonSearchViewSet, basename='polygon_search')
 
 # Lookups
 # Add to your existing urlpatterns in urls.py

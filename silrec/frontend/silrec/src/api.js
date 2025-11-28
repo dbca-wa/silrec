@@ -76,6 +76,7 @@ export default {
     combined_lookups: '/api/combined_lookups/',
     prescriptions: '/api/prescriptions/',
     silviculturist_comments: '/api/silviculturist-comments/',
+    polygon_search: '/api/polygon_search/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

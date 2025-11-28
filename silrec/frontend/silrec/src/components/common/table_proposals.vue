@@ -1,5 +1,6 @@
 <template>
     <div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/table_proposals.vue</div>
         <CollapsibleFilters
             ref="collapsible_filters"
             component_title="Filters"

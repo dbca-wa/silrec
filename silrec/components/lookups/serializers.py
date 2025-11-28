@@ -409,6 +409,9 @@ class CombinedLkpSerializer(serializers.Serializer):
     tasks = serializers.SerializerMethodField()
     task_attributes = serializers.SerializerMethodField()
     treatment_statuses = serializers.SerializerMethodField()
+    compartments = serializers.SerializerMethodField()
+    blocks = serializers.SerializerMethodField()
+    districts = serializers.SerializerMethodField()
 
     def get_cohort_metrics(self, obj):
         """Get first 4 fields from CohortMetricsLkp with effective date filtering"""
@@ -588,3 +591,28 @@ class CombinedLkpSerializer(serializers.Serializer):
             }
             for item in queryset
         ]
+
+    def get_compartments(self, obj):
+        from silrec.components.forest_blocks.models import Compartments
+        queryset = Compartments.objects.all()
+        return [
+            {
+                'id': item.compartment,
+                'block': item.block,
+                'district': item.district,
+                'region': item.region,
+            }
+            for item in queryset
+        ]
+
+    def get_blocks(self, obj):
+        from silrec.components.forest_blocks.models import Compartments
+        queryset = Compartments.objects.all().values_list('block', flat=True).distinct()
+        return [item.rstrip() for item in list(queryset) if item is not None] # strip trailing spaces
+
+    def get_districts(self, obj):
+        from silrec.components.forest_blocks.models import Compartments
+        queryset = Compartments.objects.all().values_list('district', flat=True).distinct()
+        return [item.rstrip() for item in list(queryset) if item is not None] # strip trailing spaces
+
+

@@ -2,6 +2,8 @@
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models import MultiPolygonField
 
+import os
+
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
     MachineLkp,
@@ -17,8 +19,111 @@ from silrec.components.lookups.models import (
 )
 
 from silrec.components.proposals.models import (
-    Proposal
+    Proposal,
+    Document,
 )
+
+#class TreatmentDocument(models.Model):
+class SurveyAssessmentDocument(Document):
+    DOCUMENT_TYPES = [
+        ('survey', 'Survey Report'),
+        ('assessment', 'Assessment Report'),
+        ('image', 'Image'),
+        ('map', 'Map'),
+        ('other', 'Other Document'),
+    ]
+
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('final', 'Final'),
+        #('reviewed', 'Reviewed'),
+        #('archived', 'Archived'),
+    ]
+
+    document_id = models.AutoField(primary_key=True)
+    treatment = models.ForeignKey('Treatment', on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='other')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    file = models.FileField(upload_to='treatment_documents/%Y/%m/%d/', blank=True, null=True)
+    file_url = models.URLField(blank=True, null=True, help_text='External URL for document')
+    file_size = models.BigIntegerField(blank=True, null=True)
+    file_name = models.CharField(max_length=255, blank=True, null=True)
+    file_type = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    document_date = models.DateField(blank=True, null=True)
+    marked_deleted = models.BooleanField(default=False)
+    uploaded_by = models.CharField(max_length=50, blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=50, blank=True, null=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=50, blank=True, null=True)
+
+    class Meta:
+        db_table = 'survey_assessment_document'
+        db_table_comment = 'Stores documents, images, and URLs related to treatment surveys and assessments'
+        ordering = ['-document_date', '-created_on']
+
+#    def save(self, *args, **kwargs):
+#        if self.file:
+#            self.file_size = self.file.size
+#            self.file_name = self.file.name
+#            self.file_type = self.file.name.split('.')[-1].lower() if '.' in self.file.name else ''
+#
+#        if not self.document_date:
+#            self.document_date = timezone.now().date()
+#
+#        super().save(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        #import ipdb; ipdb.set_trace()
+        if self.file:
+            self.file_size = self.file.size
+            # Extract just the filename, not the full path
+            self.file_name = os.path.basename(self.file.name)
+#            self.file_name = self.file.name
+            self.file_type = self.file.name.split('.')[-1].lower() if '.' in self.file.name else ''
+
+        if not self.document_date:
+            self.document_date = timezone.now().date()
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} - {self.get_document_type_display()}"
+
+    def get_file_icon(self):
+        """Return appropriate icon based on file type"""
+        file_ext = self.file_type.lower() if self.file_type else ''
+        if file_ext in ['pdf']:
+            return 'bi-file-pdf'
+        elif file_ext in ['doc', 'docx']:
+            return 'bi-file-word'
+        elif file_ext in ['xls', 'xlsx']:
+            return 'bi-file-excel'
+        elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+            return 'bi-file-image'
+        elif file_ext in ['zip', 'rar', '7z']:
+            return 'bi-file-zip'
+        else:
+            return 'bi-file-earmark'
+
+    def is_image(self):
+        """Check if file is an image"""
+        image_types = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
+        return self.file_type.lower() in image_types if self.file_type else False
+
+    def get_file_size_display(self):
+        """Return human readable file size"""
+        if not self.file_size:
+            return 'N/A'
+
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if self.file_size < 1024.0:
+                return f"{self.file_size:.1f} {unit}"
+            self.file_size /= 1024.0
+        return f"{self.file_size:.1f} TB"
+
 
 class AssignCategoryToTask(models.Model):
     tsk2cat_id = models.AutoField(primary_key=True)

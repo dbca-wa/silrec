@@ -3,3 +3,7 @@ vi -p silrec/components/proposals/models.py silrec/components/proposals/views.py
 vi -p silrec/utils/shapefile_silvers_merger4.py silrec/utils/write_polygons_to_db.py silrec/utils/write_cohort_to_db.py
 
 vi -p silrec/utils/shapefile_silvers_merger5.py silrec/components/proposals/models.py silrec/components/proposals/views.py silrec/components/proposals/serializers.py silrec/components/proposals/api.py silrec/frontend/silrec/src/components/form.vue silrec/frontend/silrec/src/components/common/component_map.vue
+
+vi -p silrec/components/proposals/models.py silrec/components/forest_blocks/models.py silrec/components/proposals/serializers.py silrec/components/forest_blocks/serializers.py silrec/components/proposals/api.py silrec/components/forest_blocks/api.py silrec/frontend/silrec/src/components/common/component_map.vue
+
+vi -p internal/cohorts/cohort_detail.vue internal/cohorts/additional_cohort_fields.vue internal/cohorts/cohort_form.vue internal/treatments/treatments_table.vue internal/treatments/treatment_detail.vue internal/treatments/treatments_form.vue

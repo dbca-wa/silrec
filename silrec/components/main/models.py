@@ -3,6 +3,8 @@ from django.core.files.storage import FileSystemStorage
 from silrec import settings
 #from django.contrib.gis.db.models import GeometryField
 
+import os
+
 
 class RevisionedMixin(models.Model):
     """
@@ -173,19 +175,19 @@ class SystemMaintenance(models.Model):
     description = models.TextField()
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-        
+
     def duration(self):
         """Duration of system maintenance (in mins)"""
         return (
             int((self.end_date - self.start_date).total_seconds() / 60.0)
             if self.end_date and self.start_date
             else ""
-        )           
+        )
         # return (datetime.now(tz=tz) - self.start_date).total_seconds()/60.
-                    
+
     duration.short_description = "Duration (mins)"
-                    
-    class Meta:     
+
+    class Meta:
         app_label = "silrec"
         verbose_name_plural = "System maintenance"
 

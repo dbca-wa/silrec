@@ -262,6 +262,45 @@
         </div>
       </div>
 
+    <!-- Survey/Assessment Section -->
+    <div class="mt-4" v-if="treatmentId && !isNew">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <button 
+              class="btn btn-link btn-sm text-decoration-none" 
+              type="button" 
+              @click="toggleSurveyCollapse"
+            >
+              <i class="bi" :class="surveyCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+              Survey/Assessment Documents
+            </button>
+          </h6>
+        </div>
+        
+        <div v-if="!surveyCollapsed" class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted">Upload documents, images, or add URLs for surveys and assessments</span>
+            <button 
+              v-if="!readOnly"
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              @click="addNewDocument"
+            >
+              <i class="bi bi-plus"></i> Add Document/URL
+            </button>
+          </div>
+          
+          <SurveyAssessment
+            ref="surveyAssessment"
+            :treatment-id="treatmentId"
+            :read-only="readOnly"
+            @document-updated="refreshDocuments"
+          />
+        </div>
+      </div>
+    </div>
+
       <!-- Action Buttons -->
       <div v-if="!readOnly" class="mt-4">
         <button type="submit" class="btn btn-primary me-2" :disabled="saving">
@@ -279,6 +318,7 @@
 import TreatmentExtrasTable from './treatments_extras_table.vue';
 import PrescriptionForm from './prescription_form.vue';
 import SilviculturistComment from './silviculturist_comment.vue';
+import SurveyAssessment from './survey_assessment.vue';
 import { api_endpoints } from '@/utils/hooks';
 
 export default {
@@ -286,7 +326,8 @@ export default {
   components: {
     TreatmentExtrasTable,
     PrescriptionForm,
-    SilviculturistComment
+    SilviculturistComment,
+    SurveyAssessment,
   },
   props: {
     treatmentId: {
@@ -322,7 +363,8 @@ export default {
       showPrescriptionForm: false,
       prescriptionCollapsed: true, // Add this and set to true by default
       extrasCollapsed: true,
-      commentsCollapsed: true
+      commentsCollapsed: true,
+      surveyCollapsed: true,
     };
   },
   computed: {
@@ -558,6 +600,25 @@ export default {
     refreshExtras() {
         // This will be handled by the TreatmentExtrasTable component itself
     },
+
+    // Add to data() in treatments_form.vue
+    //surveyCollapsed: true,
+
+    // Add to methods in treatments_form.vue
+    toggleSurveyCollapse() {
+      this.surveyCollapsed = !this.surveyCollapsed;
+    },
+    addNewDocument() {
+      if (this.$refs.surveyAssessment) {
+        this.$refs.surveyAssessment.addNewDocument();
+      }
+    },
+    refreshDocuments() {
+      if (this.$refs.surveyAssessment) {
+        this.$refs.surveyAssessment.loadDocuments();
+      }
+    },
+
     getCSRFToken() {
       const name = 'csrftoken';
       let cookieValue = null;

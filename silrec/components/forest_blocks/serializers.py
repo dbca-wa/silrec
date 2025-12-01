@@ -18,7 +18,300 @@ from silrec.components.forest_blocks.models import (
     SpeciesApiLkp,
     Prescription,
     SilviculturistComment,
+    SurveyAssessmentDocument,
 )
+
+class SurveyAssessmentDocumentSerializer(serializers.ModelSerializer):
+    uploaded_by_display = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
+    #uploaded_by_display = serializers.CharField(source='uploaded_by', read_only=True)
+    file_size_display = serializers.SerializerMethodField()
+    file_icon = serializers.SerializerMethodField()
+    is_image_file = serializers.SerializerMethodField()
+
+    # Foreign key fields (writeable)
+    treatment_id = serializers.PrimaryKeyRelatedField(
+        source='treatment',
+        queryset=Treatment.objects.all(),
+        required=True
+    )
+
+
+    class Meta:
+        model = SurveyAssessmentDocument
+        fields = [
+            'document_id',
+            'treatment',
+            'treatment_id',
+            'document_type',
+            'title',
+            'description',
+            'file',
+            'file_url',
+            'file_size',
+            'file_size_display',
+            'file_name',
+            'file_type',
+            'status',
+            'document_date',
+            'marked_deleted',
+            'uploaded_by',
+            'uploaded_by_display',
+            'created_on',
+            'created_by',
+            'updated_on',
+            'updated_by',
+            # Computed fields
+            'file_icon',
+            'is_image_file',
+        ]
+        read_only_fields = [
+            'document_id', 'file_size', 'file_name', 'file_type',
+            'created_on', 'created_by', 'updated_on', 'updated_by',
+            'file_icon', 'file_size_display', 'is_image_file', 'uploaded_by_display'
+        ]
+
+
+    def get_is_image_file(self, obj):
+        return obj.is_image()
+
+    def get_file_size_display(self, obj):
+        if obj.file_size:
+            for unit in ['B', 'KB', 'MB', 'GB']:
+                if obj.file_size < 1024.0:
+                    return f"{obj.file_size:.2f} {unit}"
+                obj.file_size /= 1024.0
+        return '0 B'
+
+    def get_file_icon(self, obj):
+        if obj.file_name:
+            extension = obj.file_name.split('.')[-1].lower()
+            icon_map = {
+                'pdf': 'bi-file-pdf',
+                'doc': 'bi-file-word',
+                'docx': 'bi-file-word',
+                'xls': 'bi-file-excel',
+                'xlsx': 'bi-file-excel',
+                'jpg': 'bi-file-image',
+                'jpeg': 'bi-file-image',
+                'png': 'bi-file-image',
+                'gif': 'bi-file-image',
+                'bmp': 'bi-file-image',
+                'zip': 'bi-file-zip',
+                'rar': 'bi-file-zip',
+                '7z': 'bi-file-zip',
+            }
+            return icon_map.get(extension, 'bi-file-earmark')
+        return 'bi-file-earmark'
+
+    def validate(self, data):
+        """
+        Validate that either file or file_url is provided on CREATE,
+        but not required on UPDATE/PATCH (partial updates).
+        """
+        # If this is a create (POST) operation
+        if self.instance is None:
+            # Check if either file or file_url is provided
+            if not data.get('file') and not data.get('file_url'):
+                raise serializers.ValidationError(
+                    {'file': 'Either a file or a URL must be provided'}
+                )
+
+        # If this is an update (PUT/PATCH) and we're changing the file source
+        # but not providing a new file or URL
+        elif self.instance and 'file' in data and 'file_url' in data:
+            if data['file'] is None and data['file_url'] is None:
+                # Check if instance already has a file or URL
+                if not self.instance.file and not self.instance.file_url:
+                    raise serializers.ValidationError(
+                        {'file': 'Either a file or a URL must be provided'}
+                    )
+
+        return data
+
+    def create(self, validated_data):
+        # Extract treatment_id if provided
+        treatment_id = validated_data.pop('treatment_id', None)
+
+        # Set uploaded_by to current user
+        validated_data['uploaded_by'] = self.context['request'].user
+
+        # Handle treatment if treatment_id is provided
+        if treatment_id:
+            treatment = Treatment.objects.get(pk=treatment_id)
+            validated_data['treatment'] = treatment
+
+        return super().create(validated_data)
+
+#    def update(self, instance, validated_data):
+#        # Extract treatment_id if provided
+#        treatment_id = validated_data.pop('treatment_id', None)
+#
+#        # Handle treatment if treatment_id is provided
+#        if treatment_id:
+#            treatment = Treatment.objects.get(pk=treatment_id)
+#            validated_data['treatment'] = treatment
+#
+#        # If file is being removed (set to None), clear file_name and file_size
+#        if 'file' in validated_data and validated_data['file'] is None:
+#            validated_data['file_name'] = None
+#            validated_data['file_size'] = None
+#
+#        file = validated_data.get('file')
+#        if file and hasattr(file, 'name'):
+#            # Update filename with just the basename
+#            instance.file_name = os.path.basename(file.name)
+#
+#        return super().update(instance, validated_data)
+
+    def update(self, instance, validated_data):
+        # Extract treatment_id if provided
+        treatment_id = validated_data.pop('treatment_id', None)
+
+        # Handle treatment if treatment_id is provided
+        if treatment_id:
+            treatment = Treatment.objects.get(pk=treatment_id)
+            validated_data['treatment'] = treatment
+
+        # If file is being removed (set to None), clear file_name and file_size
+        if 'file' in validated_data and validated_data['file'] is None:
+            validated_data['file_name'] = None
+            validated_data['file_size'] = None
+            validated_data['file_type'] = None
+
+        # Don't manually set file_name here - let the model's save() method handle it
+        # The issue was that we were setting instance.file_name without the basename
+
+        return super().update(instance, validated_data)
+
+class __SurveyAssessmentDocumentSerializer(serializers.ModelSerializer):
+    # Read-only display fields
+    file_icon = serializers.SerializerMethodField()
+    file_size_display = serializers.SerializerMethodField()
+    is_image_file = serializers.SerializerMethodField()
+    uploaded_by_display = serializers.CharField(source='uploaded_by', read_only=True)
+
+    # Foreign key fields (writeable)
+    treatment_id = serializers.PrimaryKeyRelatedField(
+        source='treatment',
+        queryset=Treatment.objects.all(),
+        required=True
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Make file and file_url not required for partial updates
+        import ipdb; ipdb.set_trace()
+        if self.partial:
+            self.fields['file'].required = False
+            self.fields['file_url'].required = False
+
+    class Meta:
+        model = SurveyAssessmentDocument
+        fields = [
+            'document_id',
+            'treatment',
+            'treatment_id',
+            'document_type',
+            'title',
+            'description',
+            'file',
+            'file_url',
+            'file_size',
+            'file_size_display',
+            'file_name',
+            'file_type',
+            'status',
+            'document_date',
+            'marked_deleted',
+            'uploaded_by',
+            'uploaded_by_display',
+            'created_on',
+            'created_by',
+            'updated_on',
+            'updated_by',
+            # Computed fields
+            'file_icon',
+            'is_image_file',
+        ]
+        read_only_fields = [
+            'document_id', 'file_size', 'file_name', 'file_type',
+            'created_on', 'created_by', 'updated_on', 'updated_by',
+            'file_icon', 'file_size_display', 'is_image_file', 'uploaded_by_display'
+        ]
+
+    def get_file_icon(self, obj):
+        return obj.get_file_icon()
+
+    def get_file_size_display(self, obj):
+        return obj.get_file_size_display()
+
+    def get_is_image_file(self, obj):
+        return obj.is_image()
+
+    def validate(self, data):
+        """Validate that either file or file_url is provided"""
+        if not data.get('file') and not data.get('file_url'):
+            raise serializers.ValidationError({
+                'file': 'Either a file or a URL must be provided'
+            })
+
+        if data.get('file') and data.get('file_url'):
+            raise serializers.ValidationError({
+                'file': 'Cannot provide both a file and a URL'
+            })
+
+        return data
+
+    def validate_file(self, value):
+        """Validate file upload"""
+        if value:
+            # Check file size (50MB limit)
+            max_size = 50 * 1024 * 1024  # 50MB
+            if value.size > max_size:
+                raise serializers.ValidationError(f'File size must be less than 50MB. Current size: {value.size}')
+
+            # Check file extensions
+            allowed_extensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'zip', 'rar', '7z']
+            file_extension = value.name.split('.')[-1].lower() if '.' in value.name else ''
+            if file_extension not in allowed_extensions:
+                raise serializers.ValidationError(f'File type not allowed. Allowed types: {", ".join(allowed_extensions)}')
+
+        return value
+
+    def validate_file_url(self, value):
+        """Validate URL"""
+        if value:
+            import re
+            url_pattern = re.compile(
+                r'^(https?://)?'  # http:// or https://
+                r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # domain
+                r'(:[0-9]+)?'  # port
+                r'(/.*)?$'  # path
+            )
+            if not url_pattern.match(value):
+                raise serializers.ValidationError('Enter a valid URL')
+
+        return value
+
+    def create(self, validated_data):
+        """Create treatment document with current user info"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['created_by'] = request.user.username
+            validated_data['uploaded_by'] = request.user.username
+            if not validated_data.get('updated_by'):
+                validated_data['updated_by'] = request.user.username
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Update treatment document with current user info"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['updated_by'] = request.user.username
+
+        return super().update(instance, validated_data)
 
 
 class CohortSerializer(serializers.ModelSerializer):

@@ -98,7 +98,7 @@
           >
             <i class="bi" :class="showTreatments ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
             Treatments 
-            <span class="badge bg-secondary ms-2">{{ treatmentsCount }}</span>
+            <!-- <span class="badge bg-secondary ms-2">{{ treatmentsCount }}</span> -->
           </button>
         </h5>
         <div>
@@ -341,7 +341,7 @@ export default {
             }
             
             // Also fetch the treatments count for the badge
-            await this.loadTreatmentsCount();
+            //await this.loadTreatmentsCount();
             
         } catch (error) {
             console.error('Error refreshing treatments:', error);
@@ -599,7 +599,7 @@ export default {
     //this.loadUserPermissions();
     
     // Load treatments count initially
-    this.loadTreatmentsCount();
+    //this.loadTreatmentsCount();
     
     // Add beforeunload handler to warn about unsaved changes
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
@@ -619,14 +619,14 @@ export default {
     cohortId: {
       handler() {
         this.loadCohortData();
-        this.loadTreatmentsCount();
+        //this.loadTreatmentsCount();
       },
       immediate: true
     },
     '$route.params.cohortId': {
       handler() {
         this.loadCohortData();
-        this.loadTreatmentsCount();
+        //this.loadTreatmentsCount();
       }
     }
   }

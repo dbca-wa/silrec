@@ -11,10 +11,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.db.models.functions import Transform
 from django.core.exceptions import ValidationError
 
-
-
 #from rest_framework import viewsets, permissions
-
 
 from rest_framework import viewsets, serializers, status, generics, views
 #from rest_framework.decorators import detail_route, list_route,renderer_classes
@@ -31,6 +28,7 @@ from rest_framework_datatables.filters import DatatablesFilterBackend
 
 from datetime import datetime, timedelta, date
 import json
+import os
 
 from silrec.helpers import is_customer, is_internal
 from silrec.components.forest_blocks.models import   (
@@ -41,12 +39,14 @@ from silrec.components.forest_blocks.models import   (
     AssignChtToPly,
     Prescription,
     SilviculturistComment,
+    SurveyAssessmentDocument,
 )
 from silrec.components.users.serializers import   (
     UserSerializer,
     UserSerializerSimple,
 )
 from silrec.components.forest_blocks.serializers import   (
+    SurveyAssessmentDocumentSerializer,
     TreatmentSerializer,
     TreatmentXtraSerializer,
     CohortSerializer,
@@ -71,6 +71,125 @@ class GetProfile(views.APIView):
                 context={'request': request}
                 )
         return Response(serializer.data)
+
+
+class SurveyAssessmentDocumentViewSet(viewsets.ModelViewSet):
+    queryset = SurveyAssessmentDocument.objects.all()
+    serializer_class = SurveyAssessmentDocumentSerializer
+    pagination_class = DatatablesPageNumberPagination
+    filter_backends = (DatatablesFilterBackend,)
+
+    def get_queryset(self):
+        queryset = SurveyAssessmentDocument.objects.all().select_related('treatment')
+
+        # Filter by treatment_id if provided
+        treatment_id = self.request.query_params.get('treatment_id')
+        if treatment_id:
+            queryset = queryset.filter(treatment_id=treatment_id)
+
+        # Apply additional filters
+        document_type = self.request.query_params.get('document_type')
+        status = self.request.query_params.get('status')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        search = self.request.query_params.get('search')
+
+        if document_type and document_type != 'all':
+            queryset = queryset.filter(document_type=document_type)
+
+        if status and status != 'all':
+            queryset = queryset.filter(status=status)
+
+        if date_from:
+            try:
+                date_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(document_date__gte=date_from)
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(document_date__lte=date_to)
+            except ValueError:
+                pass
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search) |
+                Q(file_name__icontains=search)
+            )
+
+        return queryset.order_by('-document_date', '-created_on')
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'create', 'update', 'partial_update']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """Download document file"""
+        document = self.get_object()
+
+        if document.file:
+            response = HttpResponse(document.file, content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{document.file_name}"'
+            return response
+        else:
+            return Response({'error': 'No file attached'}, status=404)
+
+    @action(detail=False, methods=['get'])
+    def document_types(self, request):
+        """Get available document types"""
+        types = [{'value': value, 'label': label} for value, label in SurveyAssessmentDocument.DOCUMENT_TYPES]
+        return Response(types)
+
+    @action(detail=False, methods=['get'])
+    def status_choices(self, request):
+        """Get available status choices"""
+        statuses = [{'value': value, 'label': label} for value, label in SurveyAssessmentDocument.STATUS_CHOICES]
+        return Response(statuses)
+
+    # Add this method to handle partial updates (including marked_deleted)
+    def partial_update(self, request, *args, **kwargs):
+        """Handle partial updates including marked_deleted field"""
+        #marked_deleted = request.data.get('marked_deleted')
+        instance = self.get_object()
+        #instance.marked_deleted = marked_deleted
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        #import ipdb; ipdb.set_trace()
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        """Set uploaded_by when creating a document"""
+        #import ipdb; ipdb.set_trace()
+        serializer.save(uploaded_by=self.request.user)
+
+#    def perform_update(self, serializer):
+#        """Perform update, handling file changes if needed"""
+#        # Check if a new file is being uploaded
+#        file = self.request.FILES.get('file')
+#        if file:
+#            # If a new file is uploaded, update file metadata
+#            instance = serializer.save()
+#            instance.file_name = file.name
+#            instance.file_size = file.size
+#            instance.save()
+#        else:
+#            instance = self.get_object()
+#            filename = os.path.basename(instance.file_name)
+#            serializer.save()
+#            instance.file_name = filename
+#            instance.save()
+#            import ipdb; ipdb.set_trace()
+#            pass
 
 
 class PolygonCohortViewSet(viewsets.ModelViewSet):

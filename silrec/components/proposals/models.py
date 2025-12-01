@@ -195,6 +195,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     PROCESSING_STATUS_REVIEW_COMPLETED = "review_Completed"
     PROCESSING_STATUS_DECLINED = "declined"
     PROCESSING_STATUS_DISCARDED = "discarded"
+    PROCESSING_STATUS_TEMP = "temp"
     PROCESSING_STATUS_CHOICES = (
         (PROCESSING_STATUS_DRAFT, "Draft"),
         (PROCESSING_STATUS_AMENDMENT_REQUIRED, "Amendment Required"),
@@ -205,6 +206,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         (PROCESSING_STATUS_REVIEW_COMPLETED, "Review Completed"),
         (PROCESSING_STATUS_DECLINED, "Declined"),
         (PROCESSING_STATUS_DISCARDED, "Discarded"),
+        (PROCESSING_STATUS_TEMP, "Temporary"),
     )
 
     # List of statuses from above that allow a customer to view a proposal (read-only)

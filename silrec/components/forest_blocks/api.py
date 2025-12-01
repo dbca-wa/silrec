@@ -638,8 +638,8 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         return_empty = self.request.query_params.get('return_empty')
 
         # Return empty if no filters provided and return_empty is set
-        if return_empty and not any([obj_code, compartment, zfea_id, treatment_status, created_from, created_to]):
-            return Polygon.objects.none()
+        #if return_empty and not any([obj_code, compartment, zfea_id, treatment_status, created_from, created_to]):
+        #    return Polygon.objects.none()
 
         if obj_code:
             queryset = queryset.filter(

@@ -31,8 +31,6 @@
                 Pre-processed (current) Layer
             </label>
             </div>
-            <!--
-            -->
             <div class="layer-item" v-if="hasLayer3">
             <label>
                 <input 
@@ -94,7 +92,7 @@
         </div>
         <div class="feature-content">
             <!-- Basic attributes table -->
-            <table class="feature-table basic-attributes">
+            <table class="feature-table basic-attributes compact">
             <tbody>
                 <tr v-for="field in displayFields" :key="field.key">
                 <th class="field-label">{{ field.label }}:</th>
@@ -104,13 +102,13 @@
             </table>
             
             <!-- Information icon toggle -->
-            <div class="info-toggle-section">
+            <div class="info-toggle-section compact">
             <button 
                 class="info-toggle-btn"
                 @click="showAdditionalInfo = !showAdditionalInfo"
                 :title="showAdditionalInfo ? 'Hide additional details' : 'Show additional details'"
             >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
                 </svg>
                 <span class="toggle-text">
@@ -120,7 +118,7 @@
             </div>
 
             <!-- Additional attributes in multi-column layout -->
-            <div v-if="showAdditionalInfo && additionalFields.length > 0" class="additional-attributes">
+            <div v-if="showAdditionalInfo && additionalFields.length > 0" class="additional-attributes compact">
             <h4 class="additional-title">Additional Information</h4>
             <div class="attributes-grid">
                 <div 
@@ -297,27 +295,6 @@ export default {
       type: Array,
       default: () => []
     },
-    // Add the missing props
-    displayFieldsConfig: {
-      type: Array,
-      default: () => [
-        { key: 'name', label: 'Name' },
-        { key: 'Block', label: 'Block' },
-        { key: 'Compno', label: 'Comp No' }
-      ]
-    },
-    additionalFieldsConfig: {
-      type: Array,
-      default: () => [
-        { key: 'Region', label: 'Region' },
-        { key: 'fea_id', label: 'Feature ID' },
-        { key: 'area', label: 'Area' },
-        { key: 'status', label: 'Status' },
-        { key: 'type', label: 'Type' },
-        { key: 'owner', label: 'Owner' }
-      ]
-    },
-    // Add context prop if needed
     context: {
       type: Object,
       default: null
@@ -356,8 +333,8 @@ export default {
       }),
       layer4Style: function(feature) {
         const polyType = feature.get('poly_type');
-        const baseColor = 'rgba(255, 255, 255, 0.6)'; // Darker color for BASE
-        const defaultColor = 'rgba(100, 100, 100, 0.5)'; // Original color for others
+        const baseColor = 'rgba(255, 255, 255, 0.6)';
+        const defaultColor = 'rgba(100, 100, 100, 0.5)';
         
         return new Style({
             fill: new Fill({
@@ -377,15 +354,28 @@ export default {
       showDataTable: true,
       selectedPolygonId: null,
       polygonHighlightLayer: null,
+
+      // Define display fields directly in data to ensure they're always set
+      displayFields: [
+        { key: 'Block', label: 'Block' },
+        { key: 'Compno', label: 'Comp No' },
+        { key: 'fea_id', label: 'FEA ID' },
+        { key: 'area_ha', label: 'Area (ha)' },
+        { key: 'obj_code', label: 'Objective Code' },
+        { key: 'resid_ba_m2ha', label: 'Residual BA (m²/ha)' },
+        { key: 'target_ba_m2ha', label: 'Target BA (m²/ha)' },
+        { key: 'species', label: 'Species' }
+      ],
+      additionalFields: [
+        { key: 'region', label: 'Region' },
+        { key: 'op_date', label: 'Operation Date (year)' },
+        { key: 'regen_date', label: 'Regeneration Date (year)' },
+        { key: 'resid_spha', label: 'Residual SPHA' },
+        { key: 'target_spha', label: 'Target SPHA' }
+      ]
     };
   },
   computed: {
-    displayFields() {
-      return this.displayFieldsConfig || [];
-    },
-    additionalFields() {
-      return this.additionalFieldsConfig || [];
-    },
     getZoomToLayerTitle() {
       if (this.hasLayer4 && this.layer4Visible && this.selectedGeometryIndex !== null) {
         return `Zoom to Geometry ${this.selectedGeometryIndex + 1}`;
@@ -424,9 +414,6 @@ export default {
       deep: true
     },
 
-    // datatable related
-
-    // Watch for changes in proposal ID sources
     proposalId: {
       handler(newVal) {
         this.currentProposalId = this.ensureNumber(newVal);
@@ -458,21 +445,16 @@ export default {
     this.$nextTick(() => {
       this.initializeMap();
 
-      //this.currentProposalId = this.$route.params.proposal_id || this.proposalId;
-      // Extract proposal ID from multiple possible sources and ensure it's a number
       let proposalId = null;
         
-      // Priority 1: From props
       if (this.proposalId) {
         proposalId = this.ensureNumber(this.proposalId);
       }
         
-      // Priority 2: From route parameters
       if (!proposalId && this.$route.params.proposal_id) {
         proposalId = this.ensureNumber(this.$route.params.proposal_id);
       }
         
-      // Priority 3: From context prop
       if (!proposalId && this.context && this.context.id) {
         proposalId = this.ensureNumber(this.context.id);
       }
@@ -499,14 +481,12 @@ export default {
     document.removeEventListener('keydown', this.handleEscape);
   },
   methods: {
-    async exportChtToExcel() {  // Add async here
+    async exportChtToExcel() {
         if (!this.currentChtData) return;
 
         try {
-            // Create workbook
             const workbook = XLSX.utils.book_new();
 
-            // Add CHT Init sheet if available
             if (this.currentChtData.cht_init) {
                 const initData = this.parseChtData(this.currentChtData.cht_init);
                 if (initData.length > 0) {
@@ -515,7 +495,6 @@ export default {
                 }
             }
 
-            // Add CHT New sheet if available
             if (this.currentChtData.cht_new) {
                 const newData = this.parseChtData(this.currentChtData.cht_new);
                 if (newData.length > 0) {
@@ -524,11 +503,9 @@ export default {
                 }
             }
 
-            // Generate filename with timestamp
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
             const filename = `cohort_data_polygon_${this.selectedGeometryIndex + 1}_${timestamp}.xlsx`;
 
-            // Export to Excel
             XLSX.writeFile(workbook, filename);
 
             await swal.fire({
@@ -570,7 +547,6 @@ export default {
     parseChtData(chtJsonString) {
         try {
         const data = JSON.parse(chtJsonString);
-        // Convert the object format to array of rows
         const keys = Object.keys(data);
         if (keys.length === 0) return [];
         
@@ -610,13 +586,11 @@ export default {
     }
   },
     initializeMap() {
-      // Create vector sources and layers
       const layer1Source = new VectorSource();
       const layer2Source = new VectorSource();
       const layer3Source = new VectorSource();
       const layer4Source = new VectorSource();
 
-      // Style for layer 1
       const layer1Style = new Style({
         fill: new Fill({
           color: 'rgba(255, 0, 0, 0.3)'
@@ -627,7 +601,6 @@ export default {
         })
       });
 
-      // Style for layer 2
       const layer2Style = new Style({
         fill: new Fill({
           color: 'rgba(0, 0, 255, 0.3)'
@@ -638,7 +611,6 @@ export default {
         })
       });
 
-      // Style for layer 3
       const layer3Style = new Style({
         fill: new Fill({
           color: 'rgba(68, 68, 68, 0.3)'
@@ -649,7 +621,6 @@ export default {
         })
       });
 
-      // Create layers
       this.layer1 = new VectorLayer({
         source: layer1Source,
         style: layer1Style,
@@ -670,17 +641,15 @@ export default {
 
       this.layer4 = new VectorLayer({
         source: layer4Source,
-        style: this.layer4Style, // Now using the style function
+        style: this.layer4Style,
         visible: this.layer4Visible,
         zIndex: 10
       });
 
-      // Base layer (OSM)
       const baseLayer = new TileLayer({
         source: new OSM()
       });
 
-      // Initialize the map
       this.map = new Map({
         target: this.$refs.mapContainer,
         layers: [baseLayer, this.layer1, this.layer2, this.layer3, this.layer4],
@@ -691,10 +660,8 @@ export default {
         })                                                                                                                                            
       });
 
-      // Add select interaction
       this.setupSelectInteraction();
 
-      // Load initial data if available
       if (this.featureCollection) {
         this.updateLayer1(this.featureCollection);
       }
@@ -740,19 +707,36 @@ export default {
     getFeatureValue(feature, fieldKey) {
       if (!feature) return 'N/A';
       
-      // Try different property access methods
       let value = feature.get(fieldKey);
       
-      // If not found, try properties object
       if (value === undefined || value === null) {
         const properties = feature.getProperties();
         value = properties[fieldKey];
       }
       
-      // If still not found, try the original properties
       if (value === undefined || value === null) {
         const originalProperties = feature.get('properties');
         value = originalProperties ? originalProperties[fieldKey] : undefined;
+      }
+
+      // Format date fields to show only year
+      if ((fieldKey === 'op_date' || fieldKey === 'regen_date') && value) {
+        try {
+          const date = new Date(value);
+          return date.getFullYear().toString();
+        } catch (e) {
+          return value;
+        }
+      }
+
+      // Format numeric fields
+      if ((fieldKey === 'area_ha' || fieldKey === 'resid_ba_m2ha' || fieldKey === 'target_ba_m2ha') && value) {
+        try {
+          const numValue = parseFloat(value);
+          return !isNaN(numValue) ? numValue.toFixed(2) : value;
+        } catch (e) {
+          return value;
+        }
       }
       
       return value !== undefined && value !== null ? value : 'N/A';
@@ -869,8 +853,6 @@ export default {
     },
 
     displayGeometryCollection(geometryIndex) {
-      //console.log('GEOM1: ' + JSON.stringify(this.geometryCollections[geometryIndex]))
-      console.log('GEOM1: ' + JSON.stringify(this.geometryCollections))
       if (!this.layer4 || !this.geometryCollections[geometryIndex]) {
         console.log('Cannot display geometry - layer4:', this.layer4, 'geometry at index:', geometryIndex);
         return;
@@ -957,14 +939,10 @@ export default {
       this.map.render();
     },
 
-    // Polygon - Cohort Table
-
-    // Method to show/hide table
     toggleDataTable() {
       this.showDataTable = !this.showDataTable;
     },
 
-    // Helper method to ensure number type
     ensureNumber(value) {
       if (value === null || value === undefined) return null;
       const num = Number(value);
@@ -972,34 +950,21 @@ export default {
     },
 
     onPolygonSelected(polygonId) {
-        // Handle polygon selection from table
         console.log('Polygon selected:', polygonId);
-
-        // Store the selected polygon ID
         this.selectedPolygonId = polygonId;
-
-        // Clear any existing feature selection
         this.closeFeaturePopup();
-
-        // Try to find and highlight the polygon in all layers
         this.highlightPolygonInLayers(polygonId);
     },
 
     onZoomToPolygon(polygonId) {
-        // Handle zoom to polygon from table
         console.log('Zoom to polygon:', polygonId);
-
-        // Store the selected polygon ID
         this.selectedPolygonId = polygonId;
-
-        // Try to find and zoom to the polygon in all layers
         this.zoomToPolygonInLayers(polygonId);
     },
 
     highlightPolygonInLayers(polygonId) {
         if (!this.map || !polygonId) return;
 
-        // Search through all vector layers for the polygon with matching ID
         const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
 
         for (const layer of layers) {
@@ -1011,16 +976,12 @@ export default {
             const foundFeature = this.findFeatureById(features, polygonId);
 
             if (foundFeature) {
-            // Highlight the found feature
             this.selectInteraction.getFeatures().clear();
             this.selectInteraction.getFeatures().push(foundFeature);
-
-            // Show feature details in popup
             this.selectedFeature = foundFeature;
             this.showAdditionalInfo = false;
-
             console.log('Found and highlighted polygon in layer:', layer);
-            return; // Stop searching after finding the first match
+            return;
             }
         }
 
@@ -1030,7 +991,6 @@ export default {
     zoomToPolygonInLayers(polygonId) {
         if (!this.map || !polygonId) return;
 
-        // Search through all vector layers for the polygon with matching ID
         const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
 
         for (const layer of layers) {
@@ -1042,19 +1002,13 @@ export default {
             const foundFeature = this.findFeatureById(features, polygonId);
 
             if (foundFeature) {
-            // Highlight the found feature
             this.selectInteraction.getFeatures().clear();
             this.selectInteraction.getFeatures().push(foundFeature);
-
-            // Show feature details in popup
             this.selectedFeature = foundFeature;
             this.showAdditionalInfo = false;
-
-            // Zoom to the selected feature
             this.zoomToFeature(foundFeature);
-
             console.log('Found and zoomed to polygon in layer:', layer);
-            return; // Stop searching after finding the first match
+            return;
             }
         }
 
@@ -1063,7 +1017,6 @@ export default {
 
     findFeatureById(features, polygonId) {
         return features.find(feature => {
-            // Try different property names that might contain the polygon ID
             const featureId = feature.get('id') || 
                             feature.get('polygon_id') || 
                             feature.get('poly_id') ||
@@ -1088,9 +1041,9 @@ export default {
         if (geometry) {
             const extent = geometry.getExtent();
             this.map.getView().fit(extent, {
-            padding: [50, 50, 50, 50], // Add some padding around the feature
+            padding: [50, 50, 50, 50],
             duration: 1000,
-            maxZoom: 15 // Optional: prevent zooming in too close
+            maxZoom: 15
             });
         }
     },
@@ -1165,20 +1118,20 @@ export default {
   background: white;
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 15px;
+  padding: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   z-index: 1000;
   min-width: 280px;
-  max-width: 500px;
+  max-width: 400px;
 }
 
 .popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   border-bottom: 1px solid #eee;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
 }
 
 .popup-header h3 {
@@ -1202,7 +1155,7 @@ export default {
 .layer-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .layer-item label {
@@ -1210,7 +1163,7 @@ export default {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .layer-item input[type="checkbox"] {
@@ -1218,22 +1171,22 @@ export default {
 }
 
 .nested-radio-group {
-  margin-left: 20px;
-  margin-top: 8px;
-  padding-left: 10px;
+  margin-left: 16px;
+  margin-top: 6px;
+  padding-left: 8px;
   border-left: 2px solid #e0e0e0;
 }
 
 .radio-item {
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
 .radio-item label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   color: #666;
 }
 
@@ -1242,37 +1195,43 @@ export default {
 }
 
 .feature-content {
-  font-size: 14px;
+  font-size: 13px;
 }
 
-.feature-table.basic-attributes {
+/* Compact table styles */
+.feature-table.basic-attributes.compact {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 15px;
+  margin-bottom: 8px;
 }
 
-.feature-table.basic-attributes th,
-.feature-table.basic-attributes td {
-  padding: 4px 8px;
+.feature-table.basic-attributes.compact th,
+.feature-table.basic-attributes.compact td {
+  padding: 2px 6px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  line-height: 1.2;
 }
 
-.feature-table.basic-attributes th {
+.feature-table.basic-attributes.compact th {
   font-weight: 600;
   color: #555;
   white-space: nowrap;
-  padding-right: 15px;
+  padding-right: 10px;
+  width: 45%;
+  font-size: 12px;
 }
 
-.feature-table.basic-attributes td {
+.feature-table.basic-attributes.compact td {
   color: #333;
   word-break: break-word;
+  font-size: 12px;
 }
 
-.info-toggle-section {
-  margin: 15px 0;
-  padding: 10px 0;
+/* Compact info toggle */
+.info-toggle-section.compact {
+  margin: 8px 0;
+  padding: 6px 0;
   border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
 }
@@ -1280,15 +1239,15 @@ export default {
 .info-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: none;
   border: none;
   color: #007bff;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
   transition: all 0.2s;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .info-toggle-btn:hover {
@@ -1299,48 +1258,52 @@ export default {
   font-weight: 500;
 }
 
-.additional-attributes {
-  margin-top: 15px;
-  padding-top: 15px;
+/* Compact additional attributes */
+.additional-attributes.compact {
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid #eee;
 }
 
-.additional-title {
-  margin: 0 0 12px 0;
-  font-size: 13px;
+.additional-attributes.compact .additional-title {
+  margin: 0 0 8px 0;
+  font-size: 12px;
   font-weight: 600;
   color: #555;
 }
 
-.attributes-grid {
+.additional-attributes.compact .attributes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 4px;
 }
 
-.attribute-item {
+.additional-attributes.compact .attribute-item {
   display: flex;
   flex-direction: column;
-  padding: 6px;
+  padding: 4px;
   background: #f8f9fa;
-  border-radius: 4px;
+  border-radius: 3px;
   border: 1px solid #e9ecef;
+  min-height: auto;
 }
 
-.attribute-label {
-  font-size: 11px;
+.additional-attributes.compact .attribute-label {
+  font-size: 10px;
   font-weight: 600;
   color: #6c757d;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
+  line-height: 1.1;
 }
 
-.attribute-value {
-  font-size: 12px;
+.additional-attributes.compact .attribute-value {
+  font-size: 11px;
   color: #333;
   font-weight: 500;
   word-break: break-word;
+  line-height: 1.2;
 }
 
 .geometry-item-header {
@@ -1354,7 +1317,7 @@ export default {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   padding: 2px 6px;
   border-radius: 3px;
   transition: background-color 0.2s;
@@ -1380,7 +1343,7 @@ export default {
 .cht-dialog {
   background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
   max-width: 90vw;
   max-height: 90vh;
   width: 950px;
@@ -1394,15 +1357,15 @@ export default {
 }
 
 .cht-table-section {
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .cht-table-section h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
   color: #333;
-  font-size: 16px;
+  font-size: 15px;
   border-bottom: 2px solid #007bff;
-  padding-bottom: 5px;
+  padding-bottom: 4px;
 }
 
 .table-container {
@@ -1414,12 +1377,12 @@ export default {
 .cht-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .cht-table th,
 .cht-table td {
-  padding: 8px 12px;
+  padding: 6px 8px;
   text-align: left;
   border-bottom: 1px solid #eee;
   border-right: 1px solid #eee;

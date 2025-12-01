@@ -22,6 +22,7 @@ import CohortDetail from '@/components/internal/cohorts/cohort_detail.vue'
 import TreatmentDetail from '@/components/internal/treatments/treatment_detail.vue'
 import TreatmentExtraDetail from '@/components/internal/treatments/treatment_extra_detail.vue'
 import TreatmentsDash from '@/components/internal/treatments/dashboard.vue';
+import ComponentMap2 from '@/components/common/component_map2.vue';
 
 
 export default {
@@ -43,7 +44,11 @@ export default {
             component: TreatmentsDash,
             name: 'internal-treatments-dash',
         },
-
+        {
+            path: 'map',
+            component: ComponentMap2,
+            name: 'internal-map2',
+        },
         {
             path: 'approval/:approval_id',
             component: Approval,

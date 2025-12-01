@@ -1,33 +1,124 @@
 <template>
-  <div>
+  <div class="container">
+    <h1>Map Search</h1>
     <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/component_map2.vue</div>
     <div class="map-container" :class="{ 'maximised': isMaximised }">
         <div ref="mapContainer" class="map"></div>
 
+        <!-- Feature info popup -->
+        <div v-if="selectedFeature" class="feature-popup" :style="popupStyle">
+          <div class="popup-header">
+            <h3>Feature Details</h3>
+            <button @click="closeFeaturePopup" class="close-btn">×</button>
+          </div>
+          <div class="feature-content">
+            <!-- Basic attributes table -->
+            <table class="feature-table basic-attributes">
+              <tbody>
+                <tr>
+                  <th class="field-label">Block:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'compartment_details.block') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">Comp No.:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'compartment_details.compartment') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">FEA ID:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'zfea_id') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">Area (ha):</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'area_ha') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">Objective Code:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.obj_code') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">Residual BA:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.resid_ba_m2ha') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">Target BA:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.target_ba_m2ha') }}</td>
+                </tr>
+                <tr>
+                  <th class="field-label">Species:</th>
+                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.species') }}</td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <!-- Information icon toggle -->
+            <div class="info-toggle-section">
+              <button 
+                class="info-toggle-btn"
+                @click="showAdditionalInfo = !showAdditionalInfo"
+                :title="showAdditionalInfo ? 'Hide additional details' : 'Show additional details'"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+                <span class="toggle-text">
+                  {{ showAdditionalInfo ? 'Less details' : 'More details...' }}
+                </span>
+              </button>
+            </div>
+
+            <!-- Additional attributes in table layout -->
+            <div v-if="showAdditionalInfo" class="additional-attributes">
+              <table class="feature-table basic-attributes">
+                <tbody>
+                  <tr>
+                    <th class="field-label">Region:</th>
+                    <td class="field-value">{{ getFeatureValue(selectedFeature, 'compartment_details.region') }}</td>
+                  </tr>
+                  <tr>
+                    <th class="field-label">Operation Date:</th>
+                    <td class="field-value">{{ getFeatureYear(selectedFeature, 'primary_cohort.op_date') }}</td>
+                  </tr>
+                  <tr>
+                    <th class="field-label">Regeneration Date:</th>
+                    <td class="field-value">{{ getFeatureYear(selectedFeature, 'primary_cohort.regen_date') }}</td>
+                  </tr>
+                  <tr>
+                    <th class="field-label">Residual SPHA:</th>
+                    <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.resid_spha') }}</td>
+                  </tr>
+                  <tr>
+                    <th class="field-label">Target SPHA:</th>
+                    <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.target_spha') }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- Map control buttons -->
         <div class="map-controls">
-        <button 
+          <button 
             class="control-btn maximise-btn"
             @click="toggleMaximise"
             :title="isMaximised ? 'Minimise map' : 'Maximise map'"
-        >
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-            <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+              <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+              <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
             </svg>
-        </button>
-        
-        <button 
+          </button>
+          
+          <button 
             class="control-btn zoom-to-layer-btn"
             @click="zoomToActiveLayer"
             :title="getZoomToLayerTitle"
-        >
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
+              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
             </svg>
-        </button>
-        
+          </button>
         </div>
     </div>
 
@@ -431,7 +522,8 @@ export default {
         created_from: '',
         created_to: ''
       },
-      filteredPolygons: []
+      filteredPolygons: [],
+      mapHeight: 600 // Default map height
     };
   },
   computed: {
@@ -457,6 +549,14 @@ export default {
     },
     getDistrictDisplayText() {
       return this.filters.district || 'All Districts';
+    },
+    popupStyle() {
+      // Calculate max height based on map container height
+      const maxHeight = this.mapHeight * 0.8; // 80% of map height
+      return {
+        'max-height': `${maxHeight}px`,
+        'overflow-y': 'auto'
+      };
     },
     dtHeaders() {
       return [
@@ -598,7 +698,16 @@ export default {
             searchable: false,
             className: 'action-column',
             render: function(data, type, row) {
+            // Get cohort_id from the row data - assuming it's available in primary_cohort
+            const cohortId = row.primary_cohort ? row.primary_cohort.cohort_id : null;
+            
             return `
+                ${cohortId ? `
+                <a href="proposal/-1/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">
+                     <i class="bi bi-pencil"></i>
+                     Edit
+                </a>
+                ` : ''}
                 <button class="btn btn-sm btn-outline-primary me-1 view-polygon-btn" data-polygon-id="${data}" title="View Details">
                 <i class="bi bi-eye"></i>
                 </button>
@@ -639,6 +748,12 @@ export default {
         this.debouncedRefreshData();
       },
       deep: true
+    },
+    isMaximised() {
+      // Update map height when maximised state changes
+      this.$nextTick(() => {
+        this.updateMapHeight();
+      });
     }
   },
   async mounted() {
@@ -654,6 +769,11 @@ export default {
     
     // Add click outside listener to close dropdowns
     document.addEventListener('click', this.handleClickOutside);
+
+    // Update map height after mount
+    this.$nextTick(() => {
+      this.updateMapHeight();
+    });
   },
   beforeUnmount() {
     if (this.map) {
@@ -714,6 +834,13 @@ export default {
       document.addEventListener('keydown', this.handleEscape);
     },
 
+    updateMapHeight() {
+      // Get the actual height of the map container
+      if (this.$refs.mapContainer) {
+        this.mapHeight = this.$refs.mapContainer.clientHeight;
+      }
+    },
+
     setupSelectInteraction() {
       if (this.selectInteraction) {
         this.map.removeInteraction(this.selectInteraction);
@@ -742,6 +869,18 @@ export default {
     getFeatureValue(feature, fieldKey) {
       if (!feature) return 'N/A';
       
+      // Handle nested properties with dot notation
+      if (fieldKey.includes('.')) {
+        const keys = fieldKey.split('.');
+        let value = feature.get(keys[0]);
+        
+        for (let i = 1; i < keys.length && value !== undefined && value !== null; i++) {
+          value = value[keys[i]];
+        }
+        
+        return value !== undefined && value !== null ? value : 'N/A';
+      }
+      
       // Try different property access methods
       let value = feature.get(fieldKey);
       
@@ -757,7 +896,29 @@ export default {
         value = originalProperties ? originalProperties[fieldKey] : undefined;
       }
       
+      // Format numbers to 2 decimal places if they are numeric
+      if (typeof value === 'number') {
+        return value.toFixed(2);
+      }
+      
       return value !== undefined && value !== null ? value : 'N/A';
+    },
+
+    getFeatureYear(feature, fieldKey) {
+      const value = this.getFeatureValue(feature, fieldKey);
+      if (value === 'N/A') return 'N/A';
+      
+      try {
+        // Try to parse the date and extract year
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          return date.getFullYear().toString();
+        }
+      } catch (e) {
+        console.warn('Could not parse date:', value);
+      }
+      
+      return value;
     },
 
     closeFeaturePopup() {
@@ -772,6 +933,7 @@ export default {
       this.isMaximised = !this.isMaximised;
       setTimeout(() => {
         this.map.updateSize();
+        this.updateMapHeight();
       }, 100);
     },
 
@@ -780,6 +942,7 @@ export default {
         this.isMaximised = false;
         setTimeout(() => {
           this.map.updateSize();
+          this.updateMapHeight();
         }, 100);
       }
     },
@@ -788,6 +951,7 @@ export default {
       if (this.map) {
         setTimeout(() => {
           this.map.updateSize();
+          this.updateMapHeight();
         }, 100);
       }
     },
@@ -1226,13 +1390,152 @@ export default {
   transform: scale(1.05);
 }
 
+/* Compact Feature Popup Styles */
+.feature-popup {
+  position: absolute;
+  top: 50px;
+  right: 10px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+  min-width: 260px;
+  max-width: 320px;
+  /* max-height and overflow-y are now set dynamically */
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+}
+
+.popup-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #666;
+  padding: 2px;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.feature-content {
+  font-size: 12px;
+}
+
+.feature-table.basic-attributes {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.feature-table.basic-attributes th,
+.feature-table.basic-attributes td {
+  padding: 3px 6px;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 1.2;
+}
+
+.feature-table.basic-attributes th {
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  padding-right: 10px;
+  width: 40%;
+  font-size: 11px;
+}
+
+.feature-table.basic-attributes td {
+  color: #333;
+  word-break: break-word;
+  font-size: 11px;
+}
+
+.feature-table.basic-attributes tr:last-child th,
+.feature-table.basic-attributes tr:last-child td {
+  border-bottom: none;
+}
+
+.info-toggle-section {
+  margin: 10px 0;
+  padding: 8px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.info-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  font-size: 11px;
+  width: 100%;
+  justify-content: center;
+}
+
+.info-toggle-btn:hover {
+  background-color: #f8f9fa;
+}
+
+.toggle-text {
+  font-weight: 500;
+}
+
+.additional-attributes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+/* Custom scrollbar for the popup */
+.feature-popup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.feature-popup::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.feature-popup::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.feature-popup::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
 .datatable-container {
   margin-top: 20px;
 }
 
 :deep(.action-column) {
   white-space: nowrap;
-  width: 120px;
+  width: 150px;
 }
 
 :deep(.btn-sm) {

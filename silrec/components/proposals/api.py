@@ -192,7 +192,10 @@ class ProposalPaginatedViewSet(viewsets.ReadOnlyModelViewSet):
 #        if not is_internal(self.request) and not is_customer(self.request):
 #            return Proposal.objects.none()
 
-        qs = Proposal.objects.all()
+        qs = Proposal.objects.exclude(processing_status__in=[
+                 Proposal.PROCESSING_STATUS_DISCARDED,
+                 Proposal.PROCESSING_STATUS_TEMP,
+             ])
 #        if is_assessor(self.request) or is_approver(self.request):
 #            target_email_user_id = self.request.query_params.get(
 #                "target_email_user_id", None

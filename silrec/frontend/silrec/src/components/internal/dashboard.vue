@@ -20,19 +20,7 @@
                     >Proposals</a
                 >
             </li>
-            <li v-if="show_competitive_processes_tab" class="nav-item">
-                <a
-                    id="pills-competitive-processes-tab"
-                    class="nav-link"
-                    data-bs-toggle="pill"
-                    href="#pills-competitive-processes"
-                    role="tab"
-                    aria-controls="pills-competitive-processes"
-                    aria-selected="false"
-                    @click="tabClicked('competitive-processes')"
-                    >Competitive Processes</a
-                >
-            </li>
+            <!--
             <li v-if="show_applications_datatable" class="nav-item">
                 <a
                     id="pills-map-tab"
@@ -46,6 +34,7 @@
                     >Map</a
                 >
             </li>
+            -->
         </ul>
         <div id="pills-tabContent" class="tab-content">
             <div

@@ -491,18 +491,47 @@ class ObjectiveSubtype(models.Model):
         db_table_comment = "Lookup table for values and definitions for relevant silvicultural objectives\n\nThis table deprecated and contents incorporated to the cohort_xtra table because subtypes can be represented as categories applied to groups/subgroups of an objective.\n\nPlease explain why this detail  is not in the silvic_lkp table. (DW) Delete comment for PRD.\n\nDS> This table is for types of silvic objective especially those that may not be entered in some situations, e.g. different types of utility, different types of veg complex, etc.  Somewhat distinct from 'category 1/2' in that these have an official status related to the objective itself; nevertheless, could be subsumed into the category table structure."
 
 
+#class Operation(models.Model):
+#    op_id = models.AutoField(primary_key=True, db_comment='Unique identifier for each operation')
+#    das_id = models.IntegerField(blank=True, null=True, db_comment='Disturbance Approval System (DAS) identifier')
+#    fea_id = models.CharField(max_length=20, blank=True, null=True, db_comment='Unique identifier for the FEA / OPERATION as determined by the planner (Peter Murray).\n\nWith historical v2 data FEA ID will be Stands.OpCode')
+#    plan_release = models.CharField(max_length=50, blank=True, null=True, db_comment='identifier for the release package including the FEA')
+#    silvic_plan_map = models.BinaryField(blank=True, null=True, db_comment='Document (PDF) of a map of the silvics plan (FINAL VERSION)\n\nCorrect data type?\nStore simply as URL to SharePoint location')
+#    silvic_plan_doc = models.BinaryField(blank=True, null=True, db_comment='Silvic plan document (FINAL VERSION) providing the detailed silvicultural tactics to be applied in the operation, may be .DOCX or PDF file.\n\nStore simply as URL to SharePoint location')
+#
+#    class Meta:
+#        db_table = 'operation'
+#        db_table_comment = "List of operations / coupes / FEA's.  Provides a link back to planning units for analysis and reporting.\nOne row per FEA, with a unique FEA ID; aspatial table (no geographic object/boundary); spatial location only acquire via direct/indirect link to polygon table.  \nPurpose of the table is to bundle/group polygons/cohorts from a single operation (FEA) with a single DAS proposal/approval.\n\nUndecided whether this relates to polygon table or cohort table (or treatment table).\nRelated to Silviculturist's comment and Cohort. Treatment and Task can be accessed via relationship to Cohort so that silviculturist can record a comment on Operation, Cohort, Treatment or Task.\nForm can be created so that it has drop downs for all the above attributes. i.e. drilling down to finest detail for comment. (DW) \n\nDelete comments below for PRD.\nPolygon table\n- Pros: Helps provide direct and explicit spatial boundary for the coupe for capturing all polygons within the FEA, helping ensure FEA fully mapped.\n- Cons: Polygons aren't stable over time, they may be subdivided in future operations; PLUS a polygon can be multiple coupes/FEA over time.\n\nCohort table\n- Pros: Provides direct and explicit link to cohorts created by the operation; cohort will be completed and closed as per the effects of the operation.\n- Cons: Less direct spatial boundary may create difficulties ensuring all areas within operation boundary fully described.\n\nPossibly should be independent spatial table?  But then may need to update records if operation boundary changed ...\n\nMy thought leans towards Cohort. A simply spatial overlay between polygon and the FEA annual plan after each annual upload of the plan will ensure all areas within the plan are covered. This assumes the upload is by each individual FEA.\nUNRESOLVED as to linking treatments to operations, but preferences leaning to no linkage.\nAs for areas within each operation/FEA boundary, I presume if they are not in a cohort then they are considered extrinsic. (DW)"
+
+
 class Operation(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('final', 'Final'),
+    ]
+
     op_id = models.AutoField(primary_key=True, db_comment='Unique identifier for each operation')
     das_id = models.IntegerField(blank=True, null=True, db_comment='Disturbance Approval System (DAS) identifier')
-    fea_id = models.CharField(max_length=20, blank=True, null=True, db_comment='Unique identifier for the FEA / OPERATION as determined by the planner (Peter Murray).\n\nWith historical v2 data FEA ID will be Stands.OpCode')
+    fea_id = models.CharField(max_length=20, blank=True, null=True, db_comment='Unique identifier for the FEA / OPERATION as determined by the planner')
     plan_release = models.CharField(max_length=50, blank=True, null=True, db_comment='identifier for the release package including the FEA')
     silvic_plan_map = models.BinaryField(blank=True, null=True, db_comment='Document (PDF) of a map of the silvics plan (FINAL VERSION)\n\nCorrect data type?\nStore simply as URL to SharePoint location')
     silvic_plan_doc = models.BinaryField(blank=True, null=True, db_comment='Silvic plan document (FINAL VERSION) providing the detailed silvicultural tactics to be applied in the operation, may be .DOCX or PDF file.\n\nStore simply as URL to SharePoint location')
 
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    document_date = models.DateField(blank=True, null=True)
+    marked_deleted = models.BooleanField(default=False)
+
+    created_on = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_comment='Date and time when the record was created')
+    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='User who created the record')
+    updated_on = models.DateTimeField(auto_now=True, blank=True, null=True, db_comment='Date and time when the record was last updated')
+    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='User who last updated the record')
+
     class Meta:
         db_table = 'operation'
-        db_table_comment = "List of operations / coupes / FEA's.  Provides a link back to planning units for analysis and reporting.\nOne row per FEA, with a unique FEA ID; aspatial table (no geographic object/boundary); spatial location only acquire via direct/indirect link to polygon table.  \nPurpose of the table is to bundle/group polygons/cohorts from a single operation (FEA) with a single DAS proposal/approval.\n\nUndecided whether this relates to polygon table or cohort table (or treatment table).\nRelated to Silviculturist's comment and Cohort. Treatment and Task can be accessed via relationship to Cohort so that silviculturist can record a comment on Operation, Cohort, Treatment or Task.\nForm can be created so that it has drop downs for all the above attributes. i.e. drilling down to finest detail for comment. (DW) \n\nDelete comments below for PRD.\nPolygon table\n- Pros: Helps provide direct and explicit spatial boundary for the coupe for capturing all polygons within the FEA, helping ensure FEA fully mapped.\n- Cons: Polygons aren't stable over time, they may be subdivided in future operations; PLUS a polygon can be multiple coupes/FEA over time.\n\nCohort table\n- Pros: Provides direct and explicit link to cohorts created by the operation; cohort will be completed and closed as per the effects of the operation.\n- Cons: Less direct spatial boundary may create difficulties ensuring all areas within operation boundary fully described.\n\nPossibly should be independent spatial table?  But then may need to update records if operation boundary changed ...\n\nMy thought leans towards Cohort. A simply spatial overlay between polygon and the FEA annual plan after each annual upload of the plan will ensure all areas within the plan are covered. This assumes the upload is by each individual FEA.\nUNRESOLVED as to linking treatments to operations, but preferences leaning to no linkage.\nAs for areas within each operation/FEA boundary, I presume if they are not in a cohort then they are considered extrinsic. (DW)"
+        db_table_comment = "List of operations / coupes / FEA's. Provides a link back to planning units for analysis and reporting.\nOne row per FEA, each FEA can be linked to multiple cohorts."
 
+    def __str__(self):
+        return f"Operation {self.op_id} - {self.fea_id}"
 
 
 class Polygon(models.Model):

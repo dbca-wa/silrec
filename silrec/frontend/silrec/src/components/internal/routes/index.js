@@ -23,6 +23,7 @@ import TreatmentDetail from '@/components/internal/treatments/treatment_detail.v
 import TreatmentExtraDetail from '@/components/internal/treatments/treatment_extra_detail.vue'
 import TreatmentsDash from '@/components/internal/treatments/dashboard.vue';
 import ComponentMap2 from '@/components/common/component_map2.vue';
+import OperationDetails from '@/components/internal/operations/operation_details.vue';
 
 
 export default {
@@ -153,7 +154,7 @@ export default {
             props: true
         },
         {
-            path: 'cohort/:cohortId/treatment/new',
+            path: 'cohorts/:cohortId/treatment/new',
             name: 'new-treatment',
             component: TreatmentDetail,
             props: true
@@ -164,5 +165,28 @@ export default {
             component: TreatmentExtraDetail,
             props: true
         },
+
+        // Operations section
+        {
+            path: 'cohorts/:cohortId/operation/new',
+            name: 'new-operation',
+            component: OperationDetails,
+            props: true,
+            //meta: { requiresAuth: true }
+        },
+        {
+            path: 'operation/:operationId/edit',
+            name: 'edit-operation',
+            component: OperationDetails,
+            props: true,
+            //meta: { requiresAuth: true }
+        },
+        {
+            path: 'operation/:operationId',
+            name: 'view-operation',
+            component: OperationDetails,
+            props: true,
+            //meta: { requiresAuth: true }
+        }
     ],
 };

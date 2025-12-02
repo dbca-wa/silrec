@@ -3,12 +3,14 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from django.contrib.auth.models import User
 from django.contrib.gis.db.models.functions import Area
 from django.db.models import F
+from django.core.files.storage import default_storage
 from silrec.components.forest_blocks.models import (
     Polygon,
     Cohort,
     Treatment,
     TreatmentXtra,
     Compartments,
+    Operation,
     AssignChtToPly,
     TaskCategory,
     TaskLkp,
@@ -1244,3 +1246,385 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
 
         return data
 
+
+class __OperationSerializer(serializers.ModelSerializer):
+    # Read-only display fields
+    cohort_count = serializers.SerializerMethodField()
+    polygon_count = serializers.SerializerMethodField()
+
+    # File upload fields
+    silvic_plan_map_file = serializers.FileField(write_only=True, required=False)
+    silvic_plan_doc_file = serializers.FileField(write_only=True, required=False)
+
+    class Meta:
+        model = Operation
+        fields = [
+            'op_id',
+            'das_id',
+            'fea_id',
+            'plan_release',
+            'silvic_plan_map',
+            'silvic_plan_doc',
+            'silvic_plan_map_file',
+            'silvic_plan_doc_file',
+            'cohort_count',
+            'polygon_count',
+        ]
+        read_only_fields = ['op_id', 'silvic_plan_map', 'silvic_plan_doc']
+
+    def get_cohort_count(self, obj):
+        """Count of cohorts related to this operation"""
+        return Cohort.objects.filter(op_id=obj.op_id).count()
+
+    def get_polygon_count(self, obj):
+        """Count of polygons related to this operation via cohorts"""
+        # Get polygons through cohort assignments
+        cohort_ids = Cohort.objects.filter(op_id=obj.op_id).values_list('cohort_id', flat=True)
+        polygon_count = AssignChtToPly.objects.filter(
+            cohort_id__in=cohort_ids
+        ).values('polygon').distinct().count()
+        return polygon_count
+
+    def handle_file_upload(self, file, subdirectory):
+        """Handle file upload and return file path/URL"""
+        from django.utils import timezone
+        import os
+        from django.core.files.storage import default_storage
+
+        # Generate unique filename
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        original_name = file.name
+        name, ext = os.path.splitext(original_name)
+
+        # Sanitize filename
+        safe_name = name.replace(' ', '_').replace('(', '').replace(')', '')
+        safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ['_', '-'])
+
+        filename = f"{subdirectory}/{safe_name}_{timestamp}{ext}"
+
+        # Save file to storage
+        saved_name = default_storage.save(filename, file)
+
+        # Return the saved filename
+        return saved_name
+
+    def create(self, validated_data):
+        """Handle file uploads during creation"""
+        # Extract file data
+        map_file = validated_data.pop('silvic_plan_map_file', None)
+        doc_file = validated_data.pop('silvic_plan_doc_file', None)
+
+        # Create operation
+        operation = super().create(validated_data)
+
+        # Handle file uploads
+        if map_file:
+            operation.silvic_plan_map = self.handle_file_upload(map_file, 'silvic_plan_maps')
+
+        if doc_file:
+            operation.silvic_plan_doc = self.handle_file_upload(doc_file, 'silvic_plan_docs')
+
+        if map_file or doc_file:
+            operation.save()
+
+        return operation
+
+    def update(self, instance, validated_data):
+        """Handle file uploads during update"""
+        # Extract file data
+        map_file = validated_data.pop('silvic_plan_map_file', None)
+        doc_file = validated_data.pop('silvic_plan_doc_file', None)
+
+        # Update the instance with the remaining validated data
+        operation = super().update(instance, validated_data)
+
+        # Handle file uploads if provided
+        if map_file:
+            operation.silvic_plan_map = self.handle_file_upload(map_file, 'silvic_plan_maps')
+
+        if doc_file:
+            operation.silvic_plan_doc = self.handle_file_upload(doc_file, 'silvic_plan_docs')
+
+        if map_file or doc_file:
+            operation.save()
+
+        return operation
+
+
+class OperationSerializer(serializers.ModelSerializer):
+    # Read-only display fields
+    cohort_count = serializers.SerializerMethodField()
+    polygon_count = serializers.SerializerMethodField()
+
+    # File upload fields (write-only for file uploads)
+    silvic_plan_map_file = serializers.FileField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    silvic_plan_doc_file = serializers.FileField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Operation
+        fields = [
+            'op_id',
+            'das_id',
+            'fea_id',
+            'plan_release',
+            'silvic_plan_map',
+            'silvic_plan_doc',
+            'silvic_plan_map_file',
+            'silvic_plan_doc_file',
+            'cohort_count',
+            'polygon_count',
+        ]
+        read_only_fields = [
+            'op_id',
+            'silvic_plan_map',
+            'silvic_plan_doc',
+            'cohort_count',
+            'polygon_count'
+        ]
+
+    def get_cohort_count(self, obj):
+        """Count of cohorts related to this operation"""
+        return Cohort.objects.filter(op_id=obj.op_id).count()
+
+    def get_polygon_count(self, obj):
+        """Count of polygons related to this operation via cohorts"""
+        # Get polygons through cohort assignments
+        cohort_ids = Cohort.objects.filter(op_id=obj.op_id).values_list('cohort_id', flat=True)
+        polygon_count = AssignChtToPly.objects.filter(
+            cohort_id__in=cohort_ids
+        ).values('polygon').distinct().count()
+        return polygon_count
+
+
+    def handle_file_upload(self, file, subdirectory, instance=None, field_name=None):
+        """Handle file upload and return file path/URL"""
+        import os
+        from django.utils import timezone
+        from django.core.files.storage import default_storage
+
+        # Generate unique filename
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        original_name = file.name
+        name, ext = os.path.splitext(original_name)
+
+        # Sanitize filename
+        safe_name = name.replace(' ', '_').replace('(', '').replace(')', '')
+        safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ['_', '-', '.'])
+
+        filename = f"{subdirectory}/{safe_name}_{timestamp}{ext}"
+
+        # Delete old file if exists and we're updating
+        if instance and field_name:
+            old_file = getattr(instance, field_name, None)
+            if old_file:
+                try:
+                    # If old_file is bytes, decode it to get the path string
+                    if isinstance(old_file, bytes):
+                        old_file_path = old_file.decode('utf-8')
+                    elif isinstance(old_file, memoryview):
+                        old_file_path = old_file.tobytes().decode('utf-8')
+                    else:
+                        old_file_path = str(old_file)
+
+                    # Check if it's not empty and exists in storage
+                    if old_file_path and default_storage.exists(old_file_path):
+                        default_storage.delete(old_file_path)
+                        print(f"Deleted old file: {old_file_path}")
+                except Exception as e:
+                    print(f"Error deleting old file: {e}")
+
+        # Save file to storage
+        saved_name = default_storage.save(filename, file)
+
+        return saved_name
+
+    def update(self, instance, validated_data):
+        """Handle file uploads during update"""
+        import os
+
+        # Extract file data from validated_data
+        map_file = validated_data.pop('silvic_plan_map_file', None)
+        doc_file = validated_data.pop('silvic_plan_doc_file', None)
+
+        # Get request for user info
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['updated_by'] = request.user.username
+
+        # Also check request.FILES as fallback
+        if not map_file and request and hasattr(request, 'FILES'):
+            map_file = request.FILES.get('silvic_plan_map_file')
+
+        if not doc_file and request and hasattr(request, 'FILES'):
+            doc_file = request.FILES.get('silvic_plan_doc_file')
+
+        # Update the instance with the remaining validated data
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # Handle file uploads if provided
+        if map_file:
+            try:
+                saved_map = self.handle_file_upload(
+                    map_file,
+                    'silvic_plan_maps',
+                    instance,
+                    'silvic_plan_map'
+                )
+                # Convert string to bytes for BinaryField
+                if saved_map:
+                    instance.silvic_plan_map = saved_map.encode('utf-8')
+                else:
+                    instance.silvic_plan_map = None
+                print(f"Updated map file: {saved_map}")
+            except Exception as e:
+                print(f"Error updating map file: {e}")
+
+        if doc_file:
+            try:
+                saved_doc = self.handle_file_upload(
+                    doc_file,
+                    'silvic_plan_docs',
+                    instance,
+                    'silvic_plan_doc'
+                )
+                # Convert string to bytes for BinaryField
+                if saved_doc:
+                    instance.silvic_plan_doc = saved_doc.encode('utf-8')
+                else:
+                    instance.silvic_plan_doc = None
+                print(f"Updated doc file: {saved_doc}")
+            except Exception as e:
+                print(f"Error updating doc file: {e}")
+
+        # Save the instance
+        instance.save()
+
+        return instance
+
+    def create(self, validated_data):
+        """Handle file uploads during creation"""
+        import os
+        from django.utils import timezone
+        from django.core.files.storage import default_storage
+
+        # Extract file data from validated_data
+        map_file = validated_data.pop('silvic_plan_map_file', None)
+        doc_file = validated_data.pop('silvic_plan_doc_file', None)
+
+        # Get request for user info
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['created_by'] = request.user.username
+            validated_data['updated_by'] = request.user.username
+
+        # Create operation
+        operation = Operation.objects.create(**validated_data)
+
+        # Handle file uploads
+        if map_file:
+            try:
+                saved_map = self.handle_file_upload(map_file, 'silvic_plan_maps')
+                if saved_map:
+                    operation.silvic_plan_map = saved_map.encode('utf-8')
+                print(f"Created map file: {saved_map}")
+            except Exception as e:
+                print(f"Error saving map file: {e}")
+
+        if doc_file:
+            try:
+                saved_doc = self.handle_file_upload(doc_file, 'silvic_plan_docs')
+                if saved_doc:
+                    operation.silvic_plan_doc = saved_doc.encode('utf-8')
+                print(f"Created doc file: {saved_doc}")
+            except Exception as e:
+                print(f"Error saving doc file: {e}")
+
+        if map_file or doc_file:
+            operation.save()
+
+        return operation
+
+    def _binary_to_str(self, binary_data):
+        """Convert binary data to string if needed"""
+        if not binary_data:
+            return None
+
+        try:
+            if isinstance(binary_data, bytes):
+                return binary_data.decode('utf-8')
+            elif isinstance(binary_data, memoryview):
+                return binary_data.tobytes().decode('utf-8')
+            else:
+                return str(binary_data)
+        except Exception as e:
+            print(f"Error converting binary to string: {e}")
+            return None
+
+    def to_representation(self, instance):
+        """Custom representation to add full URLs for files"""
+        representation = super().to_representation(instance)
+
+        # Add full URLs for file fields
+        request = self.context.get('request')
+
+        # Convert binary data to string for file paths
+        map_path = self._binary_to_str(instance.silvic_plan_map)
+        if map_path:
+            try:
+                if request:
+                    representation['silvic_plan_map'] = request.build_absolute_uri(
+                        default_storage.url(map_path)
+                    )
+                else:
+                    representation['silvic_plan_map'] = map_path
+            except Exception as e:
+                print(f"Error generating map URL: {e}")
+                representation['silvic_plan_map'] = map_path
+        else:
+            representation['silvic_plan_map'] = None
+
+        doc_path = self._binary_to_str(instance.silvic_plan_doc)
+        if doc_path:
+            try:
+                if request:
+                    representation['silvic_plan_doc'] = request.build_absolute_uri(
+                        default_storage.url(doc_path)
+                    )
+                else:
+                    representation['silvic_plan_doc'] = doc_path
+            except Exception as e:
+                print(f"Error generating doc URL: {e}")
+                representation['silvic_plan_doc'] = doc_path
+        else:
+            representation['silvic_plan_doc'] = None
+
+        return representation
+
+    def validate_fea_id(self, value):
+        """Validate FEA ID"""
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("FEA ID is required")
+        return value.strip()
+
+    def validate_das_id(self, value):
+        """Validate DAS ID"""
+        if value is not None:
+            if not isinstance(value, (int, str)):
+                raise serializers.ValidationError("DAS ID must be a number or string")
+            if isinstance(value, str) and not value.isdigit():
+                raise serializers.ValidationError("DAS ID must contain only digits")
+        return value
+
+    def validate(self, data):
+        """Cross-field validation"""
+        # Add any cross-field validation here
+        return data

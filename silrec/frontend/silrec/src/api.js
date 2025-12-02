@@ -68,12 +68,14 @@ export default {
 
     // ------------------- Polygon-Cohort Data Endpoints -------------------
     //
+    polygons: '/api/polygon/',
     polygon_cohort_table: '/api/polygon_cohort_table/',
     cohorts: '/api/cohorts/',
     treatments: '/api/treatments/',
     treatment_extras: '/api/treatment-extras/',
     tasks: '/api/lookups/tasks/',
     combined_lookups: '/api/combined_lookups/',
+    operations: '/api/operations/',
     prescriptions: '/api/prescriptions/',
     silviculturist_comments: '/api/silviculturist-comments/',
     polygon_search: '/api/polygon_search/',

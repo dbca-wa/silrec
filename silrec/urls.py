@@ -81,6 +81,7 @@ router.register(r'polygon_cohort_table', forest_blocks_api.PolygonCohortTableVie
 router.register(r'cohorts', forest_blocks_api.CohortViewSet)
 router.register(r'treatments', forest_blocks_api.TreatmentViewSet)
 router.register(r'treatment-extras', forest_blocks_api.TreatmentXtraViewSet)
+router.register(r'operations', forest_blocks_api.OperationViewSet, basename='operations')
 router.register(r'prescriptions', forest_blocks_api.PrescriptionViewSet)
 router.register(r'silviculturist-comments', forest_blocks_api.SilviculturistCommentViewSet)
 router.register(r'polygon_search', forest_blocks_api.PolygonSearchViewSet, basename='polygon_search')
@@ -159,6 +160,12 @@ urlpatterns = [
 #    re_path('cohorts/<int:cohort_id>/',
 #         views.CohortDetailView.as_view(), name='cohort-detail-simple'),
 
+    re_path(
+        r"^api/test_operation_update/$",
+        forest_blocks_api.TestOperationUpdate.as_view(),
+        name="test-operation-update",
+    ),
+
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]
 
@@ -166,6 +173,9 @@ if settings.ENABLE_DJANGO_LOGIN:
     urlpatterns.append(
         re_path(r"^ssologin/", LoginView.as_view(), name="ssologin")
     )
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 #if settings.SHOW_DEBUG_TOOLBAR:
 #    from debug_toolbar.toolbar import debug_toolbar_urls

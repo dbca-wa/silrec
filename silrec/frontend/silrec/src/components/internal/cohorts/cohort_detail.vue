@@ -14,7 +14,7 @@
       <!-- Add Treatment Button -->
       <router-link 
         v-if="canEdit"
-        :to="`/internal/cohort/${$route.params.cohortId}/treatment/new`"
+        :to="`/internal/cohorts/${$route.params.cohortId}/treatment/new`"
         class="btn btn-primary"
       >
         <i class="bi bi-plus"></i> Add Treatment
@@ -104,7 +104,7 @@
         <div>
           <router-link 
             v-if="canEdit"
-            :to="`/internal/cohort/${$route.params.cohortId}/treatment/new`"
+            :to="`/internal/cohorts/${$route.params.cohortId}/treatment/new`"
             class="btn btn-primary btn-sm"
           >
             <i class="bi bi-plus"></i> Add Treatment
@@ -133,6 +133,56 @@
             :cohort-id="$route.params.cohortId"
             :read-only="!canEdit"
             @treatment-updated="refreshTreatments"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Operations Section (Collapsible) -->
+    <div v-if="!loading && !error && cohortData.cohort_id" class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+          <button 
+            type="button"
+            class="btn btn-link p-0 border-0 text-decoration-none"
+            @click="toggleOperations"
+          >
+            <i class="bi" :class="showOperations ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+            Operations
+          </button>
+        </h5>
+        <div>
+          <router-link 
+            v-if="canEdit && cohortData.cohort_id"
+            :to="`/internal/cohorts/${cohortData.cohort_id}/operation/new`"
+            class="btn btn-primary btn-sm"
+          >
+            <i class="bi bi-plus"></i> Add Operation
+          </router-link>
+          <button 
+            v-if="showOperations"
+            type="button" 
+            class="btn btn-outline-secondary btn-sm ms-2"
+            @click="refreshOperations"
+            title="Refresh Operations"
+          >
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+      <div v-if="showOperations" class="card-body">
+        <div v-if="operationsLoading" class="text-center">
+          <div class="spinner-border spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading operations...</span>
+          </div>
+          <span class="ms-2">Loading operations...</span>
+        </div>
+        <div v-else>
+          <OperationsTable 
+            ref="operationsTable"
+            :cohort-id="cohortData.cohort_id"
+            :read-only="!canEdit"
+            @operation-updated="refreshOperations"
           />
         </div>
       </div>
@@ -231,6 +281,7 @@ import CohortForm from '@/components/internal/cohorts/cohort_form.vue';
 import AdditionalCohortFields from '@/components/internal/cohorts/additional_cohort_fields.vue';
 import SystemInformation from '@/components/internal/cohorts/system_info_cohort.vue';
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
+import OperationsTable from '@/components/internal/operations/operations_table.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
 
 export default {
@@ -239,7 +290,8 @@ export default {
     CohortForm,
     AdditionalCohortFields,
     SystemInformation,
-    TreatmentsTable
+    TreatmentsTable,
+    OperationsTable,
   },
   props: {
     proposal_id: {
@@ -270,7 +322,9 @@ export default {
       readOnly: false,
       hasUnsavedChanges: false,
       treatmentsLoading: false,
-      treatmentsCount: 0
+      treatmentsCount: 0,
+      showOperations: false,
+      operationsLoading: false,
     };
   },
   computed: {
@@ -592,7 +646,39 @@ export default {
     // Detect unsaved changes (you can enhance this with form change detection)
     markUnsavedChanges() {
       this.hasUnsavedChanges = true;
-    }
+    },
+
+    async toggleOperations() {
+      // Toggle the visibility
+      this.showOperations = !this.showOperations;
+      
+      // If we're expanding the operations section, refresh the data
+      if (this.showOperations) {
+        await this.refreshOperations();
+      }
+    },
+
+    async refreshOperations() {
+        if (!this.showOperations) return;
+        
+        this.operationsLoading = true;
+        try {
+            // Refresh the operations table
+            if (this.$refs.operationsTable) {
+                this.$refs.operationsTable.refreshData();
+            }
+        } catch (error) {
+            console.error('Error refreshing operations:', error);
+            await swal.fire({
+                icon: 'error',
+                title: 'Refresh Failed',
+                text: 'Failed to refresh operations data',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            this.operationsLoading = false;
+        }
+    },
   },
   mounted() {
     this.loadCohortData();

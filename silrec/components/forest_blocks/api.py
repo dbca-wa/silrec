@@ -21,6 +21,7 @@ from rest_framework.decorators import action as list_route
 from rest_framework.decorators import renderer_classes
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, BasePermission, SAFE_METHODS
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
@@ -35,6 +36,7 @@ from silrec.components.forest_blocks.models import   (
     Polygon,
     Cohort,
     Treatment,
+    Operation,
     TreatmentXtra,
     AssignChtToPly,
     Prescription,
@@ -52,6 +54,7 @@ from silrec.components.forest_blocks.serializers import   (
     CohortSerializer,
     PrescriptionSerializer,
     SilviculturistCommentSerializer,
+    OperationSerializer,
     SimpleCohortSerializer,
     PolygonSerializer,
     Polygon2Serializer,
@@ -846,4 +849,146 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
                     pass
 
         return data
+
+
+class OperationViewSet(viewsets.ModelViewSet):
+    queryset = Operation.objects.all()
+    serializer_class = OperationSerializer
+    parser_classes = [MultiPartParser, FormParser]  # To handle file uploads
+    pagination_class = DatatablesPageNumberPagination
+    filter_backends = [DatatablesFilterBackend]
+
+#    def get_permissions(self):
+#        if self.action in ['list', 'retrieve', 'create', 'update', 'partial_update']:
+#            permission_classes = [IsAuthenticated]
+#        else:
+#            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+#        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        queryset = Operation.objects.all()
+
+        # Filter by cohort_id if provided
+        cohort_id = self.request.query_params.get('cohort_id')
+        if cohort_id:
+            try:
+                cohort = Cohort.objects.get(cohort_id=cohort_id)
+                if cohort.op_id:
+                    queryset = queryset.filter(op_id=cohort.op_id)
+                else:
+                    queryset = Operation.objects.none()
+            except Cohort.DoesNotExist:
+                queryset = Operation.objects.none()
+
+        return queryset
+
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except Exception as e:
+            print(f"Error in OperationViewSet.update: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+
+    @action(detail=False, methods=['get'])
+    def by_cohort(self, request):
+        """Get operation by cohort ID"""
+        cohort_id = request.query_params.get('cohort_id')
+        if not cohort_id:
+            return Response(
+                {'error': 'cohort_id parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            cohort = Cohort.objects.get(cohort_id=cohort_id)
+            if cohort.op_id:
+                operation = Operation.objects.get(op_id=cohort.op_id)
+                serializer = self.get_serializer(operation)
+                return Response(serializer.data)
+            else:
+                # Check if there's a related polygon to get fea_id
+                polygon = Polygon.objects.filter(
+                    assignchttoply__cohort=cohort
+                ).first()
+                fea_id = polygon.zfea_id if polygon else None
+
+                return Response({
+                    'exists': False,
+                    'fea_id': fea_id
+                })
+        except Cohort.DoesNotExist:
+            return Response(
+                {'error': 'Cohort not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Operation.DoesNotExist:
+            return Response(
+                {'error': 'Operation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def perform_create(self, serializer):
+        """Handle operation creation and update cohort's op_id"""
+        # Get cohort_id from request data or query params
+        #import ipdb; ipdb.set_trace()
+        cohort_id = self.request.data.get('cohort_id') or self.request.query_params.get('cohort_id')
+
+        if cohort_id:
+            try:
+                cohort = Cohort.objects.get(cohort_id=cohort_id)
+                # Save operation
+                operation = serializer.save()
+                # Update cohort's op_id
+                cohort.op_id = operation.op_id
+                cohort.save()
+            except Cohort.DoesNotExist:
+                # Still create the operation even if cohort doesn't exist
+                serializer.save()
+        else:
+            serializer.save()
+
+#    def partial_update(self, request, *args, **kwargs):
+#        import ipdb; ipdb.set_trace()
+#        pass
+#
+#    def perform_update(self, serializer):
+#        import ipdb; ipdb.set_trace()
+#        pass
+
+
+class TestOperationUpdate(views.APIView):
+    """Test endpoint to debug operation updates"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        print("=== Test Operation Update ===")
+        print("Request data:", request.data)
+        print("Request FILES:", request.FILES)
+        print("User:", request.user)
+
+        # Try to get the operation
+        op_id = request.data.get('op_id')
+        if op_id:
+            try:
+                operation = Operation.objects.get(op_id=op_id)
+                print("Operation found:", operation.op_id)
+
+                # Try to update with serializer
+                serializer = OperationSerializer(operation, data=request.data, partial=True)
+                if serializer.is_valid():
+                    print("Serializer is valid")
+                    serializer.save()
+                    return Response(serializer.data)
+                else:
+                    print("Serializer errors:", serializer.errors)
+                    return Response(serializer.errors, status=400)
+            except Operation.DoesNotExist:
+                print("Operation not found")
+                return Response({"error": "Operation not found"}, status=404)
+
+        return Response({"error": "No operation ID provided"}, status=400)
+
+
 

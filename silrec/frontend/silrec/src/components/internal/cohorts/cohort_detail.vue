@@ -98,7 +98,6 @@
           >
             <i class="bi" :class="showTreatments ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
             Treatments 
-            <!-- <span class="badge bg-secondary ms-2">{{ treatmentsCount }}</span> -->
           </button>
         </h5>
         <div>
@@ -138,7 +137,7 @@
       </div>
     </div>
 
-    <!-- Operations Section (Collapsible) -->
+    <!-- Operations Section (Collapsible) - Modified to use inline form -->
     <div v-if="!loading && !error && cohortData.cohort_id" class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">
@@ -148,42 +147,126 @@
             @click="toggleOperations"
           >
             <i class="bi" :class="showOperations ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
-            Operations
+            Operation Details
+            <span v-if="cohortData.op_id && operationDetails" class="badge bg-success ms-2">
+              <i class="bi bi-check-circle"></i> Linked
+            </span>
+            <span v-else-if="cohortData.op_id && !operationDetails" class="badge bg-warning ms-2">
+              <i class="bi bi-exclamation-triangle"></i> Broken Link
+            </span>
+            <span v-else class="badge bg-secondary ms-2">
+              <i class="bi bi-dash-circle"></i> Not Linked
+            </span>
           </button>
         </h5>
         <div>
-          <router-link 
-            v-if="canEdit && cohortData.cohort_id"
-            :to="`/internal/cohorts/${cohortData.cohort_id}/operation/new`"
-            class="btn btn-primary btn-sm"
-          >
-            <i class="bi bi-plus"></i> Add Operation
-          </router-link>
           <button 
             v-if="showOperations"
             type="button" 
-            class="btn btn-outline-secondary btn-sm ms-2"
-            @click="refreshOperations"
-            title="Refresh Operations"
+            class="btn btn-outline-secondary btn-sm"
+            @click="refreshOperation"
+            title="Refresh Operation"
+            :disabled="operationLoading"
           >
             <i class="bi bi-arrow-clockwise"></i>
           </button>
         </div>
       </div>
       <div v-if="showOperations" class="card-body">
-        <div v-if="operationsLoading" class="text-center">
+        <div v-if="operationLoading" class="text-center">
           <div class="spinner-border spinner-border-sm" role="status">
-            <span class="visually-hidden">Loading operations...</span>
+            <span class="visually-hidden">Loading operation...</span>
           </div>
-          <span class="ms-2">Loading operations...</span>
+          <span class="ms-2">Loading operation...</span>
         </div>
         <div v-else>
-          <OperationsTable 
-            ref="operationsTable"
-            :cohort-id="cohortData.cohort_id"
-            :read-only="!canEdit"
-            @operation-updated="refreshOperations"
-          />
+          <!-- Inline Operation Form -->
+          <div v-if="!readOnly" class="operation-inline-form">
+            <OperationForm
+              :key="operationFormKey"
+              ref="operationForm"
+              :operation-id="cohortData.op_id || null"
+              :cohort-id="cohortData.cohort_id"
+              :fea-id="feaId"
+              :read-only="readOnly"
+              @operation-saved="handleOperationSaved"
+              @cancel="cancelOperationEdit"
+            />
+          </div>
+          
+          <!-- Read-only view when not editable -->
+          <div v-else-if="cohortData.op_id && operationDetails" class="operation-view">
+            <div class="row">
+              <div class="col-md-6">
+                <dl class="row">
+                  <dt class="col-sm-4">Operation ID:</dt>
+                  <dd class="col-sm-8">{{ operationDetails.op_id }}</dd>
+                  
+                  <dt class="col-sm-4">FEA ID:</dt>
+                  <dd class="col-sm-8">{{ operationDetails.fea_id || 'Not set' }}</dd>
+                  
+                  <dt class="col-sm-4">DAS ID:</dt>
+                  <dd class="col-sm-8">{{ operationDetails.das_id || 'Not set' }}</dd>
+                  
+                  <dt class="col-sm-4">Plan Release:</dt>
+                  <dd class="col-sm-8">{{ operationDetails.plan_release || 'Not set' }}</dd>
+                </dl>
+              </div>
+              <div class="col-md-6">
+                <dl class="row">
+                  <dt class="col-sm-4">Silvic Plan Map:</dt>
+                  <dd class="col-sm-8">
+                    <a v-if="operationDetails.silvic_plan_map" 
+                       :href="operationDetails.silvic_plan_map" 
+                       target="_blank" 
+                       class="btn btn-sm btn-outline-info">
+                      <i class="bi bi-eye"></i> View Map
+                    </a>
+                    <span v-else>No map attached</span>
+                  </dd>
+                  
+                  <dt class="col-sm-4">Silvic Plan Doc:</dt>
+                  <dd class="col-sm-8">
+                    <a v-if="operationDetails.silvic_plan_doc" 
+                       :href="operationDetails.silvic_plan_doc" 
+                       target="_blank" 
+                       class="btn btn-sm btn-outline-info">
+                      <i class="bi bi-eye"></i> View Document
+                    </a>
+                    <span v-else>No document attached</span>
+                  </dd>
+                  
+                  <dt class="col-sm-4">Created:</dt>
+                  <dd class="col-sm-8">{{ formatDate(operationDetails.created_on) }} by {{ operationDetails.created_by }}</dd>
+                  
+                  <dt class="col-sm-4">Updated:</dt>
+                  <dd class="col-sm-8">{{ formatDate(operationDetails.updated_on) }} by {{ operationDetails.updated_by }}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          
+          <!-- No operation linked message -->
+          <div v-else-if="!cohortData.op_id" class="alert alert-info">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-info-circle me-2"></i>
+              <div>
+                <h6 class="mb-1">No operation linked to this cohort</h6>
+                <p class="mb-0">This cohort is not linked to an operation. Operations help track planning documents and approvals. Use the form above to create or link an operation.</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Operation ID exists but operation not found -->
+          <div v-else class="alert alert-warning">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              <div>
+                <h6 class="mb-1">Operation not found</h6>
+                <p class="mb-0">This cohort has an operation ID ({{ cohortData.op_id }}) but the operation record was not found. You can create a new operation using the form above.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -281,7 +364,7 @@ import CohortForm from '@/components/internal/cohorts/cohort_form.vue';
 import AdditionalCohortFields from '@/components/internal/cohorts/additional_cohort_fields.vue';
 import SystemInformation from '@/components/internal/cohorts/system_info_cohort.vue';
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
-import OperationsTable from '@/components/internal/operations/operations_table.vue';
+import OperationForm from '@/components/internal/operations/operations_form.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
 
 export default {
@@ -291,7 +374,7 @@ export default {
     AdditionalCohortFields,
     SystemInformation,
     TreatmentsTable,
-    OperationsTable,
+    OperationForm,
   },
   props: {
     proposal_id: {
@@ -311,7 +394,12 @@ export default {
     return {
       loading: false,
       error: null,
-      cohortData: {},
+      cohortData: {
+        cohort_id: null,
+        op_id: null,
+        obj_code: '',
+        // Initialize other fields as needed
+      },
       userPermissions: [],
       showAdditionalFields: false,
       showTreatments: false,
@@ -324,7 +412,10 @@ export default {
       treatmentsLoading: false,
       treatmentsCount: 0,
       showOperations: false,
-      operationsLoading: false,
+      operationLoading: false,
+      operationDetails: null,
+      feaId: '',
+      operationFormKey: 0,
     };
   },
   computed: {
@@ -339,6 +430,9 @@ export default {
         }
         return false;
     },
+    operationExists() {
+      return this.cohortData.op_id && this.operationDetails;
+    }
   },
   methods: {
     async loadCohortData() {
@@ -346,7 +440,6 @@ export default {
         this.error = null;
         
         try {
-            // Use the prop cohortId instead of $route.params.cohortId
             const cohortId = this.cohortId || this.$route.params.cohortId;
             const url = `${api_endpoints.cohorts}${cohortId}/`;
             console.log('Loading cohort data from:', url);
@@ -361,6 +454,14 @@ export default {
             this.cohortData = data;
             console.log('Cohort data loaded successfully:', this.cohortData);
             
+            // Load operation data if cohort has op_id
+            if (this.cohortData.op_id) {
+                await this.loadOperationData();
+            }
+            
+            // Get FEA ID from assigned polygons
+            await this.loadFEAIdFromPolygons();
+            
         } catch (error) {
             console.error('Error loading cohort data:', error);
             this.error = 'Failed to load cohort data. Please check if the cohort exists.';
@@ -374,11 +475,102 @@ export default {
             this.loading = false;
         }
     },
+    
+    async loadFEAIdFromPolygons() {
+        if (!this.cohortData.cohort_id) return;
+        
+        try {
+            const response = await fetch(`${api_endpoints.cohorts}${this.cohortData.cohort_id}/`);
+            if (response.ok) {
+                const cohortDetails = await response.json();
+                if (cohortDetails.assigned_polygons && cohortDetails.assigned_polygons.length > 0) {
+                    // Get the first polygon's FEA ID
+                    const polygonId = cohortDetails.assigned_polygons[0].polygon_id;
+                    const polygonResponse = await fetch(`${api_endpoints.polygons}${polygonId}/`);
+                    if (polygonResponse.ok) {
+                        const polygonData = await polygonResponse.json();
+                        this.feaId = polygonData.zfea_id || '';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading FEA ID from polygons:', error);
+        }
+    },
+    
+    async loadOperationData() {
+        if (!this.cohortData.op_id) {
+            this.operationDetails = null;
+            return;
+        }
+        
+        this.operationLoading = true;
+        try {
+            const url = `${api_endpoints.operations}${this.cohortData.op_id}/`;
+            console.log('Loading operation data from:', url);
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                this.operationDetails = await response.json();
+                console.log('Operation data loaded:', this.operationDetails);
+            } else if (response.status === 404) {
+                // Operation doesn't exist (though cohort has op_id)
+                this.operationDetails = null;
+                console.log('Operation not found for op_id:', this.cohortData.op_id);
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error loading operation data:', error);
+            this.operationDetails = null;
+        } finally {
+            this.operationLoading = false;
+        }
+    },
+    
+    async refreshOperation() {
+        this.operationFormKey++; // Force re-render of operation form
+        await this.loadOperationData();
+        await this.loadFEAIdFromPolygons();
+    },
+    
+    async handleOperationSaved(operationData) {
+        // Update cohort's op_id with the new operation's ID
+        if (operationData && operationData.op_id) {
+            this.cohortData.op_id = operationData.op_id;
+            this.operationDetails = operationData;
+            
+            // Show success message
+            await swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: 'Operation saved successfully',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    },
+    
+    cancelOperationEdit() {
+        // Just refresh the operation data to discard changes
+        this.refreshOperation();
+    },
+    
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-AU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    },
+
     async toggleTreatments() {
-      // Toggle the visibility
       this.showTreatments = !this.showTreatments;
       
-      // If we're expanding the treatments section, refresh the data
       if (this.showTreatments) {
         await this.refreshTreatments();
       }
@@ -389,14 +581,9 @@ export default {
         
         this.treatmentsLoading = true;
         try {
-            // Refresh the treatments table
             if (this.$refs.treatmentsTable) {
                 this.$refs.treatmentsTable.refreshData();
             }
-            
-            // Also fetch the treatments count for the badge
-            //await this.loadTreatmentsCount();
-            
         } catch (error) {
             console.error('Error refreshing treatments:', error);
             await swal.fire({
@@ -409,35 +596,18 @@ export default {
             this.treatmentsLoading = false;
         }
     },
-    async loadTreatmentsCount() {
-        try {
-            const cohortId = this.cohortId || this.$route.params.cohortId;
-            const response = await fetch(`${api_endpoints.treatments}?cohort_id=${cohortId}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                // Handle both array and paginated responses
-                if (Array.isArray(data)) {
-                    this.treatmentsCount = data.length;
-                } else if (data.results) {
-                    this.treatmentsCount = data.results.length;
-                } else if (data.data) {
-                    this.treatmentsCount = data.data.length;
-                } else {
-                    this.treatmentsCount = 0;
-                }
-            } else {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Error loading treatments count:', error);
-            this.treatmentsCount = 0;
-        }
+    
+    async toggleOperations() {
+      this.showOperations = !this.showOperations;
+      
+      if (this.showOperations) {
+        await this.refreshOperation();
+      }
     },
+
     async toggleAdditionalFields() {
         console.log('toggleAdd: 1 - Current state:', this.showAdditionalFields);
         
-        // If currently showing and about to collapse, check for changes
         if (this.showAdditionalFields && this.$refs.additionalFields) {
             console.log('toggleAdd: 2 - Checking for changes before collapse');
             const hasChanges = this.$refs.additionalFields.checkForChanges();
@@ -449,10 +619,10 @@ export default {
             }
         }
         
-        // Toggle the visibility
         this.showAdditionalFields = !this.showAdditionalFields;
         console.log('toggleAdd: 5 - New state:', this.showAdditionalFields);
     },
+    
     async autoSaveAdditionalFields() {
         console.log('autoSaveAdditionalFields: 1 - Starting auto-save');
         try {
@@ -516,16 +686,15 @@ export default {
             });
         }
     },
+    
     async saveAllFields() {
         this.saving = true;
         this.error = null;
         
         try {
-            // Get data from both form components
             const mainFormData = this.$refs.cohortForm ? this.$refs.cohortForm.formData : {};
             const additionalFormData = this.$refs.additionalFields ? this.$refs.additionalFields.getFormDataForAPI() : {};
             
-            // Combine all data
             const combinedData = {
                 ...mainFormData,
                 ...additionalFormData
@@ -533,7 +702,6 @@ export default {
 
             console.log('Saving combined data:', combinedData);
 
-            // Validate required fields
             if (!combinedData.obj_code) {
                 throw new Error('Objective Code is required');
             }
@@ -560,7 +728,6 @@ export default {
             this.cohortData = { ...this.cohortData, ...updatedData };
             this.hasUnsavedChanges = false;
             
-            // Reset change tracking in additional fields
             if (this.$refs.additionalFields) {
                 this.$refs.additionalFields.resetChangeTracking();
             }
@@ -583,6 +750,7 @@ export default {
             this.saving = false;
         }
     },
+    
     async saveAndContinue() {
         const success = await this.saveAllFields();
         if (success) {
@@ -596,10 +764,10 @@ export default {
             this.$emit('success', 'Changes saved successfully');
         }
     },
+    
     async saveAndExit() {
         const success = await this.saveAllFields();
         if (success) {
-            //this.$router.push('/internal');
             this.$router.go(-1);
             await swal.fire({
                 icon: 'success',
@@ -610,6 +778,7 @@ export default {
             });
         }
     },
+    
     confirmCancel() {
         if (this.hasUnsavedChanges) {
             this.showCancelConfirm = true;
@@ -617,9 +786,9 @@ export default {
             this.cancelChanges();
         }
     },
+    
     cancelChanges() {
         this.showCancelConfirm = false;
-        //this.$router.push('/internal');
         this.$router.go(-1);
     },
 
@@ -643,55 +812,16 @@ export default {
       return cookieValue;
     },
 
-    // Detect unsaved changes (you can enhance this with form change detection)
     markUnsavedChanges() {
       this.hasUnsavedChanges = true;
-    },
-
-    async toggleOperations() {
-      // Toggle the visibility
-      this.showOperations = !this.showOperations;
-      
-      // If we're expanding the operations section, refresh the data
-      if (this.showOperations) {
-        await this.refreshOperations();
-      }
-    },
-
-    async refreshOperations() {
-        if (!this.showOperations) return;
-        
-        this.operationsLoading = true;
-        try {
-            // Refresh the operations table
-            if (this.$refs.operationsTable) {
-                this.$refs.operationsTable.refreshData();
-            }
-        } catch (error) {
-            console.error('Error refreshing operations:', error);
-            await swal.fire({
-                icon: 'error',
-                title: 'Refresh Failed',
-                text: 'Failed to refresh operations data',
-                confirmButtonText: 'OK'
-            });
-        } finally {
-            this.operationsLoading = false;
-        }
     },
   },
   mounted() {
     this.loadCohortData();
-    //this.loadUserPermissions();
     
-    // Load treatments count initially
-    //this.loadTreatmentsCount();
-    
-    // Add beforeunload handler to warn about unsaved changes
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
   },
   beforeUnmount() {
-    // Remove the beforeunload handler
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
   },
   beforeUnloadHandler(event) {
@@ -701,18 +831,15 @@ export default {
     }
   },
   watch: {
-    // Watch both the prop and route param for cohortId changes
     cohortId: {
       handler() {
         this.loadCohortData();
-        //this.loadTreatmentsCount();
       },
       immediate: true
     },
     '$route.params.cohortId': {
       handler() {
         this.loadCohortData();
-        //this.loadTreatmentsCount();
       }
     }
   }
@@ -807,6 +934,20 @@ export default {
   color: white;
 }
 
+/* Operation View Styles */
+.operation-view dl {
+  margin-bottom: 0;
+}
+
+.operation-view dt {
+  font-weight: 600;
+  color: #495057;
+}
+
+.operation-view dd {
+  margin-bottom: 0.5rem;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .action-buttons {
@@ -838,6 +979,10 @@ export default {
   .card-header .btn-sm {
     align-self: flex-end;
   }
+  
+  .operation-view .row > div {
+    margin-bottom: 1rem;
+  }
 }
 
 /* Button icons */
@@ -860,5 +1005,18 @@ export default {
 .spinner-border-sm {
   width: 1rem;
   height: 1rem;
+}
+
+/* Operation inline form */
+.operation-inline-form {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid #dee2e6;
+}
+
+/* Alert styling */
+.alert-info, .alert-warning {
+  margin-bottom: 0;
 }
 </style>

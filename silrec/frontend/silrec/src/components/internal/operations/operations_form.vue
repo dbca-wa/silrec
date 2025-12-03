@@ -251,6 +251,9 @@ export default {
   computed: {
     isNew() {
       return !this.operationId;
+    },
+    isCreatingForCohort() {
+      return this.cohortId && !this.operationId;
     }
   },
   methods: {
@@ -348,123 +351,91 @@ export default {
     
     async saveOperation() {
         if (!this.validateForm()) {
-            return;
+          return;
         }
 
         this.saving = true;
         console.log('Starting save operation...');
-        console.log('Operation Data:', JSON.stringify(this.operationData, null, 2));
         
         try {
-            const formData = new FormData();
-            
-            // Add regular fields
-            Object.keys(this.operationData).forEach(key => {
-                if (key !== 'silvic_plan_map_file' && key !== 'silvic_plan_doc_file') {
-                    const value = this.operationData[key];
-                    console.log(`Adding field ${key}:`, value);
-                    
-                    if (value !== null && value !== undefined) {
-                        formData.append(key, value);
-                    }
-                }
-            });
-            
-            // Log all form data entries
-            for (let [key, value] of formData.entries()) {
-                console.log(`FormData: ${key} = ${value}`);
+          const formData = new FormData();
+          
+          // Add regular fields
+          Object.keys(this.operationData).forEach(key => {
+            if (key !== 'silvic_plan_map_file' && key !== 'silvic_plan_doc_file') {
+              const value = this.operationData[key];
+              if (value !== null && value !== undefined) {
+                formData.append(key, value);
+              }
             }
-            
-            // Add cohort_id if provided
-            if (this.cohortId) {
-                formData.append('cohort_id', this.cohortId);
-                console.log('Added cohort_id:', this.cohortId);
-            }
-            
-            // Add files if provided
-            if (this.operationData.silvic_plan_map_file) {
-                formData.append('silvic_plan_map_file', this.operationData.silvic_plan_map_file);
-                console.log('Added silvic_plan_map_file:', this.operationData.silvic_plan_map_file.name);
-            }
-            
-            if (this.operationData.silvic_plan_doc_file) {
-                formData.append('silvic_plan_doc_file', this.operationData.silvic_plan_doc_file);
-                console.log('Added silvic_plan_doc_file:', this.operationData.silvic_plan_doc_file.name);
-            }
+          });
+          
+          // For inline usage, always add cohort_id if available
+          if (this.cohortId) {
+            formData.append('cohort_id', this.cohortId);
+          }
+          
+          // Add files if provided
+          if (this.operationData.silvic_plan_map_file) {
+            formData.append('silvic_plan_map_file', this.operationData.silvic_plan_map_file);
+          }
+          
+          if (this.operationData.silvic_plan_doc_file) {
+            formData.append('silvic_plan_doc_file', this.operationData.silvic_plan_doc_file);
+          }
 
-            let url, method;
-            if (this.operationId) {
-                url = `${api_endpoints.operations}${this.operationId}/`;
-                method = 'PUT';
-                console.log('Updating existing operation:', this.operationId);
-            } else {
-                url = api_endpoints.operations;
-                method = 'POST';
-                console.log('Creating new operation');
-            }
+          let url, method;
+          if (this.operationId) {
+            url = `${api_endpoints.operations}${this.operationId}/`;
+            method = 'PUT';
+          } else {
+            url = api_endpoints.operations;
+            method = 'POST';
+          }
 
-            console.log('Sending request to:', url);
-            console.log('Method:', method);
-            
-            const csrfToken = this.getCSRFToken();
-            console.log('CSRF Token exists:', !!csrfToken);
+          const csrfToken = this.getCSRFToken();
 
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'X-CSRFToken': csrfToken
-                    // Note: DON'T set Content-Type for FormData - let browser set it with boundary
-                },
-                body: formData
-            });
+          const response = await fetch(url, {
+            method: method,
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
+            body: formData
+          });
 
-            console.log('Response status:', response.status);
-            console.log('Response status text:', response.statusText);
-            
-            // First, try to get the response as text
+          if (!response.ok) {
             const responseText = await response.text();
-            console.log('Raw response text:', responseText);
-            
-            if (!response.ok) {
-                // Try to parse as JSON
-                let errorData;
-                try {
-                    errorData = JSON.parse(responseText);
-                } catch (e) {
-                    errorData = { detail: responseText };
-                }
-                
-                console.log('Error data:', errorData);
-                throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-            }
-
-            // Parse successful response
-            let responseData;
+            let errorData;
             try {
-                responseData = JSON.parse(responseText);
+              errorData = JSON.parse(responseText);
             } catch (e) {
-                responseData = { success: true, message: 'Operation saved successfully' };
+              errorData = { detail: responseText };
             }
-            
-            console.log('Operation saved successfully:', responseData);
-            
-            this.$emit('operation-saved', responseData);
-            
-            await swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: `Operation ${this.operationId ? 'updated' : 'created'} successfully`,
-                timer: 3000,
-                showConfirmButton: false
-            });
+            throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+          }
+
+          const responseData = await response.json();
+          
+          // Emit the saved event with operation data
+          this.$emit('operation-saved', responseData);
+          
+          // Reset file upload fields
+          this.clearMapFile();
+          this.clearDocFile();
+          this.showMapUpload = false;
+          this.showDocUpload = false;
+          
+          return responseData;
+          
         } catch (error) {
-            console.error('Error saving operation:', error);
-            await this.handleSaveError(error);
+          console.error('Error saving operation:', error);
+          await this.handleSaveError(error);
+          throw error; // Re-throw so parent component can handle
         } finally {
-            this.saving = false;
+          this.saving = false;
         }
     },
-    
+
     validateForm() {
         if (!this.operationData.fea_id) {
             swal.fire({

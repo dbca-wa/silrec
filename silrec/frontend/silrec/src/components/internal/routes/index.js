@@ -166,27 +166,27 @@ export default {
             props: true
         },
 
-        // Operations section
-        {
-            path: 'cohorts/:cohortId/operation/new',
-            name: 'new-operation',
-            component: OperationDetails,
-            props: true,
-            //meta: { requiresAuth: true }
-        },
-        {
-            path: 'operation/:operationId/edit',
-            name: 'edit-operation',
-            component: OperationDetails,
-            props: true,
-            //meta: { requiresAuth: true }
-        },
-        {
-            path: 'operation/:operationId',
-            name: 'view-operation',
-            component: OperationDetails,
-            props: true,
-            //meta: { requiresAuth: true }
-        }
+//        // Operations section
+//        {
+//            path: 'cohorts/:cohortId/operation/new',
+//            name: 'new-operation',
+//            component: OperationDetails,
+//            props: true,
+//            //meta: { requiresAuth: true }
+//        },
+//        {
+//            path: 'operation/:operationId/edit',
+//            name: 'edit-operation',
+//            component: OperationDetails,
+//            props: true,
+//            //meta: { requiresAuth: true }
+//        },
+//        {
+//            path: 'operation/:operationId',
+//            name: 'view-operation',
+//            component: OperationDetails,
+//            props: true,
+//            //meta: { requiresAuth: true }
+//        }
     ],
 };

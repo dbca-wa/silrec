@@ -63,7 +63,8 @@
                     Map file attached
                   </span>
                   <div>
-                    <a :href="operationData.silvic_plan_map" 
+                    <a v-if="operationData.silvic_plan_map && typeof operationData.silvic_plan_map === 'string'"
+                       :href="operationData.silvic_plan_map" 
                        target="_blank" 
                        class="btn btn-sm btn-outline-info me-1"
                        title="View Map">
@@ -134,7 +135,8 @@
                     Document file attached
                   </span>
                   <div>
-                    <a :href="operationData.silvic_plan_doc" 
+                    <a v-if="operationData.silvic_plan_doc && typeof operationData.silvic_plan_doc === 'string'"
+                       :href="operationData.silvic_plan_doc" 
                        target="_blank" 
                        class="btn btn-sm btn-outline-info me-1"
                        title="View Document">
@@ -245,15 +247,13 @@ export default {
       mapFilePreview: null,
       docFilePreview: null,
       showMapUpload: false,
-      showDocUpload: false
+      showDocUpload: false,
+      isEditing: false
     };
   },
   computed: {
     isNew() {
       return !this.operationId;
-    },
-    isCreatingForCohort() {
-      return this.cohortId && !this.operationId;
     }
   },
   methods: {
@@ -266,6 +266,7 @@ export default {
                 }
                 const data = await response.json();
                 this.operationData = { ...data };
+                this.isEditing = true;
             } catch (error) {
                 console.error('Error loading operation data:', error);
                 await swal.fire({
@@ -278,13 +279,13 @@ export default {
         } else {
             // For new operation, use provided FEA ID
             this.operationData.fea_id = this.feaId || '';
+            this.isEditing = false;
         }
     },
     
     async loadCohortPolygonFEA() {
         if (this.cohortId && !this.feaId) {
             try {
-                console.log("URL1: " + `${api_endpoints.cohorts}${this.cohortId}/`);
                 const response = await fetch(`${api_endpoints.cohorts}${this.cohortId}/`);
                 if (response.ok) {
                     const cohortData = await response.json();
@@ -292,7 +293,6 @@ export default {
                     if (cohortData.assigned_polygons && cohortData.assigned_polygons.length > 0) {
                         // Get the first polygon's FEA ID
                         const polygonId = cohortData.assigned_polygons[0].polygon_id;
-                        console.log("URL2: " + `${api_endpoints.polygons}${polygonId}/`);
                         const polygonResponse = await fetch(`${api_endpoints.polygons}${polygonId}/`);
                         if (polygonResponse.ok) {
                             const polygonData = await polygonResponse.json();
@@ -303,7 +303,6 @@ export default {
             } catch (error) {
                 console.error('Error loading polygon FEA ID:', error);
             }
-            console.log("URL3: " + this.operationData.fea_id);
         }
     },
     
@@ -351,91 +350,100 @@ export default {
     
     async saveOperation() {
         if (!this.validateForm()) {
-          return;
+            return;
         }
 
         this.saving = true;
-        console.log('Starting save operation...');
         
         try {
-          const formData = new FormData();
-          
-          // Add regular fields
-          Object.keys(this.operationData).forEach(key => {
-            if (key !== 'silvic_plan_map_file' && key !== 'silvic_plan_doc_file') {
-              const value = this.operationData[key];
-              if (value !== null && value !== undefined) {
-                formData.append(key, value);
-              }
+            const formData = new FormData();
+            
+            // Add regular fields
+            Object.keys(this.operationData).forEach(key => {
+                if (key !== 'silvic_plan_map_file' && key !== 'silvic_plan_doc_file') {
+                    const value = this.operationData[key];
+                    
+                    if (value !== null && value !== undefined) {
+                        formData.append(key, value);
+                    }
+                }
+            });
+            
+            // Add cohort_id if provided
+            if (this.cohortId) {
+                formData.append('cohort_id', this.cohortId);
             }
-          });
-          
-          // For inline usage, always add cohort_id if available
-          if (this.cohortId) {
-            formData.append('cohort_id', this.cohortId);
-          }
-          
-          // Add files if provided
-          if (this.operationData.silvic_plan_map_file) {
-            formData.append('silvic_plan_map_file', this.operationData.silvic_plan_map_file);
-          }
-          
-          if (this.operationData.silvic_plan_doc_file) {
-            formData.append('silvic_plan_doc_file', this.operationData.silvic_plan_doc_file);
-          }
-
-          let url, method;
-          if (this.operationId) {
-            url = `${api_endpoints.operations}${this.operationId}/`;
-            method = 'PUT';
-          } else {
-            url = api_endpoints.operations;
-            method = 'POST';
-          }
-
-          const csrfToken = this.getCSRFToken();
-
-          const response = await fetch(url, {
-            method: method,
-            headers: {
-              'X-CSRFToken': csrfToken
-            },
-            body: formData
-          });
-
-          if (!response.ok) {
-            const responseText = await response.text();
-            let errorData;
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              errorData = { detail: responseText };
+            
+            // Add files if provided
+            if (this.operationData.silvic_plan_map_file) {
+                formData.append('silvic_plan_map_file', this.operationData.silvic_plan_map_file);
             }
-            throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
-          }
+            
+            if (this.operationData.silvic_plan_doc_file) {
+                formData.append('silvic_plan_doc_file', this.operationData.silvic_plan_doc_file);
+            }
 
-          const responseData = await response.json();
-          
-          // Emit the saved event with operation data
-          this.$emit('operation-saved', responseData);
-          
-          // Reset file upload fields
-          this.clearMapFile();
-          this.clearDocFile();
-          this.showMapUpload = false;
-          this.showDocUpload = false;
-          
-          return responseData;
-          
+            let url, method;
+            if (this.operationId) {
+                url = `${api_endpoints.operations}${this.operationId}/`;
+                method = 'PUT';
+            } else {
+                url = api_endpoints.operations;
+                method = 'POST';
+            }
+
+            const csrfToken = this.getCSRFToken();
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const responseText = await response.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(responseText);
+                } catch (e) {
+                    errorData = { detail: responseText };
+                }
+                
+                throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData)}`);
+            }
+
+            const responseData = await response.json();
+            
+            // Reset form state
+            this.resetForm();
+            
+            // Emit the saved event with operation data
+            this.$emit('operation-saved', responseData);
+            
+            return responseData;
+            
         } catch (error) {
-          console.error('Error saving operation:', error);
-          await this.handleSaveError(error);
-          throw error; // Re-throw so parent component can handle
+            console.error('Error saving operation:', error);
+            await this.handleSaveError(error);
+            throw error;
         } finally {
-          this.saving = false;
+            this.saving = false;
         }
     },
-
+    
+    resetForm() {
+        // Reset file uploads
+        this.clearMapFile();
+        this.clearDocFile();
+        this.showMapUpload = false;
+        this.showDocUpload = false;
+        
+        // Reload operation data to refresh form
+        this.loadOperationData();
+    },
+    
     validateForm() {
         if (!this.operationData.fea_id) {
             swal.fire({
@@ -452,22 +460,16 @@ export default {
     
     async handleSaveError(error) {
         let errorMessage = 'Failed to save operation';
-        let errorDetails = '';
-        
-        console.error('Full error object:', error);
-        console.error('Error message:', error.message);
         
         if (error.message && error.message.includes('403')) {
             errorMessage = 'You do not have permission to create or update operations. Please contact an administrator.';
         } else if (error.message && error.message.includes('details:')) {
             try {
                 const details = error.message.split('details:')[1];
-                console.log('Raw error details:', details);
                 
                 // Try to parse JSON first
                 try {
                     const errorData = JSON.parse(details);
-                    console.log('Parsed error data:', errorData);
                     
                     if (typeof errorData === 'object') {
                         if (errorData.error) {
@@ -492,8 +494,6 @@ export default {
                         errorMessage = details;
                     }
                 } catch (e) {
-                    // If not JSON, use as plain text
-                    console.log('Error details not JSON:', details);
                     errorMessage = details;
                 }
             } catch (e) {
@@ -503,12 +503,10 @@ export default {
             errorMessage = error.message || 'Unknown error occurred';
         }
         
-        console.log('Final error message to show:', errorMessage);
-        
         await swal.fire({
             icon: 'error',
             title: 'Save Error',
-            html: `<p>${errorMessage}</p>${errorDetails ? `<p><small>Details: ${errorDetails}</small></p>` : ''}`,
+            html: `<p>${errorMessage}</p>`,
             confirmButtonText: 'OK',
             confirmButtonColor: '#d33'
         });
@@ -544,19 +542,7 @@ export default {
         if (newVal) {
           this.loadOperationData();
         } else {
-          this.operationData = {
-            fea_id: this.feaId || '',
-            das_id: null,
-            plan_release: '',
-            silvic_plan_map: null,
-            silvic_plan_doc: null,
-            silvic_plan_map_file: null,
-            silvic_plan_doc_file: null
-          };
-          this.mapFilePreview = null;
-          this.docFilePreview = null;
-          this.showMapUpload = false;
-          this.showDocUpload = false;
+          this.resetForm();
         }
       },
       immediate: true

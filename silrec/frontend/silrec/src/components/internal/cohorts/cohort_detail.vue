@@ -540,6 +540,9 @@ export default {
             this.cohortData.op_id = operationData.op_id;
             this.operationDetails = operationData;
             
+            // Force re-render of the operation form by incrementing the key
+            this.operationFormKey++;
+            
             // Show success message
             await swal.fire({
                 icon: 'success',
@@ -550,7 +553,6 @@ export default {
             });
         }
     },
-    
     cancelOperationEdit() {
         // Just refresh the operation data to discard changes
         this.refreshOperation();

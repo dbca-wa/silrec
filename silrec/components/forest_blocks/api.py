@@ -2,6 +2,7 @@ import traceback
 from django.db.models import Q, Min
 from django.db import transaction
 from django.http import HttpResponse
+from django.http import FileResponse
 from django.conf import settings
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
@@ -133,14 +134,33 @@ class SurveyAssessmentDocumentViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
 
+#    @action(detail=True, methods=['get'])
+#    def download(self, request, pk=None):
+#        """Download document file"""
+#        document = self.get_object()
+#
+#        if document.file:
+#            response = HttpResponse(document.file, content_type='application/octet-stream')
+#            response['Content-Disposition'] = f'attachment; filename="{document.file_name}"'
+#            return response
+#        else:
+#            return Response({'error': 'No file attached'}, status=404)
+
     @action(detail=True, methods=['get'])
     def download(self, request, pk=None):
         """Download document file"""
         document = self.get_object()
 
         if document.file:
-            response = HttpResponse(document.file, content_type='application/octet-stream')
-            response['Content-Disposition'] = f'attachment; filename="{document.file_name}"'
+            # Get the original filename from the database
+            filename = document.file_name or 'document'
+
+            # Open the file
+            file_handle = document.file.open()
+
+            # Create response with correct filename
+            response = FileResponse(file_handle, content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
         else:
             return Response({'error': 'No file attached'}, status=404)

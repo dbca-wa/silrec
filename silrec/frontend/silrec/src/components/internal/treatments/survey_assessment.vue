@@ -39,12 +39,27 @@
             <td>
               <div v-if="doc.file">
                 <i :class="doc.file_icon" class="me-1"></i>
-                {{ truncateText(doc.file_name, 50) }}
+                <a 
+                  href="#" 
+                  @click.prevent="viewDocument(doc)" 
+                  class="text-truncate d-inline-block" 
+                  style="max-width: 200px;"
+                  :title="doc.marked_deleted ? 'Document marked for deletion' : 'View document'"
+                >
+                  {{ truncateText(doc.file_name, 50) }}
+                </a>
                 <small class="text-muted d-block">({{ doc.file_size_display }})</small>
               </div>
               <div v-else-if="doc.file_url">
                 <i class="bi bi-link-45deg me-1"></i>
-                <a :href="doc.file_url" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">
+                <a 
+                  :href="doc.file_url" 
+                  @click.prevent="viewDocument(doc)"
+                  target="_blank" 
+                  class="text-truncate d-inline-block" 
+                  style="max-width: 200px;"
+                  :title="doc.marked_deleted ? 'Document marked for deletion' : 'Open external URL'"
+                >
                   {{ doc.file_url }}
                 </a>
               </div>
@@ -59,15 +74,6 @@
             <td>{{ doc.uploaded_by_display || doc.uploaded_by || 'N/A' }}</td>
             <td>
               <div class="btn-group btn-group-sm">
-                <button 
-                  v-if="doc.file || doc.file_url"
-                  class="btn btn-outline-primary"
-                  @click="viewDocument(doc)"
-                  title="View Document"
-                  :disabled="doc.marked_deleted"
-                >
-                  <i class="bi bi-eye"></i>
-                </button>
                 <button 
                   v-if="!readOnly"
                   class="btn btn-sm btn-outline-primary"
@@ -954,6 +960,16 @@ export default {
 .deleted-row:hover td {
   background-color: #f8f9fa !important;
   opacity: 0.9;
+}
+
+/* Style for clickable filenames */
+.table a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+.table a:hover {
+  text-decoration: underline;
 }
 
 /* Modal Styles - More Compact */

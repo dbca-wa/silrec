@@ -142,28 +142,32 @@ class SurveyAssessmentDocumentSerializer(serializers.ModelSerializer):
             treatment = Treatment.objects.get(pk=treatment_id)
             validated_data['treatment'] = treatment
 
-        return super().create(validated_data)
+        # Handle file upload with original name preservation
+        file_obj = validated_data.get('file')
+        if file_obj and hasattr(file_obj, 'name'):
+            # Save original filename
+            original_name = file_obj.name
+            validated_data['file_name'] = original_name
 
-#    def update(self, instance, validated_data):
-#        # Extract treatment_id if provided
-#        treatment_id = validated_data.pop('treatment_id', None)
-#
-#        # Handle treatment if treatment_id is provided
-#        if treatment_id:
-#            treatment = Treatment.objects.get(pk=treatment_id)
-#            validated_data['treatment'] = treatment
-#
-#        # If file is being removed (set to None), clear file_name and file_size
-#        if 'file' in validated_data and validated_data['file'] is None:
-#            validated_data['file_name'] = None
-#            validated_data['file_size'] = None
-#
-#        file = validated_data.get('file')
-#        if file and hasattr(file, 'name'):
-#            # Update filename with just the basename
-#            instance.file_name = os.path.basename(file.name)
-#
-#        return super().update(instance, validated_data)
+            # Generate unique filename while preserving extension
+            import os
+            from uuid import uuid4
+            name, ext = os.path.splitext(original_name)
+            unique_id = uuid4().hex[:8]
+
+            # Create safe filename
+            safe_name = original_name.replace(' ', '_').replace('(', '').replace(')', '')
+            safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ['_', '-', '.'])
+
+            if ext:
+                new_name = f"{safe_name.rsplit('.', 1)[0]}_{unique_id}{ext}"
+            else:
+                new_name = f"{safe_name}_{unique_id}"
+
+            # Rename the file
+            file_obj.name = new_name
+
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         # Extract treatment_id if provided
@@ -174,14 +178,36 @@ class SurveyAssessmentDocumentSerializer(serializers.ModelSerializer):
             treatment = Treatment.objects.get(pk=treatment_id)
             validated_data['treatment'] = treatment
 
+        # Handle new file upload
+        file_obj = validated_data.get('file')
+        if file_obj and hasattr(file_obj, 'name'):
+            # Save original filename
+            original_name = file_obj.name
+            validated_data['file_name'] = original_name
+
+            # Generate unique filename while preserving extension
+            import os
+            from uuid import uuid4
+            name, ext = os.path.splitext(original_name)
+            unique_id = uuid4().hex[:8]
+
+            # Create safe filename
+            safe_name = original_name.replace(' ', '_').replace('(', '').replace(')', '')
+            safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ['_', '-', '.'])
+
+            if ext:
+                new_name = f"{safe_name.rsplit('.', 1)[0]}_{unique_id}{ext}"
+            else:
+                new_name = f"{safe_name}_{unique_id}"
+
+            # Rename the file
+            file_obj.name = new_name
+
         # If file is being removed (set to None), clear file_name and file_size
-        if 'file' in validated_data and validated_data['file'] is None:
+        elif 'file' in validated_data and validated_data['file'] is None:
             validated_data['file_name'] = None
             validated_data['file_size'] = None
             validated_data['file_type'] = None
-
-        # Don't manually set file_name here - let the model's save() method handle it
-        # The issue was that we were setting instance.file_name without the basename
 
         return super().update(instance, validated_data)
 

@@ -4,7 +4,7 @@
     
     <div class="card">
       <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Report Generator</h5>
+        <h5 class="mb-0">Dynamic SQL Report Generator</h5>
       </div>
       
       <div class="card-body">
@@ -158,47 +158,99 @@
           
           <!-- Custom WHERE Clauses -->
           <div v-for="(clause, index) in customClauses" :key="index" class="row mb-3 border p-3 rounded">
-            <div class="col-md-3">
-              <label class="form-label">Field</label>
-              <input 
+            <div class="col-md-4">
+              <label class="form-label">Field *</label>
+              <select 
                 v-model="clause.field"
-                type="text"
-                class="form-control"
-                placeholder="e.g., cmpt.region"
-              />
+                class="form-select"
+                :required="true"
+                @change="onFieldChange(index)"
+              >
+                <option value="">-- Select Field --</option>
+                <optgroup label="From Report SQL">
+                  <option 
+                    v-for="field in availableFields.filter(f => f.type === 'select_field')" 
+                    :key="field.value"
+                    :value="field.value"
+                  >
+                    {{ field.label }}
+                  </option>
+                </optgroup>
+                <!--
+                <optgroup label="Common Fields">
+                  <option 
+                    v-for="field in availableFields.filter(f => f.type === 'common')" 
+                    :key="field.value"
+                    :value="field.value"
+                  >
+                    {{ field.label }}
+                  </option>
+                </optgroup>
+                -->
+              </select>
+              <div v-if="clause.field" class="form-text small">
+                <code>{{ clause.field }}</code>
+              </div>
             </div>
-            <div class="col-md-2">
-              <label class="form-label">Operator</label>
-              <select v-model="clause.operator" class="form-select">
+            
+            <div class="col-md-3">
+              <label class="form-label">Operator *</label>
+              <select 
+                v-model="clause.operator" 
+                class="form-select"
+                :required="true"
+              >
                 <option value="=">=</option>
                 <option value="!=">!=</option>
                 <option value=">">></option>
-                <option value="<"><</option>
-                <option value="LIKE">LIKE</option>
-                <option value="IN">IN</option>
+                <option value="<">&lt;</option>
+                <option value=">=">>=</option>
+                <option value="<=">&lt;=</option>
+                <option value="LIKE">LIKE (Contains)</option>
+                <option value="NOT LIKE">NOT LIKE (Does Not Contain)</option>
+                <option value="IN">IN (In List)</option>
+                <option value="NOT IN">NOT IN (Not In List)</option>
+                <option value="IS NULL">IS NULL</option>
+                <option value="IS NOT NULL">IS NOT NULL</option>
+                <option value="BETWEEN">BETWEEN (Range)</option>
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Value</label>
+            
+            <div class="col-md-3">
+              <label class="form-label">Value *</label>
               <input 
+                v-if="!['IS NULL', 'IS NOT NULL'].includes(clause.operator)"
                 v-model="clause.value"
                 type="text"
                 class="form-control"
-                placeholder="Enter value"
+                :required="true"
+                :placeholder="getValuePlaceholder(clause)"
               />
+              <div v-else class="form-control-plaintext">
+                <em>No value required</em>
+              </div>
+              <div v-if="clause.operator === 'BETWEEN'" class="form-text small">
+                Enter two values separated by comma: start,end
+              </div>
+              <div v-if="clause.operator === 'IN' || clause.operator === 'NOT IN'" class="form-text small">
+                Enter multiple values separated by commas
+              </div>
             </div>
-            <div class="col-md-2">
-              <label class="form-label">Condition</label>
+            
+            <div class="col-md-1">
+              <label class="form-label">Logic</label>
               <select v-model="clause.condition" class="form-select">
                 <option value="AND">AND</option>
                 <option value="OR">OR</option>
               </select>
             </div>
+            
             <div class="col-md-1 d-flex align-items-end">
               <button 
                 type="button" 
                 class="btn btn-danger btn-sm"
                 @click="removeCustomClause(index)"
+                title="Remove Filter"
               >
                 <i class="bi bi-trash"></i>
               </button>
@@ -227,7 +279,6 @@
                   >
                     {{ format === 'excel' ? 'Excel (.xlsx)' : 
                        format === 'csv' ? 'CSV (.csv)' : 
-                       format === 'shapefile' ? 'Shapefile (.shp)' : 
                        'PDF (.pdf)' }}
                   </option>
                 </select>
@@ -335,6 +386,10 @@ export default {
       // Parameters for WHERE clauses
       parameters: {},
       
+      // Available fields for custom clauses
+      availableFields: [],
+      loadingFields: false,
+      
       // Custom WHERE clauses
       customClauses: [],
       
@@ -362,6 +417,13 @@ export default {
         }
       }
       
+      // Check custom clauses have all required fields
+      for (const clause of this.customClauses) {
+        if (!clause.field || (!clause.value && !['IS NULL', 'IS NOT NULL'].includes(clause.operator))) {
+          return false;
+        }
+      }
+      
       return true;
     },
     
@@ -374,6 +436,13 @@ export default {
           if (param.required && !this.parameters[param.name]) {
             return false;
           }
+        }
+      }
+      
+      // Check custom clauses for preview
+      for (const clause of this.customClauses) {
+        if (!clause.field || (!clause.value && !['IS NULL', 'IS NOT NULL'].includes(clause.operator))) {
+          return false;
         }
       }
       
@@ -403,6 +472,24 @@ export default {
       }
     },
     
+    async fetchAvailableFields(reportId) {
+      this.loadingFields = true;
+      try {
+        const response = await fetch(`${api_endpoints.reports}${reportId}/available_fields/`);
+        if (response.ok) {
+          this.availableFields = await response.json();
+        } else {
+          this.availableFields = [];
+          console.warn('Could not load available fields, using empty list');
+        }
+      } catch (error) {
+        console.error('Error fetching available fields:', error);
+        this.availableFields = [];
+      } finally {
+        this.loadingFields = false;
+      }
+    },
+    
     onReportChange() {
       this.selectedReport = this.availableReports.find(
         r => r.id === this.selectedReportId
@@ -411,6 +498,7 @@ export default {
       // Reset parameters
       this.parameters = {};
       this.customClauses = [];
+      this.availableFields = [];
       
       // Set default values
       if (this.selectedReport?.parameters) {
@@ -424,6 +512,11 @@ export default {
       // Set default export format
       if (this.selectedReport?.export_formats?.length > 0) {
         this.exportFormat = this.selectedReport.export_formats[0];
+      }
+      
+      // Fetch available fields for this report
+      if (this.selectedReportId) {
+        this.fetchAvailableFields(this.selectedReportId);
       }
     },
     
@@ -440,146 +533,194 @@ export default {
       this.customClauses.splice(index, 1);
     },
     
-    async generateReport() {
-        if (!this.canGenerate) return;
-        
-        this.generating = true;
-        
-        try {
-            // Prepare request data
-            const requestData = {
-                parameters: this.parameters,
-                export_format: this.exportFormat
-            };
-            
-            // Add custom clauses if any (filter out empty ones)
-            const validCustomClauses = this.customClauses.filter(clause => 
-                clause.field && clause.field.trim() && 
-                clause.value && clause.value.toString().trim()
-            );
-            
-            if (validCustomClauses.length > 0) {
-                requestData.custom_clauses = validCustomClauses;
-            }
-            
-            console.log('Sending request data:', requestData);
-            
-            const response = await fetch(
-                `${api_endpoints.reports}${this.selectedReportId}/execute/`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCSRFToken()
-                    },
-                    body: JSON.stringify(requestData)
-                }
-            );
-            
-            if (response.ok) {
-                // Handle file download
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                
-                // Create filename with timestamp
-                const timestamp = new Date().toISOString().slice(0,10).replace(/-/g, '');
-                const extension = this.exportFormat === 'excel' ? 'xlsx' : 
-                                this.exportFormat === 'csv' ? 'csv' : 'pdf';
-                a.download = `${this.selectedReport.name}_${timestamp}.${extension}`;
-                
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                await swal.fire({
-                    icon: 'success',
-                    title: 'Report Generated',
-                    text: `Report has been exported as ${this.exportFormat.toUpperCase()}`,
-                    confirmButtonText: 'OK'
-                });
-            } else {
-                const errorText = await response.text();
-                let errorData;
-                try {
-                    errorData = JSON.parse(errorText);
-                } catch (e) {
-                    errorData = { error: errorText };
-                }
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Error generating report:', error);
-            await swal.fire({
-                icon: 'error',
-                title: 'Generation Failed',
-                text: error.message || 'Failed to generate report',
-                confirmButtonText: 'OK'
-            });
-        } finally {
-            this.generating = false;
+    onFieldChange(index) {
+      // Optional: Auto-set operator based on field type
+      const clause = this.customClauses[index];
+      if (clause.field) {
+        // You could add logic here to suggest operators based on field name
+        // For example, date fields might default to '=', numeric fields to '=', etc.
+        if (clause.field.includes('date') || clause.field.includes('year')) {
+          clause.operator = '=';
+        } else if (clause.field.includes('area') || clause.field.includes('rate')) {
+          clause.operator = '>=';
         }
-    },    
-    async previewReport() {
-        if (!this.canPreview) return;
-        
-        this.previewing = true;
-        
-        try {
-            // Build query parameters for preview
-            const params = new URLSearchParams();
-            Object.entries(this.parameters).forEach(([key, value]) => {
-                if (value !== null && value !== undefined && value !== '') {
-                    if (Array.isArray(value)) {
-                        value.forEach(v => params.append(`param_${key}`, v));
-                    } else {
-                        params.append(`param_${key}`, value);
-                    }
-                }
-            });
-            
-            // Add custom clauses if any
-            const validCustomClauses = this.customClauses.filter(clause => 
-                clause.field && clause.field.trim() && 
-                clause.value && clause.value.toString().trim()
-            );
-            
-            if (validCustomClauses.length > 0) {
-                params.append('custom_clauses', JSON.stringify(validCustomClauses));
-            }
-            
-            console.log('Preview params:', params.toString());
-            
-            const response = await fetch(
-                `${api_endpoints.reports}${this.selectedReportId}/preview/?${params}`
-            );
-            
-            if (response.ok) {
-                this.previewData = await response.json();
-            } else {
-                const errorText = await response.text();
-                let errorData;
-                try {
-                    errorData = JSON.parse(errorText);
-                } catch (e) {
-                    errorData = { error: errorText };
-                }
-                throw new Error(errorData.error || 'Failed to preview report');
-            }
-        } catch (error) {
-            console.error('Error previewing report:', error);
-            await swal.fire({
-                icon: 'error',
-                title: 'Preview Failed',
-                text: error.message || 'Failed to preview report',
-                confirmButtonText: 'OK'
-            });
-        } finally {
-            this.previewing = false;
-        }
+      }
     },
+    
+    getValuePlaceholder(clause) {
+      if (clause.operator === 'LIKE' || clause.operator === 'NOT LIKE') {
+        return 'Enter search text (use % as wildcard)';
+      } else if (clause.operator === 'IN' || clause.operator === 'NOT IN') {
+        return 'value1, value2, value3';
+      } else if (clause.operator === 'BETWEEN') {
+        return 'start, end';
+      } else {
+        return 'Enter value';
+      }
+    },
+    
+    async generateReport() {
+      if (!this.canGenerate) return;
+      
+      this.generating = true;
+      
+      try {
+        // Prepare request data
+        const requestData = {
+          parameters: this.parameters,
+          export_format: this.exportFormat
+        };
+        
+        // Add custom clauses if any (filter out empty ones)
+        const validCustomClauses = this.customClauses.filter(clause => {
+          // Check if field is selected
+          if (!clause.field || !clause.field.trim()) {
+            return false;
+          }
+          
+          // Check if value is required and provided
+          if (!['IS NULL', 'IS NOT NULL'].includes(clause.operator)) {
+            if (!clause.value || !clause.value.toString().trim()) {
+              return false;
+            }
+          }
+          
+          return true;
+        });
+        
+        if (validCustomClauses.length > 0) {
+          requestData.custom_clauses = validCustomClauses;
+        }
+        
+        console.log('Sending request data:', requestData);
+        
+        const response = await fetch(
+          `${api_endpoints.reports}${this.selectedReportId}/execute/`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify(requestData)
+          }
+        );
+        
+        if (response.ok) {
+          // Handle file download
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          
+          // Create filename with timestamp
+          const timestamp = new Date().toISOString().slice(0,10).replace(/-/g, '');
+          const extension = this.exportFormat === 'excel' ? 'xlsx' : 
+                          this.exportFormat === 'csv' ? 'csv' : 'pdf';
+          a.download = `${this.selectedReport.name}_${timestamp}.${extension}`;
+          
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          await swal.fire({
+            icon: 'success',
+            title: 'Report Generated',
+            text: `Report has been exported as ${this.exportFormat.toUpperCase()}`,
+            confirmButtonText: 'OK'
+          });
+        } else {
+          const errorText = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { error: errorText };
+          }
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error generating report:', error);
+        await swal.fire({
+          icon: 'error',
+          title: 'Generation Failed',
+          text: error.message || 'Failed to generate report',
+          confirmButtonText: 'OK'
+        });
+      } finally {
+        this.generating = false;
+      }
+    },
+    
+    async previewReport() {
+      if (!this.canPreview) return;
+      
+      this.previewing = true;
+      
+      try {
+        // Build query parameters for preview
+        const params = new URLSearchParams();
+        Object.entries(this.parameters).forEach(([key, value]) => {
+          if (value !== null && value !== undefined && value !== '') {
+            if (Array.isArray(value)) {
+              value.forEach(v => params.append(`param_${key}`, v));
+            } else {
+              params.append(`param_${key}`, value);
+            }
+          }
+        });
+        
+        // Add custom clauses if any
+        const validCustomClauses = this.customClauses.filter(clause => {
+          if (!clause.field || !clause.field.trim()) {
+            return false;
+          }
+          
+          if (!['IS NULL', 'IS NOT NULL'].includes(clause.operator)) {
+            if (!clause.value || !clause.value.toString().trim()) {
+              return false;
+            }
+          }
+          
+          return true;
+        });
+        
+        if (validCustomClauses.length > 0) {
+          params.append('custom_clauses', JSON.stringify(validCustomClauses));
+        }
+        
+        console.log('Preview params:', params.toString());
+        
+        const response = await fetch(
+          `${api_endpoints.reports}${this.selectedReportId}/preview/?${params}`
+        );
+        
+        if (response.ok) {
+          this.previewData = await response.json();
+        } else {
+          const errorText = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { error: errorText };
+          }
+          throw new Error(errorData.error || 'Failed to preview report');
+        }
+      } catch (error) {
+        console.error('Error previewing report:', error);
+        await swal.fire({
+          icon: 'error',
+          title: 'Preview Failed',
+          text: error.message || 'Failed to preview report',
+          confirmButtonText: 'OK'
+        });
+      } finally {
+        this.previewing = false;
+      }
+    },
+    
     closePreview() {
       this.previewData = null;
     },
@@ -589,6 +730,7 @@ export default {
       this.selectedReport = null;
       this.parameters = {};
       this.customClauses = [];
+      this.availableFields = [];
       this.exportFormat = 'excel';
       this.previewData = null;
     },
@@ -642,5 +784,22 @@ pre {
 .table-responsive {
   max-height: 400px;
   overflow-y: auto;
+}
+
+.form-text code {
+  background-color: #f1f1f1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+optgroup {
+  font-weight: normal;
+  font-style: normal;
+}
+
+optgroup label {
+  font-weight: bold;
+  color: #495057;
 }
 </style>

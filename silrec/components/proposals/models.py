@@ -11,7 +11,9 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.db.models.fields import PolygonField
 from django.contrib.gis.db.models.functions import Area
+from django.db import connection
 
+import re
 import json
 import geopandas as gpd
 from rest_framework import serializers
@@ -642,4 +644,144 @@ class SQLReport(models.Model):
         """Return formatted SQL for display"""
         return self.base_sql.format(where_clause="WHERE ...") + (f" ORDER BY {self.order_by}" if self.order_by else "")
 
+    def get_available_fields(self):
+        """Extract field names from the SQL query"""
+        fields = []
 
+        try:
+            # Remove comments from SQL
+            sql = re.sub(r'--.*$', '', self.base_sql, flags=re.MULTILINE)
+            sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
+
+            # Extract SELECT clause (everything between SELECT and FROM)
+            select_match = re.search(r'SELECT\s+(.*?)\s+FROM', sql, re.IGNORECASE | re.DOTALL)
+            if not select_match:
+                return []
+
+            select_clause = select_match.group(1)
+
+            # Split by commas, handling nested parentheses
+            in_parentheses = 0
+            current_field = ""
+            for char in select_clause:
+                if char == '(':
+                    in_parentheses += 1
+                elif char == ')':
+                    in_parentheses -= 1
+
+                if char == ',' and in_parentheses == 0:
+                    # End of field
+                    field = self._extract_field_name(current_field.strip())
+                    if field:
+                        fields.append(field)
+                    current_field = ""
+                else:
+                    current_field += char
+
+            # Add the last field
+            if current_field:
+                field = self._extract_field_name(current_field.strip())
+                if field:
+                    fields.append(field)
+
+            # Also try to extract table aliases for better display
+            from_match = re.search(r'FROM\s+(.*?)(?:\s+WHERE|\s+GROUP BY|\s+ORDER BY|$)',
+                                  sql, re.IGNORECASE | re.DOTALL)
+            if from_match:
+                from_clause = from_match.group(1)
+                # Extract table aliases (e.g., "table t" or "table AS t")
+                table_aliases = re.findall(r'(\w+)(?:\s+AS)?\s+(\w+)\b', from_clause, re.IGNORECASE)
+                table_dict = {alias: table for table, alias in table_aliases}
+
+                # Update fields with table aliases if available
+                for i, field in enumerate(fields):
+                    if '.' in field:
+                        table_part, column_part = field.split('.', 1)
+                        if table_part in table_dict:
+                            fields[i] = f"{table_part}.{column_part}"
+
+        except Exception as e:
+            print(f"Error extracting fields from SQL: {e}")
+            import traceback
+            traceback.print_exc()
+
+        # Remove duplicates and sort
+        return sorted(list(set(f for f in fields if f)))
+
+    def _extract_field_name(self, field_expression):
+        """Extract field name from a SQL expression"""
+        # Remove "DISTINCT" keyword
+        field_expression = re.sub(r'^DISTINCT\s+', '', field_expression, flags=re.IGNORECASE)
+
+        # Handle COUNT(DISTINCT ...) differently
+        if re.match(r'COUNT\s*\(.*DISTINCT.*\)', field_expression, re.IGNORECASE):
+            # Just return the entire expression for complex aggregates
+            return field_expression
+
+        # Remove aggregate functions (keep the column inside)
+        field_expression = re.sub(r'^\w+\(([^)]+)\)', r'\1', field_expression, flags=re.IGNORECASE)
+
+        # Remove "AS alias" or just alias after whitespace
+        field_expression = re.split(r'\s+(?:AS\s+)?\w+$', field_expression, flags=re.IGNORECASE)[0]
+
+        # Remove extra whitespace
+        field_expression = field_expression.strip()
+
+        # If it's a simple column name or table.column, return it
+        if re.match(r'^(\w+\.)?\w+$', field_expression):
+            return field_expression
+
+        return None
+
+    def get_table_fields(self):
+        """Get fields from actual database tables in the query"""
+        fields = []
+        try:
+            # Extract table names from FROM and JOIN clauses
+            sql = self.base_sql.upper()
+
+            # Get all table references (simplified)
+            table_patterns = [
+                r'FROM\s+(\w+(?:\.\w+)?)\s+(\w+)',
+                r'JOIN\s+(\w+(?:\.\w+)?)\s+(\w+)\s+ON',
+                r'FROM\s+(\w+(?:\.\w+)?)',
+                r'JOIN\s+(\w+(?:\.\w+)?)'
+            ]
+
+            tables = []
+            for pattern in table_patterns:
+                matches = re.findall(pattern, sql, re.IGNORECASE | re.DOTALL)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        tables.extend([m for m in match if m])
+                    else:
+                        tables.append(match)
+
+            # Remove duplicates
+            tables = list(set(tables))
+
+            # Get columns from each table
+            for table in tables:
+                try:
+                    # Try to get actual columns from database
+                    with connection.cursor() as cursor:
+                        cursor.execute(f"""
+                            SELECT column_name
+                            FROM information_schema.columns
+                            WHERE table_name = %s
+                            ORDER BY ordinal_position
+                        """, [table.split('.')[-1]])  # Remove schema if present
+                        columns = [row[0] for row in cursor.fetchall()]
+
+                    for column in columns:
+                        fields.append(f"{table}.{column}")
+
+                except Exception as e:
+                    print(f"Could not get columns for table {table}: {e}")
+                    # Fallback: just add the table reference
+                    fields.append(f"{table}.*")
+
+        except Exception as e:
+            print(f"Error extracting table fields: {e}")
+
+        return fields

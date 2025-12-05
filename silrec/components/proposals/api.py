@@ -1453,3 +1453,197 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['get'])
+    def available_fields(self, request, pk=None):
+        """Get available fields from the SQL query for dropdown"""
+        report = self.get_object()
+
+        try:
+            # Get fields from the SELECT clause
+            select_fields = report.get_available_fields()
+
+            # Get fields from database tables (optional)
+            # table_fields = report.get_table_fields()
+
+            # Combine and format for dropdown
+            fields = []
+
+            # Add SELECT fields first
+            for field in select_fields:
+                fields.append({
+                    'value': field,
+                    'label': field,
+                    'type': 'select_field'
+                })
+
+            # Add common comparison operators for dates and numbers
+            common_fields = [
+#                {'value': 'cmpt.compartment', 'label': 'Compartment', 'type': 'common'},
+#                {'value': 'cmpt.region', 'label': 'Region', 'type': 'common'},
+#                {'value': 'cmpt.district', 'label': 'District', 'type': 'common'},
+#                {'value': 'cmpt.supply', 'label': 'Supply', 'type': 'common'},
+#                {'value': 'ply.name', 'label': 'Polygon Name', 'type': 'common'},
+#                {'value': 'cht.species', 'label': 'Species', 'type': 'common'},
+#                {'value': 'cht.obj_code', 'label': 'Objective Code', 'type': 'common'},
+#                {'value': 'cht.regen_date', 'label': 'Regeneration Date', 'type': 'common'},
+#                {'value': 'cht.complete_date', 'label': 'Complete Date', 'type': 'common'},
+#                {'value': 'cht.site_quality', 'label': 'Site Quality', 'type': 'common'},
+#                {'value': 'cht.target_ba_m2ha', 'label': 'Target BA (m²/ha)', 'type': 'common'},
+#                {'value': 'cht.resid_ba_m2ha', 'label': 'Residual BA (m²/ha)', 'type': 'common'},
+#                {'value': 'cht.target_spha', 'label': 'Target SPHA', 'type': 'common'},
+#                {'value': 'cht.resid_spha', 'label': 'Residual SPHA', 'type': 'common'},
+            ]
+
+            # Remove duplicates
+            existing_values = {f['value'] for f in fields}
+            for field in common_fields:
+                if field['value'] not in existing_values:
+                    fields.append(field)
+
+            return Response(fields)
+
+        except Exception as e:
+            logger.error(f"Error getting available fields: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Error getting available fields: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    # Update the _add_custom_clauses method to handle NOT LIKE
+    def _add_custom_clauses(self, sql, custom_clauses, params):
+        """Add custom WHERE clauses to SQL query"""
+        if not custom_clauses:
+            return sql
+
+        # Filter out empty clauses
+        valid_clauses = [
+            clause for clause in custom_clauses
+            if clause.get('field') and clause.get('value') and str(clause.get('value')).strip()
+        ]
+
+        if not valid_clauses:
+            return sql
+
+        # Convert SQL to uppercase for case-insensitive search
+        sql_upper = sql.upper()
+
+        # Check if WHERE already exists
+        if "WHERE" in sql_upper:
+            # Find WHERE position
+            where_pos = sql_upper.find("WHERE")
+
+            # Extract the part after WHERE
+            after_where = sql[where_pos + 5:]  # +5 for "WHERE"
+
+            # Get existing conditions
+            # Find the next GROUP BY, ORDER BY, or end of string
+            group_by_pos = after_where.upper().find("GROUP BY")
+            order_by_pos = after_where.upper().find("ORDER BY")
+
+            end_pos = len(after_where)
+            if group_by_pos != -1:
+                end_pos = group_by_pos
+            elif order_by_pos != -1:
+                end_pos = order_by_pos
+
+            existing_conditions = after_where[:end_pos].strip()
+            after_conditions = after_where[end_pos:] if end_pos < len(after_where) else ""
+
+            # Build new conditions with custom clauses
+            new_conditions = existing_conditions
+
+            for clause in valid_clauses:
+                field = clause.get('field', '').strip()
+                operator = clause.get('operator', '=').strip().upper()
+                value = clause.get('value', '').strip()
+                condition = clause.get('condition', 'AND').strip().upper()
+
+                # Add the custom clause
+                if operator == 'LIKE':
+                    new_conditions += f" {condition} {field} ILIKE %s"
+                    params.append(f"%{value}%")
+                elif operator == 'NOT LIKE':
+                    new_conditions += f" {condition} {field} NOT ILIKE %s"
+                    params.append(f"%{value}%")
+                elif operator == 'IN':
+                    # Handle IN operator (expects comma-separated values)
+                    values = [v.strip() for v in str(value).split(',')]
+                    placeholders = ','.join(['%s'] * len(values))
+                    new_conditions += f" {condition} {field} IN ({placeholders})"
+                    params.extend(values)
+                elif operator in ['IS NULL', 'IS NOT NULL']:
+                    new_conditions += f" {condition} {field} {operator}"
+                else:
+                    new_conditions += f" {condition} {field} {operator} %s"
+                    params.append(value)
+
+            # Replace the WHERE clause with new conditions
+            before_where = sql[:where_pos + 5]  # Include "WHERE"
+
+            # Ensure there's a space between new_conditions and after_conditions
+            if after_conditions and not after_conditions.startswith(' '):
+                after_conditions = ' ' + after_conditions
+
+            new_sql = before_where + " " + new_conditions.strip() + after_conditions
+            return new_sql.strip()
+        else:
+            # No WHERE clause exists, need to add one
+            # Find where to insert WHERE (before GROUP BY or ORDER BY)
+            group_by_pos = sql_upper.find("GROUP BY")
+            order_by_pos = sql_upper.find("ORDER BY")
+
+            insert_pos = len(sql)
+            if group_by_pos != -1:
+                insert_pos = group_by_pos
+            elif order_by_pos != -1:
+                insert_pos = order_by_pos
+
+            before_insert = sql[:insert_pos].strip()
+            after_insert = sql[insert_pos:] if insert_pos < len(sql) else ""
+
+            # Build WHERE clause with custom conditions
+            where_conditions = []
+            first_condition = True
+
+            for clause in valid_clauses:
+                field = clause.get('field', '').strip()
+                operator = clause.get('operator', '=').strip().upper()
+                value = clause.get('value', '').strip()
+
+                if first_condition:
+                    condition = "WHERE"
+                    first_condition = False
+                else:
+                    condition = clause.get('condition', 'AND').strip().upper()
+
+                if operator == 'LIKE':
+                    where_conditions.append(f"{condition} {field} ILIKE %s")
+                    params.append(f"%{value}%")
+                elif operator == 'NOT LIKE':
+                    where_conditions.append(f"{condition} {field} NOT ILIKE %s")
+                    params.append(f"%{value}%")
+                elif operator == 'IN':
+                    values = [v.strip() for v in str(value).split(',')]
+                    placeholders = ','.join(['%s'] * len(values))
+                    where_conditions.append(f"{condition} {field} IN ({placeholders})")
+                    params.extend(values)
+                elif operator in ['IS NULL', 'IS NOT NULL']:
+                    where_conditions.append(f"{condition} {field} {operator}")
+                else:
+                    where_conditions.append(f"{condition} {field} {operator} %s")
+                    params.append(value)
+
+            if where_conditions:
+                where_clause = " ".join(where_conditions)
+
+                # Ensure proper spacing
+                new_sql = before_insert + " " + where_clause.strip()
+                if after_insert:
+                    if after_insert and not after_insert[0].isspace():
+                        new_sql += " "
+                    new_sql += after_insert
+                return new_sql.strip()
+            else:
+                return sql

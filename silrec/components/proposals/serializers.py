@@ -22,6 +22,7 @@ from silrec.components.proposals.models import (
     #ProposalUserAction,
     #Referral,
     #SectionChecklist,
+    SQLReport,
 )
 
 from silrec.helpers import (
@@ -369,4 +370,49 @@ class ListProposalSerializer(BaseProposalSerializer):
         # TODO - JM
         return {}
 
+
+class SQLReportSerializer(serializers.ModelSerializer):
+    """Serializer for SQL Report model"""
+
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    allowed_groups_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SQLReport
+        fields = [
+            'id', 'name', 'description', 'report_type', 'base_sql',
+            'where_clauses', 'order_by', 'export_formats', 'columns',
+            'allowed_groups', 'allowed_groups_display', 'is_active',
+            'created_by', 'created_by_name', 'created_on', 'updated_on'
+        ]
+        read_only_fields = ['created_by', 'created_on', 'updated_on']
+
+    def get_allowed_groups_display(self, obj):
+        """Get display names for allowed groups"""
+        return [group.name for group in obj.allowed_groups.all()]
+
+    def validate_where_clauses(self, value):
+        """Validate WHERE clauses JSON"""
+        if value:
+            if not isinstance(value, list):
+                raise serializers.ValidationError("WHERE clauses must be a list")
+
+            for i, clause in enumerate(value):
+                if not isinstance(clause, dict):
+                    raise serializers.ValidationError(f"Clause {i+1} must be a dictionary")
+
+                required_fields = ['field', 'operator', 'parameter_name', 'label', 'field_type']
+                for field in required_fields:
+                    if field not in clause:
+                        raise serializers.ValidationError(f"Clause {i+1} missing '{field}' field")
+
+        return value
+
+    def validate_export_formats(self, value):
+        """Validate export formats"""
+        valid_formats = ['excel', 'csv', 'pdf', 'shapefile']
+        for fmt in value:
+            if fmt not in valid_formats:
+                raise serializers.ValidationError(f"Invalid export format: {fmt}")
+        return value
 

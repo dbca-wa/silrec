@@ -80,6 +80,7 @@ export default {
     silviculturist_comments: '/api/silviculturist-comments/',
     polygon_search: '/api/polygon_search/',
     survey_assessment_documents: '/api/survey-assessment-documents/',
+    reports: '/api/reports/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

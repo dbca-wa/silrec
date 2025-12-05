@@ -102,6 +102,7 @@ router.register(r'lookups/task-attributes', lookups_api.TasksAttLkpViewSet, base
 router.register(r'lookups/treatment-statuses', lookups_api.TreatmentStatusLkpViewSet, basename='treatment-statuses')
 router.register(r'lookups/summary', lookups_api.LookupSummaryViewSet, basename='lookup-summary')
 router.register(r'survey-assessment-documents', forest_blocks_api.SurveyAssessmentDocumentViewSet, basename='survey_assessment-documents')
+router.register(r'reports', proposal_api.SQLReportViewSet, basename='reports')
 
 api_patterns = [
     #re_path(r'api/', include(router.urls)),

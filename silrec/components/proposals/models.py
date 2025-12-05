@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
-from django.db.models import F, JSONField, Max, Min, Q
+from django.db.models import F, Max, Min, Q
+#from django.contrib.postgres.fields import JSONField
 from django.db.models.functions import Cast
 from django.conf import settings
 from django.urls import reverse
@@ -209,27 +210,6 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         (PROCESSING_STATUS_TEMP, "Temporary"),
     )
 
-    # List of statuses from above that allow a customer to view a proposal (read-only)
-#    CUSTOMER_VIEWABLE_STATE = [
-#        PROCESSING_STATUS_WITH_ASSESSOR,
-#        PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
-#        PROCESSING_STATUS_WITH_REFERRAL,
-#        PROCESSING_STATUS_WITH_APPROVER,
-#        PROCESSING_STATUS_APPROVED_REGISTRATION_OF_INTEREST,
-#        PROCESSING_STATUS_APPROVED_COMPETITIVE_PROCESS,
-#        PROCESSING_STATUS_APPROVED_EDITING_INVOICING,
-#        PROCESSING_STATUS_APPROVED,
-#        PROCESSING_STATUS_DECLINED,
-#        PROCESSING_STATUS_DISCARDED,
-#    ]
-#
-#    OFFICER_PROCESSABLE_STATE = [
-#        PROCESSING_STATUS_WITH_ASSESSOR,
-#        PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
-#        PROCESSING_STATUS_WITH_REFERRAL,  # <-- Be aware
-#        PROCESSING_STATUS_WITH_APPROVER,
-#    ]
-#
     COMPLIANCE_CHECK_STATUS_CHOICES = (
         ("not_checked", "Not Checked"),
         ("awaiting_returns", "Awaiting Returns"),
@@ -247,7 +227,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     proposal_type = models.ForeignKey(
         ProposalType, blank=True, null=True, on_delete=models.SET_NULL
     )
-    proposed_issuance_approval = JSONField(blank=True, null=True)
+    proposed_issuance_approval = models.JSONField(blank=True, null=True)
     lodgement_number = models.CharField(max_length=9, blank=True, default='')
     lodgement_date = models.DateTimeField(blank=True, null=True)
     submitter = models.IntegerField(null=True)  # EmailUserRO
@@ -275,10 +255,10 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     title = models.CharField(max_length=255, null=True, blank=True)
     application_type = models.ForeignKey(ApplicationType, on_delete=models.PROTECT)
 
-    shapefile_json = JSONField('Source/Submitter (multi) polygon geometry', blank=True, null=True)
-    geojson_data_hist = JSONField('History Polygons that intersect Source Polygons', blank=True, null=True)
-    geojson_data_processed = JSONField('Source Polygon intersected with hist and split (multi) polygon geometry', blank=True, null=True)
-    geojson_data_processed_iters = JSONField('Source Polygon intersected with hist and split (multi) polygon geometry', blank=True, null=True)
+    shapefile_json = models.JSONField('Source/Submitter (multi) polygon geometry', blank=True, null=True)
+    geojson_data_hist = models.JSONField('History Polygons that intersect Source Polygons', blank=True, null=True)
+    geojson_data_processed = models.JSONField('Source Polygon intersected with hist and split (multi) polygon geometry', blank=True, null=True)
+    geojson_data_processed_iters = models.JSONField('Source Polygon intersected with hist and split (multi) polygon geometry', blank=True, null=True)
     migrated = models.BooleanField(default=False)
 
     class Meta:
@@ -371,46 +351,6 @@ class ProposalGeometry(models.Model):
         return self.area.sq_m / 10000
 
 
-#class PolygonHistory(models.Model):
-#    ''' Iteratively stores the Intersecting Historical Polygons (from forest_blocks.Polygon) at each base polygon split.
-#        Updates the version_id at each NEW base polygon split.
-#    '''
-#    #polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
-#    version_id = models.IntegerField()
-#    geom = MultiPolygonField(srid=28350)
-#    proposal = models.ForeignKey(
-#        Proposal, on_delete=models.CASCADE, related_name="polygonhistory"
-#    )
-#    polygon_src = models.OneToOneField(Polygon, on_delete=models.DO_NOTHING, related_name='polygon', blank=True, null=True)
-#    name = models.CharField(max_length=10, blank=True, null=True)
-#    area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon')
-#    created_on = models.DateTimeField(auto_now_add=True, null=False, blank=False)
-#    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID')
-#    updated_on = models.DateTimeField(auto_now_add=True, null=False, blank=False)
-#    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID')
-#    closed = models.DateField(blank=True, null=True)
-#    reason_closed = models.CharField(max_length=250, blank=True, null=True)
-#    info = JSONField(blank=True, null=True)
-#
-##    compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
-##    sp_code = models.ForeignKey(SpatialPrecisionLkp, on_delete=models.CASCADE, db_column='sp_code', blank=True, null=True, db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table')
-##    zcoupeid = models.CharField(db_column='zCoupeID', max_length=5, blank=True, null=True)  # Field name made lowercase.
-##    zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
-##    zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
-##    zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
-#
-#    class Meta:
-#        app_label = "silrec"
-#
-##    def save(self, *args, **kwargs):
-##        poly_history_qs = PolygonHistory.objects.filter(proposal_id=self.proposal.id)
-##        self.version_id = poly_history_qs.aggregate(models.Max('version_id'))['version_id__max'] + 1 if not poly_history_qs.empty else 0
-##        if self.geom:
-##            self.area_ha = self.geom.area/10000
-##
-##        super().save(*args, **kwargs)
-
-
 class AmendmentReason(models.Model):
     reason = models.CharField("Reason", max_length=125)
 
@@ -456,39 +396,250 @@ class AmendmentRequest(ProposalRequest):
     class Meta:
         app_label = "silrec"
 
-#    @transaction.atomic
-#    def generate_amendment(self, request):
-#        if not self.proposal.can_assess(request.user):
-#            raise exceptions.ProposalNotAuthorized()
-#
-#        if self.status == AmendmentRequest.STATUS_CHOICE_REQUESTED:
-#            proposal = self.proposal
-#            if proposal.processing_status != Proposal.PROCESSING_STATUS_DRAFT:
-#                proposal.processing_status = Proposal.PROCESSING_STATUS_DRAFT
-#                proposal.save(
-#                    version_comment=f"Proposal amendment requested {request.data.get('reason', '')}"
-#                )
-#
-#                # Mark any related documents that the assessor may have attached to the proposal as not delete-able
-#                self.proposal.mark_documents_not_deleteable()
-#
-#            # Create a log entry for the proposal
-#            proposal.log_user_action(
-#                ProposalUserAction.ACTION_ID_REQUEST_AMENDMENTS, request
-#            )
-#
-#            # Create a log entry for the applicant
-#            proposal.applicant.log_user_action(
-#                ProposalUserAction.ACTION_REQUESTED_AMENDMENT.format(proposal.id),
-#                request,
-#            )
-#
-#            # send email
-#            send_amendment_email_notification(self, request, self.proposal)
-#
-#        self.save()
-#
-#    def user_has_object_permission(self, user_id):
-#        return self.proposal.user_has_object_permission(user_id)
+
+class SQLReport(models.Model):
+    """Model for storing SQL query reports with dynamic WHERE clauses"""
+
+    # Report Type options
+    REPORT_TYPES = [
+        ('polygon', 'Polygon Analysis'),
+        ('cohort', 'Cohort Analysis'),
+        ('treatment', 'Treatment Analysis'),
+        ('operation', 'Operation Analysis'),
+        ('custom', 'Custom Report'),
+    ]
+
+    # Export Format options
+    EXPORT_FORMATS = [
+        ('excel', 'Excel (.xlsx)'),
+        ('csv', 'CSV (.csv)'),
+        ('pdf', 'PDF (.pdf)'),
+        ('shapefile', 'Shapefile (.shp)'),
+    ]
+
+    # Operator choices for WHERE clauses
+    OPERATOR_CHOICES = [
+        ('=', 'Equals'),
+        ('!=', 'Not Equals'),
+        ('>', 'Greater Than'),
+        ('<', 'Less Than'),
+        ('>=', 'Greater Than or Equal'),
+        ('<=', 'Less Than or Equal'),
+        ('LIKE', 'Contains'),
+        ('NOT LIKE', 'Does Not Contain'),
+        ('IN', 'In List'),
+        ('NOT IN', 'Not In List'),
+        ('IS NULL', 'Is Null'),
+        ('IS NOT NULL', 'Is Not Null'),
+        ('BETWEEN', 'Between'),
+        ('YEAR', 'Year Equals'),
+        ('MONTH', 'Month Equals'),
+        ('DATE', 'Date Equals'),
+    ]
+
+    name = models.CharField(max_length=255, unique=True, help_text="Report name for dropdown selection")
+    description = models.TextField(blank=True, help_text="Description of what this report shows")
+
+    # Main SQL Query
+    base_sql = models.TextField(
+        help_text="Main SQL query without WHERE clause. Use {where_clause} placeholder. Example: SELECT * FROM table {where_clause}"
+    )
+
+    # Dynamic WHERE clauses configuration
+    where_clauses = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="""
+        JSON array of WHERE clause definitions. Example:
+        [
+            {
+                "field": "year",
+                "operator": "YEAR",
+                "parameter_name": "year",
+                "label": "Select Year",
+                "field_type": "select",
+                "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM date_column) FROM table ORDER BY 1 DESC",
+                "default_value": "2024",
+                "required": true
+            },
+            {
+                "field": "supply",
+                "operator": "=",
+                "parameter_name": "supply",
+                "label": "Select Supply",
+                "field_type": "select",
+                "options_query": "SELECT DISTINCT supply FROM compartments ORDER BY supply",
+                "required": true
+            }
+        ]
+        """
+    )
+
+    # ORDER BY clause
+    order_by = models.TextField(
+        blank=True,
+        help_text="ORDER BY clause. Example: region ASC, district DESC"
+    )
+
+    # Report metadata
+    report_type = models.CharField(max_length=50, choices=REPORT_TYPES, default='custom')
+    export_formats = models.JSONField(
+        default=list,
+        help_text="JSON list of allowed export formats: ['excel', 'csv', 'pdf', 'shapefile']"
+    )
+
+    # Display options
+    columns = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="JSON array of column definitions for display. If empty, all columns will be shown."
+    )
+
+    # Permissions
+    allowed_groups = models.ManyToManyField(
+        'auth.Group',
+        blank=True,
+        help_text="User groups that can run this report"
+    )
+
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_reports'
+    )
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'SQL Report'
+        verbose_name_plural = 'SQL Reports'
+
+    def __str__(self):
+        return f"{self.name} ({self.report_type})"
+
+    def clean(self):
+        """Validate the SQL and JSON configurations"""
+        super().clean()
+
+        # Validate base SQL contains placeholder
+        if '{where_clause}' not in self.base_sql:
+            raise ValidationError(
+                "Base SQL must contain '{where_clause}' placeholder for WHERE clause insertion"
+            )
+
+        # Validate WHERE clauses JSON
+        if self.where_clauses:
+            try:
+                for clause in self.where_clauses:
+                    if not all(k in clause for k in ['field', 'operator', 'parameter_name', 'label', 'field_type']):
+                        raise ValidationError(
+                            "Each WHERE clause must have 'field', 'operator', 'parameter_name', 'label', and 'field_type'"
+                        )
+
+                    # Validate field_type
+                    valid_field_types = ['select', 'multiselect', 'text', 'number', 'date', 'year', 'month']
+                    if clause['field_type'] not in valid_field_types:
+                        raise ValidationError(
+                            f"Invalid field_type '{clause['field_type']}'. Must be one of {valid_field_types}"
+                        )
+
+                    # Validate operator
+                    valid_operators = [op[0] for op in self.OPERATOR_CHOICES]
+                    if clause['operator'] not in valid_operators:
+                        raise ValidationError(
+                            f"Invalid operator '{clause['operator']}'. Must be one of {valid_operators}"
+                        )
+            except (TypeError, KeyError) as e:
+                raise ValidationError(f"Invalid WHERE clauses configuration: {str(e)}")
+
+        # Validate export formats
+        if self.export_formats:
+            valid_formats = [fmt[0] for fmt in self.EXPORT_FORMATS]
+            for fmt in self.export_formats:
+                if fmt not in valid_formats:
+                    raise ValidationError(
+                        f"Invalid export format '{fmt}'. Must be one of {valid_formats}"
+                    )
+
+    def get_full_sql(self, parameters=None):
+        """Generate full SQL with WHERE clause based on parameters"""
+        where_clauses = []
+        query_params = []
+
+        if parameters and self.where_clauses:
+            for clause in self.where_clauses:
+                param_name = clause['parameter_name']
+                if param_name in parameters and parameters[param_name]:
+                    field = clause['field']
+                    operator = clause['operator']
+                    value = parameters[param_name]
+
+                    # Handle different operators
+                    if operator == 'YEAR':
+                        where_clauses.append(f"EXTRACT(YEAR FROM {field}) = %s")
+                        query_params.append(value)
+                    elif operator == 'MONTH':
+                        where_clauses.append(f"EXTRACT(MONTH FROM {field}) = %s")
+                        query_params.append(value)
+                    elif operator == 'DATE':
+                        where_clauses.append(f"DATE({field}) = %s")
+                        query_params.append(value)
+                    elif operator == 'IN':
+                        if isinstance(value, list):
+                            placeholders = ','.join(['%s'] * len(value))
+                            where_clauses.append(f"{field} IN ({placeholders})")
+                            query_params.extend(value)
+                        else:
+                            where_clauses.append(f"{field} = %s")
+                            query_params.append(value)
+                    elif operator == 'LIKE':
+                        where_clauses.append(f"{field} ILIKE %s")
+                        query_params.append(f"%{value}%")
+                    elif operator == 'BETWEEN':
+                        if isinstance(value, list) and len(value) == 2:
+                            where_clauses.append(f"{field} BETWEEN %s AND %s")
+                            query_params.extend(value)
+                    elif operator in ['IS NULL', 'IS NOT NULL']:
+                        where_clauses.append(f"{field} {operator}")
+                    else:
+                        where_clauses.append(f"{field} {operator} %s")
+                        query_params.append(value)
+
+        # Build WHERE clause
+        if where_clauses:
+            where_clause = "WHERE " + " AND ".join(where_clauses)
+        else:
+            where_clause = ""
+
+        # Add ORDER BY if specified
+        order_by_clause = f"ORDER BY {self.order_by}" if self.order_by else ""
+
+        # Build full SQL
+        full_sql = self.base_sql.format(where_clause=where_clause)
+        if order_by_clause:
+            full_sql += " " + order_by_clause
+
+        return full_sql, query_params
+
+    def get_parameter_options(self, parameter_name):
+        """Get dynamic options for a parameter from its options_query"""
+        for clause in self.where_clauses:
+            if clause['parameter_name'] == parameter_name and 'options_query' in clause:
+                from django.db import connection
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(clause['options_query'])
+                        return [row[0] for row in cursor.fetchall()]
+                except Exception:
+                    return []
+        return []
+
+    @property
+    def formatted_sql(self):
+        """Return formatted SQL for display"""
+        return self.base_sql.format(where_clause="WHERE ...") + (f" ORDER BY {self.order_by}" if self.order_by else "")
 
 

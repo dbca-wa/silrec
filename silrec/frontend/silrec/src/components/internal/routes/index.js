@@ -24,6 +24,7 @@ import TreatmentExtraDetail from '@/components/internal/treatments/treatment_ext
 import TreatmentsDash from '@/components/internal/treatments/dashboard.vue';
 import ComponentMap2 from '@/components/common/component_map2.vue';
 import OperationDetails from '@/components/internal/operations/operation_details.vue';
+import Reports from '@/components/internal/reports/report_generator.vue';
 
 
 export default {
@@ -49,6 +50,11 @@ export default {
             path: 'map',
             component: ComponentMap2,
             name: 'internal-map2',
+        },
+        {
+            path: 'reports',
+            component: Reports,
+            name: 'internal-reports',
         },
         {
             path: 'approval/:approval_id',

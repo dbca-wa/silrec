@@ -1,4 +1,3 @@
-import logging
 from collections import OrderedDict
 from datetime import datetime
 
@@ -67,6 +66,7 @@ from silrec.components.main.api import (
 )
 from silrec.components.main.decorators import basic_exception_handler
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -1108,11 +1108,22 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Get parameters from request
         parameters = request.data.get('parameters', {})
+
+        # Handle array parameters from frontend
+        processed_parameters = {}
+        for key, value in parameters.items():
+            if isinstance(value, list):
+                # Filter out empty strings and None values
+                filtered_values = [v for v in value if v is not None and v != '']
+                if filtered_values:
+                    processed_parameters[key] = filtered_values
+            elif value is not None and value != '':
+                processed_parameters[key] = value
+
         custom_clauses = request.data.get('custom_clauses', [])
         export_format = request.data.get('export_format', 'excel')
 
-        logger.info(f"Request data: {request.data}")
-        logger.info(f"Parameters: {parameters}")
+        logger.info(f"Processed parameters: {processed_parameters}")
         logger.info(f"Custom clauses: {custom_clauses}")
 
         # Validate export format
@@ -1125,7 +1136,7 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
         # Generate SQL
         try:
             # First get the base SQL from report
-            sql, params = report.get_full_sql(parameters)
+            sql, params = report.get_full_sql(processed_parameters)
 
             # Add custom clauses if provided
             if custom_clauses:
@@ -1149,15 +1160,16 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
             elif export_format == 'csv':
                 return self.export_csv(df, report.name)
             elif export_format == 'pdf':
-                return self.export_pdf(df, report.name, parameters)
+                return self.export_pdf(df, report.name, processed_parameters)
             elif export_format == 'shapefile':
-                pass
+                # Shapefile export would go here
+                return self.export_csv(df, report.name)  # Fallback to CSV
             else:
                 # Return JSON as fallback
                 data = df.to_dict('records')
                 return Response({
                     'report_name': report.name,
-                    'parameters': parameters,
+                    'parameters': processed_parameters,
                     'custom_clauses': custom_clauses,
                     'sql': sql,
                     'data': data,
@@ -1174,346 +1186,6 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    def _add_custom_clauses(self, sql, custom_clauses, params):
-        """Add custom WHERE clauses to SQL query"""
-        if not custom_clauses:
-            return sql
-
-        # Check if WHERE already exists
-        if "WHERE" in sql.upper():
-            # Find WHERE position
-            where_pos = sql.upper().find("WHERE")
-
-            # Extract the part after WHERE
-            after_where = sql[where_pos + 5:]  # +5 for "WHERE"
-
-            # Get existing conditions
-            # Find the next GROUP BY, ORDER BY, or end of string
-            group_by_pos = after_where.upper().find("GROUP BY")
-            order_by_pos = after_where.upper().find("ORDER BY")
-
-            end_pos = len(after_where)
-            if group_by_pos != -1:
-                end_pos = group_by_pos
-            elif order_by_pos != -1:
-                end_pos = order_by_pos
-
-            existing_conditions = after_where[:end_pos].strip()
-            after_conditions = after_where[end_pos:] if end_pos < len(after_where) else ""
-
-            # Build new conditions with custom clauses
-            new_conditions = existing_conditions
-
-            for clause in custom_clauses:
-                field = clause.get('field', '').strip()
-                operator = clause.get('operator', '=').strip().upper()
-                value = clause.get('value', '').strip()
-                condition = clause.get('condition', 'AND').strip().upper()
-
-                if not field or not value:
-                    continue
-
-                # Add the custom clause
-                if operator == 'LIKE':
-                    new_conditions += f" {condition} {field} ILIKE %s"
-                    params.append(f"%{value}%")
-                elif operator == 'IN':
-                    # Handle IN operator (expects comma-separated values)
-                    values = [v.strip() for v in value.split(',')]
-                    placeholders = ','.join(['%s'] * len(values))
-                    new_conditions += f" {condition} {field} IN ({placeholders})"
-                    params.extend(values)
-                elif operator in ['IS NULL', 'IS NOT NULL']:
-                    new_conditions += f" {condition} {field} {operator}"
-                else:
-                    new_conditions += f" {condition} {field} {operator} %s"
-                    params.append(value)
-
-            # Replace the WHERE clause with new conditions
-            before_where = sql[:where_pos + 5]  # Include "WHERE"
-
-            # Ensure there's a space between new_conditions and after_conditions
-            if after_conditions and not after_conditions.startswith(' '):
-                after_conditions = ' ' + after_conditions
-
-            new_sql = before_where + " " + new_conditions + after_conditions
-            return new_sql.strip()
-        else:
-            # No WHERE clause exists, need to add one
-            # Find where to insert WHERE (before GROUP BY or ORDER BY)
-            group_by_pos = sql.upper().find("GROUP BY")
-            order_by_pos = sql.upper().find("ORDER BY")
-
-            insert_pos = len(sql)
-            if group_by_pos != -1:
-                insert_pos = group_by_pos
-            elif order_by_pos != -1:
-                insert_pos = order_by_pos
-
-            before_insert = sql[:insert_pos].strip()
-            after_insert = sql[insert_pos:] if insert_pos < len(sql) else ""
-
-            # Build WHERE clause with custom conditions
-            where_conditions = []
-            first_condition = True
-
-            for clause in custom_clauses:
-                field = clause.get('field', '').strip()
-                operator = clause.get('operator', '=').strip().upper()
-                value = clause.get('value', '').strip()
-
-                if not field or not value:
-                    continue
-
-                if first_condition:
-                    condition = "WHERE"
-                    first_condition = False
-                else:
-                    condition = clause.get('condition', 'AND').strip().upper()
-
-                if operator == 'LIKE':
-                    where_conditions.append(f"{condition} {field} ILIKE %s")
-                    params.append(f"%{value}%")
-                elif operator == 'IN':
-                    values = [v.strip() for v in value.split(',')]
-                    placeholders = ','.join(['%s'] * len(values))
-                    where_conditions.append(f"{condition} {field} IN ({placeholders})")
-                    params.extend(values)
-                elif operator in ['IS NULL', 'IS NOT NULL']:
-                    where_conditions.append(f"{condition} {field} {operator}")
-                else:
-                    where_conditions.append(f"{condition} {field} {operator} %s")
-                    params.append(value)
-
-            if where_conditions:
-                where_clause = " ".join(where_conditions)
-
-                # Ensure proper spacing
-                new_sql = before_insert + " " + where_clause.strip()
-                if after_insert:
-                    # Ensure there's a space before after_insert
-                    if after_insert and not after_insert[0].isspace():
-                        new_sql += " "
-                    new_sql += after_insert
-                return new_sql.strip()
-            else:
-                return sql
-
-    def has_report_permission(self, user, report):
-        """Check if user has permission to run report"""
-        if user.is_superuser:
-            return True
-
-        if not report.allowed_groups.exists():
-            return True
-
-        user_groups = user.groups.all()
-        return report.allowed_groups.filter(id__in=user_groups.values_list('id', flat=True)).exists()
-
-    def export_excel(self, df, report_name):
-        """Export DataFrame to Excel"""
-        output = io.BytesIO()
-
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Report', index=False)
-
-        output.seek(0)
-
-        response = HttpResponse(
-            output,
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        response['Content-Disposition'] = f'attachment; filename="{report_name}.xlsx"'
-        return response
-
-    def export_csv(self, df, report_name):
-        """Export DataFrame to CSV"""
-        output = io.StringIO()
-        df.to_csv(output, index=False)
-
-        response = HttpResponse(output.getvalue(), content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{report_name}.csv"'
-        return response
-
-    def export_pdf(self, df, report_name, parameters):
-        """Export DataFrame to PDF"""
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer, pagesize=letter)
-        width, height = letter
-
-        # Add title
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(50, height - 50, report_name)
-
-        # Add parameters
-        p.setFont("Helvetica", 10)
-        y = height - 80
-
-        if parameters:
-            p.drawString(50, y, "Parameters:")
-            y -= 20
-
-            for key, value in parameters.items():
-                if value:
-                    p.drawString(70, y, f"{key}: {value}")
-                    y -= 15
-
-        # Add table
-        y -= 30
-
-        # Convert DataFrame to list of lists for table
-        table_data = [df.columns.tolist()] + df.head(100).values.tolist()  # Limit to 100 rows for PDF
-
-        # Create table
-        table = Table(table_data)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-
-        # Draw table
-        table.wrapOn(p, width - 100, height)
-        table.drawOn(p, 50, y - table._height)
-
-        p.showPage()
-        p.save()
-
-        buffer.seek(0)
-
-        response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{report_name}.pdf"'
-        return response
-
-    @action(detail=True, methods=['get'])
-    def preview(self, request, pk=None):
-        """Preview report with sample data (first 10 rows)"""
-        report = self.get_object()
-
-        # Check permissions
-        if not self.has_report_permission(request.user, report):
-            raise PermissionDenied("You don't have permission to preview this report")
-
-        # Get parameters from query params
-        parameters = {}
-        custom_clauses = []
-
-        for key, value in request.query_params.items():
-            if key.startswith('param_'):
-                param_name = key[6:]  # Remove 'param_' prefix
-                parameters[param_name] = value
-            elif key == 'custom_clauses':
-                try:
-                    custom_clauses = json.loads(value)
-                except json.JSONDecodeError:
-                    custom_clauses = []
-
-        try:
-            sql, params = report.get_full_sql(parameters)
-
-            # Add custom clauses if provided
-            if custom_clauses:
-                sql = self._add_custom_clauses(sql, custom_clauses, params)
-
-            # Add LIMIT for preview
-            if "LIMIT" not in sql.upper():
-                sql += " LIMIT 10"
-
-            logger.info(f"Preview SQL: {sql}")
-            logger.info(f"Preview params: {params}")
-
-            with connection.cursor() as cursor:
-                cursor.execute(sql, params)
-                columns = [col[0] for col in cursor.description]
-                rows = cursor.fetchall()
-
-            data = []
-            for row in rows:
-                data.append(dict(zip(columns, row)))
-
-            return Response({
-                'report_name': report.name,
-                'sql': sql,
-                'parameters': parameters,
-                'custom_clauses': custom_clauses,
-                'data': data,
-                'columns': columns,
-                'row_count': len(rows)
-            })
-
-        except Exception as e:
-            logger.error(f'Error previewing report: {e}')
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': f'Error previewing report: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    @action(detail=True, methods=['get'])
-    def available_fields(self, request, pk=None):
-        """Get available fields from the SQL query for dropdown"""
-        report = self.get_object()
-
-        try:
-            # Get fields from the SELECT clause
-            select_fields = report.get_available_fields()
-
-            # Get fields from database tables (optional)
-            # table_fields = report.get_table_fields()
-
-            # Combine and format for dropdown
-            fields = []
-
-            # Add SELECT fields first
-            for field in select_fields:
-                fields.append({
-                    'value': field,
-                    'label': field,
-                    'type': 'select_field'
-                })
-
-            # Add common comparison operators for dates and numbers
-            common_fields = [
-#                {'value': 'cmpt.compartment', 'label': 'Compartment', 'type': 'common'},
-#                {'value': 'cmpt.region', 'label': 'Region', 'type': 'common'},
-#                {'value': 'cmpt.district', 'label': 'District', 'type': 'common'},
-#                {'value': 'cmpt.supply', 'label': 'Supply', 'type': 'common'},
-#                {'value': 'ply.name', 'label': 'Polygon Name', 'type': 'common'},
-#                {'value': 'cht.species', 'label': 'Species', 'type': 'common'},
-#                {'value': 'cht.obj_code', 'label': 'Objective Code', 'type': 'common'},
-#                {'value': 'cht.regen_date', 'label': 'Regeneration Date', 'type': 'common'},
-#                {'value': 'cht.complete_date', 'label': 'Complete Date', 'type': 'common'},
-#                {'value': 'cht.site_quality', 'label': 'Site Quality', 'type': 'common'},
-#                {'value': 'cht.target_ba_m2ha', 'label': 'Target BA (m²/ha)', 'type': 'common'},
-#                {'value': 'cht.resid_ba_m2ha', 'label': 'Residual BA (m²/ha)', 'type': 'common'},
-#                {'value': 'cht.target_spha', 'label': 'Target SPHA', 'type': 'common'},
-#                {'value': 'cht.resid_spha', 'label': 'Residual SPHA', 'type': 'common'},
-            ]
-
-            # Remove duplicates
-            existing_values = {f['value'] for f in fields}
-            for field in common_fields:
-                if field['value'] not in existing_values:
-                    fields.append(field)
-
-            return Response(fields)
-
-        except Exception as e:
-            logger.error(f"Error getting available fields: {e}")
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': f'Error getting available fields: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    # Update the _add_custom_clauses method to handle NOT LIKE
     def _add_custom_clauses(self, sql, custom_clauses, params):
         """Add custom WHERE clauses to SQL query"""
         if not custom_clauses:
@@ -1649,3 +1321,232 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                 return new_sql.strip()
             else:
                 return sql
+
+    def has_report_permission(self, user, report):
+        """Check if user has permission to run report"""
+        if user.is_superuser:
+            return True
+
+        if not report.allowed_groups.exists():
+            return True
+
+        user_groups = user.groups.all()
+        return report.allowed_groups.filter(id__in=user_groups.values_list('id', flat=True)).exists()
+
+    def export_excel(self, df, report_name):
+        """Export DataFrame to Excel"""
+        output = io.BytesIO()
+
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Report', index=False)
+
+        output.seek(0)
+
+        response = HttpResponse(
+            output,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{report_name}.xlsx"'
+        return response
+
+    def export_csv(self, df, report_name):
+        """Export DataFrame to CSV"""
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+
+        response = HttpResponse(output.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{report_name}.csv"'
+        return response
+
+    def export_pdf(self, df, report_name, parameters):
+        """Export DataFrame to PDF"""
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+
+        # Add title
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(50, height - 50, report_name)
+
+        # Add parameters
+        p.setFont("Helvetica", 10)
+        y = height - 80
+
+        if parameters:
+            p.drawString(50, y, "Parameters:")
+            y -= 20
+
+            for key, value in parameters.items():
+                if value:
+                    p.drawString(70, y, f"{key}: {value}")
+                    y -= 15
+
+        # Add table
+        y -= 30
+
+        # Convert DataFrame to list of lists for table
+        table_data = [df.columns.tolist()] + df.head(100).values.tolist()  # Limit to 100 rows for PDF
+
+        # Create table
+        table = Table(table_data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+
+        # Draw table
+        table.wrapOn(p, width - 100, height)
+        table.drawOn(p, 50, y - table._height)
+
+        p.showPage()
+        p.save()
+
+        buffer.seek(0)
+
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{report_name}.pdf"'
+        return response
+
+    @action(detail=True, methods=['get'])
+    def preview(self, request, pk=None):
+        """Preview report with sample data (first 10 rows)"""
+        report = self.get_object()
+
+        # Check permissions
+        if not self.has_report_permission(request.user, report):
+            raise PermissionDenied("You don't have permission to preview this report")
+
+        # Get parameters from query params
+        parameters = {}
+        custom_clauses = []
+
+        # Group parameters by name (handle multiple values for same parameter)
+        for key, value in request.query_params.items():
+            if key.startswith('param_'):
+                param_name = key[6:]  # Remove 'param_' prefix
+
+                # Clean up the value (remove extra plus signs)
+                clean_value = value.replace('+', ' ').strip()
+                if clean_value:
+                    if param_name not in parameters:
+                        parameters[param_name] = []
+                    parameters[param_name].append(clean_value)
+            elif key == 'custom_clauses':
+                try:
+                    custom_clauses = json.loads(value)
+                except json.JSONDecodeError:
+                    custom_clauses = []
+
+        # Check field_type from report configuration
+        # For multiselect fields, keep as list even if only one value
+        field_types = {}
+        for clause in report.where_clauses:
+            if 'parameter_name' in clause:
+                field_types[clause['parameter_name']] = clause.get('field_type', 'select')
+
+        logger.info(f"Field types from report: {field_types}")
+        logger.info(f"Raw parameters before conversion: {parameters}")
+
+        # Convert parameters based on field_type
+        for key in list(parameters.keys()):
+            if key in field_types and field_types[key] == 'multiselect':
+                # For multiselect, always keep as list
+                # Filter out empty values
+                filtered_values = [v for v in parameters[key] if v and str(v).strip()]
+                if filtered_values:
+                    parameters[key] = filtered_values
+                else:
+                    del parameters[key]
+            elif len(parameters[key]) == 1:
+                # For other field types, use single value
+                parameters[key] = parameters[key][0]
+            else:
+                # Multiple values for non-multiselect field - keep as array
+                # Filter out empty values
+                filtered_values = [v for v in parameters[key] if v and str(v).strip()]
+                if filtered_values:
+                    parameters[key] = filtered_values
+                else:
+                    del parameters[key]
+
+        logger.info(f"Processed parameters for preview: {parameters}")
+
+        try:
+            sql, params = report.get_full_sql(parameters)
+
+            # Add custom clauses if provided
+            if custom_clauses:
+                sql = self._add_custom_clauses(sql, custom_clauses, params)
+
+            # Add LIMIT for preview
+            if "LIMIT" not in sql.upper():
+                sql += " LIMIT 10"
+
+            logger.info(f"Preview SQL: {sql}")
+            logger.info(f"Preview params: {params}")
+
+            with connection.cursor() as cursor:
+                cursor.execute(sql, params)
+                columns = [col[0] for col in cursor.description]
+                rows = cursor.fetchall()
+
+            data = []
+            for row in rows:
+                data.append(dict(zip(columns, row)))
+
+            return Response({
+                'report_name': report.name,
+                'sql': sql,
+                'parameters': parameters,
+                'custom_clauses': custom_clauses,
+                'data': data,
+                'columns': columns,
+                'row_count': len(rows)
+            })
+
+        except Exception as e:
+            logger.error(f'Error previewing report: {e}')
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Error previewing report: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['get'])
+    def available_fields(self, request, pk=None):
+        """Get available fields from the SQL query for dropdown"""
+        report = self.get_object()
+
+        try:
+            # Get fields from the SELECT clause
+            select_fields = report.get_available_fields()
+
+            # Combine and format for dropdown
+            fields = []
+
+            # Add SELECT fields first
+            for field in select_fields:
+                fields.append({
+                    'value': field,
+                    'label': field,
+                    'type': 'select_field'
+                })
+
+            return Response(fields)
+
+        except Exception as e:
+            logger.error(f"Error getting available fields: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Error getting available fields: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+

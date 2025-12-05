@@ -31,6 +31,8 @@ from silrec.components.main.models import (
 #    Polygon,
 #)
 
+import logging
+logger = logging.getLogger(__name__)
 
 def update_proposal_doc_filename(instance, filename):
     return f"proposals/{instance.proposal.id}/documents/{filename}"
@@ -405,7 +407,7 @@ class SQLReport(models.Model):
     # Report Type options
     REPORT_TYPES = [
         ('polygon', 'Polygon Analysis'),
-        ('cohort', 'Cohort Analysis'),
+        ('cohort', 'Chort Analysis'),
         ('treatment', 'Treatment Analysis'),
         ('operation', 'Operation Analysis'),
         ('custom', 'Custom Report'),
@@ -417,6 +419,18 @@ class SQLReport(models.Model):
         ('csv', 'CSV (.csv)'),
         ('pdf', 'PDF (.pdf)'),
         ('shapefile', 'Shapefile (.shp)'),
+    ]
+
+    # Field Type choices
+    FIELD_TYPE_CHOICES = [
+        ('select', 'Single Select (Dropdown)'),
+        ('multiselect', 'Multi-Select (Select2)'),
+        ('text', 'Text Input'),
+        ('number', 'Number Input'),
+        ('date', 'Date Picker'),
+        ('year', 'Year Select'),
+        ('month', 'Month Select'),
+        ('range', 'Range (Two Values)'),
     ]
 
     # Operator choices for WHERE clauses
@@ -469,7 +483,7 @@ class SQLReport(models.Model):
                 "operator": "=",
                 "parameter_name": "supply",
                 "label": "Select Supply",
-                "field_type": "select",
+                "field_type": "multiselect",
                 "options_query": "SELECT DISTINCT supply FROM compartments ORDER BY supply",
                 "required": true
             }
@@ -542,7 +556,7 @@ class SQLReport(models.Model):
                         )
 
                     # Validate field_type
-                    valid_field_types = ['select', 'multiselect', 'text', 'number', 'date', 'year', 'month']
+                    valid_field_types = [choice[0] for choice in self.FIELD_TYPE_CHOICES]
                     if clause['field_type'] not in valid_field_types:
                         raise ValidationError(
                             f"Invalid field_type '{clause['field_type']}'. Must be one of {valid_field_types}"
@@ -554,6 +568,16 @@ class SQLReport(models.Model):
                         raise ValidationError(
                             f"Invalid operator '{clause['operator']}'. Must be one of {valid_operators}"
                         )
+
+                    # For multiselect, operator should typically be IN
+                    if clause['field_type'] == 'multiselect' and clause.get('operator') not in ['IN', 'NOT IN']:
+                        clause['operator'] = 'IN'  # Auto-correct
+                        clause['recommended_operator'] = 'IN'
+
+                    # For range field_type, operator should be BETWEEN
+                    if clause['field_type'] == 'range' and clause.get('operator') != 'BETWEEN':
+                        clause['operator'] = 'BETWEEN'  # Auto-correct
+
             except (TypeError, KeyError) as e:
                 raise ValidationError(f"Invalid WHERE clauses configuration: {str(e)}")
 
@@ -574,38 +598,75 @@ class SQLReport(models.Model):
         if parameters and self.where_clauses:
             for clause in self.where_clauses:
                 param_name = clause['parameter_name']
+                field_type = clause.get('field_type', 'select')
+
                 if param_name in parameters and parameters[param_name]:
                     field = clause['field']
                     operator = clause['operator']
                     value = parameters[param_name]
 
-                    # Handle different operators
-                    if operator == 'YEAR':
+                    # Handle different field types
+                    if field_type == 'multiselect':
+                        # For multiselect, we should use IN operator with multiple values
+                        if isinstance(value, list):
+                            if value:  # Only add clause if list is not empty
+                                # Filter out empty values
+                                filtered_values = [v for v in value if v and str(v).strip()]
+                                if filtered_values:
+                                    placeholders = ','.join(['%s'] * len(filtered_values))
+                                    where_clauses.append(f"{field} IN ({placeholders})")
+                                    query_params.extend(filtered_values)
+                        elif value and str(value).strip():  # Single value
+                            where_clauses.append(f"{field} = %s")
+                            query_params.append(value)
+
+                    elif field_type == 'range':
+                        # Handle range (BETWEEN operator)
+                        if isinstance(value, list) and len(value) == 2:
+                            where_clauses.append(f"{field} BETWEEN %s AND %s")
+                            query_params.extend(value)
+
+                    elif operator == 'YEAR':
                         where_clauses.append(f"EXTRACT(YEAR FROM {field}) = %s")
                         query_params.append(value)
+
                     elif operator == 'MONTH':
                         where_clauses.append(f"EXTRACT(MONTH FROM {field}) = %s")
                         query_params.append(value)
+
                     elif operator == 'DATE':
                         where_clauses.append(f"DATE({field}) = %s")
                         query_params.append(value)
+
                     elif operator == 'IN':
+                        # Handle both single values and arrays for IN
                         if isinstance(value, list):
-                            placeholders = ','.join(['%s'] * len(value))
-                            where_clauses.append(f"{field} IN ({placeholders})")
-                            query_params.extend(value)
-                        else:
+                            # Filter out empty values
+                            filtered_values = [v for v in value if v and str(v).strip()]
+                            if filtered_values:
+                                placeholders = ','.join(['%s'] * len(filtered_values))
+                                where_clauses.append(f"{field} IN ({placeholders})")
+                                query_params.extend(filtered_values)
+                        elif value and str(value).strip():
                             where_clauses.append(f"{field} = %s")
                             query_params.append(value)
+
                     elif operator == 'LIKE':
                         where_clauses.append(f"{field} ILIKE %s")
                         query_params.append(f"%{value}%")
+
+                    elif operator == 'NOT LIKE':
+                        where_clauses.append(f"{field} NOT ILIKE %s")
+                        query_params.append(f"%{value}%")
+
                     elif operator == 'BETWEEN':
                         if isinstance(value, list) and len(value) == 2:
                             where_clauses.append(f"{field} BETWEEN %s AND %s")
                             query_params.extend(value)
+
                     elif operator in ['IS NULL', 'IS NOT NULL']:
                         where_clauses.append(f"{field} {operator}")
+
                     else:
                         where_clauses.append(f"{field} {operator} %s")
                         query_params.append(value)
@@ -634,7 +695,7 @@ class SQLReport(models.Model):
                 try:
                     with connection.cursor() as cursor:
                         cursor.execute(clause['options_query'])
-                        return [row[0] for row in cursor.fetchall()]
+                        return [str(row[0]) for row in cursor.fetchall()]
                 except Exception:
                     return []
         return []

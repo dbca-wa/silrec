@@ -18,10 +18,8 @@ from silrec.components.main.models import (
 from silrec.components.proposals.models import (
     SQLReport,
 )
-#from silrec.components.proposals import forms, models
 from silrec.components.proposals import forms as proposal_forms
 from silrec.components.proposals import models
-#from silrec.utils import create_helppage_object
 
 
 @admin.register(models.ProposalType)
@@ -39,22 +37,6 @@ class ProposalDocumentInline(admin.TabularInline):
 @admin.register(models.AmendmentReason)
 class AmendmentReasonAdmin(admin.ModelAdmin):
     list_display = ["reason"]
-
-
-#@admin.register(models.Proposal)
-#class ProposalAdmin(admin.ModelAdmin):
-#    list_display = [
-#        "lodgement_number",
-#        "application_type",
-#        "proposal_type",
-#        "processing_status",
-#        "submitter",
-#        #"assigned_officer",
-#        #"applicant",
-#    ]
-#    inlines = [
-#        ProposalDocumentInline,
-#    ]
 
 
 @admin.register(SystemMaintenance)
@@ -82,7 +64,40 @@ class SQLReportAdminForm(forms.ModelForm):
     where_clauses_display = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 15, 'cols': 100, 'style': 'font-family: monospace;'}),
         required=False,
-        help_text='Enter WHERE clauses as a JSON array. Example: [{"field": "year", "operator": "YEAR", ...}]'
+        help_text="""
+        JSON array of WHERE clause definitions. Field types:
+        - select: Single selection dropdown
+        - multiselect: Multiple selection using Select2 (values become IN clause)
+        - text: Text input
+        - number: Number input
+        - date: Date picker
+        - year: Year selector
+        - month: Month selector
+        - range: Two values for BETWEEN operator
+
+        Example:
+        [
+            {
+                "field": "year",
+                "operator": "YEAR",
+                "parameter_name": "year",
+                "label": "Select Year",
+                "field_type": "select",
+                "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM date_column) FROM table ORDER BY 1 DESC",
+                "default_value": "2024",
+                "required": true
+            },
+            {
+                "field": "supply",
+                "operator": "IN",
+                "parameter_name": "supply",
+                "label": "Select Supply(s)",
+                "field_type": "multiselect",
+                "options_query": "SELECT DISTINCT supply FROM compartments ORDER BY supply",
+                "required": true
+            }
+        ]
+        """
     )
 
     class Meta:
@@ -132,12 +147,21 @@ class SQLReportAdminForm(forms.ModelForm):
                         raise forms.ValidationError(f"Clause {i+1} missing '{field}' field")
 
                 # Validate field_type
-                valid_field_types = ['select', 'multiselect', 'text', 'number', 'date', 'year', 'month']
+                valid_field_types = [choice[0] for choice in SQLReport.FIELD_TYPE_CHOICES]
                 if clause['field_type'] not in valid_field_types:
                     raise forms.ValidationError(
                         f"Clause {i+1}: Invalid field_type '{clause['field_type']}'. "
                         f"Must be one of {valid_field_types}"
                     )
+
+                # For multiselect, operator should typically be IN
+                if clause['field_type'] == 'multiselect' and clause.get('operator') not in ['IN', 'NOT IN']:
+                    clause['operator'] = 'IN'  # Auto-correct
+                    clause['recommended_operator'] = 'IN'
+
+                # For range field_type, operator should be BETWEEN
+                if clause['field_type'] == 'range' and clause.get('operator') != 'BETWEEN':
+                    clause['operator'] = 'BETWEEN'  # Auto-correct
 
             return clauses
 
@@ -214,6 +238,8 @@ class SQLReportAdmin(admin.ModelAdmin):
                 <ul>
                     <li>Use <code>{where_clause}</code> as a placeholder for dynamic WHERE conditions</li>
                     <li>WHERE clauses JSON must be a valid array of objects with: field, operator, parameter_name, label, field_type</li>
+                    <li>For multiselect parameters, use IN operator</li>
+                    <li>For range parameters, use BETWEEN operator</li>
                     <li>Use PostgreSQL syntax</li>
                 </ul>
             </div>

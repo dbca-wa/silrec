@@ -406,6 +406,14 @@ class SQLReportSerializer(serializers.ModelSerializer):
                     if field not in clause:
                         raise serializers.ValidationError(f"Clause {i+1} missing '{field}' field")
 
+                # Validate field_type
+                valid_field_types = [choice[0] for choice in SQLReport.FIELD_TYPE_CHOICES]
+                if clause['field_type'] not in valid_field_types:
+                    raise serializers.ValidationError(
+                        f"Clause {i+1}: Invalid field_type '{clause['field_type']}'. "
+                        f"Must be one of {valid_field_types}"
+                    )
+
         return value
 
     def validate_export_formats(self, value):

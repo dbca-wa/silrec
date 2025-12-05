@@ -52,14 +52,16 @@
                 <label :for="param.name" class="form-label">
                   {{ param.label }}
                   <span v-if="param.required" class="text-danger">*</span>
+                  <span v-if="param.field_type === 'multiselect'" class="badge bg-info ms-1">
+                    <i class="bi bi-list-check"></i> Multi-select
+                  </span>
                 </label>
                 
-                <!-- Select Input -->
+                <!-- Single Select -->
                 <select 
-                  v-if="param.field_type === 'select' || param.field_type === 'multiselect'"
+                  v-if="param.field_type === 'select'"
                   :id="param.name"
                   v-model="parameters[param.name]"
-                  :multiple="param.field_type === 'multiselect'"
                   class="form-select"
                   :required="param.required"
                 >
@@ -68,6 +70,26 @@
                     v-for="option in param.options" 
                     :key="option"
                     :value="option"
+                  >
+                    {{ option }}
+                  </option>
+                </select>
+                
+                <!-- Multi-select with Select2 (Tag mode) -->
+                <select 
+                  v-else-if="param.field_type === 'multiselect'"
+                  :id="'multiselect-' + param.name"
+                  :ref="'multiselect-' + param.name"
+                  class="form-select select2-multiple-tags"
+                  :multiple="true"
+                  :required="param.required"
+                  style="width: 100%;"
+                >
+                  <option 
+                    v-for="option in param.options" 
+                    :key="option"
+                    :value="option"
+                    :selected="isOptionSelected(param.name, option)"
                   >
                     {{ option }}
                   </option>
@@ -140,12 +162,37 @@
                   <option value="11">November</option>
                   <option value="12">December</option>
                 </select>
+                
+                <!-- Range Input (Two values) -->
+                <div v-else-if="param.field_type === 'range'" class="row g-2">
+                  <div class="col">
+                    <label class="form-label small">From</label>
+                    <input 
+                      :id="param.name + '_from'"
+                      v-model="parameters[param.name][0]"
+                      type="number"
+                      class="form-control"
+                      :required="param.required"
+                      placeholder="Min"
+                    />
+                  </div>
+                  <div class="col">
+                    <label class="form-label small">To</label>
+                    <input 
+                      :id="param.name + '_to'"
+                      v-model="parameters[param.name][1]"
+                      type="number"
+                      class="form-control"
+                      :required="param.required"
+                      placeholder="Max"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- Add Custom WHERE Clause Button -->
-          <!--
           <div class="mb-3">
             <button 
               type="button" 
@@ -156,7 +203,6 @@
               <i class="bi bi-plus-circle me-1"></i> Add Custom Filter
             </button>
           </div>
-          -->
           
           <!-- Custom WHERE Clauses -->
           <div v-for="(clause, index) in customClauses" :key="index" class="row mb-3 border p-3 rounded">
@@ -178,17 +224,6 @@
                     {{ field.label }}
                   </option>
                 </optgroup>
-                <!--
-                <optgroup label="Common Fields">
-                  <option 
-                    v-for="field in availableFields.filter(f => f.type === 'common')" 
-                    :key="field.value"
-                    :value="field.value"
-                  >
-                    {{ field.label }}
-                  </option>
-                </optgroup>
-                -->
               </select>
               <div v-if="clause.field" class="form-text small">
                 <code>{{ clause.field }}</code>
@@ -331,151 +366,150 @@
             <h5 class="modal-title">Preview: {{ selectedReport?.name }}</h5>
             <button type="button" class="btn-close" @click="closePreview"></button>
           </div>
-
           <div class="modal-body">
-              <!-- Collapsible SQL Section -->
-              <div class="accordion mb-3" id="previewAccordion">
-                <div class="accordion-item">
-                  <h2 class="accordion-header" id="sqlHeading">
-                    <button 
-                      class="accordion-button collapsed" 
-                      type="button" 
-                      data-bs-toggle="collapse" 
-                      data-bs-target="#sqlCollapse" 
-                      aria-expanded="false" 
-                      aria-controls="sqlCollapse"
-                    >
-                      <i class="bi bi-code-slash me-2"></i>
-                      SQL Query (Click to expand/collapse)
-                    </button>
-                  </h2>
-                  <div 
-                    id="sqlCollapse" 
-                    class="accordion-collapse collapse" 
-                    aria-labelledby="sqlHeading" 
-                    data-bs-parent="#previewAccordion"
+            <!-- Collapsible SQL Section -->
+            <div class="accordion mb-3" id="previewAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="sqlHeading">
+                  <button 
+                    class="accordion-button collapsed" 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#sqlCollapse" 
+                    aria-expanded="false" 
+                    aria-controls="sqlCollapse"
                   >
-                    <div class="accordion-body bg-light">
-                      <div class="alert alert-info">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                          <strong>Executed SQL:</strong>
-                          <button 
-                            type="button" 
-                            class="btn btn-sm btn-outline-secondary"
-                            @click="copySqlToClipboard"
-                            title="Copy SQL to clipboard"
-                          >
-                            <i class="bi bi-clipboard"></i> Copy
-                          </button>
-                        </div>
-                        <pre class="mb-0" style="font-size: 0.8em; max-height: 300px; overflow-y: auto;">{{ previewData.sql }}</pre>
+                    <i class="bi bi-code-slash me-2"></i>
+                    SQL Query (Click to expand/collapse)
+                  </button>
+                </h2>
+                <div 
+                  id="sqlCollapse" 
+                  class="accordion-collapse collapse" 
+                  aria-labelledby="sqlHeading" 
+                  data-bs-parent="#previewAccordion"
+                >
+                  <div class="accordion-body bg-light">
+                    <div class="alert alert-info">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Executed SQL:</strong>
+                        <button 
+                          type="button" 
+                          class="btn btn-sm btn-outline-secondary"
+                          @click="copySqlToClipboard"
+                          title="Copy SQL to clipboard"
+                        >
+                          <i class="bi bi-clipboard"></i> Copy
+                        </button>
                       </div>
-                      
-                      <!-- Parameters Summary -->
-                      <div v-if="previewData.parameters && Object.keys(previewData.parameters).length > 0" class="mt-3">
-                        <h6 class="mb-2">Parameters:</h6>
-                        <div class="row">
-                          <div 
-                            v-for="(value, key) in previewData.parameters" 
-                            :key="key"
-                            class="col-md-6 mb-1"
-                          >
-                            <small>
-                              <strong>{{ key }}:</strong> {{ Array.isArray(value) ? value.join(', ') : value }}
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <!-- Custom Clauses Summary -->
-                      <div v-if="previewData.custom_clauses && previewData.custom_clauses.length > 0" class="mt-3">
-                        <h6 class="mb-2">Custom Filters:</h6>
-                        <div class="row">
-                          <div 
-                            v-for="(clause, index) in previewData.custom_clauses" 
-                            :key="index"
-                            class="col-12 mb-1"
-                          >
-                            <small>
-                              <strong>{{ index + 1 }}.</strong> 
-                              {{ clause.field }} {{ clause.operator }} 
-                              <span v-if="clause.value">{{ clause.value }}</span>
-                              <span v-else>{{ clause.operator }}</span>
-                            </small>
-                          </div>
+                      <pre class="mb-0" style="font-size: 0.8em; max-height: 300px; overflow-y: auto;">{{ previewData.sql }}</pre>
+                    </div>
+                    
+                    <!-- Parameters Summary -->
+                    <div v-if="previewData.parameters && Object.keys(previewData.parameters).length > 0" class="mt-3">
+                      <h6 class="mb-2">Parameters:</h6>
+                      <div class="row">
+                        <div 
+                          v-for="(value, key) in previewData.parameters" 
+                          :key="key"
+                          class="col-md-6 mb-1"
+                        >
+                          <small>
+                            <strong>{{ key }}:</strong> {{ Array.isArray(value) ? value.join(', ') : value }}
+                          </small>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-                
-                <!-- Results Section (always visible) -->
-                <div class="accordion-item">
-                  <h2 class="accordion-header" id="resultsHeading">
-                    <button 
-                      class="accordion-button" 
-                      type="button" 
-                      data-bs-toggle="collapse" 
-                      data-bs-target="#resultsCollapse" 
-                      aria-expanded="true" 
-                      aria-controls="resultsCollapse"
-                    >
-                      <i class="bi bi-table me-2"></i>
-                      Results ({{ previewData.row_count }} rows)
-                      <span class="badge bg-secondary ms-2">Showing first {{ Math.min(previewData.row_count, 10) }}</span>
-                    </button>
-                  </h2>
-                  <div 
-                    id="resultsCollapse" 
-                    class="accordion-collapse collapse show" 
-                    aria-labelledby="resultsHeading" 
-                    data-bs-parent="#previewAccordion"
-                  >
-                    <div class="accordion-body p-0">
-                      <div class="table-responsive">
-                        <table class="table table-sm table-striped table-bordered mb-0">
-                          <thead>
-                            <tr>
-                              <th v-for="col in previewData.columns" :key="col">
-                                {{ col }}
-                                <span v-if="previewData.data[0] && previewData.data[0][col] !== null" 
-                                      class="badge bg-light text-dark ms-1" style="font-size: 0.6em; font-weight: normal;">
-                                  {{ typeof previewData.data[0][col] }}
-                                </span>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="(row, index) in previewData.data" :key="index">
-                              <td v-for="col in previewData.columns" :key="col">
-                                <template v-if="row[col] === null || row[col] === undefined">
-                                  <span class="text-muted fst-italic">null</span>
-                                </template>
-                                <template v-else-if="typeof row[col] === 'boolean'">
-                                  <span :class="row[col] ? 'text-success' : 'text-danger'">
-                                    {{ row[col] ? '✓' : '✗' }}
-                                  </span>
-                                </template>
-                                <template v-else-if="Array.isArray(row[col])">
-                                  {{ row[col].join(', ') }}
-                                </template>
-                                <template v-else>
-                                  {{ row[col] }}
-                                </template>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <div v-if="previewData.data.length === 0" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox display-6"></i>
-                        <p class="mt-2">No data found for the selected parameters</p>
+                    
+                    <!-- Custom Clauses Summary -->
+                    <div v-if="previewData.custom_clauses && previewData.custom_clauses.length > 0" class="mt-3">
+                      <h6 class="mb-2">Custom Filters:</h6>
+                      <div class="row">
+                        <div 
+                          v-for="(clause, index) in previewData.custom_clauses" 
+                          :key="index"
+                          class="col-12 mb-1"
+                        >
+                          <small>
+                            <strong>{{ index + 1 }}.</strong> 
+                            {{ clause.field }} {{ clause.operator }} 
+                            <span v-if="clause.value">{{ clause.value }}</span>
+                            <span v-else>{{ clause.operator }}</span>
+                          </small>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+              
+              <!-- Results Section (always visible) -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="resultsHeading">
+                  <button 
+                    class="accordion-button" 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#resultsCollapse" 
+                    aria-expanded="true" 
+                    aria-controls="resultsCollapse"
+                  >
+                    <i class="bi bi-table me-2"></i>
+                    Results ({{ previewData.row_count }} rows)
+                    <span class="badge bg-secondary ms-2">Showing first {{ Math.min(previewData.row_count, 10) }}</span>
+                  </button>
+                </h2>
+                <div 
+                  id="resultsCollapse" 
+                  class="accordion-collapse collapse show" 
+                  aria-labelledby="resultsHeading" 
+                  data-bs-parent="#previewAccordion"
+                >
+                  <div class="accordion-body p-0">
+                    <div class="table-responsive">
+                      <table class="table table-sm table-striped table-bordered mb-0">
+                        <thead>
+                          <tr>
+                            <th v-for="col in previewData.columns" :key="col">
+                              {{ col }}
+                              <span v-if="previewData.data[0] && previewData.data[0][col] !== null" 
+                                    class="badge bg-light text-dark ms-1" style="font-size: 0.6em; font-weight: normal;">
+                                {{ typeof previewData.data[0][col] }}
+                              </span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(row, index) in previewData.data" :key="index">
+                            <td v-for="col in previewData.columns" :key="col">
+                              <template v-if="row[col] === null || row[col] === undefined">
+                                <span class="text-muted fst-italic">null</span>
+                              </template>
+                              <template v-else-if="typeof row[col] === 'boolean'">
+                                <span :class="row[col] ? 'text-success' : 'text-danger'">
+                                  {{ row[col] ? '✓' : '✗' }}
+                                </span>
+                              </template>
+                              <template v-else-if="Array.isArray(row[col])">
+                                {{ row[col].join(', ') }}
+                              </template>
+                              <template v-else>
+                                {{ row[col] }}
+                              </template>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    <div v-if="previewData.data.length === 0" class="text-center text-muted py-4">
+                      <i class="bi bi-inbox display-6"></i>
+                      <p class="mt-2">No data found for the selected parameters</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closePreview">Close</button>
@@ -491,6 +525,9 @@
 
 <script>
 import { api_endpoints } from '@/utils/hooks';
+import $ from 'jquery';
+import 'select2/dist/css/select2.min.css';
+import 'select2/dist/js/select2.min.js';
 
 export default {
   name: 'ReportGenerator',
@@ -522,7 +559,10 @@ export default {
       previewing: false,
       
       // Preview data
-      previewData: null
+      previewData: null,
+      
+      // Select2 instances
+      select2Instances: {}
     };
   },
   computed: {
@@ -532,8 +572,23 @@ export default {
       // Check required parameters
       if (this.selectedReport.parameters) {
         for (const param of this.selectedReport.parameters) {
-          if (param.required && !this.parameters[param.name]) {
-            return false;
+          if (param.required) {
+            const value = this.parameters[param.name];
+            
+            if (param.field_type === 'multiselect') {
+              if (!value || !Array.isArray(value) || value.length === 0) {
+                return false;
+              }
+            } else if (param.field_type === 'range') {
+              if (!value || !Array.isArray(value) || value.length < 2 || 
+                  !value[0] || !value[1]) {
+                return false;
+              }
+            } else {
+              if (!value && value !== 0) { // Allow 0 as valid number
+                return false;
+              }
+            }
           }
         }
       }
@@ -554,8 +609,23 @@ export default {
       // For preview, all required parameters must be filled
       if (this.selectedReport.parameters) {
         for (const param of this.selectedReport.parameters) {
-          if (param.required && !this.parameters[param.name]) {
-            return false;
+          if (param.required) {
+            const value = this.parameters[param.name];
+            
+            if (param.field_type === 'multiselect') {
+              if (!value || !Array.isArray(value) || value.length === 0) {
+                return false;
+              }
+            } else if (param.field_type === 'range') {
+              if (!value || !Array.isArray(value) || value.length < 2 || 
+                  !value[0] || !value[1]) {
+                return false;
+              }
+            } else {
+              if (!value && value !== 0) {
+                return false;
+              }
+            }
           }
         }
       }
@@ -571,6 +641,10 @@ export default {
     }
   },
   methods: {
+    isOptionSelected(paramName, option) {
+      return this.parameters[paramName] && this.parameters[paramName].includes(option);
+    },
+    
     async loadAvailableReports() {
       this.loading = true;
       try {
@@ -611,7 +685,7 @@ export default {
       }
     },
     
-    onReportChange() {
+    async onReportChange() {
       this.selectedReport = this.availableReports.find(
         r => r.id === this.selectedReportId
       );
@@ -621,11 +695,19 @@ export default {
       this.customClauses = [];
       this.availableFields = [];
       
-      // Set default values
+      // Initialize parameters based on field_type
       if (this.selectedReport?.parameters) {
         this.selectedReport.parameters.forEach(param => {
-          if (param.default_value) {
+          if (param.field_type === 'multiselect') {
+            // Initialize as empty array for multiselect
+            this.parameters[param.name] = [];
+          } else if (param.field_type === 'range') {
+            this.parameters[param.name] = ['', ''];
+          } else if (param.default_value) {
             this.parameters[param.name] = param.default_value;
+          } else {
+            // Initialize with empty string for other types
+            this.parameters[param.name] = '';
           }
         });
       }
@@ -637,8 +719,74 @@ export default {
       
       // Fetch available fields for this report
       if (this.selectedReportId) {
-        this.fetchAvailableFields(this.selectedReportId);
+        await this.fetchAvailableFields(this.selectedReportId);
       }
+      
+      // Re-initialize Select2 after Vue has updated the DOM
+      this.$nextTick(() => {
+        // Destroy existing Select2 instances
+        this.destroySelect2Instances();
+        
+        // Wait for DOM to fully update
+        setTimeout(() => {
+          this.initializeSelect2();
+        }, 200);
+      });
+    },
+    
+    initializeSelect2() {
+      // Initialize multi-selects with Select2 (tag mode)
+      $('.select2-multiple-tags').each((index, element) => {
+        const $element = $(element);
+        const paramName = element.id.replace('multiselect-', '');
+        
+        // Destroy existing Select2 instance if any
+        if ($element.data('select2')) {
+          $element.select2('destroy');
+        }
+        
+        // Store reference
+        this.select2Instances[paramName] = $element;
+        
+        // Initialize Select2 with simpler configuration
+        $element.select2({
+          theme: 'bootstrap-5',
+          placeholder: 'Select options...',
+          allowClear: true,
+          width: '100%',
+          closeOnSelect: false,
+          multiple: true,
+          tags: false
+        }).on('change', (e) => {
+          const paramName = e.target.id.replace('multiselect-', '');
+          const values = Array.from($(e.target).val() || []);
+          this.parameters[paramName] = values;
+        });
+        
+        // Set initial value if any
+        const currentValues = this.parameters[paramName] || [];
+        if (currentValues && currentValues.length > 0) {
+          $element.val(currentValues).trigger('change');
+        }
+      });
+    },
+
+    destroySelect2Instances() {
+      // Destroy all Select2 instances
+      Object.values(this.select2Instances).forEach($element => {
+        if ($element.data('select2')) {
+          $element.select2('destroy');
+        }
+      });
+      this.select2Instances = {};
+      
+      // Also destroy any other Select2 instances that might have been created
+      $('.form-select').each((index, element) => {
+        const $element = $(element);
+        if ($element.data('select2')) {
+          $element.select2('destroy');
+        }
+      });
     },
     
     addCustomClause() {
@@ -658,8 +806,6 @@ export default {
       // Optional: Auto-set operator based on field type
       const clause = this.customClauses[index];
       if (clause.field) {
-        // You could add logic here to suggest operators based on field name
-        // For example, date fields might default to '=', numeric fields to '=', etc.
         if (clause.field.includes('date') || clause.field.includes('year')) {
           clause.operator = '=';
         } else if (clause.field.includes('area') || clause.field.includes('rate')) {
@@ -680,6 +826,29 @@ export default {
       }
     },
     
+    copySqlToClipboard() {
+      if (this.previewData && this.previewData.sql) {
+        navigator.clipboard.writeText(this.previewData.sql)
+          .then(() => {
+            // Show a temporary success message
+            const copyButton = document.querySelector('[title="Copy SQL to clipboard"]');
+            const originalHtml = copyButton.innerHTML;
+            copyButton.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            copyButton.classList.remove('btn-outline-secondary');
+            copyButton.classList.add('btn-success');
+            
+            setTimeout(() => {
+              copyButton.innerHTML = originalHtml;
+              copyButton.classList.remove('btn-success');
+              copyButton.classList.add('btn-outline-secondary');
+            }, 2000);
+          })
+          .catch(err => {
+            console.error('Failed to copy SQL: ', err);
+          });
+      }
+    },
+    
     async generateReport() {
       if (!this.canGenerate) return;
       
@@ -688,9 +857,28 @@ export default {
       try {
         // Prepare request data
         const requestData = {
-          parameters: this.parameters,
+          parameters: {},
           export_format: this.exportFormat
         };
+        
+        // Process parameters for backend
+        Object.keys(this.parameters).forEach(key => {
+          const value = this.parameters[key];
+          if (Array.isArray(value)) {
+            // For multiselect, send array
+            // For range, we need to check if it's a range field
+            const paramConfig = this.selectedReport.parameters.find(p => p.name === key);
+            if (paramConfig && paramConfig.field_type === 'range') {
+              // Range should be sent as [min, max]
+              requestData.parameters[key] = value;
+            } else {
+              // Multiselect - filter out empty strings
+              requestData.parameters[key] = value.filter(v => v !== '' && v != null);
+            }
+          } else {
+            requestData.parameters[key] = value;
+          }
+        });
         
         // Add custom clauses if any (filter out empty ones)
         const validCustomClauses = this.customClauses.filter(clause => {
@@ -785,7 +973,9 @@ export default {
         Object.entries(this.parameters).forEach(([key, value]) => {
           if (value !== null && value !== undefined && value !== '') {
             if (Array.isArray(value)) {
-              value.forEach(v => params.append(`param_${key}`, v));
+              // For arrays, send each value as separate param
+              const filteredValues = value.filter(v => v !== '' && v != null);
+              filteredValues.forEach(v => params.append(`param_${key}`, v));
             } else {
               params.append(`param_${key}`, value);
             }
@@ -854,6 +1044,8 @@ export default {
       this.availableFields = [];
       this.exportFormat = 'excel';
       this.previewData = null;
+      
+      this.destroySelect2Instances();
     },
     
     getCSRFToken() {
@@ -870,33 +1062,15 @@ export default {
         }
       }
       return cookieValue;
-    },
-    copySqlToClipboard() {
-        if (this.previewData && this.previewData.sql) {
-          navigator.clipboard.writeText(this.previewData.sql)
-            .then(() => {
-              // Show a temporary success message
-              const copyButton = document.querySelector('[title="Copy SQL to clipboard"]');
-              const originalHtml = copyButton.innerHTML;
-              copyButton.innerHTML = '<i class="bi bi-check"></i> Copied!';
-              copyButton.classList.remove('btn-outline-secondary');
-              copyButton.classList.add('btn-success');
-              
-              setTimeout(() => {
-                copyButton.innerHTML = originalHtml;
-                copyButton.classList.remove('btn-success');
-                copyButton.classList.add('btn-outline-secondary');
-              }, 2000);
-            })
-            .catch(err => {
-              console.error('Failed to copy SQL: ', err);
-            });
-        }
-    },
-
+    }
   },
   mounted() {
     this.loadAvailableReports();
+  },
+  
+  // Clean up Select2 when component is destroyed
+  beforeUnmount() {
+    this.destroySelect2Instances();
   }
 };
 </script>
@@ -915,14 +1089,109 @@ export default {
   display: block;
 }
 
-pre {
+/* Accordion customizations */
+.accordion-button:not(.collapsed) {
   background-color: #f8f9fa;
-  padding: 10px;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
-  overflow-x: auto;
+  color: #0d6efd;
+}
+
+.accordion-button:focus {
+  box-shadow: none;
+  border-color: rgba(0, 0, 0, 0.125);
+}
+
+pre {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 15px;
+  border-radius: 5px;
+  border: 1px solid #404040;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
+  tab-size: 2;
+}
+
+/* Range input styling */
+.form-label.small {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6c757d;
+}
+
+/* Custom styles for Select2 integration */
+.select2-container--bootstrap-5 .select2-selection--multiple {
+  min-height: 42px;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  min-height: 24px;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+  background-color: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  margin: 2px;
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+  color: white;
+  margin-left: 0.5rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
+  color: #ffcccb;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-search--inline {
+  flex: 1;
+  min-width: 60px;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-search__field {
+  margin-top: 0;
+  height: 24px;
+}
+
+/* Ensure the dropdown appears correctly */
+.select2-container--bootstrap-5.select2-container--open .select2-dropdown {
+  z-index: 1060;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.select2-container--bootstrap-5 .select2-dropdown .select2-results__option {
+  padding: 0.5rem 1rem;
+}
+
+.select2-container--bootstrap-5 .select2-dropdown .select2-results__option--selected {
+  background-color: #e7f1ff;
+  color: #0d6efd;
+}
+
+.select2-container--bootstrap-5 .select2-dropdown .select2-results__option--highlighted {
+  background-color: #0d6efd;
+  color: white;
 }
 
 .table-responsive {
@@ -945,5 +1214,79 @@ optgroup {
 optgroup label {
   font-weight: bold;
   color: #495057;
+}
+
+/* Fix for Select2 dropdown positioning */
+.select2-container {
+  z-index: 1055 !important;
+}
+
+.select2-dropdown {
+  z-index: 1060 !important;
+}
+
+/* Make Select2 look consistent with Bootstrap form controls */
+.select2-container--bootstrap-5 .select2-selection {
+  min-height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #212529;
+  background-color: #fff;
+  background-clip: padding-box;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.select2-container--bootstrap-5 .select2-selection:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Make the multi-select look like a single select when empty */
+.select2-container--bootstrap-5 .select2-selection--multiple:not(.select2-selection--multiple-selected) .select2-selection__rendered::before {
+  content: "Select options";
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Style for when items are selected */
+.select2-container--bootstrap-5 .select2-selection--multiple.select2-selection--multiple-selected .select2-selection__rendered::before {
+  display: none;
+}
+
+/* Better visual feedback for selected tags */
+.select2-selection__choice {
+  position: relative;
+  padding-right: 1.5rem !important;
+}
+
+.select2-selection__choice__remove {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.7;
+}
+
+.select2-selection__choice__remove:hover {
+  opacity: 1;
+}
+
+/* Hide the original select arrow for Select2 elements */
+.select2-multiple-tags {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+}
+
+/* Ensure proper spacing in form */
+.form-group .select2-container {
+  margin-bottom: 0;
 }
 </style>

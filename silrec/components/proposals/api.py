@@ -1150,6 +1150,8 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                 return self.export_csv(df, report.name)
             elif export_format == 'pdf':
                 return self.export_pdf(df, report.name, parameters)
+            elif export_format == 'shapefile':
+                pass
             else:
                 # Return JSON as fallback
                 data = df.to_dict('records')

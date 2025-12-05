@@ -145,6 +145,7 @@
           </div>
           
           <!-- Add Custom WHERE Clause Button -->
+          <!--
           <div class="mb-3">
             <button 
               type="button" 
@@ -155,6 +156,7 @@
               <i class="bi bi-plus-circle me-1"></i> Add Custom Filter
             </button>
           </div>
+          -->
           
           <!-- Custom WHERE Clauses -->
           <div v-for="(clause, index) in customClauses" :key="index" class="row mb-3 border p-3 rounded">
@@ -279,6 +281,7 @@
                   >
                     {{ format === 'excel' ? 'Excel (.xlsx)' : 
                        format === 'csv' ? 'CSV (.csv)' : 
+                       format === 'shapefile' ? 'Shapefile (.shp)' : 
                        'PDF (.pdf)' }}
                   </option>
                 </select>
@@ -328,33 +331,151 @@
             <h5 class="modal-title">Preview: {{ selectedReport?.name }}</h5>
             <button type="button" class="btn-close" @click="closePreview"></button>
           </div>
+
           <div class="modal-body">
-            <div class="alert alert-info">
-              <strong>SQL Executed:</strong>
-              <pre class="mt-2 mb-2" style="font-size: 0.85em">{{ previewData.sql }}</pre>
-              <div>Showing first {{ previewData.row_count }} rows</div>
-            </div>
-            
-            <div class="table-responsive">
-              <table class="table table-sm table-striped table-bordered">
-                <thead>
-                  <tr>
-                    <th v-for="col in previewData.columns" :key="col">{{ col }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(row, index) in previewData.data" :key="index">
-                    <td v-for="col in previewData.columns" :key="col">
-                      {{ row[col] }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <div v-if="previewData.data.length === 0" class="text-center text-muted py-4">
-              No data found for the selected parameters
-            </div>
+              <!-- Collapsible SQL Section -->
+              <div class="accordion mb-3" id="previewAccordion">
+                <div class="accordion-item">
+                  <h2 class="accordion-header" id="sqlHeading">
+                    <button 
+                      class="accordion-button collapsed" 
+                      type="button" 
+                      data-bs-toggle="collapse" 
+                      data-bs-target="#sqlCollapse" 
+                      aria-expanded="false" 
+                      aria-controls="sqlCollapse"
+                    >
+                      <i class="bi bi-code-slash me-2"></i>
+                      SQL Query (Click to expand/collapse)
+                    </button>
+                  </h2>
+                  <div 
+                    id="sqlCollapse" 
+                    class="accordion-collapse collapse" 
+                    aria-labelledby="sqlHeading" 
+                    data-bs-parent="#previewAccordion"
+                  >
+                    <div class="accordion-body bg-light">
+                      <div class="alert alert-info">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <strong>Executed SQL:</strong>
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="copySqlToClipboard"
+                            title="Copy SQL to clipboard"
+                          >
+                            <i class="bi bi-clipboard"></i> Copy
+                          </button>
+                        </div>
+                        <pre class="mb-0" style="font-size: 0.8em; max-height: 300px; overflow-y: auto;">{{ previewData.sql }}</pre>
+                      </div>
+                      
+                      <!-- Parameters Summary -->
+                      <div v-if="previewData.parameters && Object.keys(previewData.parameters).length > 0" class="mt-3">
+                        <h6 class="mb-2">Parameters:</h6>
+                        <div class="row">
+                          <div 
+                            v-for="(value, key) in previewData.parameters" 
+                            :key="key"
+                            class="col-md-6 mb-1"
+                          >
+                            <small>
+                              <strong>{{ key }}:</strong> {{ Array.isArray(value) ? value.join(', ') : value }}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Custom Clauses Summary -->
+                      <div v-if="previewData.custom_clauses && previewData.custom_clauses.length > 0" class="mt-3">
+                        <h6 class="mb-2">Custom Filters:</h6>
+                        <div class="row">
+                          <div 
+                            v-for="(clause, index) in previewData.custom_clauses" 
+                            :key="index"
+                            class="col-12 mb-1"
+                          >
+                            <small>
+                              <strong>{{ index + 1 }}.</strong> 
+                              {{ clause.field }} {{ clause.operator }} 
+                              <span v-if="clause.value">{{ clause.value }}</span>
+                              <span v-else>{{ clause.operator }}</span>
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Results Section (always visible) -->
+                <div class="accordion-item">
+                  <h2 class="accordion-header" id="resultsHeading">
+                    <button 
+                      class="accordion-button" 
+                      type="button" 
+                      data-bs-toggle="collapse" 
+                      data-bs-target="#resultsCollapse" 
+                      aria-expanded="true" 
+                      aria-controls="resultsCollapse"
+                    >
+                      <i class="bi bi-table me-2"></i>
+                      Results ({{ previewData.row_count }} rows)
+                      <span class="badge bg-secondary ms-2">Showing first {{ Math.min(previewData.row_count, 10) }}</span>
+                    </button>
+                  </h2>
+                  <div 
+                    id="resultsCollapse" 
+                    class="accordion-collapse collapse show" 
+                    aria-labelledby="resultsHeading" 
+                    data-bs-parent="#previewAccordion"
+                  >
+                    <div class="accordion-body p-0">
+                      <div class="table-responsive">
+                        <table class="table table-sm table-striped table-bordered mb-0">
+                          <thead>
+                            <tr>
+                              <th v-for="col in previewData.columns" :key="col">
+                                {{ col }}
+                                <span v-if="previewData.data[0] && previewData.data[0][col] !== null" 
+                                      class="badge bg-light text-dark ms-1" style="font-size: 0.6em; font-weight: normal;">
+                                  {{ typeof previewData.data[0][col] }}
+                                </span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="(row, index) in previewData.data" :key="index">
+                              <td v-for="col in previewData.columns" :key="col">
+                                <template v-if="row[col] === null || row[col] === undefined">
+                                  <span class="text-muted fst-italic">null</span>
+                                </template>
+                                <template v-else-if="typeof row[col] === 'boolean'">
+                                  <span :class="row[col] ? 'text-success' : 'text-danger'">
+                                    {{ row[col] ? '✓' : '✗' }}
+                                  </span>
+                                </template>
+                                <template v-else-if="Array.isArray(row[col])">
+                                  {{ row[col].join(', ') }}
+                                </template>
+                                <template v-else>
+                                  {{ row[col] }}
+                                </template>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <div v-if="previewData.data.length === 0" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox display-6"></i>
+                        <p class="mt-2">No data found for the selected parameters</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closePreview">Close</button>
@@ -749,7 +870,30 @@ export default {
         }
       }
       return cookieValue;
-    }
+    },
+    copySqlToClipboard() {
+        if (this.previewData && this.previewData.sql) {
+          navigator.clipboard.writeText(this.previewData.sql)
+            .then(() => {
+              // Show a temporary success message
+              const copyButton = document.querySelector('[title="Copy SQL to clipboard"]');
+              const originalHtml = copyButton.innerHTML;
+              copyButton.innerHTML = '<i class="bi bi-check"></i> Copied!';
+              copyButton.classList.remove('btn-outline-secondary');
+              copyButton.classList.add('btn-success');
+              
+              setTimeout(() => {
+                copyButton.innerHTML = originalHtml;
+                copyButton.classList.remove('btn-success');
+                copyButton.classList.add('btn-outline-secondary');
+              }, 2000);
+            })
+            .catch(err => {
+              console.error('Failed to copy SQL: ', err);
+            });
+        }
+    },
+
   },
   mounted() {
     this.loadAvailableReports();

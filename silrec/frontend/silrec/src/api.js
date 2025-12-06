@@ -81,6 +81,8 @@ export default {
     polygon_search: '/api/polygon_search/',
     survey_assessment_documents: '/api/survey-assessment-documents/',
     reports: '/api/reports/',
+    search_by_user: '/api/search_by_user/',
+    search_by_text: '/api/search_by_text/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

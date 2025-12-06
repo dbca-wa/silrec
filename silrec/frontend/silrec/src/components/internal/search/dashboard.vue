@@ -1,37 +1,43 @@
 <template>
-    <div class="container" id="SearchDash">
-        <Select2Search
-            label="Person"
-            :lookupApiEndpoint="api_endpoints.person_lookup"
-            redirectPath="/internal/person/details/"
-        />
-
-        <Select2Search
-            label="Organisation"
-            :lookupApiEndpoint="api_endpoints.organisation_lookup"
-            redirectPath="/internal/organisations/"
-        />
-
-        <Select2SearchReferenceNumber
-            label="Reference Number"
-            :lookupApiEndpoint="api_endpoints.search_reference"
-        />
+    <div class="container-fluid" id="SearchDashboard">
+        <h1 class="my-4">Search</h1>
+        
+<!--
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <SearchByUser />
+            </div>
+        </div>
+-->
+        
+        <div class="row mt-5">
+            <div class="col-md-12">
+                <SearchByText />
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
-import Select2SearchReferenceNumber from './Select2SearchReferenceNumber.vue';
-import { api_endpoints } from '@/utils/hooks.js';
+//import SearchByUser from '@/components/internal/search/search_by_user.vue';
+import SearchByText from '@/components/internal/search/search_by_text.vue';
 
 export default {
-    name: 'InternalSearch',
+    name: 'SearchDashboard',
+    components: {
+        //SearchByUser,
+        SearchByText
+    },
     data() {
         return {
-            api_endpoints: api_endpoints,
+            activeTab: 'user'
         };
-    },
-    components: {
-        Select2SearchReferenceNumber,
-    },
+    }
 };
 </script>
+
+<style scoped>
+#SearchDashboard {
+    padding: 20px;
+}
+</style>

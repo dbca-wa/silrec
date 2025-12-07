@@ -250,7 +250,7 @@ export default {
             
             // Available text fields to search
             availableFields: [
-                { value: 'comments', label: 'Comments' },
+                { value: 'comment', label: 'Comments' },
                 { value: 'description', label: 'Description' },
                 { value: 'title', label: 'Title' },
                 { value: 'name', label: 'Name' },
@@ -258,9 +258,11 @@ export default {
                 { value: 'reference', label: 'Reference' },
                 { value: 'extra_info', label: 'Extra Info' },
                 { value: 'herbicide_app_spec', label: 'Herbicide Spec' },
-                { value: 'task_description', label: 'Task Description' }
+                { value: 'obj_code', label: 'Obj Code' },
+                { value: 'species', label: 'Species' },
+                //{ value: 'task_description', label: 'Task Description' }
             ],
-            selectedFields: ['comments', 'description', 'title', 'name', 'results'],
+            selectedFields: ['comment', 'description', 'title', 'name', 'results'],
             
             // Search results
             searchPerformed: false,
@@ -382,6 +384,7 @@ export default {
                 searchable: true,
                 visible: true,
                 render: function (row, type, full) {
+                    console.log('FULL: ' + JSON.stringify(full))
                     let details = [];
                     if (full.obj_code) details.push(`Objective: ${full.obj_code}`);
                     if (full.task_name) details.push(`Task: ${full.task_name}`);

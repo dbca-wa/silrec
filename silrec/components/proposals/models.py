@@ -186,8 +186,16 @@ class ProposalType(models.Model):
 #            )
 #        )
 
+class ProposalManager(models.Manager):
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .exclude(processing_status=Proposal.PROCESSING_STATUS_TEMP)
+        )
+
 class Proposal(RevisionedMixin, DirtyFieldsMixin):
-    #objects = ProposalManager()
+    objects = ProposalManager()
 
     MODEL_PREFIX = "P"
 

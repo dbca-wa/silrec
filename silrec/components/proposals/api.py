@@ -1572,74 +1572,74 @@ class SearchByTextView(APIView):
         'proposal': {
             'model': 'silrec.Proposal',
             'display_name': 'Proposals',
-            'search_fields': ['comments', 'description', 'title', 'name', 'results', 'reference', 'extra_info'],
+            'search_fields': ['processing_status', 'title'],
             'date_field': 'created_date',
             'id_field': 'id',
-            'detail_fields': ['obj_code'],
-            'url_pattern': '/proposal/{id}/'
+            'detail_fields': ['title'],
+            'url_pattern': '/internal/proposal/{id}/'
         },
         'polygon': {
             'model': 'silrec.Polygon',
             'display_name': 'Polygons',
-            'search_fields': ['comments', 'description', 'name', 'reference', 'extra_info'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['name'],
+            'date_field': 'created_on',
+            'id_field': 'polygon_id',
             'detail_fields': ['compartment', 'polygon_name'],
-            'url_pattern': '/polygon/{id}/'
+            'url_pattern': '/internal/polygon/{id}/'
         },
         'cohort': {
             'model': 'silrec.Cohort',
             'display_name': 'Cohorts',
-            'search_fields': ['comments', 'description', 'name', 'extra_info'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['comments', 'obj_code', 'species'],
+            'date_field': 'created_on',
+            'id_field': 'cohort_id',
             'detail_fields': [],
-            'url_pattern': '/cohort/{id}/'
+            'url_pattern': '/internal/cohort/{id}/'
         },
         'treatment': {
             'model': 'silrec.Treatment',
             'display_name': 'Treatments',
-            'search_fields': ['comments', 'description', 'name', 'results', 'reference', 'extra_info', 'task_description'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['results', 'reference'],
+            'date_field': 'created_on',
+            'id_field': 'treatment_id',
             'detail_fields': ['task_name'],
-            'url_pattern': '/treatment/{id}/'
+            'url_pattern': '/internal/treatment/{id}/'
         },
         'treatment_xtra': {
-            'model': 'silrec.TreatmentExtra',
+            'model': 'silrec.Treatmentxtra',
             'display_name': 'Treatment Extras',
-            'search_fields': ['comments', 'description', 'results', 'extra_info', 'herbicide_app_spec'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['zresult_standard'],
+            'date_field': 'treatment__created_on',
+            'id_field': 'treatment_xtra_id',
             'detail_fields': [],
-            'url_pattern': '/treatment-extra/{id}/'
+            'url_pattern': '/internal/treatment-extra/{id}/'
         },
         'survey_assessment_document': {
             'model': 'silrec.SurveyAssessmentDocument',
             'display_name': 'Survey Documents',
-            'search_fields': ['comments', 'description', 'title', 'name', 'results', 'reference'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['description', 'title'],
+            'date_field': 'created_on',
+            'id_field': 'document_id',
             'detail_fields': [],
-            'url_pattern': '/survey-document/{id}/'
+            'url_pattern': '/internal/survey-document/{id}/'
         },
         'silviculturist_comment': {
             'model': 'silrec.SilviculturistComment',
             'display_name': 'Silviculturist Comments',
-            'search_fields': ['comments', 'description'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['comment'],
+            'date_field': 'created_on',
+            'id_field': 's_comment_id',
             'detail_fields': [],
-            'url_pattern': '/silviculturist-comment/{id}/'
+            'url_pattern': '/internal/silviculturist-comment/{id}/'
         },
         'prescription': {
             'model': 'silrec.Prescription',
             'display_name': 'Prescriptions',
-            'search_fields': ['comments', 'description', 'title', 'name', 'results', 'reference', 'extra_info'],
-            'date_field': 'created_date',
-            'id_field': 'id',
+            'search_fields': ['comment'],
+            'date_field': 'task__created_on',
+            'id_field': 'prescription_id',
             'detail_fields': [],
-            'url_pattern': '/prescription/{id}/'
+            'url_pattern': '/internal/prescription/{id}/'
         }
     }
 
@@ -1679,12 +1679,30 @@ class SearchByTextView(APIView):
         try:
             results, total_records = self.perform_search(data)
 
+            # Serialize the results to include the details field
+            serialized_results = []
+            for result in results:
+                # Build details string based on available fields
+                details = []
+                if result.get('obj_code'):
+                    details.append(f"Objective: {result['obj_code']}")
+                if result.get('task_name'):
+                    details.append(f"Task: {result['task_name']}")
+                if result.get('polygon_name'):
+                    details.append(f"Polygon: {result['polygon_name']}")
+                if result.get('compartment'):
+                    details.append(f"Compartment: {result['compartment']}")
+
+                # Add the details field to the result
+                result['details'] = '<br/>'.join(details) if details else 'No additional details'
+                serialized_results.append(result)
+
             # Prepare response for datatable
             response_data = {
                 'draw': data.get('draw', 1),
                 'recordsTotal': total_records,
                 'recordsFiltered': len(results),
-                'data': results
+                'data': serialized_results
             }
 
             return Response(response_data)
@@ -1746,11 +1764,29 @@ class SearchByTextView(APIView):
         try:
             results, total_records = self.perform_search(data)
 
+            # Serialize the results to include the details field
+            serialized_results = []
+            for result in results:
+                # Build details string based on available fields
+                details = []
+                if result.get('obj_code'):
+                    details.append(f"Objective: {result['obj_code']}")
+                if result.get('task_name'):
+                    details.append(f"Task: {result['task_name']}")
+                if result.get('polygon_name'):
+                    details.append(f"Polygon: {result['polygon_name']}")
+                if result.get('compartment'):
+                    details.append(f"Compartment: {result['compartment']}")
+
+                # Add the details field to the result
+                result['details'] = '<br/>'.join(details) if details else 'No additional details'
+                serialized_results.append(result)
+
             response_data = {
                 'draw': int(data.get('draw', 1)),
                 'recordsTotal': total_records,
                 'recordsFiltered': len(results),
-                'data': results
+                'data': serialized_results
             }
 
             return Response(response_data)
@@ -1794,6 +1830,7 @@ class SearchByTextView(APIView):
 
             try:
                 # Get the actual model class
+                #import ipdb; ipdb.set_trace()
                 app_label, model_name = config['model'].split('.')
                 model_class = apps.get_model(app_label, model_name)
 
@@ -1801,10 +1838,14 @@ class SearchByTextView(APIView):
                 queryset = model_class.objects.all()
 
                 # Apply date filters if provided
-                date_field = config.get('date_field', 'created_date')
+                #date_field = config.get('date_field', 'created_date')
+                date_field = config.get('date_field', 'created_on')
+                if '__' in date_field:
+                    date_field = date_field.split('__')[0]
 
                 # Check if the date_field exists on the model
                 if not hasattr(model_class, date_field):
+                    #import ipdb; ipdb.set_trace()
                     logger.warning(f"Model {model_key} doesn't have field {date_field}")
                     continue
 
@@ -1827,6 +1868,9 @@ class SearchByTextView(APIView):
                 else:
                     model_search_fields = config['search_fields']
 
+                #import ipdb; ipdb.set_trace()
+                # add config search fields if not present in model_search_fields (vue form)
+                model_search_fields = set(config.get('search_fields') + model_search_fields)
                 if not model_search_fields:
                     continue
 
@@ -1903,7 +1947,6 @@ class SearchByTextView(APIView):
                                     matching_fields.append(field)
 
                     # Create a result for each matching field
-                    #import ipdb; ipdb.set_trace()
                     for field in matching_fields:
                         field_value = getattr(obj, field)
 
@@ -1913,7 +1956,8 @@ class SearchByTextView(APIView):
                             preview = preview[:200] + '...'
 
                         # Get date field value
-                        date_field = config.get('date_field', 'created_date')
+                        #date_field = config.get('date_field', 'created_date')
+                        date_field = config.get('date_field', 'created_on')
                         created_date = None
                         try:
                             if hasattr(obj, date_field):

@@ -1,5 +1,5 @@
 <template>
-    <div class="container-fluid" id="SearchDashboard">
+    <div class="container" id="SearchDashboard">
         <h1 class="my-4">Search</h1>
         
 <!--

@@ -301,7 +301,7 @@ export default {
         
         column_id: function () {
             return {
-                data: 'id',
+                data: 'record_id',
                 orderable: true,
                 searchable: true,
                 visible: true,
@@ -541,17 +541,25 @@ export default {
             this.loading = true;
             this.searchPerformed = false;
             
-            // Simulate API call
-            setTimeout(() => {
-                this.loading = false;
-                this.searchPerformed = true;
-                this.totalRecords = 88; // Example count
-                
-                // Trigger datatable refresh
-                if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
-                    this.$refs.search_datatable.vmDataTable.ajax.reload();
-                }
-            }, 1000);
+            // Trigger datatable refresh which will call the real API
+            if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+                this.$refs.search_datatable.vmDataTable.ajax.reload(null, false, () => {
+                    this.loading = false;
+                    this.searchPerformed = true;
+                    // Update total records from the datatable response
+                    if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+                        const info = this.$refs.search_datatable.vmDataTable.page.info();
+                        this.totalRecords = info.recordsTotal;
+                    }
+                });
+            } else {
+                // Fallback if datatable isn't ready yet
+                setTimeout(() => {
+                    this.loading = false;
+                    this.searchPerformed = true;
+                    this.totalRecords = 0;
+                }, 1000);
+            }
         },
         
         resetSearch() {

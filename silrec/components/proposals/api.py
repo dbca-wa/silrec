@@ -1564,7 +1564,6 @@ from .serializers import TextSearchRequestSerializer, TextSearchResultSerializer
 
 logger = logging.getLogger(__name__)
 
-
 class SearchByTextView(APIView):
     """API endpoint for searching text across multiple models"""
 
@@ -1776,13 +1775,16 @@ class SearchByTextView(APIView):
         all_results = []
         total_records = 0
 
-        import ipdb; ipdb.set_trace()
         # Determine which models to search
         models_to_search = []
         if model_filter == 'all':
             models_to_search = self.MODEL_CONFIG.keys()
         else:
             models_to_search = [model_filter]
+
+        logger.info(f"Starting text search for: {search_text}")
+        logger.info(f"Searching models: {models_to_search}")
+        logger.info(f"Fields filter: {fields_filter}")
 
         for model_key in models_to_search:
             if model_key not in self.MODEL_CONFIG:
@@ -1799,12 +1801,17 @@ class SearchByTextView(APIView):
                 queryset = model_class.objects.all()
 
                 # Apply date filters if provided
+                date_field = config.get('date_field', 'created_date')
+
+                # Check if the date_field exists on the model
+                if not hasattr(model_class, date_field):
+                    logger.warning(f"Model {model_key} doesn't have field {date_field}")
+                    continue
+
                 if date_from:
-                    date_field = config.get('date_field', 'created_date')
                     queryset = queryset.filter(**{f"{date_field}__gte": date_from})
 
                 if date_to:
-                    date_field = config.get('date_field', 'created_date')
                     # Add one day to include the entire end date
                     date_to_plus_one = date_to + timedelta(days=1)
                     queryset = queryset.filter(**{f"{date_field}__lt": date_to_plus_one})
@@ -1896,6 +1903,7 @@ class SearchByTextView(APIView):
                                     matching_fields.append(field)
 
                     # Create a result for each matching field
+                    #import ipdb; ipdb.set_trace()
                     for field in matching_fields:
                         field_value = getattr(obj, field)
 
@@ -1906,20 +1914,32 @@ class SearchByTextView(APIView):
 
                         # Get date field value
                         date_field = config.get('date_field', 'created_date')
-                        created_date = getattr(obj, date_field, None)
+                        created_date = None
+                        try:
+                            if hasattr(obj, date_field):
+                                created_date = getattr(obj, date_field, None)
+                        except Exception as e:
+                            pass
+
+                        # Get ID field value
+                        id_field = config.get('id_field', 'id')
+                        record_id = getattr(obj, id_field, None)
+
+                        if record_id is None:
+                            continue  # Skip if no ID
 
                         # Build result object
                         result = {
                             'model_type': model_key,
                             'model_display': config['display_name'],
-                            'record_id': getattr(obj, config['id_field']),
+                            'record_id': record_id,
                             'field_found': field,
                             'field_display': self.FIELD_DISPLAY_NAMES.get(field, field),
                             'text_preview': preview,
                             'matching_text': str(field_value),
                             'created_on': created_date,
                             'created_by': self._get_created_by(obj),
-                            'action_url': config['url_pattern'].format(id=getattr(obj, config['id_field']))
+                            'action_url': config['url_pattern'].format(id=record_id)
                         }
 
                         # Add detail fields if they exist
@@ -1935,7 +1955,6 @@ class SearchByTextView(APIView):
                 logger.warning(f"Error searching model {model_key}: {str(e)}")
                 continue
 
-        import ipdb; ipdb.set_trace()
         # Apply ordering (by created date desc by default)
         all_results.sort(key=lambda x: x['created_on'] or datetime.min, reverse=True)
 

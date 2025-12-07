@@ -44,7 +44,7 @@ class CohortMetricsLkp(models.Model):
     class Meta:
         db_table = 'cohort_metrics_lkp'
         db_table_comment = 'Table to enable / identify / define metrics associated with cohorts, e.g. calculations of stand density'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class MachineLkp(models.Model):
@@ -61,7 +61,7 @@ class MachineLkp(models.Model):
     class Meta:
         db_table = 'machine_lkp'
         db_table_comment = 'List machines and key parameters for machines that may be used for thinning and/or coppice control'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 class OrganisationLkp(models.Model):
     organisation = models.CharField(primary_key=True, max_length=10, db_comment='Code or acronym for the organisation')
@@ -76,7 +76,7 @@ class OrganisationLkp(models.Model):
 
     class Meta:
         db_table = 'organisation_lkp'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class RegenerationMethodsLkp(models.Model):
@@ -89,7 +89,7 @@ class RegenerationMethodsLkp(models.Model):
     class Meta:
         db_table = 'regeneration_methods_lkp'
         db_table_comment = "Code lookup table for methods of regeneration \nRegen methods as per FMIS theme\n\t- Plant/infill Karri or any sp NOT Jarrah\n\t- Karri seed tree >= 1967\n\t- Karri direct seed\n\t- natural or 'untreated' regeneration\n\t- Karri seed tree < 1967\n\t- Jarrah, Wandoo lignotuber\n\t- Plant/infill Jarrah\n\t- Coppice Karri or Jarrah\n\n\nIs regeneration method the objective residual BA.  If so then residual BA is in cohort.  Or are we recording the method of cut. I.e. machine, machine type and hand fallen.  This, along with forwarder movement,  may reflect the potential for soil damage and hence regeneration (DW) \nDS> regen methods as listed above; not related to residual BA"
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class RescheduleReasonsLkp(models.Model):
@@ -106,7 +106,7 @@ class RescheduleReasonsLkp(models.Model):
     class Meta:
         db_table = 'reschedule_reasons_lkp'
         db_table_comment = 'Standard/accepted reasons for rescheduling a prescribed task/treatment'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class SpatialPrecisionLkp(models.Model):
@@ -124,7 +124,7 @@ class SpatialPrecisionLkp(models.Model):
     class Meta:
         db_table = 'spatial_precision_lkp'
         db_table_comment = 'Lookup values and definitions for spatial mapping precision'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class SpeciesApiLkp(models.Model):
@@ -145,7 +145,7 @@ class SpeciesApiLkp(models.Model):
     class Meta:
         db_table = 'species_api_lkp'
         db_table_comment = 'Lookup code values and definitions for API species types.\nDelete comments below for PRD.\nDW>> Suggest table renamed dominant species.  I.e. Jarrah or Karri etc. Then a relationship created to cohort (DW).\n\nShould the species codes be a replication of the Oracle table sfm_common.species. (DW) \nDS>> No, these are API type codes, as per the FMIS API types; i.e. a stand-based descriptor c.f. a tree-based descriptor.'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class TaskLkp(ValidateModelMixin, models.Model):
@@ -194,7 +194,7 @@ class TaskLkp(ValidateModelMixin, models.Model):
     class Meta:
         db_table = 'task_lkp'
         db_table_comment = 'Any task or activity undertaken or planned for a cohort\n\n**Drop report category columns and create separate tables to define reports and assign tasks to individual reports, similar to that established for cohort reporting. Done (DW). Delete comment for PRD.\n\nInsert / update privilege restricted to information custodian & delegates\nConsider advantage of lookup table for Forest Type and also use for silvic-lkp'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class TasksAttLkp(models.Model):
@@ -206,7 +206,7 @@ class TasksAttLkp(models.Model):
 
     class Meta:
         db_table = 'tasks_att_lkp'
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class TreatmentStatusLkp(models.Model):
@@ -224,7 +224,7 @@ class TreatmentStatusLkp(models.Model):
     class Meta:
         db_table = 'treatment_status_lkp'
         db_table_comment = "Lookup values and definitions for treatment status\n\nNo longer require 'UstnHachureCode' = 'Hachure code for colouring patterns in MicroStation/Mappa'"
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 class ObjectiveLkp(models.Model):
@@ -271,7 +271,7 @@ class ObjectiveLkp(models.Model):
     class Meta:
         db_table = 'objective_lkp'
         db_table_comment = "Lookup table for silvic codes, i.e. silvicultural / management objectives\nMaybe this should be renamed to 'objective_lkp' (and alias = obj)\n\n**Remove reporting categories to separate reporting table(s)\n\n**To create single lookup table for category values; columns:\n\n\t1. category_id = pk (seq)\n\t2. obj_code = FK  to cohort_extra table\n\t3. target_column = {category1, category2}\n\t4. catgry_value = value(s) for the objective and category (e.g. full, partial)\n\t5. description = full definition of the category value;\ne.g. FULL => thinning to full crop tree density, no culls used to achieve residual ba\n\t6. fmis_code = code for use in exports to FMIS\n\n\nCOLUMNS #2, #3, #4 have a uniqueness constraint\n\nThis table replaces both of silvic_code1 and silvic_code2"
-        app_label = "silrec"
+        #app_label = "silrec"
 
 
 '''

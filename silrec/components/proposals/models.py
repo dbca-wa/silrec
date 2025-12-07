@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.db.models.fields import PolygonField
 from django.contrib.gis.db.models.functions import Area
+
 from django.db import connection
 
 import re
@@ -265,6 +266,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     #proposed_decline_status = models.BooleanField(default=False)
     # Special Fields
     title = models.CharField(max_length=255, null=True, blank=True)
+    #title = models.CharField(max_length=255, db_index=True) for frequently searched fields
     application_type = models.ForeignKey(ApplicationType, on_delete=models.PROTECT)
 
     shapefile_json = models.JSONField('Source/Submitter (multi) polygon geometry', blank=True, null=True)
@@ -854,3 +856,155 @@ class SQLReport(models.Model):
             print(f"Error extracting table fields: {e}")
 
         return fields
+
+
+
+class TextSearchModelConfig(models.Model):
+    """Model configuration for text search"""
+    from django.utils.translation import gettext_lazy as _
+
+    MODEL_KEY_CHOICES = [
+        ('proposal', 'Proposals'),
+        ('polygon', 'Polygons'),
+        ('cohort', 'Cohorts'),
+        ('treatment', 'Treatments'),
+        ('treatment_xtra', 'Treatment Extras'),
+        ('survey_assessment_document', 'Survey Documents'),
+        ('silviculturist_comment', 'Silviculturist Comments'),
+        ('prescription', 'Prescriptions'),
+    ]
+
+    key = models.CharField(
+        max_length=50,
+        choices=MODEL_KEY_CHOICES,
+        unique=True,
+        verbose_name=_("Model Key")
+    )
+
+    model_name = models.CharField(
+        max_length=200,
+        verbose_name=_("Django Model Path"),
+        help_text=_("Format: 'app_label.ModelName' (e.g., 'silrec.Proposal')")
+    )
+
+    display_name = models.CharField(
+        max_length=100,
+        verbose_name=_("Display Name")
+    )
+
+    # Comma-separated list of searchable fields
+    search_fields = models.TextField(
+        verbose_name=_("Search Fields"),
+        help_text=_("Comma-separated list of field names to search in this model")
+    )
+
+    date_field = models.CharField(
+        max_length=100,
+        default="created_on",
+        verbose_name=_("Date Field"),
+        help_text=_("Field name for creation date")
+    )
+
+    id_field = models.CharField(
+        max_length=100,
+        default="id",
+        verbose_name=_("ID Field"),
+        help_text=_("Field name for the record ID")
+    )
+
+    # JSON field for detail fields
+    detail_fields = models.JSONField(
+        default=list,
+        verbose_name=_("Detail Fields"),
+        help_text=_("List of field names to show in details column")
+    )
+
+    url_pattern = models.CharField(
+        max_length=500,
+        verbose_name=_("URL Pattern"),
+        help_text=_("URL pattern for detail view. Use {id} as placeholder for record ID")
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("Active")
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Display Order")
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_search_configs"
+    )
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Text Search Model Configuration")
+        verbose_name_plural = _("Text Search Model Configurations")
+        ordering = ['order', 'display_name']
+
+    def __str__(self):
+        return f"{self.display_name} ({self.key})"
+
+    def get_search_fields_list(self):
+        """Return search fields as list"""
+        if not self.search_fields:
+            return []
+        return [field.strip() for field in self.search_fields.split(',')]
+
+
+class TextSearchFieldDisplay(models.Model):
+    """Field display name configuration"""
+    from django.utils.translation import gettext_lazy as _
+
+    field_name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name=_("Field Name")
+    )
+
+    display_name = models.CharField(
+        max_length=100,
+        verbose_name=_("Display Name")
+    )
+
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("Description")
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("Active")
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Display Order")
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_field_displays"
+    )
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Text Search Field Display")
+        verbose_name_plural = _("Text Search Field Displays")
+        ordering = ['order', 'field_name']
+
+    def __str__(self):
+        return f"{self.field_name} → {self.display_name}"

@@ -17,7 +17,7 @@
                             v-model="searchText"
                             type="text"
                             class="form-control"
-                            placeholder="Enter text to search for..."
+                            placeholder="Enter text to search for (min. 2 chars) ..."
                         />
                         <small class="form-text text-muted">
                             Search in: comments, descriptions, titles, names, results, etc.

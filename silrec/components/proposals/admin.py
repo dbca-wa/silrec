@@ -10,6 +10,7 @@ from django.urls import re_path
 from django.utils.html import format_html
 import json
 
+
 from silrec import helpers
 from silrec.components.main.models import (
     ApplicationType,
@@ -17,6 +18,8 @@ from silrec.components.main.models import (
 )
 from silrec.components.proposals.models import (
     SQLReport,
+    TextSearchModelConfig,
+    TextSearchFieldDisplay
 )
 from silrec.components.proposals import forms as proposal_forms
 from silrec.components.proposals import models
@@ -269,6 +272,146 @@ class SQLReportAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         """Set created_by user"""
         if not obj.pk:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+
+class TextSearchModelConfigForm(forms.ModelForm):
+    """Form for TextSearchModelConfig with enhanced JSON field editing"""
+
+    detail_fields_json = forms.CharField(
+        widget=forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+        required=False,
+        help_text="Enter as JSON list, e.g., [\"title\", \"name\", \"compartment\"]"
+    )
+
+    class Meta:
+        model = TextSearchModelConfig
+        fields = '__all__'
+        widgets = {
+            'search_fields': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+            'url_pattern': forms.TextInput(attrs={'style': 'width: 80%;'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Pre-populate JSON field if instance exists
+        if self.instance and self.instance.pk and self.instance.detail_fields:
+            try:
+                self.initial['detail_fields_json'] = json.dumps(
+                    self.instance.detail_fields,
+                    indent=2
+                )
+            except:
+                self.initial['detail_fields_json'] = str(self.instance.detail_fields)
+
+    def clean_detail_fields_json(self):
+        """Validate and convert JSON string"""
+        data = self.cleaned_data.get('detail_fields_json', '')
+        if not data or data == 'null':
+            return []
+
+        try:
+            parsed = json.loads(data)
+            if not isinstance(parsed, list):
+                raise forms.ValidationError("Must be a JSON array (list)")
+
+            # Validate each item is a string
+            for i, item in enumerate(parsed):
+                if not isinstance(item, str):
+                    raise forms.ValidationError(
+                        f"Item {i} must be a string, got {type(item).__name__}"
+                    )
+
+            return parsed
+        except json.JSONDecodeError as e:
+            raise forms.ValidationError(f"Invalid JSON: {str(e)}")
+
+    def save(self, commit=True):
+        # Get the JSON data from the form field
+        detail_fields_json = self.cleaned_data.get('detail_fields_json', '')
+        if detail_fields_json and detail_fields_json != 'null':
+            try:
+                self.instance.detail_fields = json.loads(detail_fields_json)
+            except:
+                self.instance.detail_fields = []
+
+        return super().save(commit)
+
+
+@admin.register(TextSearchModelConfig)
+class TextSearchModelConfigAdmin(admin.ModelAdmin):
+    form = TextSearchModelConfigForm
+    list_display = [
+        'key', 'display_name', 'model_name',
+        'is_active', 'order', 'get_search_fields_count'
+    ]
+    list_filter = ['is_active', 'key']
+    search_fields = ['key', 'display_name', 'model_name']
+    list_editable = ['is_active', 'order']
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('key', 'display_name', 'model_name', 'is_active', 'order')
+        }),
+        ('Field Configuration', {
+            'fields': ('search_fields', 'date_field', 'id_field')
+        }),
+        ('Display Configuration', {
+            'fields': ('detail_fields_json', 'url_pattern')
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_on', 'updated_on'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_on', 'updated_on']
+
+    def get_search_fields_count(self, obj):
+        return len(obj.get_search_fields_list())
+    get_search_fields_count.short_description = 'Search Fields'
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(TextSearchFieldDisplay)
+class TextSearchFieldDisplayAdmin(admin.ModelAdmin):
+    list_display = [
+        'field_name', 'display_name', 'is_active', 'order', 'description_short'
+    ]
+    list_filter = ['is_active']
+    search_fields = ['field_name', 'display_name', 'description']
+    list_editable = ['display_name', 'is_active', 'order']
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('field_name', 'display_name', 'is_active', 'order')
+        }),
+        ('Details', {
+            'fields': ('description',)
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_on', 'updated_on'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_on', 'updated_on']
+
+    def description_short(self, obj):
+        if obj.description and len(obj.description) > 50:
+            return f"{obj.description[:50]}..."
+        return obj.description or "-"
+    description_short.short_description = 'Description'
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 

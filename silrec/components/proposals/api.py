@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+
 
 from django.conf import settings
 from django.core.cache import cache
@@ -12,7 +13,9 @@ from django.views.decorators.cache import cache_page
 from django.http import HttpResponse
 from django.db import connection
 from django.core.exceptions import PermissionDenied
+from django.apps import apps
 
+from rest_framework.views import APIView
 from rest_framework import serializers, status, views, viewsets
 from rest_framework.decorators import action as detail_route
 from rest_framework.decorators import action as list_route
@@ -23,6 +26,8 @@ from rest_framework.response import Response
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
 from rest_framework_datatables.renderers import DatatablesRenderer
 from rest_framework_datatables.filters import DatatablesFilterBackend
+from rest_framework.throttling import UserRateThrottle
+
 from reversion.models import Version
 
 from rest_framework.decorators import action
@@ -60,6 +65,9 @@ from silrec.components.proposals.serializers import (
     ListProposalSerializer,
     ProposalTypeSerializer,
     SQLReportSerializer,
+    TextSearchRequestSerializer,
+    TextSearchResultSerializer,
+    TextSearchSimpleSerializer,
 )
 from silrec.components.main.api import (
     UserActionLoggingViewset,
@@ -1551,109 +1559,15 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.db import models
-from django.db.models import Q, Value, CharField
-from django.db.models.functions import Concat
-from django.apps import apps
-import logging
-from datetime import datetime, timedelta
-from .serializers import TextSearchRequestSerializer, TextSearchResultSerializer, TextSearchSimpleSerializer
 
-logger = logging.getLogger(__name__)
+
+class SearchThrottle(UserRateThrottle):
+    rate = '100/hour'
 
 class SearchByTextView(APIView):
     """API endpoint for searching text across multiple models"""
 
-    # Define the models and their searchable fields
-    MODEL_CONFIG = {
-        'proposal': {
-            'model': 'silrec.Proposal',
-            'display_name': 'Proposals',
-            'search_fields': ['processing_status', 'title'],
-            'date_field': 'created_date',
-            'id_field': 'id',
-            'detail_fields': ['title'],
-            'url_pattern': '/internal/proposal/{id}/'
-        },
-        'polygon': {
-            'model': 'silrec.Polygon',
-            'display_name': 'Polygons',
-            'search_fields': ['name'],
-            'date_field': 'created_on',
-            'id_field': 'polygon_id',
-            'detail_fields': ['compartment', 'polygon_name'],
-            'url_pattern': '/internal/polygon/{id}/'
-        },
-        'cohort': {
-            'model': 'silrec.Cohort',
-            'display_name': 'Cohorts',
-            'search_fields': ['comments', 'obj_code', 'species'],
-            'date_field': 'created_on',
-            'id_field': 'cohort_id',
-            'detail_fields': [],
-            'url_pattern': '/internal/cohort/{id}/'
-        },
-        'treatment': {
-            'model': 'silrec.Treatment',
-            'display_name': 'Treatments',
-            'search_fields': ['results', 'reference'],
-            'date_field': 'created_on',
-            'id_field': 'treatment_id',
-            'detail_fields': ['task_name'],
-            'url_pattern': '/internal/treatment/{id}/'
-        },
-        'treatment_xtra': {
-            'model': 'silrec.Treatmentxtra',
-            'display_name': 'Treatment Extras',
-            'search_fields': ['zresult_standard'],
-            'date_field': 'treatment__created_on',
-            'id_field': 'treatment_xtra_id',
-            'detail_fields': [],
-            'url_pattern': '/internal/treatment-extra/{id}/'
-        },
-        'survey_assessment_document': {
-            'model': 'silrec.SurveyAssessmentDocument',
-            'display_name': 'Survey Documents',
-            'search_fields': ['description', 'title'],
-            'date_field': 'created_on',
-            'id_field': 'document_id',
-            'detail_fields': [],
-            'url_pattern': '/internal/survey-document/{id}/'
-        },
-        'silviculturist_comment': {
-            'model': 'silrec.SilviculturistComment',
-            'display_name': 'Silviculturist Comments',
-            'search_fields': ['comment'],
-            'date_field': 'created_on',
-            'id_field': 's_comment_id',
-            'detail_fields': [],
-            'url_pattern': '/internal/silviculturist-comment/{id}/'
-        },
-        'prescription': {
-            'model': 'silrec.Prescription',
-            'display_name': 'Prescriptions',
-            'search_fields': ['comment'],
-            'date_field': 'task__created_on',
-            'id_field': 'prescription_id',
-            'detail_fields': [],
-            'url_pattern': '/internal/prescription/{id}/'
-        }
-    }
-
-    FIELD_DISPLAY_NAMES = {
-        'comments': 'Comments',
-        'description': 'Description',
-        'title': 'Title',
-        'name': 'Name',
-        'results': 'Results',
-        'reference': 'Reference',
-        'extra_info': 'Extra Info',
-        'herbicide_app_spec': 'Herbicide Spec',
-        'task_description': 'Task Description'
-    }
+    throttle_classes = [SearchThrottle]
 
     def post(self, request):
         """Handle POST request for text search"""
@@ -1717,6 +1631,14 @@ class SearchByTextView(APIView):
     def get(self, request):
         """Handle GET request for text search"""
         # Convert GET params to match POST format
+
+#        search_text = request.data.get('search_text', '').strip()
+#        if len(search_text) < 2:
+#            return Response(
+#                {'error': 'Search text must be at least 2 characters'},
+#                status=status.HTTP_400_BAD_REQUEST
+#            )
+
         data = request.GET.dict()
 
         # Parse JSON strings for order and search parameters
@@ -1805,6 +1727,153 @@ class SearchByTextView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def get_model_config_from_db(self):
+        """Get model configuration from database"""
+        from silrec.components.proposals.models import (
+            TextSearchModelConfig,
+            TextSearchFieldDisplay
+        )
+
+        config = {}
+        try:
+            # Get all active model configurations
+            model_configs = TextSearchModelConfig.objects.filter(
+                is_active=True
+            ).order_by('order')
+
+            for db_config in model_configs:
+                config[db_config.key] = {
+                    'model': db_config.model_name,
+                    'display_name': db_config.display_name,
+                    'search_fields': db_config.get_search_fields_list(),
+                    'date_field': db_config.date_field,
+                    'id_field': db_config.id_field,
+                    'detail_fields': db_config.detail_fields or [],
+                    'url_pattern': db_config.url_pattern,
+                }
+        except Exception as e:
+            logger.warning(f"Error loading model config from DB: {e}")
+            # Fallback to default configuration if DB is not ready
+            config = self.get_default_model_config()
+
+        return config
+
+    def get_field_display_from_db(self):
+        """Get field display names from database"""
+        from silrec.components.proposals.models import TextSearchFieldDisplay
+
+        field_display = {}
+        try:
+            # Get all active field displays
+            field_displays = TextSearchFieldDisplay.objects.filter(
+                is_active=True
+            ).order_by('order')
+
+            for field_display_obj in field_displays:
+                field_display[field_display_obj.field_name] = field_display_obj.display_name
+        except Exception as e:
+            logger.warning(f"Error loading field display from DB: {e}")
+            # Fallback to default if DB is not ready
+            field_display = self.get_default_field_display()
+
+        return field_display
+
+    def get_default_model_config(self):
+        """Default fallback configuration"""
+        return {
+            'proposal': {
+                'model': 'silrec.Proposal',
+                'display_name': 'Proposals',
+                'search_fields': ['processing_status', 'title'],
+                'date_field': 'created_date',
+                'id_field': 'id',
+                'detail_fields': ['title'],
+                'url_pattern': '/internal/proposal/{id}/'
+            },
+            'polygon': {
+                'model': 'silrec.Polygon',
+                'display_name': 'Polygons',
+                'search_fields': ['name'],
+                'date_field': 'created_on',
+                'id_field': 'polygon_id',
+                'detail_fields': ['compartment', 'polygon_name'],
+                'url_pattern': '/internal/polygon/{id}/'
+            },
+            'cohort': {
+                'model': 'silrec.Cohort',
+                'display_name': 'Cohorts',
+                'search_fields': ['comments', 'obj_code', 'species'],
+                'date_field': 'created_on',
+                'id_field': 'cohort_id',
+                'detail_fields': [],
+                'url_pattern': '/internal/cohort/{id}/'
+            },
+            'treatment': {
+                'model': 'silrec.Treatment',
+                'display_name': 'Treatments',
+                'search_fields': ['results', 'reference'],
+                'date_field': 'created_on',
+                'id_field': 'treatment_id',
+                'detail_fields': ['task_name'],
+                'url_pattern': '/internal/treatment/{id}/'
+            },
+            'treatment_xtra': {
+                'model': 'silrec.Treatmentxtra',
+                'display_name': 'Treatment Extras',
+                'search_fields': ['zresult_standard'],
+                'date_field': 'treatment__created_on',
+                'id_field': 'treatment_xtra_id',
+                'detail_fields': [],
+                'url_pattern': '/internal/treatment-extra/{id}/'
+            },
+            'survey_assessment_document': {
+                'model': 'silrec.SurveyAssessmentDocument',
+                'display_name': 'Survey Documents',
+                'search_fields': ['description', 'title'],
+                'date_field': 'created_on',
+                'id_field': 'document_id',
+                'detail_fields': [],
+                'url_pattern': '/internal/survey-document/{id}/'
+            },
+            'silviculturist_comment': {
+                'model': 'silrec.SilviculturistComment',
+                'display_name': 'Silviculturist Comments',
+                'search_fields': ['comment'],
+                'date_field': 'created_on',
+                'id_field': 's_comment_id',
+                'detail_fields': [],
+                'url_pattern': '/internal/silviculturist-comment/{id}/'
+            },
+            'prescription': {
+                'model': 'silrec.Prescription',
+                'display_name': 'Prescriptions',
+                'search_fields': ['comment'],
+                'date_field': 'task__created_on',
+                'id_field': 'prescription_id',
+                'detail_fields': [],
+                'url_pattern': '/internal/prescription/{id}/'
+            }
+        }
+
+    def get_default_field_display(self):
+        """Default fallback field display names"""
+        return {
+            'comment': 'Comments',
+            'comments': 'Comments',
+            'description': 'Description',
+            'title': 'Title',
+            'name': 'Name',
+            'results': 'Results',
+            'reference': 'Reference',
+            'extra_info': 'Extra Info',
+            'herbicide_app_spec': 'Herbicide Spec',
+            'obj_code': 'Obj Code',
+            'species': 'Species',
+            'task_description': 'Task Description',
+            'processing_status': 'Processing Status',
+            'zresult_standard': 'Z Result Standard',
+        }
+
     def perform_search(self, params):
         """Perform the actual text search across models"""
         search_text = params['search_text']
@@ -1823,14 +1892,18 @@ class SearchByTextView(APIView):
         total_records = 0
         filtered_records = 0
 
+        # Get configurations from database (with fallback)
+        MODEL_CONFIG = self.get_model_config_from_db()
+        FIELD_DISPLAY_NAMES = self.get_field_display_from_db()
+
         # Determine which models to search
-        models_to_search = self.MODEL_CONFIG.keys() if model_filter == 'all' else [model_filter]
+        models_to_search = MODEL_CONFIG.keys() if model_filter == 'all' else [model_filter]
 
         for model_key in models_to_search:
-            if model_key not in self.MODEL_CONFIG:
+            if model_key not in MODEL_CONFIG:
                 continue
 
-            config = self.MODEL_CONFIG[model_key]
+            config = MODEL_CONFIG[model_key]
 
             try:
                 # Get the actual model class
@@ -1997,7 +2070,7 @@ class SearchByTextView(APIView):
                             'model_display': config['display_name'],
                             'record_id': record_id,
                             'field_found': field,
-                            'field_display': self.FIELD_DISPLAY_NAMES.get(field, field),
+                            'field_display': FIELD_DISPLAY_NAMES.get(field, field),
                             'text_preview': preview,
                             'matching_text': str(field_value),
                             'created_on': created_date,
@@ -2006,7 +2079,7 @@ class SearchByTextView(APIView):
                         }
 
                         # Add detail fields if they exist
-                        for detail_field in config['detail_fields']:
+                        for detail_field in config.get('detail_fields', []):
                             if hasattr(obj, detail_field):
                                 detail_value = getattr(obj, detail_field, None)
                                 if detail_value:
@@ -2051,6 +2124,9 @@ class SearchByTextView(APIView):
             paginated_results = []
 
         return paginated_results, total_records, filtered_records
+
+    # Keep the rest of the methods (_get_created_by, post, get) unchanged
+
 
     def _get_created_by(self, obj):
         """Extract created by information from object"""

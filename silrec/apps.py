@@ -12,6 +12,7 @@ class SilrecConfig(AppConfig):
 #        if not self.run_once:
 #            from sqs.components.organisations import signals
 #            from sqs.components.proposals import signals
+        import silrec.components.proposals.signals
 
-        self.run_once = True
+        #self.run_once = True
         pass

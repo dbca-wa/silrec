@@ -2,11 +2,19 @@ import datetime
 import logging
 
 from django.conf import settings
+from django.db import models
 from django.db.models import Q
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.contrib.auth import get_user_model
+from django.apps import apps
+from django.utils import timezone
+
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
+
+import re
+
 
 from silrec.components.main.serializers import (
     UserSerializerSimple,
@@ -28,6 +36,8 @@ from silrec.components.proposals.models import (
 from silrec.helpers import (
     is_internal,
 )
+
+User = get_user_model()
 
 
 class ProposalTypeSerializer(serializers.ModelSerializer):
@@ -423,4 +433,209 @@ class SQLReportSerializer(serializers.ModelSerializer):
             if fmt not in valid_formats:
                 raise serializers.ValidationError(f"Invalid export format: {fmt}")
         return value
+
+
+
+from rest_framework import serializers
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.apps import apps
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+import re
+from datetime import datetime
+
+User = get_user_model()
+
+
+class FlexibleDateField(serializers.DateField):
+    """Custom DateField that accepts multiple formats and handles empty/blank values"""
+
+    def to_internal_value(self, value):
+        # Handle empty/blank values
+        if value in [None, '', 'null', 'undefined']:
+            return None
+
+        # If it's already a date object, return it
+        if isinstance(value, datetime.date):
+            return value
+
+        # Try to parse common date formats
+        if isinstance(value, str):
+            # Trim whitespace
+            value = value.strip()
+
+            # List of possible date formats to try
+            date_formats = [
+                '%Y-%m-%d',  # 2024-01-15 (ISO format - HTML date input)
+                '%d/%m/%Y',  # 15/01/2024
+                '%m/%d/%Y',  # 01/15/2024
+                '%d-%m-%Y',  # 15-01-2024
+                '%m-%d-%Y',  # 01-15-2024
+                '%Y/%m/%d',  # 2024/01/15
+                '%d.%m.%Y',  # 15.01.2024
+                '%m.%d.%Y',  # 01.15.2024
+                '%b %d, %Y', # Jan 15, 2024
+                '%B %d, %Y', # January 15, 2024
+            ]
+
+            for date_format in date_formats:
+                try:
+                    return datetime.strptime(value, date_format).date()
+                except (ValueError, TypeError):
+                    continue
+
+            # If all parsing attempts fail, use Django's parse_date
+            parsed_date = parse_date(value)
+            if parsed_date:
+                return parsed_date
+
+            # If we can't parse it, return None (or raise validation error)
+            # For backward compatibility, we'll return None
+            return None
+
+        # For any other type, use parent's implementation
+        return super().to_internal_value(value)
+
+    def to_representation(self, value):
+        # Return ISO format for API responses
+        if value is None:
+            return None
+        return value.isoformat()
+
+
+class TextSearchResultSerializer(serializers.Serializer):
+    """Serializer for text search results"""
+    model_type = serializers.CharField()
+    model_display = serializers.CharField()
+    record_id = serializers.IntegerField()
+    field_found = serializers.CharField()
+    field_display = serializers.CharField()
+    text_preview = serializers.CharField()
+    matching_text = serializers.CharField()
+    created_on = serializers.DateTimeField()
+    created_by = serializers.CharField()
+    action_url = serializers.CharField()
+
+    # Optional detail fields
+    obj_code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    task_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    polygon_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    compartment = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    def to_representation(self, instance):
+        """Custom representation to ensure all fields are included"""
+        data = super().to_representation(instance)
+
+        # Add details field
+        details = []
+        if instance.get('obj_code'):
+            details.append(f"Objective: {instance['obj_code']}")
+        if instance.get('task_name'):
+            details.append(f"Task: {instance['task_name']}")
+        if instance.get('polygon_name'):
+            details.append(f"Polygon: {instance['polygon_name']}")
+        if instance.get('compartment'):
+            details.append(f"Compartment: {instance['compartment']}")
+
+        data['details'] = '<br/>'.join(details) if details else 'No additional details'
+        return data
+
+
+class TextSearchRequestSerializer(serializers.Serializer):
+    """Serializer for text search request parameters"""
+    search_text = serializers.CharField(min_length=2, required=True, allow_blank=False)
+    field = serializers.CharField(required=False, default='all', allow_blank=True)
+    match_type = serializers.ChoiceField(
+        choices=['contains', 'exact', 'starts_with', 'ends_with'],
+        default='contains'
+    )
+    date_from = FlexibleDateField(required=False, allow_null=True, default=None)
+    date_to = FlexibleDateField(required=False, allow_null=True, default=None)
+    case_sensitive = serializers.BooleanField(default=False)
+    model = serializers.ChoiceField(
+        choices=[
+            'all', 'proposal', 'polygon', 'cohort', 'treatment',
+            'treatment_xtra', 'survey_assessment_document',
+            'silviculturist_comment', 'prescription'
+        ],
+        default='all'
+    )
+    fields = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=['comments', 'description', 'title', 'name', 'results']
+    )
+    search_terms = serializers.CharField(required=False, default='', allow_blank=True)
+
+    # Datatable parameters
+    draw = serializers.IntegerField(required=False, default=1, min_value=0)
+    start = serializers.IntegerField(required=False, default=0, min_value=0)
+    length = serializers.IntegerField(required=False, default=25, min_value=1, max_value=1000)
+    order = serializers.ListField(required=False, default=[])
+    search = serializers.DictField(required=False, default={})
+
+    def validate_fields(self, value):
+        """Ensure fields is always a list, even if empty"""
+        if isinstance(value, str):
+            # Handle comma-separated string
+            if value:
+                return [field.strip() for field in value.split(',') if field.strip()]
+            else:
+                return ['comments', 'description', 'title', 'name', 'results']
+        elif value is None:
+            return ['comments', 'description', 'title', 'name', 'results']
+        return value
+
+    def validate(self, data):
+        """Additional validation for date range"""
+        date_from = data.get('date_from')
+        date_to = data.get('date_to')
+
+        if date_from and date_to and date_from > date_to:
+            raise serializers.ValidationError({
+                "date_from": "Date From cannot be after Date To",
+                "date_to": "Date To cannot be before Date From"
+            })
+
+        return data
+
+
+class TextSearchSimpleSerializer(serializers.Serializer):
+    """Simplified serializer for quick search (GET requests)"""
+    search_text = serializers.CharField(min_length=2, required=True)
+    model = serializers.CharField(required=False, default='all')
+    fields = serializers.CharField(required=False, default='comments,description,title,name,results')
+
+    def to_internal_value(self, data):
+        # Convert query params to internal format
+        internal_data = {}
+
+        # Handle search_text
+        if 'search_text' in data:
+            internal_data['search_text'] = data['search_text']
+
+        # Handle model
+        if 'model' in data:
+            internal_data['model'] = data['model']
+
+        # Handle fields (convert comma-separated string to list)
+        if 'fields' in data and data['fields']:
+            internal_data['fields'] = [field.strip() for field in data['fields'].split(',')]
+
+        # Handle date fields
+        if 'date_from' in data and data['date_from']:
+            field = FlexibleDateField()
+            internal_data['date_from'] = field.to_internal_value(data['date_from'])
+
+        if 'date_to' in data and data['date_to']:
+            field = FlexibleDateField()
+            internal_data['date_to'] = field.to_internal_value(data['date_to'])
+
+        # Handle other fields
+        for field in ['field', 'match_type', 'case_sensitive']:
+            if field in data:
+                internal_data[field] = data[field]
+
+        return internal_data
 

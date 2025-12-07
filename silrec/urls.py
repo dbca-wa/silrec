@@ -167,6 +167,8 @@ urlpatterns = [
         name="test-operation-update",
     ),
 
+    re_path('^api/search_by_text/', proposal_api.SearchByTextView.as_view(), name='search_by_text'),
+
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]
 

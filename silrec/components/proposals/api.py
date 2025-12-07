@@ -1550,3 +1550,446 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import models
+from django.db.models import Q, Value, CharField
+from django.db.models.functions import Concat
+from django.apps import apps
+import logging
+from datetime import datetime, timedelta
+from .serializers import TextSearchRequestSerializer, TextSearchResultSerializer, TextSearchSimpleSerializer
+
+logger = logging.getLogger(__name__)
+
+
+class SearchByTextView(APIView):
+    """API endpoint for searching text across multiple models"""
+
+    # Define the models and their searchable fields
+    MODEL_CONFIG = {
+        'proposal': {
+            'model': 'silrec.Proposal',
+            'display_name': 'Proposals',
+            'search_fields': ['comments', 'description', 'title', 'name', 'results', 'reference', 'extra_info'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': ['obj_code'],
+            'url_pattern': '/proposal/{id}/'
+        },
+        'polygon': {
+            'model': 'silrec.Polygon',
+            'display_name': 'Polygons',
+            'search_fields': ['comments', 'description', 'name', 'reference', 'extra_info'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': ['compartment', 'polygon_name'],
+            'url_pattern': '/polygon/{id}/'
+        },
+        'cohort': {
+            'model': 'silrec.Cohort',
+            'display_name': 'Cohorts',
+            'search_fields': ['comments', 'description', 'name', 'extra_info'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': [],
+            'url_pattern': '/cohort/{id}/'
+        },
+        'treatment': {
+            'model': 'silrec.Treatment',
+            'display_name': 'Treatments',
+            'search_fields': ['comments', 'description', 'name', 'results', 'reference', 'extra_info', 'task_description'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': ['task_name'],
+            'url_pattern': '/treatment/{id}/'
+        },
+        'treatment_xtra': {
+            'model': 'silrec.TreatmentExtra',
+            'display_name': 'Treatment Extras',
+            'search_fields': ['comments', 'description', 'results', 'extra_info', 'herbicide_app_spec'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': [],
+            'url_pattern': '/treatment-extra/{id}/'
+        },
+        'survey_assessment_document': {
+            'model': 'silrec.SurveyAssessmentDocument',
+            'display_name': 'Survey Documents',
+            'search_fields': ['comments', 'description', 'title', 'name', 'results', 'reference'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': [],
+            'url_pattern': '/survey-document/{id}/'
+        },
+        'silviculturist_comment': {
+            'model': 'silrec.SilviculturistComment',
+            'display_name': 'Silviculturist Comments',
+            'search_fields': ['comments', 'description'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': [],
+            'url_pattern': '/silviculturist-comment/{id}/'
+        },
+        'prescription': {
+            'model': 'silrec.Prescription',
+            'display_name': 'Prescriptions',
+            'search_fields': ['comments', 'description', 'title', 'name', 'results', 'reference', 'extra_info'],
+            'date_field': 'created_date',
+            'id_field': 'id',
+            'detail_fields': [],
+            'url_pattern': '/prescription/{id}/'
+        }
+    }
+
+    FIELD_DISPLAY_NAMES = {
+        'comments': 'Comments',
+        'description': 'Description',
+        'title': 'Title',
+        'name': 'Name',
+        'results': 'Results',
+        'reference': 'Reference',
+        'extra_info': 'Extra Info',
+        'herbicide_app_spec': 'Herbicide Spec',
+        'task_description': 'Task Description'
+    }
+
+    def post(self, request):
+        """Handle POST request for text search"""
+        # Merge POST data with query params for flexibility
+        data = request.data.copy()
+
+        # Also check query params for datatable parameters
+        for key in ['draw', 'start', 'length', 'order', 'search']:
+            if key in request.query_params:
+                data[key] = request.query_params.get(key)
+
+        serializer = TextSearchRequestSerializer(data=data)
+
+        if not serializer.is_valid():
+            logger.warning(f"Text search validation errors: {serializer.errors}")
+            return Response(
+                {'error': 'Invalid request', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data = serializer.validated_data
+
+        try:
+            results, total_records = self.perform_search(data)
+
+            # Prepare response for datatable
+            response_data = {
+                'draw': data.get('draw', 1),
+                'recordsTotal': total_records,
+                'recordsFiltered': len(results),
+                'data': results
+            }
+
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error performing text search: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Search failed', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def get(self, request):
+        """Handle GET request for text search"""
+        # Convert GET params to match POST format
+        data = request.GET.dict()
+
+        # Handle fields parameter - convert comma-separated string to list
+        if 'fields' in data:
+            if data['fields']:
+                data['fields'] = [field.strip() for field in data['fields'].split(',')]
+            else:
+                # Use default fields if empty
+                data['fields'] = ['comments', 'description', 'title', 'name', 'results']
+
+        # Handle boolean parameters
+        if 'case_sensitive' in data:
+            data['case_sensitive'] = data['case_sensitive'].lower() in ['true', '1', 'yes']
+
+        # Handle datatable parameters
+        if 'draw' in data:
+            try:
+                data['draw'] = int(data['draw'])
+            except (ValueError, TypeError):
+                data['draw'] = 1
+
+        if 'start' in data:
+            try:
+                data['start'] = int(data['start'])
+            except (ValueError, TypeError):
+                data['start'] = 0
+
+        if 'length' in data:
+            try:
+                data['length'] = int(data['length'])
+            except (ValueError, TypeError):
+                data['length'] = 25
+
+        serializer = TextSearchRequestSerializer(data=data)
+
+        if not serializer.is_valid():
+            logger.warning(f"GET text search validation errors: {serializer.errors}")
+            return Response(
+                {'error': 'Invalid request', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data = serializer.validated_data
+
+        try:
+            results, total_records = self.perform_search(data)
+
+            response_data = {
+                'draw': int(data.get('draw', 1)),
+                'recordsTotal': total_records,
+                'recordsFiltered': len(results),
+                'data': results
+            }
+
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error performing text search: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Search failed', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def perform_search(self, params):
+        """Perform the actual text search across models"""
+        search_text = params['search_text']
+        match_type = params['match_type']
+        date_from = params.get('date_from')
+        date_to = params.get('date_to')
+        case_sensitive = params.get('case_sensitive', False)
+        model_filter = params.get('model', 'all')
+        fields_filter = params.get('fields', [])
+
+        all_results = []
+        total_records = 0
+
+        import ipdb; ipdb.set_trace()
+        # Determine which models to search
+        models_to_search = []
+        if model_filter == 'all':
+            models_to_search = self.MODEL_CONFIG.keys()
+        else:
+            models_to_search = [model_filter]
+
+        for model_key in models_to_search:
+            if model_key not in self.MODEL_CONFIG:
+                continue
+
+            config = self.MODEL_CONFIG[model_key]
+
+            try:
+                # Get the actual model class
+                app_label, model_name = config['model'].split('.')
+                model_class = apps.get_model(app_label, model_name)
+
+                # Build the queryset
+                queryset = model_class.objects.all()
+
+                # Apply date filters if provided
+                if date_from:
+                    date_field = config.get('date_field', 'created_date')
+                    queryset = queryset.filter(**{f"{date_field}__gte": date_from})
+
+                if date_to:
+                    date_field = config.get('date_field', 'created_date')
+                    # Add one day to include the entire end date
+                    date_to_plus_one = date_to + timedelta(days=1)
+                    queryset = queryset.filter(**{f"{date_field}__lt": date_to_plus_one})
+
+                # Build search conditions
+                search_conditions = Q()
+
+                # Determine which fields to search in this model
+                model_search_fields = []
+                if fields_filter:
+                    # Only search fields that are both in the model and in the filter
+                    model_search_fields = [f for f in fields_filter if f in config['search_fields']]
+                else:
+                    model_search_fields = config['search_fields']
+
+                if not model_search_fields:
+                    continue
+
+                # Create search conditions for each field
+                for field in model_search_fields:
+                    if hasattr(model_class, field):
+                        field_lookup = f"{field}__"
+
+                        # Apply the appropriate lookup based on match type and case sensitivity
+                        if match_type == 'exact':
+                            if case_sensitive:
+                                field_lookup += 'exact'
+                            else:
+                                field_lookup += 'iexact'
+                        elif match_type == 'starts_with':
+                            if case_sensitive:
+                                field_lookup += 'startswith'
+                            else:
+                                field_lookup += 'istartswith'
+                        elif match_type == 'ends_with':
+                            if case_sensitive:
+                                field_lookup += 'endswith'
+                            else:
+                                field_lookup += 'iendswith'
+                        else:  # contains (default)
+                            if case_sensitive:
+                                field_lookup += 'contains'
+                            else:
+                                field_lookup += 'icontains'
+
+                        search_conditions |= Q(**{field_lookup: search_text})
+
+                # Apply the search conditions
+                queryset = queryset.filter(search_conditions)
+
+                # Get total count for this model
+                model_count = queryset.count()
+                total_records += model_count
+
+                # Process results (with limit for performance)
+                max_results_per_model = 1000  # Limit results per model for performance
+                for obj in queryset[:max_results_per_model]:
+                    # Find which field(s) contain the search text
+                    matching_fields = []
+
+                    for field in model_search_fields:
+                        if hasattr(obj, field):
+                            field_value = getattr(obj, field)
+                            if field_value:
+                                field_str = str(field_value)
+                                search_text_lower = search_text.lower()
+                                field_value_lower = field_str.lower()
+
+                                if match_type == 'exact':
+                                    matches = (field_str == search_text) if case_sensitive else (
+                                        field_value_lower == search_text_lower)
+                                elif match_type == 'starts_with':
+                                    if case_sensitive:
+                                        matches = field_str.startswith(search_text)
+                                    else:
+                                        matches = field_value_lower.startswith(search_text_lower)
+                                elif match_type == 'ends_with':
+                                    if case_sensitive:
+                                        matches = field_str.endswith(search_text)
+                                    else:
+                                        matches = field_value_lower.endswith(search_text_lower)
+                                else:  # contains
+                                    if case_sensitive:
+                                        matches = search_text in field_str
+                                    else:
+                                        matches = search_text_lower in field_value_lower
+
+                                if matches:
+                                    matching_fields.append(field)
+
+                    # Create a result for each matching field
+                    for field in matching_fields:
+                        field_value = getattr(obj, field)
+
+                        # Get preview text
+                        preview = str(field_value)
+                        if len(preview) > 200:
+                            preview = preview[:200] + '...'
+
+                        # Get date field value
+                        date_field = config.get('date_field', 'created_date')
+                        created_date = getattr(obj, date_field, None)
+
+                        # Build result object
+                        result = {
+                            'model_type': model_key,
+                            'model_display': config['display_name'],
+                            'record_id': getattr(obj, config['id_field']),
+                            'field_found': field,
+                            'field_display': self.FIELD_DISPLAY_NAMES.get(field, field),
+                            'text_preview': preview,
+                            'matching_text': str(field_value),
+                            'created_on': created_date,
+                            'created_by': self._get_created_by(obj),
+                            'action_url': config['url_pattern'].format(id=getattr(obj, config['id_field']))
+                        }
+
+                        # Add detail fields if they exist
+                        for detail_field in config['detail_fields']:
+                            if hasattr(obj, detail_field):
+                                detail_value = getattr(obj, detail_field, None)
+                                if detail_value:
+                                    result[detail_field] = str(detail_value)
+
+                        all_results.append(result)
+
+            except Exception as e:
+                logger.warning(f"Error searching model {model_key}: {str(e)}")
+                continue
+
+        import ipdb; ipdb.set_trace()
+        # Apply ordering (by created date desc by default)
+        all_results.sort(key=lambda x: x['created_on'] or datetime.min, reverse=True)
+
+        # Apply pagination
+        start = params.get('start', 0)
+        length = params.get('length', 25)
+
+        if start < len(all_results):
+            end = min(start + length, len(all_results))
+            paginated_results = all_results[start:end]
+        else:
+            paginated_results = []
+
+        return paginated_results, total_records
+
+    def _get_created_by(self, obj):
+        """Extract created by information from object"""
+        # Try common field names
+        for field in ['created_by', 'creator', 'author', 'user', 'created_by_user']:
+            if hasattr(obj, field):
+                creator = getattr(obj, field)
+                if creator:
+                    if hasattr(creator, 'username'):
+                        return creator.username
+                    elif hasattr(creator, 'get_full_name'):
+                        full_name = creator.get_full_name()
+                        if full_name.strip():
+                            return full_name
+                        else:
+                            return creator.username if hasattr(creator, 'username') else str(creator)
+                    else:
+                        return str(creator)
+
+        # Check for foreign key to User
+        for field in obj._meta.get_fields():
+            if field.is_relation and field.related_model:
+                related_model_name = field.related_model._meta.model_name.lower()
+                if 'user' in related_model_name:
+                    try:
+                        user = getattr(obj, field.name)
+                        if user:
+                            if hasattr(user, 'username'):
+                                return user.username
+                    except:
+                        pass
+
+        # Try to get from common methods
+        if hasattr(obj, 'get_created_by'):
+            try:
+                creator = obj.get_created_by()
+                if creator:
+                    return str(creator)
+            except:
+                pass
+
+        return 'Unknown'
+

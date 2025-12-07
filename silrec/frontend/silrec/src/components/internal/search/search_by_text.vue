@@ -545,7 +545,7 @@ export default {
             setTimeout(() => {
                 this.loading = false;
                 this.searchPerformed = true;
-                this.totalRecords = 87; // Example count
+                this.totalRecords = 88; // Example count
                 
                 // Trigger datatable refresh
                 if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {

@@ -356,6 +356,17 @@ export default {
                 visible: true,
                 render: function (row, type, full) {
                     if (full.created_on) {
+                        // Parse the date string properly
+                        let dateStr = full.created_on;
+                        if (typeof dateStr === 'string') {
+                            // Handle ISO string format
+                            if (dateStr.includes('T')) {
+                                return moment(dateStr).format('DD/MM/YYYY');
+                            }
+                            // Handle other formats
+                            return moment(dateStr, moment.ISO_8601).format('DD/MM/YYYY');
+                        }
+                        // If it's already a Date object
                         return moment(full.created_on).format('DD/MM/YYYY');
                     }
                     return '';
@@ -411,7 +422,6 @@ export default {
                 }
             };
         },
-        
         dtOptions: function () {
             let vm = this;
             
@@ -419,31 +429,39 @@ export default {
                 autoWidth: false,
                 responsive: true,
                 serverSide: true,
-                searching: true,
+                searching: false,
+                processing: true,
                 lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-                pageLength: 25,
+                pageLength: 10,
                 language: {
                     processing: constants.DATATABLE_PROCESSING_HTML,
                 },
                 ajax: {
                     url: api_endpoints.search_by_text,
+                    type: 'GET',
                     dataSrc: 'data',
                     data: function (d) {
-                        d.search_text = vm.searchText;
-                        d.field = vm.filterField;
-                        d.match_type = vm.matchType;
-                        d.date_from = vm.filterDateFrom;
-                        d.date_to = vm.filterDateTo;
-                        d.case_sensitive = vm.caseSensitive;
-                        d.model = vm.selectedModel;
-                        d.fields = vm.selectedFields.join(',');
-                        d.search_terms = 'model_type,text_preview,created_by,details';
+                        return {
+                            search_text: vm.searchText,
+                            field: vm.filterField,
+                            match_type: vm.matchType,
+                            date_from: vm.filterDateFrom,
+                            date_to: vm.filterDateTo,
+                            case_sensitive: vm.caseSensitive,
+                            model: vm.selectedModel,
+                            fields: vm.selectedFields.join(','),
+                            draw: d.draw,
+                            start: d.start,
+                            length: d.length,
+                            order: JSON.stringify(d.order),
+                            search: JSON.stringify(d.search)
+                        };
                     },
                 },
                 dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
                      "<'row'<'col-sm-12'tr>>" +
                      "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                order: [[4, 'desc']], // Sort by created date desc by default
+                order: [[4, 'desc']],
                 columns: [
                     vm.column_model,
                     vm.column_id,
@@ -454,9 +472,21 @@ export default {
                     vm.column_details,
                     vm.column_action
                 ],
-                processing: true,
+                drawCallback: function (settings) {
+                    // Update totalRecords on every draw (pagination, filtering, etc.)
+                    const json = settings.json;
+                    if (json) {
+                        vm.totalRecords = json.recordsFiltered || 0;
+                    }
+                },
                 initComplete: function () {
                     console.log('Text search datatable initialized');
+                    // Update totalRecords on initial load
+                    const api = this.api();
+                    const json = api.ajax.json();
+                    if (json) {
+                        vm.totalRecords = json.recordsFiltered || 0;
+                    }
                 },
             };
         }
@@ -543,28 +573,41 @@ export default {
             
             this.loading = true;
             this.searchPerformed = false;
+            this.totalRecords = 0;
             
-            // Trigger datatable refresh which will call the real API
+            // Reset datatable to first page
             if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
-                this.$refs.search_datatable.vmDataTable.ajax.reload(null, false, () => {
+                // Clear the datatable first
+                this.$refs.search_datatable.vmDataTable.clear();
+                this.$refs.search_datatable.vmDataTable.draw();
+                
+                // Reload with new parameters
+                this.$refs.search_datatable.vmDataTable.ajax.reload(null, false, (json) => {
                     this.loading = false;
                     this.searchPerformed = true;
-                    // Update total records from the datatable response
-                    if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
-                        const info = this.$refs.search_datatable.vmDataTable.page.info();
-                        this.totalRecords = info.recordsTotal;
-                    }
+                    this.totalRecords = json.recordsFiltered || 0; // CHANGE: Use recordsFiltered instead of recordsTotal
                 });
             } else {
-                // Fallback if datatable isn't ready yet
-                setTimeout(() => {
-                    this.loading = false;
-                    this.searchPerformed = true;
-                    this.totalRecords = 0;
-                }, 1000);
+                // If datatable isn't initialized yet, create it
+                this.searchPerformed = true;
+                this.loading = false;
+                
+                // Datatable will auto-initialize with the search parameters
+                // because the dtOptions computed property uses the reactive data
+                // We need to wait for the datatable to initialize and load data
+                this.$nextTick(() => {
+                    if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+                        // Listen for the first draw event
+                        const table = this.$refs.search_datatable.vmDataTable;
+                        table.on('draw.dt', () => {
+                            const info = table.page.info();
+                            this.totalRecords = info.recordsFiltered || info.recordsTotal || 0;
+                            table.off('draw.dt'); // Remove the event listener after first draw
+                        });
+                    }
+                });
             }
-        },
-        
+        },        
         resetSearch() {
             this.searchText = '';
             this.filterField = 'all';

@@ -542,6 +542,22 @@ class TextSearchResultSerializer(serializers.Serializer):
         return data
 
 
+class JSONStringField(serializers.Field):
+    """Custom field to handle JSON strings"""
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data:
+            try:
+                return json.loads(data)
+            except json.JSONDecodeError:
+                return {} if 'search' in self.field_name else []
+        elif data is None:
+            return {} if 'search' in self.field_name else []
+        return data
+
+    def to_representation(self, value):
+        return value
+
+
 class TextSearchRequestSerializer(serializers.Serializer):
     """Serializer for text search request parameters"""
     search_text = serializers.CharField(min_length=2, required=True, allow_blank=False)
@@ -572,13 +588,14 @@ class TextSearchRequestSerializer(serializers.Serializer):
     draw = serializers.IntegerField(required=False, default=1, min_value=0)
     start = serializers.IntegerField(required=False, default=0, min_value=0)
     length = serializers.IntegerField(required=False, default=25, min_value=1, max_value=1000)
-    order = serializers.ListField(required=False, default=[])
-    search = serializers.DictField(required=False, default={})
+
+    # Use custom JSON fields for order and search
+    order = JSONStringField(required=False, default=[])
+    search = JSONStringField(required=False, default={})
 
     def validate_fields(self, value):
         """Ensure fields is always a list, even if empty"""
         if isinstance(value, str):
-            # Handle comma-separated string
             if value:
                 return [field.strip() for field in value.split(',') if field.strip()]
             else:

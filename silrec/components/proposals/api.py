@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from datetime import datetime
+from datetime import date, datetime
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1661,7 +1661,7 @@ class SearchByTextView(APIView):
         data = request.data.copy()
 
         # Also check query params for datatable parameters
-        for key in ['draw', 'start', 'length', 'order', 'search']:
+        for key in ['draw', 'start', 'length', 'order[0][column]', 'order[0][dir]', 'search[value]']:
             if key in request.query_params:
                 data[key] = request.query_params.get(key)
 
@@ -1677,9 +1677,9 @@ class SearchByTextView(APIView):
         data = serializer.validated_data
 
         try:
-            results, total_records = self.perform_search(data)
+            results, total_records, filtered_records = self.perform_search(data)
 
-            # Serialize the results to include the details field
+            # Serialize the results
             serialized_results = []
             for result in results:
                 # Build details string based on available fields
@@ -1701,7 +1701,7 @@ class SearchByTextView(APIView):
             response_data = {
                 'draw': data.get('draw', 1),
                 'recordsTotal': total_records,
-                'recordsFiltered': len(results),
+                'recordsFiltered': filtered_records,
                 'data': serialized_results
             }
 
@@ -1719,17 +1719,25 @@ class SearchByTextView(APIView):
         # Convert GET params to match POST format
         data = request.GET.dict()
 
-        # Handle fields parameter - convert comma-separated string to list
+        # Parse JSON strings for order and search parameters
+        if 'order' in data and data['order']:
+            try:
+                data['order'] = json.loads(data['order'])
+            except (json.JSONDecodeError, TypeError):
+                data['order'] = []
+
+        if 'search' in data and data['search']:
+            try:
+                data['search'] = json.loads(data['search'])
+            except (json.JSONDecodeError, TypeError):
+                data['search'] = {}
+
+        # Handle fields parameter
         if 'fields' in data:
             if data['fields']:
                 data['fields'] = [field.strip() for field in data['fields'].split(',')]
             else:
-                # Use default fields if empty
                 data['fields'] = ['comments', 'description', 'title', 'name', 'results']
-
-        # Handle boolean parameters
-        if 'case_sensitive' in data:
-            data['case_sensitive'] = data['case_sensitive'].lower() in ['true', '1', 'yes']
 
         # Handle datatable parameters
         if 'draw' in data:
@@ -1762,12 +1770,12 @@ class SearchByTextView(APIView):
         data = serializer.validated_data
 
         try:
-            results, total_records = self.perform_search(data)
+            results, total_records, filtered_records = self.perform_search(data)
 
-            # Serialize the results to include the details field
+            # Serialize the results
             serialized_results = []
             for result in results:
-                # Build details string based on available fields
+                # Build details string
                 details = []
                 if result.get('obj_code'):
                     details.append(f"Objective: {result['obj_code']}")
@@ -1778,14 +1786,13 @@ class SearchByTextView(APIView):
                 if result.get('compartment'):
                     details.append(f"Compartment: {result['compartment']}")
 
-                # Add the details field to the result
                 result['details'] = '<br/>'.join(details) if details else 'No additional details'
                 serialized_results.append(result)
 
             response_data = {
                 'draw': int(data.get('draw', 1)),
                 'recordsTotal': total_records,
-                'recordsFiltered': len(results),
+                'recordsFiltered': filtered_records,
                 'data': serialized_results
             }
 
@@ -1808,19 +1815,16 @@ class SearchByTextView(APIView):
         model_filter = params.get('model', 'all')
         fields_filter = params.get('fields', [])
 
+        # Pagination parameters
+        start = params.get('start', 0)
+        length = params.get('length', 25)
+
         all_results = []
         total_records = 0
+        filtered_records = 0
 
         # Determine which models to search
-        models_to_search = []
-        if model_filter == 'all':
-            models_to_search = self.MODEL_CONFIG.keys()
-        else:
-            models_to_search = [model_filter]
-
-        logger.info(f"Starting text search for: {search_text}")
-        logger.info(f"Searching models: {models_to_search}")
-        logger.info(f"Fields filter: {fields_filter}")
+        models_to_search = self.MODEL_CONFIG.keys() if model_filter == 'all' else [model_filter]
 
         for model_key in models_to_search:
             if model_key not in self.MODEL_CONFIG:
@@ -1830,7 +1834,6 @@ class SearchByTextView(APIView):
 
             try:
                 # Get the actual model class
-                #import ipdb; ipdb.set_trace()
                 app_label, model_name = config['model'].split('.')
                 model_class = apps.get_model(app_label, model_name)
 
@@ -1838,24 +1841,26 @@ class SearchByTextView(APIView):
                 queryset = model_class.objects.all()
 
                 # Apply date filters if provided
-                #date_field = config.get('date_field', 'created_date')
                 date_field = config.get('date_field', 'created_on')
+
+                # Handle foreign key date fields (like 'task__created_on')
                 if '__' in date_field:
-                    date_field = date_field.split('__')[0]
+                    # For filtering, we can use the double underscore directly
+                    if date_from:
+                        queryset = queryset.filter(**{f"{date_field}__gte": date_from})
+                    if date_to:
+                        date_to_plus_one = date_to + timedelta(days=1)
+                        queryset = queryset.filter(**{f"{date_field}__lt": date_to_plus_one})
+                else:
+                    # For simple date fields
+                    if date_from:
+                        queryset = queryset.filter(**{f"{date_field}__gte": date_from})
+                    if date_to:
+                        date_to_plus_one = date_to + timedelta(days=1)
+                        queryset = queryset.filter(**{f"{date_field}__lt": date_to_plus_one})
 
-                # Check if the date_field exists on the model
-                if not hasattr(model_class, date_field):
-                    #import ipdb; ipdb.set_trace()
-                    logger.warning(f"Model {model_key} doesn't have field {date_field}")
-                    continue
-
-                if date_from:
-                    queryset = queryset.filter(**{f"{date_field}__gte": date_from})
-
-                if date_to:
-                    # Add one day to include the entire end date
-                    date_to_plus_one = date_to + timedelta(days=1)
-                    queryset = queryset.filter(**{f"{date_field}__lt": date_to_plus_one})
+                # Get total records count for this model
+                total_records += queryset.count()
 
                 # Build search conditions
                 search_conditions = Q()
@@ -1868,9 +1873,8 @@ class SearchByTextView(APIView):
                 else:
                     model_search_fields = config['search_fields']
 
-                #import ipdb; ipdb.set_trace()
-                # add config search fields if not present in model_search_fields (vue form)
-                model_search_fields = set(config.get('search_fields') + model_search_fields)
+                # Add config search fields if not present
+                model_search_fields = set(config.get('search_fields', []) + list(model_search_fields))
                 if not model_search_fields:
                     continue
 
@@ -1906,9 +1910,9 @@ class SearchByTextView(APIView):
                 # Apply the search conditions
                 queryset = queryset.filter(search_conditions)
 
-                # Get total count for this model
-                model_count = queryset.count()
-                total_records += model_count
+                # Get filtered count for this model
+                filtered_count = queryset.count()
+                filtered_records += filtered_count
 
                 # Process results (with limit for performance)
                 max_results_per_model = 1000  # Limit results per model for performance
@@ -1955,22 +1959,37 @@ class SearchByTextView(APIView):
                         if len(preview) > 200:
                             preview = preview[:200] + '...'
 
-                        # Get date field value
-                        #date_field = config.get('date_field', 'created_date')
+                        # Get date field value - handle foreign key traversal
                         date_field = config.get('date_field', 'created_on')
                         created_date = None
+
                         try:
-                            if hasattr(obj, date_field):
-                                created_date = getattr(obj, date_field, None)
+                            if '__' in date_field:
+                                # Traverse foreign key relationship
+                                parts = date_field.split('__')
+                                current_obj = obj
+                                for part in parts:
+                                    if hasattr(current_obj, part):
+                                        current_obj = getattr(current_obj, part)
+                                    else:
+                                        current_obj = None
+                                        break
+                                if current_obj:
+                                    created_date = current_obj
+                            else:
+                                # Simple field
+                                if hasattr(obj, date_field):
+                                    created_date = getattr(obj, date_field, None)
                         except Exception as e:
-                            pass
+                            logger.warning(f"Error getting date for {model_key}: {e}")
+                            created_date = None
 
                         # Get ID field value
                         id_field = config.get('id_field', 'id')
                         record_id = getattr(obj, id_field, None)
 
                         if record_id is None:
-                            continue  # Skip if no ID
+                            continue
 
                         # Build result object
                         result = {
@@ -1996,23 +2015,42 @@ class SearchByTextView(APIView):
                         all_results.append(result)
 
             except Exception as e:
-                logger.warning(f"Error searching model {model_key}: {str(e)}")
+                logger.warning(f"Error searching model {model_key}: {str(e)}", exc_info=True)
                 continue
 
+        # Fix for sorting: Convert all dates to proper datetime objects or None
+        for result in all_results:
+            created_on = result.get('created_on')
+            if created_on:
+                # Check if it's a date/datetime object
+                if isinstance(created_on, (date, datetime)):
+                    # It's already a date/datetime, keep it
+                    pass
+                elif hasattr(created_on, 'date') and callable(getattr(created_on, 'date', None)):
+                    # It might be a model instance with a date() method
+                    try:
+                        result['created_on'] = created_on.date()
+                    except:
+                        result['created_on'] = None
+                else:
+                    # Not a date, set to None
+                    result['created_on'] = None
+
         # Apply ordering (by created date desc by default)
-        all_results.sort(key=lambda x: x['created_on'] or datetime.min, reverse=True)
+        # Handle None dates by putting them at the end
+        all_results.sort(key=lambda x: (
+            x['created_on'] if x['created_on'] and isinstance(x['created_on'], (date, datetime))
+            else datetime.min
+        ), reverse=True)
 
         # Apply pagination
-        start = params.get('start', 0)
-        length = params.get('length', 25)
-
         if start < len(all_results):
             end = min(start + length, len(all_results))
             paginated_results = all_results[start:end]
         else:
             paginated_results = []
 
-        return paginated_results, total_records
+        return paginated_results, total_records, filtered_records
 
     def _get_created_by(self, obj):
         """Extract created by information from object"""
@@ -2055,4 +2093,3 @@ class SearchByTextView(APIView):
                 pass
 
         return 'Unknown'
-

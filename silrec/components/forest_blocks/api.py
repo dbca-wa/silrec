@@ -33,6 +33,10 @@ import json
 import os
 
 from silrec.helpers import is_customer, is_internal
+from silrec.components.proposals.models import   (
+    TextSearchFieldDisplay,
+    TextSearchFieldDisplay,
+)
 from silrec.components.forest_blocks.models import   (
     Polygon,
     Cohort,

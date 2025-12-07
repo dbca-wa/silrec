@@ -83,6 +83,8 @@ export default {
     reports: '/api/reports/',
     search_by_user: '/api/search_by_user/',
     search_by_text: '/api/search_by_text/',
+    text_search_fields_by_model: '/api/text_search_fields_by_model/',
+    text_search_available_models: '/api/text_search_available_models/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

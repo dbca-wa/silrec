@@ -103,6 +103,8 @@ router.register(r'lookups/treatment-statuses', lookups_api.TreatmentStatusLkpVie
 router.register(r'lookups/summary', lookups_api.LookupSummaryViewSet, basename='lookup-summary')
 router.register(r'survey-assessment-documents', forest_blocks_api.SurveyAssessmentDocumentViewSet, basename='survey_assessment-documents')
 router.register(r'reports', proposal_api.SQLReportViewSet, basename='reports')
+router.register(r'text_search_field_displays', proposal_api.TextSearchFieldDisplayViewSet, basename='text_search_field_displays')
+router.register(r'text_search_model_configs', proposal_api.TextSearchModelConfigViewSet, basename='text_search_model_configs')
 
 api_patterns = [
     #re_path(r'api/', include(router.urls)),
@@ -167,7 +169,9 @@ urlpatterns = [
         name="test-operation-update",
     ),
 
-    re_path('^api/search_by_text/', proposal_api.SearchByTextView.as_view(), name='search_by_text'),
+    re_path(r'^api/search_by_text/', proposal_api.SearchByTextView.as_view(), name='search_by_text'),
+    re_path(r'^api/text_search_fields_by_model/$', proposal_api.TextSearchFieldsByModelView.as_view(), name='text_search_fields_by_model'),
+    re_path(r'^api/text_search_available_models/$', proposal_api.TextSearchAvailableModelsView.as_view(), name='text_search_available_models'),
 
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]

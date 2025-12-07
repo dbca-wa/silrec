@@ -45,6 +45,8 @@ from silrec.components.proposals.models import (
     Proposal,
     ProposalType,
     SQLReport,
+    TextSearchFieldDisplay,
+    TextSearchModelConfig,
 )
 
 from silrec.components.main.models import (
@@ -68,6 +70,8 @@ from silrec.components.proposals.serializers import (
     TextSearchRequestSerializer,
     TextSearchResultSerializer,
     TextSearchSimpleSerializer,
+    TextSearchFieldDisplaySerializer,
+    TextSearchModelConfigSerializer,
 )
 from silrec.components.main.api import (
     UserActionLoggingViewset,
@@ -2169,3 +2173,131 @@ class SearchByTextView(APIView):
                 pass
 
         return 'Unknown'
+
+
+class TextSearchFieldDisplayViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for TextSearchFieldDisplay model"""
+    queryset = TextSearchFieldDisplay.objects.filter(is_active=True)
+    serializer_class = TextSearchFieldDisplaySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter by model key if provided"""
+        queryset = super().get_queryset()
+
+        model_key = self.request.query_params.get('model', None)
+        if model_key and model_key != 'all':
+            # Get the model config for this key
+            try:
+                model_config = TextSearchModelConfig.objects.get(
+                    key=model_key,
+                    is_active=True
+                )
+                # Get search fields for this model
+                search_fields = model_config.get_search_fields_list()
+                if search_fields:
+                    # Filter field displays to only include fields in this model
+                    queryset = queryset.filter(field_name__in=search_fields)
+            except TextSearchModelConfig.DoesNotExist:
+                pass
+
+        return queryset.order_by('order')
+
+
+class TextSearchModelConfigViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for TextSearchModelConfig model"""
+    queryset = TextSearchModelConfig.objects.filter(is_active=True)
+    serializer_class = TextSearchModelConfigSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Order by order field"""
+        return super().get_queryset().order_by('order')
+
+
+class TextSearchFieldsByModelView(APIView):
+    """API endpoint to get search fields for a specific model"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get search fields for a specific model"""
+        model_key = request.query_params.get('model', 'all')
+
+        if model_key == 'all':
+            # Get all active field displays across all models
+            field_displays = TextSearchFieldDisplay.objects.filter(
+                is_active=True
+            ).order_by('order')
+
+            # Also get all model configs to show which fields belong to which models
+            model_configs = TextSearchModelConfig.objects.filter(
+                is_active=True
+            ).order_by('order')
+
+            return Response({
+                'fields': TextSearchFieldDisplaySerializer(field_displays, many=True).data,
+                'models': TextSearchModelConfigSerializer(model_configs, many=True).data,
+                'model_key': 'all'
+            })
+
+        # Get specific model config
+        try:
+            model_config = TextSearchModelConfig.objects.get(
+                key=model_key,
+                is_active=True
+            )
+
+            # Get search fields for this model
+            search_fields = model_config.get_search_fields_list()
+
+            # Get field displays for these search fields
+            field_displays = TextSearchFieldDisplay.objects.filter(
+                field_name__in=search_fields,
+                is_active=True
+            ).order_by('order')
+
+            return Response({
+                'fields': TextSearchFieldDisplaySerializer(field_displays, many=True).data,
+                'model': TextSearchModelConfigSerializer(model_config).data,
+                'model_key': model_key
+            })
+
+        except TextSearchModelConfig.DoesNotExist:
+            return Response({
+                'fields': [],
+                'model': None,
+                'model_key': model_key,
+                'error': f'Model config for {model_key} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class TextSearchAvailableModelsView(APIView):
+    """API endpoint to get all available models for search"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get all available models for search"""
+        model_configs = TextSearchModelConfig.objects.filter(
+            is_active=True
+        ).order_by('order')
+
+        data = [
+            {
+                'key': config.key,
+                'display_name': config.display_name,
+                'search_fields_count': len(config.get_search_fields_list()),
+                'order': config.order
+            }
+            for config in model_configs
+        ]
+
+        # Add 'all' option
+        data.insert(0, {
+            'key': 'all',
+            'display_name': 'All Records',
+            'search_fields_count': TextSearchFieldDisplay.objects.filter(is_active=True).count(),
+            'order': 0
+        })
+
+        return Response(data)
+

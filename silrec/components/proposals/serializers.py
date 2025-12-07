@@ -16,6 +16,7 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 import re
 
 
+
 from silrec.components.main.serializers import (
     UserSerializerSimple,
     ApplicationTypeSerializer,
@@ -31,6 +32,8 @@ from silrec.components.proposals.models import (
     #Referral,
     #SectionChecklist,
     SQLReport,
+    TextSearchFieldDisplay,
+    TextSearchModelConfig,
 )
 
 from silrec.helpers import (
@@ -655,4 +658,47 @@ class TextSearchSimpleSerializer(serializers.Serializer):
                 internal_data[field] = data[field]
 
         return internal_data
+
+
+class TextSearchFieldDisplaySerializer(serializers.ModelSerializer):
+    """Serializer for TextSearchFieldDisplay model"""
+
+    class Meta:
+        model = TextSearchFieldDisplay
+        fields = ['id', 'field_name', 'display_name', 'is_active', 'order', 'description']
+        read_only_fields = ['created_on', 'updated_on', 'created_by']
+
+
+class TextSearchModelConfigSerializer(serializers.ModelSerializer):
+    """Serializer for TextSearchModelConfig model"""
+    search_fields_list = serializers.SerializerMethodField()
+    field_displays = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TextSearchModelConfig
+        fields = [
+            'id', 'key', 'display_name', 'model_name', 'search_fields',
+            'search_fields_list', 'field_displays', 'is_active', 'order',
+            'date_field', 'id_field', 'detail_fields', 'url_pattern'
+        ]
+
+    def get_search_fields_list(self, obj):
+        """Get search fields as a list"""
+        return obj.get_search_fields_list()
+
+    def get_field_displays(self, obj):
+        """Get related field displays for this model"""
+        search_fields = obj.get_search_fields_list()
+
+        # Get all active field displays
+        field_displays = TextSearchFieldDisplay.objects.filter(
+            is_active=True
+        ).order_by('order')
+
+        # Filter to only include fields that are in this model's search_fields
+        # or if no specific search_fields are defined, include all
+        if search_fields:
+            field_displays = field_displays.filter(field_name__in=search_fields)
+
+        return TextSearchFieldDisplaySerializer(field_displays, many=True).data
 

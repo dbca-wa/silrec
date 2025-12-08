@@ -242,7 +242,7 @@
             </div>
         </div>
 
-        <div class="row" v-if="searchPerformed">
+        <div class="row" v-show="searchPerformed">
             <div class="col-lg-12">
                 <div class="card">
                     <div class="card-header bg-light">
@@ -577,6 +577,7 @@ export default {
                 processing: true,
                 lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
                 pageLength: 10,
+                deferLoading: 0, // Don't load until we trigger it
                 language: {
                     processing: constants.DATATABLE_PROCESSING_HTML,
                     emptyTable: 'No matching records found',
@@ -594,6 +595,10 @@ export default {
                     dataSrc: 'data',
                     data: function (d) {
                         // Build parameters for the search
+                        if (!vm.searchText || vm.searchText.length < 2) {
+                            return {};
+                        }
+
                         const params = {
                             search_text: vm.searchText,
                             model: vm.selectedModel,
@@ -642,6 +647,7 @@ export default {
                     if (json) {
                         vm.totalRecords = json.recordsFiltered || json.recordsTotal || 0;
                     }
+                    vm.loading = false;
                 },
                 initComplete: function () {
                     console.log('Text search datatable initialized');
@@ -886,7 +892,6 @@ export default {
                 this.selectedFields = [];
             }
         },
-        
         searchRecords() {
             if (!this.searchText || this.searchText.length < 2) {
                 swal.fire({
@@ -897,7 +902,7 @@ export default {
                 });
                 return;
             }
-            
+
             if (this.selectedFields.length === 0) {
                 swal.fire({
                     title: 'Error',
@@ -907,20 +912,21 @@ export default {
                 });
                 return;
             }
-            
+
             this.loading = true;
-            this.searchPerformed = false;
-            this.totalRecords = 0;
+            this.searchPerformed = true;
             
-            // If datatable exists, reload it
-            if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+            // Use a flag to track if this is the first search
+            const isFirstSearch = !this.$refs.search_datatable || !this.$refs.search_datatable.vmDataTable;
+            
+            if (!isFirstSearch) {
+                // For subsequent searches, just reload the existing datatable
                 const table = this.$refs.search_datatable.vmDataTable;
                 
                 // Clear and reload with new parameters
                 table.clear();
                 table.ajax.reload(null, false, (json) => {
                     this.loading = false;
-                    this.searchPerformed = true;
                     this.totalRecords = json.recordsFiltered || json.recordsTotal || 0;
                     
                     if (this.totalRecords === 0) {
@@ -933,10 +939,7 @@ export default {
                     }
                 });
             } else {
-                // If datatable isn't initialized yet, create it
-                this.searchPerformed = true;
-                
-                // Force Vue to re-render the datatable component
+                // For first search, wait for datatable to initialize
                 this.$nextTick(() => {
                     if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
                         const table = this.$refs.search_datatable.vmDataTable;
@@ -944,11 +947,8 @@ export default {
                         // Set up a one-time listener for the draw event
                         const onFirstDraw = () => {
                             this.loading = false;
-                            //this.totalRecords = table.page.info().recordsDisplay || table.page.info().recordsTotal || 0;
                             this.totalRecords = table.page.info().recordsDisplay;
-                            console.log('TotalRecords' + JSON.stringify(table.page.info()))
-                            console.log('this.totalRecords' + this.totalRecords)
-                            table.off('draw.dt', onFirstDraw); // Remove the event listener
+                            table.off('draw.dt', onFirstDraw);
                             
                             if (this.totalRecords === 0) {
                                 swal.fire({
@@ -962,6 +962,19 @@ export default {
                         
                         table.on('draw.dt', onFirstDraw);
                         
+                        // Also set up error handling
+                        const onError = () => {
+                            this.loading = false;
+                        };
+                        
+                        // Add error event listener (remove it after first error)
+                        $(table.table().node()).on('error.dt', onError);
+                        
+                        // Remove error listener after first draw
+                        table.one('draw.dt', () => {
+                            $(table.table().node()).off('error.dt', onError);
+                        });
+                        
                         // Trigger the initial AJAX call
                         table.ajax.reload();
                     } else {
@@ -969,7 +982,6 @@ export default {
                         this.loading = false;
                         this.searchPerformed = true;
                         
-                        // Show a message that the datatable couldn't be initialized
                         swal.fire({
                             title: 'Error',
                             text: 'Could not initialize search results table. Please try again.',
@@ -1049,7 +1061,13 @@ export default {
             }, 300);
         });
     },
-    
+    beforeDestroy() {
+        // Clean up the datatable to prevent memory leaks
+        if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+            this.$refs.search_datatable.vmDataTable.destroy(true);
+        }
+        this.destroySelect2();
+    },
     beforeUnmount() {
         // Clean up Select2 instances
         this.destroySelect2();

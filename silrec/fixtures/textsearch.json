@@ -1,0 +1,355 @@
+[
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 1,
+    "fields": {
+        "field_name": "comment",
+        "display_name": "Comment",
+        "description": null,
+        "is_active": true,
+        "order": 1,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.502",
+        "updated_on": "2025-12-07T22:12:02.411"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 2,
+    "fields": {
+        "field_name": "comments",
+        "display_name": "Comments",
+        "description": "",
+        "is_active": true,
+        "order": 2,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.504",
+        "updated_on": "2025-12-08T07:43:09.913"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 3,
+    "fields": {
+        "field_name": "description",
+        "display_name": "Description",
+        "description": null,
+        "is_active": true,
+        "order": 3,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.506",
+        "updated_on": "2025-12-07T22:02:32.506"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 4,
+    "fields": {
+        "field_name": "title",
+        "display_name": "Title",
+        "description": null,
+        "is_active": true,
+        "order": 4,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.508",
+        "updated_on": "2025-12-07T22:02:32.508"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 5,
+    "fields": {
+        "field_name": "name",
+        "display_name": "Name",
+        "description": null,
+        "is_active": true,
+        "order": 5,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.509",
+        "updated_on": "2025-12-07T22:02:32.510"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 6,
+    "fields": {
+        "field_name": "results",
+        "display_name": "Results",
+        "description": null,
+        "is_active": true,
+        "order": 6,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.511",
+        "updated_on": "2025-12-07T22:02:32.511"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 7,
+    "fields": {
+        "field_name": "reference",
+        "display_name": "Reference",
+        "description": null,
+        "is_active": true,
+        "order": 7,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.513",
+        "updated_on": "2025-12-07T22:02:32.513"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 8,
+    "fields": {
+        "field_name": "extra_info",
+        "display_name": "Extra Info",
+        "description": null,
+        "is_active": true,
+        "order": 8,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.515",
+        "updated_on": "2025-12-07T22:02:32.515"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 9,
+    "fields": {
+        "field_name": "herbicide_app_spec",
+        "display_name": "Herbicide Spec",
+        "description": null,
+        "is_active": true,
+        "order": 9,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.517",
+        "updated_on": "2025-12-07T22:02:32.517"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 10,
+    "fields": {
+        "field_name": "obj_code",
+        "display_name": "Obj Code",
+        "description": null,
+        "is_active": true,
+        "order": 10,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.519",
+        "updated_on": "2025-12-07T22:02:32.519"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 11,
+    "fields": {
+        "field_name": "species",
+        "display_name": "Species",
+        "description": null,
+        "is_active": true,
+        "order": 11,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.521",
+        "updated_on": "2025-12-07T22:02:32.521"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 12,
+    "fields": {
+        "field_name": "task_description",
+        "display_name": "Task Description",
+        "description": null,
+        "is_active": true,
+        "order": 12,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.523",
+        "updated_on": "2025-12-07T22:02:32.523"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 13,
+    "fields": {
+        "field_name": "processing_status",
+        "display_name": "Processing Status",
+        "description": null,
+        "is_active": true,
+        "order": 13,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.525",
+        "updated_on": "2025-12-07T22:02:32.525"
+    }
+},
+{
+    "model": "proposals.textsearchfielddisplay",
+    "pk": 14,
+    "fields": {
+        "field_name": "zresult_standard",
+        "display_name": "Z Result Standard",
+        "description": null,
+        "is_active": true,
+        "order": 14,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.527",
+        "updated_on": "2025-12-07T22:02:32.527"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 1,
+    "fields": {
+        "key": "proposal",
+        "model_name": "silrec.Proposal",
+        "display_name": "Proposals",
+        "search_fields": "processing_status,title",
+        "date_field": "created_date",
+        "id_field": "id",
+        "detail_fields": [],
+        "url_pattern": "/internal/proposal/{id}/",
+        "is_active": true,
+        "order": 1,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.482",
+        "updated_on": "2025-12-07T22:09:36.469"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 2,
+    "fields": {
+        "key": "polygon",
+        "model_name": "silrec.Polygon",
+        "display_name": "Polygons",
+        "search_fields": "name",
+        "date_field": "created_on",
+        "id_field": "polygon_id",
+        "detail_fields": [
+            "compartment",
+            "polygon_name"
+        ],
+        "url_pattern": "/internal/polygon/{id}/",
+        "is_active": true,
+        "order": 2,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.485",
+        "updated_on": "2025-12-07T22:02:32.485"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 3,
+    "fields": {
+        "key": "cohort",
+        "model_name": "silrec.Cohort",
+        "display_name": "Cohorts",
+        "search_fields": "comments,obj_code,species",
+        "date_field": "created_on",
+        "id_field": "cohort_id",
+        "detail_fields": [],
+        "url_pattern": "/internal/cohort/{id}/",
+        "is_active": true,
+        "order": 3,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.488",
+        "updated_on": "2025-12-08T07:30:13.444"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 4,
+    "fields": {
+        "key": "treatment",
+        "model_name": "silrec.Treatment",
+        "display_name": "Treatments",
+        "search_fields": "results,reference",
+        "date_field": "created_on",
+        "id_field": "treatment_id",
+        "detail_fields": [
+            "task_name"
+        ],
+        "url_pattern": "/internal/treatment/{id}/",
+        "is_active": true,
+        "order": 4,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.490",
+        "updated_on": "2025-12-07T22:02:32.490"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 5,
+    "fields": {
+        "key": "treatment_xtra",
+        "model_name": "silrec.Treatmentxtra",
+        "display_name": "Treatment Extras",
+        "search_fields": "zresult_standard",
+        "date_field": "treatment__created_on",
+        "id_field": "treatment_xtra_id",
+        "detail_fields": [],
+        "url_pattern": "/internal/treatment-extra/{id}/",
+        "is_active": true,
+        "order": 5,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.492",
+        "updated_on": "2025-12-07T22:02:32.492"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 6,
+    "fields": {
+        "key": "survey_assessment_document",
+        "model_name": "silrec.SurveyAssessmentDocument",
+        "display_name": "Survey Documents",
+        "search_fields": "description,title",
+        "date_field": "created_on",
+        "id_field": "document_id",
+        "detail_fields": [],
+        "url_pattern": "/internal/survey-document/{id}/",
+        "is_active": true,
+        "order": 6,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.495",
+        "updated_on": "2025-12-07T22:02:32.495"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 7,
+    "fields": {
+        "key": "silviculturist_comment",
+        "model_name": "silrec.SilviculturistComment",
+        "display_name": "Silviculturist Comments",
+        "search_fields": "comment",
+        "date_field": "created_on",
+        "id_field": "s_comment_id",
+        "detail_fields": [],
+        "url_pattern": "/internal/silviculturist-comment/{id}/",
+        "is_active": true,
+        "order": 7,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.498",
+        "updated_on": "2025-12-07T22:02:32.498"
+    }
+},
+{
+    "model": "proposals.textsearchmodelconfig",
+    "pk": 8,
+    "fields": {
+        "key": "prescription",
+        "model_name": "silrec.Prescription",
+        "display_name": "Prescriptions",
+        "search_fields": "comment",
+        "date_field": "task__created_on",
+        "id_field": "prescription_id",
+        "detail_fields": [],
+        "url_pattern": "/internal/prescription/{id}/",
+        "is_active": true,
+        "order": 8,
+        "created_by": 1,
+        "created_on": "2025-12-07T22:02:32.500",
+        "updated_on": "2025-12-07T22:02:32.500"
+    }
+}
+]

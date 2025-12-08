@@ -246,7 +246,7 @@
             <div class="col-lg-12">
                 <div class="card">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0">Search Results</h5>
+                        <h5 class="mb-0">Search Text Results</h5>
                     </div>
                     <div class="card-body p-0">
                         <datatable

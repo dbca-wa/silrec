@@ -104,12 +104,13 @@ export default {
 <style scoped>
 .toggle_filters_wrapper {
     background: #efefee;
-    padding: 0.5em;
+    padding: 0.0em;
     display: grid;
 }
 
 .toggle_filters_button {
     cursor: pointer;
+    background: blue;
 }
 
 .filter_warning_icon {
@@ -119,9 +120,10 @@ export default {
 
 .rotate_icon {
     transition: 0.5s;
+    color: white;
 }
 
 .title {
-    color: #505050;
+    color: white;
 }
 </style>

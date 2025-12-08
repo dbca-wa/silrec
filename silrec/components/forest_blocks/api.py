@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 
 #from rest_framework import viewsets, permissions
 
+from rest_framework.views import APIView
 from rest_framework import viewsets, serializers, status, generics, views
 #from rest_framework.decorators import detail_route, list_route,renderer_classes
 from rest_framework.decorators import action
@@ -68,6 +69,9 @@ from silrec.components.forest_blocks.serializers import   (
     PolygonGeometrySerializer,
     PolygonCohortDataSerializer,
 )
+
+import logging
+logger = logging.getLogger(__name__)
 
 #from .models import Cohort, Treatment, TreatmentXtra
 #from .serializers import CohortSerializer, TreatmentSerializer, TreatmentXtraSerializer

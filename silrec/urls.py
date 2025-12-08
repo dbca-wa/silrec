@@ -173,6 +173,8 @@ urlpatterns = [
     re_path(r'^api/text_search_fields_by_model/$', proposal_api.TextSearchFieldsByModelView.as_view(), name='text_search_fields_by_model'),
     re_path(r'^api/text_search_available_models/$', proposal_api.TextSearchAvailableModelsView.as_view(), name='text_search_available_models'),
 
+    re_path(r'^api/search_by_user/', users_api.SearchByUserView.as_view(), name='search_by_user'),
+
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]
 

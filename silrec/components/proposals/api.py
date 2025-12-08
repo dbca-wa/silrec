@@ -47,6 +47,7 @@ from silrec.components.proposals.models import (
     SQLReport,
     TextSearchFieldDisplay,
     TextSearchModelConfig,
+    ShapefileDocument,
 )
 
 from silrec.components.main.models import (
@@ -72,6 +73,8 @@ from silrec.components.proposals.serializers import (
     TextSearchSimpleSerializer,
     TextSearchFieldDisplaySerializer,
     TextSearchModelConfigSerializer,
+    ShapefileUploadSerializer,
+    ShapefileProcessResultSerializer,
 )
 from silrec.components.main.api import (
     UserActionLoggingViewset,
@@ -2313,4 +2316,277 @@ class TextSearchAvailableModelsView(APIView):
         })
 
         return Response(data)
+
+
+# Add imports at the top of api.py
+import zipfile
+import tempfile
+import os
+import geopandas as gpd
+from django.contrib.gis.geos import GEOSGeometry
+import json
+from shapely.geometry import shape as shapely_shape
+import fiona
+from fiona.io import ZipMemoryFile
+import traceback
+from django.core.files.base import ContentFile
+
+# Add this class to api.py after other views
+class ShapefileUploadView(APIView):
+    """API endpoint for uploading and processing shapefiles"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """Handle shapefile upload and processing"""
+        try:
+            # Validate request data
+            serializer = ShapefileUploadSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'error': 'Invalid request', 'details': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            shapefile = request.FILES['shapefile']
+            proposal_id = request.data.get('proposal_id')
+
+            # Get proposal instance
+            try:
+                proposal = Proposal.objects.get(id=proposal_id)
+            except Proposal.DoesNotExist:
+                return Response(
+                    {'error': f'Proposal with ID {proposal_id} not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Check permissions
+            if not request.user.is_superuser and proposal.submitter != request.user.id:
+                return Response(
+                    {'error': 'You do not have permission to modify this proposal'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Process the shapefile
+            result = self.process_shapefile(shapefile)
+
+            if not result['success']:
+                return Response(
+                    {'error': result['message'], 'details': result.get('errors', [])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Save GeoJSON to proposal
+            proposal.shapefile_json = result['geojson']
+            proposal.save()
+
+            # Create a ShapefileDocument record
+            shapefile_doc = ShapefileDocument.objects.create(
+                proposal=proposal,
+                _file=shapefile,
+                name=f"Shapefile Upload - {shapefile.name}",
+                input_name=f"{shapefile.name}",
+                can_delete=True,
+                can_hide=True,
+                hidden=False
+            )
+
+            # Serialize and return the updated proposal
+            serializer = ProposalSerializer(proposal, context={'request': request})
+
+            return Response({
+                'success': True,
+                'message': f'Shapefile processed successfully. {result["feature_count"]} features loaded.',
+                'proposal': serializer.data,
+                'feature_count': result['feature_count']
+            })
+
+        except Exception as e:
+            logger.error(f"Error processing shapefile: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Error processing shapefile: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def process_shapefile(self, shapefile):
+        """Process uploaded shapefile and convert to GeoJSON"""
+        try:
+            # Create a temporary directory
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Save uploaded file
+                zip_path = os.path.join(tmpdir, shapefile.name)
+                with open(zip_path, 'wb') as f:
+                    for chunk in shapefile.chunks():
+                        f.write(chunk)
+
+                # Check if it's a valid zip file
+                if not zipfile.is_zipfile(zip_path):
+                    return {
+                        'success': False,
+                        'message': 'Invalid zip file',
+                        'errors': ['File is not a valid zip archive']
+                    }
+
+                # Extract zip file
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(tmpdir)
+
+                # Find shapefile components
+                shp_files = [f for f in os.listdir(tmpdir) if f.lower().endswith('.shp')]
+                if not shp_files:
+                    return {
+                        'success': False,
+                        'message': 'No shapefile found in archive',
+                        'errors': ['Archive does not contain a .shp file']
+                    }
+
+                # Use the first .shp file found
+                shp_filename = shp_files[0]
+                shp_path = os.path.join(tmpdir, shp_filename)
+
+                # Check for required companion files
+                base_name = shp_filename[:-4]  # Remove .shp extension
+                required_extensions = ['.shx', '.dbf']
+                missing_files = []
+
+                for ext in required_extensions:
+                    companion_file = os.path.join(tmpdir, base_name + ext)
+                    if not os.path.exists(companion_file):
+                        missing_files.append(ext)
+
+                if missing_files:
+                    return {
+                        'success': False,
+                        'message': 'Missing required shapefile components',
+                        'errors': [f'Missing files: {", ".join(missing_files)}']
+                    }
+
+                # Try to read the shapefile using fiona (more robust)
+                try:
+                    # Read shapefile using fiona
+                    with fiona.open(shp_path, 'r') as src:
+                        # Get CRS
+                        src_crs = src.crs
+
+                        # Read all features
+                        features = []
+                        for feature in src:
+                            features.append(feature)
+
+                        # Create GeoJSON structure
+                        geojson = {
+                            'type': 'FeatureCollection',
+                            'features': []
+                        }
+
+                        # Process each feature
+                        for feature in features:
+                            # Convert to EPSG:4326 if needed
+                            if src_crs and src_crs.get('init', '').lower() != 'epsg:4326':
+                                # We'll convert using geopandas later
+                                pass
+
+                            # Create GeoJSON feature
+                            geojson_feature = {
+                                'type': 'Feature',
+                                'geometry': feature['geometry'],
+                                'properties': feature['properties']
+                            }
+                            geojson['features'].append(geojson_feature)
+
+                except Exception as fiona_error:
+                    # Fall back to geopandas if fiona fails
+                    logger.warning(f"Fiona failed, trying geopandas: {str(fiona_error)}")
+
+                    try:
+                        # Read shapefile using geopandas
+                        gdf = gpd.read_file(shp_path)
+
+                        # Check if DataFrame is empty
+                        if gdf.empty:
+                            return {
+                                'success': False,
+                                'message': 'Shapefile contains no features',
+                                'errors': ['No valid features found in shapefile']
+                            }
+
+                        # Convert to EPSG:4326 if needed
+                        if gdf.crs and gdf.crs.to_epsg() != 4326:
+                            try:
+                                gdf = gdf.to_crs(epsg=4326)
+                            except Exception as crs_error:
+                                logger.warning(f"CRS conversion failed: {str(crs_error)}")
+                                # Try to assign WGS84 if no CRS
+                                if gdf.crs is None:
+                                    gdf.crs = 'EPSG:4326'
+
+                        # Convert to GeoJSON
+                        geojson_str = gdf.to_json()
+                        geojson = json.loads(geojson_str)
+
+                    except Exception as gpd_error:
+                        return {
+                            'success': False,
+                            'message': 'Failed to read shapefile',
+                            'errors': [f'Geopandas error: {str(gpd_error)}', f'Fiona error: {str(fiona_error)}']
+                        }
+
+                # Validate GeoJSON
+                if not geojson.get('features') or len(geojson['features']) == 0:
+                    return {
+                        'success': False,
+                        'message': 'No valid features found in shapefile',
+                        'errors': ['Shapefile contains no valid geometry features']
+                    }
+
+                # Validate each feature geometry
+                valid_features = []
+                for feature in geojson['features']:
+                    try:
+                        # Validate geometry using shapely
+                        geometry = feature.get('geometry')
+                        if not geometry:
+                            continue
+
+                        shapely_geom = shapely_shape(geometry)
+                        if shapely_geom.is_valid:
+                            valid_features.append(feature)
+                        else:
+                            # Try to fix invalid geometry
+                            try:
+                                fixed_geom = shapely_geom.buffer(0)
+                                if fixed_geom.is_valid:
+                                    feature['geometry'] = shapely.geometry.mapping(fixed_geom)
+                                    valid_features.append(feature)
+                            except:
+                                # Skip invalid geometry
+                                pass
+                    except Exception:
+                        # Skip features with invalid geometry
+                        pass
+
+                if not valid_features:
+                    return {
+                        'success': False,
+                        'message': 'No valid geometry features found',
+                        'errors': ['All features contain invalid geometry']
+                    }
+
+                # Update GeoJSON with valid features
+                geojson['features'] = valid_features
+
+                return {
+                    'success': True,
+                    'message': 'Shapefile processed successfully',
+                    'feature_count': len(valid_features),
+                    'geojson': geojson
+                }
+
+        except Exception as e:
+            logger.error(f"Unexpected error in process_shapefile: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': 'Unexpected error processing shapefile',
+                'errors': [str(e)]
+            }
 

@@ -389,11 +389,25 @@ export default {
     }
   },
   watch: {
+//    featureCollection: {
+//      handler(newGeoJSON) {
+//        this.updateLayer1(newGeoJSON);
+//      },
+//      deep: true
+//    },
     featureCollection: {
-      handler(newGeoJSON) {
-        this.updateLayer1(newGeoJSON);
-      },
-      deep: true
+        handler(newGeoJSON) {
+            console.log('Feature collection updated:', newGeoJSON);
+            this.updateLayer1(newGeoJSON);
+            // Force map refresh
+            if (this.map) {
+                setTimeout(() => {
+                    this.map.updateSize();
+                }, 100);
+            }
+        },
+        deep: true,
+        immediate: true
     },
     featureCollection2: {
       handler(newGeoJSON) {
@@ -481,6 +495,16 @@ export default {
     document.removeEventListener('keydown', this.handleEscape);
   },
   methods: {
+    forceToRefreshMap: function() {
+        if (this.map) {
+            this.map.updateSize();
+
+            // Re-initialize layers if needed
+            if (this.featureCollection) {
+                this.updateLayer1(this.featureCollection);
+            }
+        }
+    },
     async exportChtToExcel() {
         if (!this.currentChtData) return;
 

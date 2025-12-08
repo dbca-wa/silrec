@@ -175,6 +175,12 @@ urlpatterns = [
 
     re_path(r'^api/search_by_user/', users_api.SearchByUserView.as_view(), name='search_by_user'),
 
+    re_path(
+        r"^api/proposal/(?P<pk>\d+)/upload_shapefile/$",
+        proposal_api.ShapefileUploadView.as_view(),
+        name="upload-shapefile",
+    ),
+
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]
 

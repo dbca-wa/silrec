@@ -7,135 +7,115 @@
             class=""
         >
         </div>
-	            <!--JM {{geometriesToFeatureCollection}}-->
-                    <FormSection
-                        :form-collapse="false"
-                        label="Map"
-                        index="proposal_geometry"
+        
+        <!-- Shapefile Upload Section -->
+        <FormSection
+            :form-collapse="false"
+            label="Shapefile Upload"
+            index="shapefile_upload"
+        >
+            <div class="shapefile-upload-container">
+                <div class="upload-controls">
+                    <div class="d-flex align-items-center">
+                        <button 
+                            class="btn btn-primary"
+                            @click="triggerShapefileUpload"
+                            :disabled="uploadingShapefile"
+                        >
+                            <i class="bi bi-upload me-2"></i>
+                            Upload Shapefile
+                        </button>
+                        
+                        <!-- Display uploaded filename -->
+                        <div v-if="uploadedFileName" class="ms-3 uploaded-filename">
+                            <i class="bi bi-file-earmark-zip me-1"></i>
+                            <span class="text-muted">Uploaded:</span>
+                            <strong class="ms-1">{{ uploadedFileName }}</strong>
+                        </div>
+                    </div>
+                    
+                    <input 
+                        type="file" 
+                        ref="shapefileInput"
+                        accept=".zip"
+                        style="display: none"
+                        @change="handleShapefileUpload"
                     >
-                        <slot name="slot_map_assessment_comments"></slot>
-                        <MapComponent
-                            ref="component_map"
-                            :key="componentMapKey"
-                            :context="proposal"
-                            :proposal-ids="[-1]"
-                            :featureCollection="geometriesToFeatureCollection"
-                            :featureCollection2="geometriesToFeatureCollection2"
-                            :featureCollection3="geometriesToFeatureCollection3"
-                            :featureCollection4="geometriesToFeatureCollection4"
-                            :displayFieldsConfig="displayFieldsConfig"
-                            :additionalFieldsConfig="additionalFieldsConfig"
-                            :ows-query="owsQuery"
-                            style-by="assessor"
-                            :filterable="false"
-                            :drawable="is_internal || !leaseLicence"
-                            :editable="true"
-                            :navbar-buttons-disabled="navbarButtonsDisabled"
-                            :saving-features="savingInProgress"
-                            level="internal"
-                            :map-info-text="
-                                is_internal
-                                    ? ''
-                                    : leaseLicence
-                                      ? 'You cannot change the area anymore at this stage.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
-                                      : 'Use the <b>draw</b> tool to draw the area of the proposal you are interested in on the map.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
-                            "
-                            @validate-feature="validateFeature.bind(this)()"
-                            @refresh-from-response="refreshFromResponse"
-                            @finished-drawing="$emit('finished-drawing')"
-                            @deleted-features="$emit('deleted-features')"
-                        />
-                    </FormSection>
-
-	    <!--
-        <div class="">
-            <ul id="pills-tab" class="nav nav-pills" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button
-                        id="pills-map-tab"
-                        class="nav-link"
-                        data-bs-toggle="pill"
-                        data-bs-target="#pills-map"
-                        role="tab"
-                        aria-controls="pills-map"
-                        aria-selected="false"
-                        @click="toggleComponentMapOn"
-                    >
-                        <template v-if="is_external"
-                            ><span v-if="!is_internal && leaseLicence">
-                                View Land Area (Map)</span
+                    
+                    <!-- Upload Progress -->
+                    <div v-if="uploadingShapefile" class="upload-progress mt-2">
+                        <div class="progress">
+                            <div 
+                                class="progress-bar progress-bar-striped progress-bar-animated" 
+                                role="progressbar" 
+                                :style="{ width: uploadProgress + '%' }"
                             >
-                            <span v-else> Indicate Land Area (Map)</span>
-                        </template>
-                        <template v-else>Map</template>
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button
-                        id="pills-details-tab"
-                        class="nav-link"
-                        data-bs-toggle="pill"
-                        data-bs-target="#pills-details"
-                        role="tab"
-                        aria-controls="pills-details"
-                        aria-selected="false"
-                    >
-                        <template v-if="is_external"
-                            >Provide Further Details
-                        </template>
-                        <template v-else>Details</template>
-                    </button>
-                </li>
-            </ul>
-                <div
-                    id="pills-map"
-                    class="tab-pane fade"
-                    role="tabpanel"
-                    aria-labelledby="pills-map-tab"
-                >
-                    <FormSection
-                        :form-collapse="false"
-                        label="Map"
-                        index="proposal_geometry"
-                    >
-                        <slot name="slot_map_assessment_comments"></slot>
-                        <MapComponent
-                            ref="component_map"
-                            :key="componentMapKey"
-                            :context="proposal"
-                            :proposal-ids="[-1]"
-                            :feature-collection="geometriesToFeatureCollection"
-                            :ows-query="owsQuery"
-                            style-by="assessor"
-                            :filterable="false"
-                            :drawable="is_internal || !leaseLicence"
-                            :editable="true"
-                            :navbar-buttons-disabled="navbarButtonsDisabled"
-                            :saving-features="savingInProgress"
-                            level="internal"
-                            :map-info-text="
-                                is_internal
-                                    ? ''
-                                    : leaseLicence
-                                      ? 'You cannot change the area anymore at this stage.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
-                                      : 'Use the <b>draw</b> tool to draw the area of the proposal you are interested in on the map.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
-                            "
-                            @validate-feature="validateFeature.bind(this)()"
-                            @refresh-from-response="refreshFromResponse"
-                            @finished-drawing="$emit('finished-drawing')"
-                            @deleted-features="$emit('deleted-features')"
-                        />
-                    </FormSection>
+                                {{ uploadProgress }}%
+                            </div>
+                        </div>
+                        <small class="text-muted">{{ uploadStatus }}</small>
+                    </div>
+                    
+                    <!-- Upload Error -->
+                    <div v-if="uploadError" class="alert alert-danger mt-2">
+                        {{ uploadError }}
+                    </div>
+                    
+                    <!-- Success Message -->
+                    <div v-if="uploadSuccess" class="alert alert-success mt-2">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Shapefile uploaded and processed successfully!
+                    </div>
                 </div>
-                <div
-                    id="pills-details"
-                    class="tab-pane fade"
-                    role="tabpanel"
-                    aria-labelledby="pills-details-tab"
-                >
+                
+                <div class="upload-info mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Upload a .zip file containing shapefile components (.shp, .shx, .dbf, .prj)
+                    </small>
                 </div>
-        </div>
-	    -->
+            </div>
+        </FormSection>
+
+        <!-- Map Component -->
+        <FormSection
+            :form-collapse="false"
+            label="Map"
+            index="proposal_geometry"
+        >
+            <slot name="slot_map_assessment_comments"></slot>
+            <MapComponent
+                ref="component_map"
+                :key="componentMapKey"
+                :context="proposal"
+                :proposal-ids="[-1]"
+                :featureCollection="geometriesToFeatureCollection"
+                :featureCollection2="geometriesToFeatureCollection2"
+                :featureCollection3="geometriesToFeatureCollection3"
+                :featureCollection4="geometriesToFeatureCollection4"
+                :displayFieldsConfig="displayFieldsConfig"
+                :additionalFieldsConfig="additionalFieldsConfig"
+                :ows-query="owsQuery"
+                style-by="assessor"
+                :filterable="false"
+                :drawable="is_internal || !leaseLicence"
+                :editable="true"
+                :navbar-buttons-disabled="navbarButtonsDisabled"
+                :saving-features="savingInProgress"
+                level="internal"
+                :map-info-text="
+                    is_internal
+                        ? ''
+                        : leaseLicence
+                          ? 'You cannot change the area anymore at this stage.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
+                          : 'Use the <b>draw</b> tool to draw the area of the proposal you are interested in on the map.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
+                "
+                @validate-feature="validateFeature.bind(this)()"
+                @refresh-from-response="refreshFromResponse"
+                @finished-drawing="$emit('finished-drawing')"
+                @deleted-features="$emit('deleted-features')"
+            />
+        </FormSection>
     </div>
 </template>
 
@@ -156,27 +136,14 @@ import {
     owsQuery,
     validateFeature,
 } from '@/components/common/map_functions.js';
-/*
-import Confirmation from '@/components/common/confirmation.vue'
-*/
+
 export default {
     name: 'ProposalForm',
     components: {
-//        RegistrationOfInterest,
-//        LeaseLicence,
-//        Applicant,
-//        OrganisationApplicant,
         FormSection,
-//        FileField,
         MapComponent,
-//        Multiselect,
-//        GisDataDetails,
     },
     props: {
-//        show_related_items_tab: {
-//            type: Boolean,
-//            default: false,
-//        },
         proposal: {
             type: Object,
             required: true,
@@ -286,102 +253,44 @@ export default {
                 { key: 'Area', label: 'Area' },
                 { key: 'Ops_status', label: 'Status' }
             ],
+            
+            // Shapefile upload states
+            uploadingShapefile: false,
+            uploadProgress: 0,
+            uploadStatus: '',
+            uploadError: null,
+            uploadSuccess: false,
+            uploadedFileName: '',
+            
+            // Add this to force map refresh
+            componentMapKey: 0,
         };
     },
     computed: {
-//        debug: function () {
-//            if (this.$route.query.debug) {
-//                return this.$route.query.debug === 'true';
-//            }
-//            return false;
-//        },
         proposalId: function () {
-	    console.log('form.vue ' + this.proposal);
             return this.proposal ? this.proposal.id : null;
         },
-        deedPollDocumentUrl: function () {
-            return helpers.add_endpoint_join(
-                api_endpoints.proposal,
-                this.proposal.id + '/process_deed_poll_document/'
-            );
+        uploadedFileName: function () {
+            return this.proposal ? this.proposal.shapefile_name : null;
         },
-        supportingDocumentsUrl: function () {
-            return helpers.add_endpoint_join(
-                api_endpoints.proposal,
-                this.proposal.id + '/process_deed_poll_document/'
-            );
-        },
-        profileVar: function () {
-            if (this.is_external) {
-                return this.profile;
-            } else if (this.proposal) {
-                return this.proposal.submitter;
-            } else {
-                return null;
-            }
-        },
-        applicantType: function () {
-            if (this.proposal) {
-                return this.proposal.applicant_type;
-            } else {
-                return null;
-            }
-        },
-        applicationTypeText: function () {
-            let text = '';
-            if (this.proposal) {
-                text = this.proposal.application_type.name_display;
-            }
-            return text;
-        },
-        proposalTypeText: function () {
-            let text = '';
-            if (this.proposal) {
-                text = this.proposal.proposal_type.description;
-            }
-            return text;
-        },
-        gis_data: function () {
-            if (this.proposal) {
-                return {
-                    regions: this.proposal.regions,
-                    districts: this.proposal.districts,
-                    lgas: this.proposal.lgas,
-                    names: this.proposal.names,
-                    categories: this.proposal.categories,
-                    identifiers: this.proposal.identifiers,
-                    vestings: this.proposal.vestings,
-                    acts: this.proposal.acts,
-                    tenures: this.proposal.tenures,
-                };
-            } else {
-                return {};
-            }
-        },
-        componentMapKey: function () {
-            return `component-map-${this.uuid}`;
-        },
-        /**
-         * Returns proposal geometries as a FeatureCollection
-         */
         geometriesToFeatureCollection: function () {
             let vm = this;
-
             let featureCollection = {
                 type: 'FeatureCollection',
                 features: [],
             };
 
+            if (vm.proposal && vm.proposal.shapefile_json) {
+                // If shapefile_json exists, use it directly
+                if (vm.proposal.shapefile_json.type === 'FeatureCollection') {
+                    return vm.proposal.shapefile_json;
+                }
+            }
+
+            // Fallback to existing logic
             let proposalgeometries = {
                 ...(vm.proposal.proposalgeometry ? vm.proposal.proposalgeometry : {}),
             };
-
-//            let proposalgeometries = {
-//                ...(proposal_geometry ? proposal_geometry : {}),
-//            };
-            //console.log('JM1: ' + JSON.stringify(proposalgeometries))
-
-            //return featureCollection; // TODO - JM
 
             if (Object.keys(proposalgeometries).length !== 0) {
                 for (let feature of proposalgeometries['features']) {
@@ -401,15 +310,11 @@ export default {
                     feature['model'] = model;
                     featureCollection['features'].push(feature);
                 }
-                console.log('featureCollection: ' + featureCollection)
-            } else {
-                console.log('WARN: Shapefile featureCollection is empty')
             }
             return featureCollection;
         },
         geometriesToFeatureCollection2: function () {
             let vm = this;
-
             let featureCollection = {
                 type: 'FeatureCollection',
                 features: [],
@@ -419,13 +324,6 @@ export default {
                 ...(vm.proposal.proposalgeometry_hist ? vm.proposal.proposalgeometry_hist : {}),
             };
 
-//            let proposalgeometries = {
-//                ...(proposal_geometry ? proposal_geometry : {}),
-//            };
-            //console.log('JM1: ' + JSON.stringify(proposalgeometries))
-
-            //return featureCollection; // TODO - JM
-
             if (Object.keys(proposalgeometries).length !== 0) {
                 for (let feature of proposalgeometries['features']) {
                     feature['properties']['source'] = 'Proposal';
@@ -444,15 +342,11 @@ export default {
                     feature['model'] = model;
                     featureCollection['features'].push(feature);
                 }
-                console.log('featureCollection: ' + featureCollection)
-            } else {
-                console.log('WARN: Shapefile featureCollection is empty')
             }
             return featureCollection;
         }, 
         geometriesToFeatureCollection3: function () {
             let vm = this;
-
             let featureCollection = {
                 type: 'FeatureCollection',
                 features: [],
@@ -462,13 +356,6 @@ export default {
                 ...(vm.proposal.proposalgeometry_processed ? vm.proposal.proposalgeometry_processed : {}),
             };
 
-//            let proposalgeometries = {
-//                ...(proposal_geometry ? proposal_geometry : {}),
-//            };
-            //console.log('JM1: ' + JSON.stringify(proposalgeometries))
-
-            //return featureCollection; // TODO - JM
-
             if (Object.keys(proposalgeometries).length !== 0) {
                 for (let feature of proposalgeometries['features']) {
                     feature['properties']['source'] = 'Proposal';
@@ -487,106 +374,285 @@ export default {
                     feature['model'] = model;
                     featureCollection['features'].push(feature);
                 }
-                console.log('featureCollection: ' + featureCollection)
-            } else {
-                console.log('WARN: Shapefile featureCollection is empty')
             }
             return featureCollection;
         },
-       geometriesToFeatureCollection4: function () {
+        geometriesToFeatureCollection4: function () {
             let vm = this;
-
             let proposalgeometries = {
                 ...(vm.proposal.proposalgeometry_processed_iters ? vm.proposal.proposalgeometry_processed_iters : {}),
             };
 
-          //console.log('JM4: ' + JSON.stringify(proposalgeometries))
-          const resultList = [];
-          for (const key in proposalgeometries) {
-            let featureCollection = {
-                type: 'FeatureCollection',
-                features: [],
-                cht_init: Object,
-                cht_new: Object,
-            };
-            console.log('CHT_INIT: ' + JSON.stringify(proposalgeometries[key]['cht_init']))
-            console.log('CHT_NEW: ' + JSON.stringify(proposalgeometries[key]['cht_init']))
+            const resultList = [];
+            for (const key in proposalgeometries) {
+                let featureCollection = {
+                    type: 'FeatureCollection',
+                    features: [],
+                    cht_init: Object,
+                    cht_new: Object,
+                };
 
+                if (Object.keys(proposalgeometries[key]).length !== 0) {
+                    for (let feature of proposalgeometries[key]['features']) {
+                        feature['properties']['source'] = 'Proposal';
+                        let model = {
+                            id: vm.proposal.id,
+                            details_url: vm.proposal.details_url,
+                            application_type_name_display:
+                                vm.proposal.application_type.name_display,
+                            lodgement_number: vm.proposal.lodgement_number,
+                            lodgement_date_display: moment(
+                                vm.proposal.lodgement_date
+                            ).format('DD/MM/YYYY'),
+                            processing_status_display: vm.proposal.processing_status,
+                        };
 
-            //return featureCollection; // TODO - JM
-
-            if (Object.keys(proposalgeometries[key]).length !== 0) {
-                //console.log('JM3: ' + JSON.stringify(proposalgeometries))
-                //let cht_init = proposalgeometries[key]['cht_init']
-                //let cht_new = proposalgeometries[key]['cht_new']
-                for (let feature of proposalgeometries[key]['features']) {
-                    feature['properties']['source'] = 'Proposal';
-                    let model = {
-                        id: vm.proposal.id,
-                        details_url: vm.proposal.details_url,
-                        application_type_name_display:
-                            vm.proposal.application_type.name_display,
-                        lodgement_number: vm.proposal.lodgement_number,
-                        lodgement_date_display: moment(
-                            vm.proposal.lodgement_date
-                        ).format('DD/MM/YYYY'),
-                        processing_status_display: vm.proposal.processing_status,
-                    };
-
-                    feature['model'] = model;
-                    featureCollection['features'].push(feature);
+                        feature['model'] = model;
+                        featureCollection['features'].push(feature);
+                    }
+                    featureCollection['cht_init'] = proposalgeometries[key]['cht_init'];
+                    featureCollection['cht_new'] = proposalgeometries[key]['cht_new'];
                 }
-                featureCollection['cht_init'] = proposalgeometries[key]['cht_init'];
-                featureCollection['cht_new'] = proposalgeometries[key]['cht_new'];
-                console.log('featureCollection: ' + featureCollection)
-            } else {
-                console.log('WARN: Shapefile featureCollection is empty')
+
+                resultList.push(featureCollection);
             }
 
-            const newDict = {
-                name: key,
-                data: featureCollection[key]
-            };
-            //resultList.push(newDict);
-            resultList.push(featureCollection);
-          }
-
-          //return featureCollection;
-          return resultList;
+            return resultList;
         },
-
     },
     created: function () {
-//        if (this.is_internal || this.is_referee) {
-//            utils.fetchKeyValueLookup(api_endpoints.groups, '').then((data) => {
-//                this.groups = data;
-//            });
-//        }
         this.uuid = uuid();
     },
     mounted: function () {
         this.$emit('formMounted');
-        console.log('form.vue ' + this.proposal.lodgement_number)
     },
     methods: {
+        /*
+        Improved map refresh logic:
+            Increment componentMapKey to force Vue to re-create the MapComponent
+            Wait for $nextTick() to ensure DOM is updated
+            Call forceToRefreshMap() after a short delay to ensure the map is fully initialized
+        */
         incrementComponentMapKey: function () {
-            this.uuid = uuid();
+            this.componentMapKey += 1;
         },
         toggleComponentMapOn: function () {
             this.incrementComponentMapKey()
             this.componentMapOn = true;
             this.$nextTick(() => {
-                this.$refs.component_map.forceToRefreshMap();
+                if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
+                    this.$refs.component_map.forceToRefreshMap();
+                }
             });
         },
         refreshFromResponse: function (data) {
             this.$emit('refreshFromResponse', data);
         },
-    },
+        
+        // Shapefile Upload Methods
+        triggerShapefileUpload: function () {
+            this.$refs.shapefileInput.click();
+        },
+
+        handleShapefileUpload: function (event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            // Store the file name immediately
+            if (file.name !== null || file.name !== undefined || file.name !== '') {
+                console.log('1')
+                this.uploadedFileName = file.name;
+            } else {
+                console.log('2')
+                this.uploadedFileName = this.proposal.shapefile_name;
+            }
+            
+            // Reset previous upload state (but keep filename)
+            this.uploadSuccess = false;
+            this.uploadError = null;
+
+            // Validate file type
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                this.uploadError = 'Please upload a .zip file';
+                this.clearFileInput();
+                return;
+            }
+
+            this.uploadShapefile(file);
+        },
+
+        uploadShapefile: async function (file) {
+            this.uploadingShapefile = true;
+            this.uploadProgress = 0;
+            this.uploadStatus = 'Preparing upload...';
+            this.uploadError = null;
+            this.uploadSuccess = false;
+            
+            const formData = new FormData();
+            formData.append('shapefile', file);
+            formData.append('proposal_id', this.proposalId);
+            
+            try {
+                // Create upload endpoint URL
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/upload_shapefile/'
+                );
+                
+                // Get CSRF token
+                const csrfToken = helpers.getCookie('csrftoken');
+                
+                // Simulate upload progress (since fetch doesn't support progress events)
+                const progressInterval = setInterval(() => {
+                    if (this.uploadProgress < 90) {
+                        this.uploadProgress += 10;
+                        this.uploadStatus = `Uploading... ${this.uploadProgress}%`;
+                    }
+                }, 300);
+                
+                // Use fetch API instead of $http
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        // Don't set Content-Type for FormData, let browser set it
+                    },
+                });
+                
+                clearInterval(progressInterval);
+                this.uploadProgress = 100;
+                this.uploadStatus = 'Upload complete, processing...';
+                
+                // Check if response is OK
+                if (!response.ok) {
+                    let errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+                    
+                    // Try to get error details from response body
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                        if (errorData.details) {
+                            errorMessage += ` - ${errorData.details}`;
+                        }
+                    } catch (e) {
+                        // If we can't parse JSON, use status text
+                        console.error('Error parsing error response:', e);
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                // Parse successful response
+                const data = await response.json();
+                
+                // Update status
+                this.uploadStatus = 'Processing shapefile...';
+                
+                // Wait a moment for processing feedback
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Handle success
+                this.uploadSuccess = true;
+                this.uploadStatus = 'Shapefile processed successfully!';
+                
+                // Check if data contains the expected structure
+                if (data.success && data.proposal) {
+                    // Emit refresh event to update parent component
+                    this.$emit('refreshFromResponse', data.proposal);
+                    
+                    // Force map refresh by incrementing the key
+                    this.incrementComponentMapKey();
+                    
+                    // Wait for Vue to update the DOM
+                    await this.$nextTick();
+                    
+                    // Also call forceToRefreshMap on the map component
+                    if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
+                        // Give the map a moment to initialize
+                        setTimeout(() => {
+                            this.$refs.component_map.forceToRefreshMap();
+                        }, 500);
+                    }
+                    
+                    // Clear success message after 5 seconds
+                    setTimeout(() => {
+                        this.uploadSuccess = false;
+                    }, 5000);
+                } else {
+                    // Handle unexpected response structure
+                    throw new Error(data.message || 'Unexpected response from server');
+                }
+                
+            } catch (error) {
+                console.error('Error uploading shapefile:', error);
+                
+                let errorMessage = 'Failed to upload shapefile';
+                if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                this.uploadError = errorMessage;
+                
+                // Clear error after 10 seconds
+                setTimeout(() => {
+                    this.uploadError = null;
+                }, 10000);
+            } finally {
+                this.uploadingShapefile = false;
+                this.uploadProgress = 0;
+                this.uploadStatus = '';
+                this.clearFileInput();
+            }
+        },
+        
+        clearFileInput: function () {
+            if (this.$refs.shapefileInput) {
+                this.$refs.shapefileInput.value = '';
+            }
+        }
+    }
 };
 </script>
 
 <style lang="css" scoped>
+/* Shapefile Upload Styles */
+.shapefile-upload-container {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.upload-controls {
+    margin-bottom: 10px;
+}
+
+.uploaded-filename {
+    padding: 8px 12px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    font-size: 0.9em;
+}
+
+.upload-progress {
+    max-width: 400px;
+}
+
+.alert {
+    max-width: 400px;
+}
+
+.upload-info {
+    font-size: 0.9em;
+}
+
+/* Existing styles */
 .question-title {
     padding-left: 15px;
 }
@@ -631,7 +697,7 @@ export default {
 }
 
 .admin > div {
-    display: inline-block;
+    display-inline: block;
     vertical-align: top;
     margin-right: 1em;
 }

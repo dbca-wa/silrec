@@ -72,6 +72,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
     #details_url = serializers.SerializerMethodField(read_only=True)
     details_url = serializers.SerializerMethodField(read_only=True)
     readonly = serializers.SerializerMethodField(read_only=True)
+    shapefile_name = serializers.SerializerMethodField(read_only=True)
     #approval = serializers.SerializerMethodField(read_only=True, allow_null=True)
     # Gis data fields
 #    identifiers = serializers.SerializerMethodField()
@@ -104,6 +105,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
             #"supporting_documents",
             #"requirements",
             "readonly",
+            "shapefile_name",
             #"approval",
 #            "can_user_edit",
 #            "can_user_view",
@@ -123,6 +125,10 @@ class BaseProposalSerializer(serializers.ModelSerializer):
 #        group_ids = obj.groups.values_list("group__id", flat=True)
 #        group_qs = Group.objects.filter(id__in=group_ids).values("id", "name")
 #        return GroupSerializer(group_qs, many=True).data
+
+    def get_shapefile_name(self, obj):
+        doc = obj.shapefile_documents.last()
+        return doc.input_name if doc else None
 
     def get_lodgement_date_display(self, obj):
         if obj.lodgement_date:
@@ -211,6 +217,7 @@ class ProposalSerializer(BaseProposalSerializer):
     # external user that is a referral
     assessor_mode = serializers.SerializerMethodField(read_only=True)
     details_url = serializers.SerializerMethodField(read_only=True)
+    shapefile_name = serializers.SerializerMethodField(read_only=True)
     #lodgement_versions = serializers.SerializerMethodField(read_only=True)
     #referrals = ProposalReferralSerializer(many=True)
     #additional_document_types = ProposalAdditionalDocumentTypeSerializer(
@@ -242,11 +249,16 @@ class ProposalSerializer(BaseProposalSerializer):
             "readonly",
             "assessor_mode",
             "processing_status_id",
+            "shapefile_name",
             "proposalgeometry",
             "proposalgeometry_hist",
             "proposalgeometry_processed",
             "proposalgeometry_processed_iters",
         )
+
+    def get_shapefile_name(self, obj):
+        doc = obj.shapefile_documents.last()
+        return doc.input_name if doc else None
 
     def get_proposalgeometry(self, obj):
         return obj.shapefile_json
@@ -702,4 +714,44 @@ class TextSearchModelConfigSerializer(serializers.ModelSerializer):
             field_displays = field_displays.filter(field_name__in=search_fields)
 
         return TextSearchFieldDisplaySerializer(field_displays, many=True).data
+
+
+# Add to serializers.py after existing serializers
+import zipfile
+import tempfile
+import os
+import geopandas as gpd
+from django.core.files.base import ContentFile
+
+class ShapefileUploadSerializer(serializers.Serializer):
+    """Serializer for shapefile upload validation"""
+    shapefile = serializers.FileField(
+        required=True,
+        allow_empty_file=False,
+        #max_upload_size=52428800,  # 50MB limit
+    )
+    proposal_id = serializers.IntegerField(required=True)
+
+    def validate_shapefile(self, value):
+        # Check file extension
+        if not value.name.lower().endswith('.zip'):
+            raise serializers.ValidationError("File must be a .zip file")
+
+        # Check file size (already handled by max_upload_size)
+
+        return value
+
+    def validate(self, data):
+        # Additional validation can be done here
+        return data
+
+
+class ShapefileProcessResultSerializer(serializers.Serializer):
+    """Serializer for shapefile processing results"""
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    feature_count = serializers.IntegerField()
+    geojson = serializers.DictField(required=False)
+    errors = serializers.ListField(child=serializers.CharField(), required=False)
+
 

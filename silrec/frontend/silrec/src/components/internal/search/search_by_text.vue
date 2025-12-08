@@ -587,7 +587,7 @@ export default {
             let vm = this;
             
             return {
-                autoWidth: false,
+                autoWidth: true,
                 responsive: true,
                 serverSide: true,
                 searching: true,

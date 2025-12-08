@@ -4,7 +4,7 @@
         
         <CollapsibleFilters
             ref="collapsible_filters"
-            component_title="Search by User"
+            component_title="Search by Editor"
             class="mb-2"
             @created="collapsible_component_mounted"
             :collapsed="false"
@@ -12,13 +12,13 @@
             <div class="row mt-1 p-2">
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label for="">Select User</label>
+                        <label for="">Select Editor</label>
                         <select
                             ref="userSelect"
                             class="form-select select2-single"
                             style="width: 100%;"
                         >
-                            <option value="">Select a user...</option>
+                            <option value="">Select an editor...</option>
                             <option v-for="user in userOptions" 
                                     :key="user.id"
                                     :value="user.id">
@@ -26,7 +26,7 @@
                             </option>
                         </select>
                         <small class="form-text text-muted">
-                            Select a user to find all records associated with them
+                            Select an editor to find all records associated with them
                         </small>
                     </div>
                 </div>
@@ -45,7 +45,7 @@
                             <option value="assigned_to">Assigned To</option>
                             <option value="referral">Referral</option>
                             -->
-                            <option value="all">All User Fields</option>
+                            <option value="all">All Editor Fields</option>
                         </select>
                     </div>
                 </div>
@@ -647,7 +647,7 @@ export default {
                 // Initialize Select2
                 this.select2UserSelect = $(this.$refs.userSelect).select2({
                     theme: 'bootstrap-5',
-                    placeholder: 'Select a user...',
+                    placeholder: 'Select an editor...',
                     allowClear: true,
                     width: '100%',
                     dropdownParent: $(this.$refs.userSelect).parent(),

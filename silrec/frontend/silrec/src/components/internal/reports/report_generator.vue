@@ -4,7 +4,7 @@
     
     <div class="card">
       <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Dynamic SQL Report Generator</h5>
+        <h5 class="mb-0">Report Generator</h5>
       </div>
       
       <div class="card-body">
@@ -193,6 +193,7 @@
           </div>
           
           <!-- Add Custom WHERE Clause Button -->
+          <!--
           <div class="mb-3">
             <button 
               type="button" 
@@ -203,6 +204,7 @@
               <i class="bi bi-plus-circle me-1"></i> Add Custom Filter
             </button>
           </div>
+          -->
           
           <!-- Custom WHERE Clauses -->
           <div v-for="(clause, index) in customClauses" :key="index" class="row mb-3 border p-3 rounded">

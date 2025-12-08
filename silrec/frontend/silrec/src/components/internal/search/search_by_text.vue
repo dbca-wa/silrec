@@ -18,8 +18,8 @@
                             type="text"
                             class="form-control"
                             placeholder="Enter text to search for (min. 2 chars) ..."
-                            @keyup.enter="searchRecords"
                         />
+                            <!--@keyup.enter="searchRecords"-->
                         <small class="form-text text-muted">
                             Enter text to search across all configured text fields
                         </small>
@@ -242,7 +242,7 @@
             </div>
         </div>
 
-        <div class="row" v-if="searchPerformed && totalRecords > 0">
+        <div class="row" v-if="searchPerformed">
             <div class="col-lg-12">
                 <div class="card">
                     <div class="card-header bg-light">
@@ -260,42 +260,40 @@
             </div>
         </div>
 
-        <div v-if="loading" class="row mt-4">
-            <div class="col-md-12">
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                        <span class="visually-hidden">Loading...</span>
+<!--
+        <div class="row" v-if="searchPerformed">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Search Results</h5>
                     </div>
-                    <p class="mt-3" v-if="loadingFields">
-                        <i class="fa-solid fa-spinner fa-spin me-2"></i>
-                        Loading search fields for {{ selectedModelDisplay }}...
-                    </p>
-                    <p class="mt-3" v-else>
-                        <i class="fa-solid fa-spinner fa-spin me-2"></i>
-                        Searching in {{ selectedModelDisplay }}...
-                    </p>
+                    <div class="card-body p-0">
+                        <datatable
+                            v-show="!loading && totalRecords > 0"
+                            :id="datatable_id"
+                            ref="search_datatable"
+                            :dt-options="dtOptions"
+                            :dt-headers="dtHeaders"
+                        />
+                        <div v-if="loading" class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading search results...</p>
+                        </div>
+                        <div v-else-if="totalRecords === 0" class="text-center p-5">
+                            <i class="fa-solid fa-magnifying-glass fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">No results found</h4>
+                            <p class="text-muted">
+                                No records matching "<strong>{{ searchText }}</strong>" were found.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div v-if="searchPerformed && totalRecords === 0 && !loading" class="row mt-4">
-            <div class="col-md-12">
-                <div class="text-center py-5">
-                    <i class="fa-solid fa-magnifying-glass fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">No results found</h4>
-                    <p class="text-muted">
-                        No records matching "<strong>{{ searchText }}</strong>" were found.
-                    </p>
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary"
-                        @click="resetSearch"
-                    >
-                        <i class="fa-solid fa-rotate-left"></i> New Search
-                    </button>
-                </div>
-            </div>
-        </div>
+-->
+       
     </div>
 </template>
 
@@ -337,7 +335,7 @@ export default {
             
             // Search filters
             searchText: '',
-            filterField: 'all',
+            //filterField: 'all',
             matchType: 'contains',
             filterDateFrom: '',
             filterDateTo: '',
@@ -596,21 +594,22 @@ export default {
                     dataSrc: 'data',
                     data: function (d) {
                         // Build parameters for the search
-                        return {
+                        const params = {
                             search_text: vm.searchText,
-                            field: vm.filterField,
+                            model: vm.selectedModel,
                             match_type: vm.matchType,
                             date_from: vm.filterDateFrom,
                             date_to: vm.filterDateTo,
                             case_sensitive: vm.caseSensitive,
-                            model: vm.selectedModel,
-                            fields: vm.selectedFields,
+                            fields: vm.selectedFields, // This will be serialized as array
                             draw: d.draw,
                             start: d.start,
                             length: d.length,
                             order: JSON.stringify(d.order || []),
                             search: JSON.stringify(d.search || {})
                         };
+                        
+                        return params;
                     },
                     error: function (xhr, error, thrown) {
                         console.error('Datatable AJAX error:', error, thrown);
@@ -945,7 +944,10 @@ export default {
                         // Set up a one-time listener for the draw event
                         const onFirstDraw = () => {
                             this.loading = false;
-                            this.totalRecords = table.page.info().recordsFiltered || table.page.info().recordsTotal || 0;
+                            //this.totalRecords = table.page.info().recordsDisplay || table.page.info().recordsTotal || 0;
+                            this.totalRecords = table.page.info().recordsDisplay;
+                            console.log('TotalRecords' + JSON.stringify(table.page.info()))
+                            console.log('this.totalRecords' + this.totalRecords)
                             table.off('draw.dt', onFirstDraw); // Remove the event listener
                             
                             if (this.totalRecords === 0) {
@@ -967,65 +969,26 @@ export default {
                         this.loading = false;
                         this.searchPerformed = true;
                         
-                        // Try to manually trigger the API call
-                        this.triggerSearchApi();
+                        // Show a message that the datatable couldn't be initialized
+                        swal.fire({
+                            title: 'Error',
+                            text: 'Could not initialize search results table. Please try again.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
                     }
                 });
             }
         },
-
-        triggerSearchApi() {
-            const params = {
-                search_text: this.searchText,
-                field: this.filterField,
-                match_type: this.matchType,
-                date_from: this.filterDateFrom,
-                date_to: this.filterDateTo,
-                case_sensitive: this.caseSensitive,
-                model: this.selectedModel,
-                fields: this.selectedFields,
-                draw: 1,
-                start: 0,
-                length: 25,
-                order: JSON.stringify([{ column: 4, dir: 'desc' }]),
-                search: JSON.stringify({ value: '', regex: false })
-            };
-            
-            fetch(`${api_endpoints.search_by_text}?${new URLSearchParams(params)}`)
-                .then(response => response.json())
-                .then(data => {
-                    this.totalRecords = data.recordsFiltered || data.recordsTotal || 0;
-                    this.loading = false;
-                    
-                    if (this.totalRecords === 0) {
-                        swal.fire({
-                            title: 'No Results',
-                            text: 'No records found matching your search criteria.',
-                            icon: 'info',
-                            confirmButtonText: 'OK'
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Search error:', error);
-                    this.loading = false;
-                    swal.fire({
-                        title: 'Error',
-                        text: 'Failed to perform search. Please try again.',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
-                });
-        },        
         resetSearch() {
             this.searchText = '';
-            this.filterField = 'all';
+            //this.filterField = 'all';
             this.matchType = 'contains';
             this.filterDateFrom = '';
             this.filterDateTo = '';
             this.caseSensitive = false;
             this.selectedModel = 'all';
-            this.selectedFields = ['comments', 'description', 'title', 'name', 'results'];
+            this.selectedFields = ['comment', 'description', 'title', 'name', 'results'];
             this.searchPerformed = false;
             this.totalRecords = 0;
             this.errorMessage = '';

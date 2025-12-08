@@ -1566,7 +1566,7 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class SearchThrottle(UserRateThrottle):
-    rate = '100/hour'
+    rate = '500/hour'
 
 class SearchByTextView(APIView):
     """API endpoint for searching text across multiple models"""
@@ -1577,6 +1577,7 @@ class SearchByTextView(APIView):
         """Handle POST request for text search"""
         # Merge POST data with query params for flexibility
         data = request.data.copy()
+        logger.info(f'POST: Request Data: {request.data}')
 
         # Also check query params for datatable parameters
         for key in ['draw', 'start', 'length', 'order[0][column]', 'order[0][dir]', 'search[value]']:
@@ -1635,15 +1636,26 @@ class SearchByTextView(APIView):
     def get(self, request):
         """Handle GET request for text search"""
         # Convert GET params to match POST format
-
-#        search_text = request.data.get('search_text', '').strip()
-#        if len(search_text) < 2:
-#            return Response(
-#                {'error': 'Search text must be at least 2 characters'},
-#                status=status.HTTP_400_BAD_REQUEST
-#            )
-
         data = request.GET.dict()
+
+        # Handle fields parameter - it might come as fields[]=value1&fields[]=value2
+        # or as fields=value1,value2,value3
+        fields = []
+
+        # Check for array format: fields[]=value1&fields[]=value2
+        if 'fields[]' in data:
+            # Handle array format
+            fields_param = request.GET.getlist('fields[]')
+            fields = [field.strip() for field in fields_param if field.strip()]
+        elif 'fields' in data and data['fields']:
+            # Handle comma-separated format
+            fields = [field.strip() for field in data['fields'].split(',') if field.strip()]
+
+        # If no fields specified, use default
+        if not fields:
+            fields = ['comments', 'description', 'title', 'name', 'results']
+
+        data['fields'] = fields
 
         # Parse JSON strings for order and search parameters
         if 'order' in data and data['order']:
@@ -1657,13 +1669,6 @@ class SearchByTextView(APIView):
                 data['search'] = json.loads(data['search'])
             except (json.JSONDecodeError, TypeError):
                 data['search'] = {}
-
-        # Handle fields parameter
-        if 'fields' in data:
-            if data['fields']:
-                data['fields'] = [field.strip() for field in data['fields'].split(',')]
-            else:
-                data['fields'] = ['comments', 'description', 'title', 'name', 'results']
 
         # Handle datatable parameters
         if 'draw' in data:
@@ -1900,8 +1905,14 @@ class SearchByTextView(APIView):
         MODEL_CONFIG = self.get_model_config_from_db()
         FIELD_DISPLAY_NAMES = self.get_field_display_from_db()
 
+        #import ipdb; ipdb.set_trace()
         # Determine which models to search
         models_to_search = MODEL_CONFIG.keys() if model_filter == 'all' else [model_filter]
+
+        logger.info(f'Search Text: {search_text}')
+        logger.info(f'Fields Filter: {fields_filter}')
+        logger.info(f'Model Filter: {model_filter}')
+        logger.info(f'Models To Search: {models_to_search}')
 
         for model_key in models_to_search:
             if model_key not in MODEL_CONFIG:
@@ -1951,7 +1962,7 @@ class SearchByTextView(APIView):
                     model_search_fields = config['search_fields']
 
                 # Add config search fields if not present
-                model_search_fields = set(config.get('search_fields', []) + list(model_search_fields))
+                #model_search_fields = set(config.get('search_fields', []) + list(model_search_fields))
                 if not model_search_fields:
                     continue
 
@@ -1990,6 +2001,7 @@ class SearchByTextView(APIView):
                 # Get filtered count for this model
                 filtered_count = queryset.count()
                 filtered_records += filtered_count
+                logger.info(f'{model_name}({filtered_count}) - Search Conditions: {search_conditions}')
 
                 # Process results (with limit for performance)
                 max_results_per_model = 1000  # Limit results per model for performance
@@ -2222,6 +2234,7 @@ class TextSearchFieldsByModelView(APIView):
     def get(self, request):
         """Get search fields for a specific model"""
         model_key = request.query_params.get('model', 'all')
+        logger.info(f'GET: Request Data: {request.GET}')
 
         if model_key == 'all':
             # Get all active field displays across all models

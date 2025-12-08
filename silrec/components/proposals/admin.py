@@ -346,7 +346,7 @@ class TextSearchModelConfigAdmin(admin.ModelAdmin):
     form = TextSearchModelConfigForm
     list_display = [
         'key', 'display_name', 'model_name',
-        'is_active', 'order', 'get_search_fields_count'
+        'is_active', 'order', 'search_fields', 'get_search_fields_count'
     ]
     list_filter = ['is_active', 'key']
     search_fields = ['key', 'display_name', 'model_name']

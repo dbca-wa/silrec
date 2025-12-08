@@ -31,7 +31,7 @@
                     </div>
                 </div>
                 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="form-group">
                         <label for="">Search Mode</label>
                         <select
@@ -50,7 +50,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="form-group">
                         <label for="">Record Type</label>
                         <select
@@ -67,6 +67,23 @@
                             <option value="silviculturist_comment">Silviculturist Comments</option>
                             <option value="prescription">Prescriptions</option>
                         </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                      <label for="post_2024_only" class="form-check-label">
+                        <br>
+                        <div>
+                          <input
+                            id="post_2024_only"
+                            v-model="filterPost2024Only"
+                            type="checkbox"
+                            class="form-check-input me-2"
+                            checked
+                          />
+                          Post 2024 only
+                        </div>
+                      </label>
                     </div>
                 </div>
             </div>

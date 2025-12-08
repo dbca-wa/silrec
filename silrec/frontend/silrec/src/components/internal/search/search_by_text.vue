@@ -103,6 +103,23 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                      <label for="post_2024_only" class="form-check-label">
+                        <br>
+                        <div>
+                          <input
+                            id="post_2024_only"
+                            v-model="filterPost2024Only"
+                            type="checkbox"
+                            class="form-check-input me-2"
+                            checked
+                          />
+                          Post 2024 only
+                        </div>
+                      </label>
+                    </div>
+                </div>
 
                 <div class="col-md-12 mt-2 p-2" v-if="availableFields.length > 0">
                     <div class="form-group">

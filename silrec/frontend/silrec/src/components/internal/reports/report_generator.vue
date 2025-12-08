@@ -36,6 +36,23 @@
                 </div>
               </div>
             </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                  <label for="post_2024_only" class="form-check-label">
+                    <br>
+                    <div>
+                      <input
+                        id="post_2024_only"
+                        v-model="filterPost2024Only"
+                        type="checkbox"
+                        class="form-check-input me-2"
+                        checked
+                      />
+                      Post 2024 only
+                    </div>
+                  </label>
+                </div>
+            </div>
           </div>
         </div>
 

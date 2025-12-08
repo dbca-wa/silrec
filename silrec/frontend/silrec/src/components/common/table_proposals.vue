@@ -75,6 +75,24 @@
                     </div>
                 </div>
             </div>
+            <div class="row mt-1 p-2">
+                <div class="col-md-9">
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="post_2024_only" class="form-check-label">
+                            <input
+                                id="post_2024_only"
+                                v-model="filterPost2024Only"
+                                type="checkbox"
+                                class="form-check-input me-2"
+                                checked
+                            />
+                            Post 2024 only
+                        </label>
+                    </div>
+                </div>
+            </div>
         </CollapsibleFilters>
 
         <div v-if="!email_user_id_assigned" class="row">

@@ -36,10 +36,6 @@
                   <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.obj_code') }}</td>
                 </tr>
                 <tr>
-                  <th class="field-label">Residual BA:</th>
-                  <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.resid_ba_m2ha') }}</td>
-                </tr>
-                <tr>
                   <th class="field-label">Target BA:</th>
                   <td class="field-value">{{ getFeatureValue(selectedFeature, 'primary_cohort.target_ba_m2ha') }}</td>
                 </tr>
@@ -150,8 +146,23 @@
             <div v-if="tableVisible" class="card-body">
                 <!-- Updated Filters with Combined Select and Search Components -->
                 <div class="row mb-3">
+                  <div class="col-md-2">
+                    <div class="form-group">
+                      <label for="filterObjCategory" class="form-label">Objective Category</label>
+                      <select
+                        v-model="filterObjCategory"
+                        class="form-select"
+                        id="filterObjCategory"
+                      >
+                        <option value="all">All Categories</option>
+                        <option value="1">Category 1</option>
+                        <option value="2">Category 2</option>
+                        <option value="3">Category 3</option>
+                      </select>
+                    </div>
+                  </div>
                     <!-- Objective Code Filter -->
-                    <div class="col-md-2">
+                  <div class="col-md-2">
                         <label for="filterObjCode" class="form-label">Objective Code</label>
                         <div class="dropdown" ref="objectiveDropdown">
                             <button class="form-select form-select-sm text-start dropdown-toggle" 
@@ -196,7 +207,11 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                  </div>
+
+                </div>
+
+                <div class="row mb-3">
 
                     <!-- Compartment Filter -->
                     <div class="col-md-2">
@@ -369,6 +384,9 @@
                         </select>
                     </div>
 
+                    <div class="col-md-2">
+                    </div>
+
                     <!-- Date Filters -->
                     <div class="col-md-2">
                         <label for="filterCreatedFrom" class="form-label">Created From</label>
@@ -387,6 +405,25 @@
                             class="form-control form-control-sm"
                             id="filterCreatedTo"
                         />
+                    </div>
+                    <div class="col-md-4">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                          <label for="post_2024_only" class="form-check-label">
+                            <br>
+                            <div>
+                              <input
+                                id="post_2024_only"
+                                v-model="filterPost2024Only"
+                                type="checkbox"
+                                class="form-check-input me-2"
+                                checked
+                              />
+                              Post 2024 only
+                            </div>
+                          </label>
+                        </div>
                     </div>
                 </div>
 
@@ -522,6 +559,7 @@ export default {
         created_from: '',
         created_to: ''
       },
+      filterObjCategory: 'all',
       filteredPolygons: [],
       mapHeight: 600 // Default map height
     };

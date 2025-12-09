@@ -144,6 +144,7 @@
       </div>
 
       <!-- Prescriptions Section - Now Collapsible -->
+      <!--
       <div class="mt-4" v-if="treatmentId && !isNew">
         <div class="card">
           <div class="card-header bg-light">
@@ -183,6 +184,7 @@
           </div>
         </div>
       </div>
+      -->
 
       <!-- Treatment Extras Section -->
       <div class="mt-4" v-if="treatmentId && !isNew">

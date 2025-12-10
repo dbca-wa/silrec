@@ -24,6 +24,7 @@
         ref="collapsible_filters"
         component_title="Treatment Filters"
         class="mb-2"
+        :collapsed="false"
         :filter_warning_icon="filterWarningIcon"
         @created="collapsible_component_mounted"
       >
@@ -37,8 +38,14 @@
                 id="filterTaskCategory"
               >
                 <option value="all">All Categories</option>
-                <option value="1">Thinning</option>
-                <option value="2">Mining</option>
+                <option value="1">Prescribed Burn</option>
+                <option value="2">Rehabilitation</option>
+                <option value="3">Silvicultural Treatment</option>
+                <option value="4">Survey and Assessment</option>
+                <option value="5">Disturbance</option>
+                <option value="6">Clearance</option>
+                <option value="7">Harvest</option>
+                <option value="8">Planting</option>
               </select>
             </div>
           </div>

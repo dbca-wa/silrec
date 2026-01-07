@@ -26,11 +26,12 @@
                             Upload Shapefile
                         </button>
 
-                        <div v-if="uploadedFileName" class="ms-3">
+                        <!--<div v-if="uploadedFileName" class="ms-3">-->
+                        <div class="ms-3">
                         <button 
                             class="btn btn-primary process-btn"
-                            @click="triggerShapefileProcess"
-                            :disabled="!uploadingShapefile"
+                            @click="!triggerShapefileProcess"
+                            :disabled="uploadingShapefile"
                         >
                             <i class="bi bi-upload me-2"></i>
                             Process Shapefile

@@ -20,7 +20,7 @@ from silrec.utils.sliver_test1 import identify_slivers
 from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+# mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
 #matplotlib.use('Agg')
 

@@ -16,18 +16,19 @@ ENV EMAIL_INSTANCE='DEV'
 ENV SECRET_KEY="ThisisNotRealKey"
 ENV SITE_PREFIX='silrec-dev'
 ENV SITE_DOMAIN='dbca.wa.gov.au'
-ENV OSCAR_SHOP_NAME='Parks & Wildlife'
+ENV OSCAR_SHOP_NAME='Forest Management Branch'
 ENV BPAY_ALLOWED=False
 
 RUN apt-get clean
 RUN apt-get update
 RUN apt-get upgrade -y
-RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev build-essential python3 python3-setuptools python3-dev python3-pip tzdata libreoffice cron rsyslog gunicorn 
+#RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev build-essential python3 python3-setuptools python3-dev python3-pip tzdata libreoffice cron rsyslog gunicorn 
+RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev build-essential python3 python3-setuptools python3-dev python3-pip tzdata libreoffice cron rsyslog
 RUN apt-get install --no-install-recommends -y libpq-dev patch
 RUN apt-get install --no-install-recommends -y postgresql-client mtr
 RUN apt-get install --no-install-recommends -y sqlite3 vim postgresql-client ssh htop
 RUN apt-get install --no-install-recommends -y graphviz libgraphviz-dev pkg-config run-one virtualenv software-properties-common
-RUN apt-get install --no-install-recommends -y npm
+RUN apt-get install --no-install-recommends -y npm python3-tk
 
 # Install GDAL
 RUN add-apt-repository ppa:ubuntugis/ubuntugis-unstable
@@ -46,6 +47,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 COPY startup.sh /
 RUN chmod 755 /startup.sh
+RUN chmod +s /startup.sh
+#RUN echo "oim  ALL=(ALL)  NOPASSWD: /startup.sh" > /etc/sudoers.d/oim
 
 # kubernetes health checks script
 RUN wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/bin/health_check.sh -O /bin/health_check.sh

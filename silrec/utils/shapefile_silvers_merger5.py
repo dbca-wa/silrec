@@ -24,7 +24,7 @@ from silrec.utils.write_cohort_to_db import create_cohort_record
 
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+# mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
 #matplotlib.use('Agg')
 

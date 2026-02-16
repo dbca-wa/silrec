@@ -14,7 +14,7 @@ from silrec.utils.plot_utils import plot_overlay, plot_multi
 from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+# mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
 #matplotlib.use('Agg')
 

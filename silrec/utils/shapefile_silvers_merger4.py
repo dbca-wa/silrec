@@ -24,7 +24,7 @@ from silrec.utils.create_temp_tables import create_temp_tables_django_models, cl
 #from silrec.components.proposals.models import PolygonHistory
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+# mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
 #matplotlib.use('Agg')
 

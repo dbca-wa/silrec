@@ -11,7 +11,7 @@ import json
 from silrec.utils.plot_utils import plot_gdf, plot_overlay, plot_multi
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+# mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
 #matplotlib.use('Agg')
 

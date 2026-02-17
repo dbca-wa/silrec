@@ -155,9 +155,28 @@
                         id="filterObjCategory"
                       >
                         <option value="all">All Categories</option>
-                        <option value="1">Category 1</option>
-                        <option value="2">Category 2</option>
-                        <option value="3">Category 3</option>
+                        <option value="1">Conservation</option>
+                        <option value="2">Informals</option>
+                        <option value="3">Ecological Buffer</option>
+                        <option value="4">Research Buffer</option>
+                        <option value="5">Utility</option>
+                        <option value="6">Management Buffer</option>
+                        <option value="7">Uneconomic to harvest</option>
+                        <option value="8">Exotic Species</option>
+                        <option value="9">Natural Disturbance</option>
+                        <option value="10">Mine</option>
+                        <option value="11">Landings</option>
+                        <option value="12">Establish regeneration</option>
+                        <option value="13">Release Jarrah regeneration</option>
+                        <option value="14">Harvest diseased Jarrah</option>
+                        <option value="15">Selective harvest</option>
+                        <option value="16">Release Jarrah crop trees</option>
+                        <option value="17">Release Karri crop trees</option>
+                        <option value="18">Release Wandoo crop trees</option>
+                        <option value="19">Cultural Buffer</option>
+                        <option value="20">Retention vegetation patch</option>
+                        <option value="21">Ecological thin</option>
+                        <option value="22">Other</option>
                       </select>
                     </div>
                   </div>

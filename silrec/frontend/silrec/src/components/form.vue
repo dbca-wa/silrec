@@ -25,13 +25,27 @@
                             <i class="bi bi-upload me-2"></i>
                             Upload Shapefile
                         </button>
-                        
+
+                        <!--<div v-if="uploadedFileName" class="ms-3">-->
+                        <div class="ms-3">
+                        <button 
+                            class="btn btn-primary process-btn"
+                            @click="!triggerShapefileProcess"
+                            :disabled="uploadingShapefile"
+                        >
+                            <i class="bi bi-upload me-2"></i>
+                            Process Shapefile
+                        </button>
+                        </div>
+
+                       
                         <!-- Display uploaded filename -->
                         <div v-if="uploadedFileName" class="ms-3 uploaded-filename">
                             <i class="bi bi-file-earmark-zip me-1"></i>
                             <span class="text-muted">Uploaded:</span>
                             <strong class="ms-1">{{ uploadedFileName }}</strong>
                         </div>
+                        
                     </div>
                     
                     <input 
@@ -716,5 +730,9 @@ export default {
 
 .nav-pills .nav-link.active {
     background: gray;
+}
+
+.process-btn {
+  float: right;
 }
 </style>

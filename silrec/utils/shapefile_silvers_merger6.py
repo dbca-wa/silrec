@@ -24,7 +24,7 @@ from silrec.utils.write_cohort_to_db import create_cohort_record
 
 
 import matplotlib as mpl
-mpl.use('TkAgg')
+# mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
 #matplotlib.use('Agg')
 
@@ -292,18 +292,20 @@ class ShapefileSliversMerger():
         gdf_shpfile = self.gdf_shpfile.copy()
         cohort_id = create_cohort_record(engine=self.conn_engine, obj_code='JCROP1', op_id=1, year=2024)
 
+        list_state = []
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
 #            if idx_count==13:
 #                import ipdb; ipdb.set_trace()
 
+            #import ipdb; ipdb.set_trace()
             self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
             self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
 
             #import ipdb; ipdb.set_trace()
             gdf_hist = self.get_polygons_gdf(self.gdf_single, 'tmp_polygon', self.conn_engine, self.proposal_id)
-            #import ipdb; ipdb.set_trace()
+            import ipdb; ipdb.set_trace()
 
             # ---- TEMP
             gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
@@ -369,22 +371,34 @@ class ShapefileSliversMerger():
             gdf_cht_init['state']    = "gdf_cht_init".upper()
             gdf_cht_new['state']     = "gdf_cht_new".upper()
 
-            #import ipdb; ipdb.set_trace()
-            list_state = [
-                gdf_hist.copy(),
-                self.gdf_single.copy(),
-                gdf_result.copy(),
-                gdf_cht_init.copy(),
-                gdf_cht_new.copy(),
-            ]
+            import ipdb; ipdb.set_trace()
+            gdf_store = {
+                "gdf_hist".upper(): gdf_hist.copy(),
+                "gdf_single".upper(): self.gdf_single.copy(),
+                "gdf_result".upper(): gdf_result.copy(),
+                "gdf_cht_init".upper(): gdf_cht_init.copy(),
+                "gdf_cht_new".upper(): gdf_cht_new.copy(),
+            }
 
-            gdf_store = self.store_state(list_state)
+            list_state.append(
+                gdf_store
+            )
+#            list_state.append([
+#                gdf_hist.copy(),
+#                self.gdf_single.copy(),
+#                gdf_result.copy(),
+#                gdf_cht_init.copy(),
+#                gdf_cht_new.copy(),
+#            ])
+
+            #gdf_store = self.store_state(list_state)
             #import ipdb; ipdb.set_trace()
             self.save_cht_new_to_db(gdf_cht_new)
             gdf_hist = gdf_result.copy()
             gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
-        return gdf_store
+        #return gdf_store
+        return list_state
 
     def set_data(self, gdf, iter_seq=None, polygon_id=0, poly_type=None):
         gdf['proposal_id'] = self.proposal_id
@@ -817,7 +831,7 @@ class ShapefileSliversMerger():
         if 'index_right' in gdf_result.columns:
             gdf_result.drop('index_right', axis=1, inplace=True)
 
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         gdf_result = gdf_result.explode()
         gdf_result.reset_index(inplace=True)
         operations_summary, gdf_result = write_gdf_to_tmp_polygon(

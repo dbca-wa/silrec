@@ -171,6 +171,7 @@ def should_update_based_on_priority(poly_type_map, polygon_id, new_poly_type):
 
     # Define priority order (lower number = higher priority) - CHANGED: CUT now has highest priority
     priority_order = {'CUT': 1, 'BASE': 2}  # CHANGED: Swapped CUT and BASE
+    #priority_order = {'BASE': 1, 'CUT': 2}  # CHANGED: Swapped CUT and BASE
 
     existing_poly_type = poly_type_map[polygon_id]
     existing_priority = priority_order.get(existing_poly_type, 3)
@@ -188,7 +189,7 @@ def get_current_tmp_polygon_records(session):
     """))
     return {row[0]: dict(row._mapping) for row in result}
 
-def insert_new_polygon(session, row, current_user):
+def ___insert_new_polygon(session, row, current_user):
     """Insert a new polygon record"""
     session.execute(text("""
         INSERT INTO tmp_polygon (
@@ -209,7 +210,7 @@ def insert_new_polygon(session, row, current_user):
         'updated_by': current_user
     })
 
-def insert_duplicate_polygon(session, row, new_polygon_id, current_user):
+def ___insert_duplicate_polygon(session, row, new_polygon_id, current_user):
     """Insert a duplicate polygon with a new polygon_id"""
     session.execute(text("""
         INSERT INTO tmp_polygon (
@@ -230,7 +231,7 @@ def insert_duplicate_polygon(session, row, new_polygon_id, current_user):
         'updated_by': current_user
     })
 
-def update_existing_polygon(session, row, polygon_id, current_user):
+def ___update_existing_polygon(session, row, polygon_id, current_user):
     """Update an existing polygon record"""
     session.execute(text("""
         UPDATE tmp_polygon
@@ -245,6 +246,102 @@ def update_existing_polygon(session, row, polygon_id, current_user):
         'area_ha': row['area_ha'],
         'sp_code': row['sp_code'],
         'geom': row['geometry'].wkt if hasattr(row['geometry'], 'wkt') else None,
+        'updated_by': current_user
+    })
+
+def insert_new_polygon(session, row, current_user):
+    """Insert a new polygon record, setting proposal_id only if poly_type == 'BASE'."""
+    proposal_id = row['proposal_id'] if row.get('poly_type') == 'BASE' else None
+
+    session.execute(text("""
+        INSERT INTO tmp_polygon (
+            polygon_id, name, compartment, area_ha, sp_code, proposal_id, geom,
+            created_on, created_by, updated_on, updated_by
+        ) VALUES (
+            :polygon_id, :name, :compartment, :area_ha, :sp_code, :proposal_id,
+            ST_GeomFromEWKT(:geom),
+            CURRENT_TIMESTAMP, :created_by, CURRENT_TIMESTAMP, :updated_by
+        )
+    """), {
+        'polygon_id': row['polygon_id'],
+        'name': row['name'],
+        'compartment': row['compartment'],
+        'area_ha': row['area_ha'],
+        'sp_code': row['sp_code'],
+        'proposal_id': proposal_id,
+        'geom': row['geometry'].wkt if hasattr(row['geometry'], 'wkt') else None,
+        'created_by': current_user,
+        'updated_by': current_user
+    })
+
+def insert_duplicate_polygon(session, row, new_polygon_id, current_user):
+    """Insert a duplicate polygon with a new polygon_id, setting proposal_id only if poly_type == 'BASE'."""
+    proposal_id = row['proposal_id'] if row.get('poly_type') == 'BASE' else None
+
+    session.execute(text("""
+        INSERT INTO tmp_polygon (
+            polygon_id, name, compartment, area_ha, sp_code, proposal_id, geom,
+            created_on, created_by, updated_on, updated_by
+        ) VALUES (
+            :polygon_id, :name, :compartment, :area_ha, :sp_code, :proposal_id,
+            ST_GeomFromEWKT(:geom),
+            CURRENT_TIMESTAMP, :created_by, CURRENT_TIMESTAMP, :updated_by
+        )
+    """), {
+        'polygon_id': new_polygon_id,
+        'name': row['name'],
+        'compartment': row['compartment'],
+        'area_ha': row['area_ha'],
+        'sp_code': row['sp_code'],
+        'proposal_id': proposal_id,
+        'geom': row['geometry'].wkt if hasattr(row['geometry'], 'wkt') else None,
+        'created_by': current_user,
+        'updated_by': current_user
+    })
+
+def update_existing_polygon(session, row, polygon_id, current_user):
+    """Update an existing polygon record. proposal_id is set only if the current DB value is NULL."""
+    proposal_id = row['proposal_id'] if row.get('poly_type') == 'BASE' else None
+
+    session.execute(text("""
+        UPDATE tmp_polygon
+        SET name = :name, compartment = :compartment, area_ha = :area_ha,
+            sp_code = :sp_code, geom = ST_GeomFromEWKT(:geom),
+            proposal_id = COALESCE(proposal_id, :proposal_id),   -- only set if currently NULL
+            updated_on = CURRENT_TIMESTAMP, updated_by = :updated_by
+        WHERE polygon_id = :polygon_id
+    """), {
+        'polygon_id': polygon_id,
+        'name': row['name'],
+        'compartment': row['compartment'],
+        'area_ha': row['area_ha'],
+        'sp_code': row['sp_code'],
+        'geom': row['geometry'].wkt if hasattr(row['geometry'], 'wkt') else None,
+        'proposal_id': proposal_id,
+        'updated_by': current_user
+    })
+
+def ___update_existing_polygon(session, row, polygon_id, current_user):
+    """Update an existing polygon record, setting proposal_id only if poly_type == 'BASE'."""
+    # Determine proposal_id based on poly_type
+    proposal_id = row['proposal_id'] if row.get('poly_type') == 'BASE' else None
+    #import ipdb; ipdb.set_trace()
+
+    session.execute(text("""
+        UPDATE tmp_polygon
+        SET name = :name, compartment = :compartment, area_ha = :area_ha,
+            sp_code = :sp_code, geom = ST_GeomFromEWKT(:geom),
+            proposal_id = :proposal_id,
+            updated_on = CURRENT_TIMESTAMP, updated_by = :updated_by
+        WHERE polygon_id = :polygon_id
+    """), {
+        'polygon_id': polygon_id,
+        'name': row['name'],
+        'compartment': row['compartment'],
+        'area_ha': row['area_ha'],
+        'sp_code': row['sp_code'],
+        'geom': row['geometry'].wkt if hasattr(row['geometry'], 'wkt') else None,
+        'proposal_id': proposal_id,
         'updated_by': current_user
     })
 

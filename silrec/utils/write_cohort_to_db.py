@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import logging
 
-def create_cohort_record(engine, obj_code: str, op_id: int, year: int):
+def create_cohort_record(engine, obj_code: str, op_id: int, year: int, target_ba: int):
     """
     Create a record in tmp_cohort table with obj_code, op_id, and op_date
     only if a record with these values doesn't already exist.
@@ -30,12 +30,14 @@ def create_cohort_record(engine, obj_code: str, op_id: int, year: int):
         op_date = datetime(year, 1, 1)
 
         # First, check if record already exists
+        #import ipdb; ipdb.set_trace()
         existing_record = session.execute(
             tmp_cohort.select().where(
                 and_(
                     tmp_cohort.c.obj_code == obj_code,
                     tmp_cohort.c.op_id == op_id,
-                    tmp_cohort.c.op_date == op_date
+                    tmp_cohort.c.op_date == op_date,
+                    tmp_cohort.c.target_ba_m2ha == float(target_ba)
                 )
             )
         ).first()
@@ -49,7 +51,8 @@ def create_cohort_record(engine, obj_code: str, op_id: int, year: int):
         stmt = tmp_cohort.insert().values(
             obj_code=obj_code,
             op_id=op_id,
-            op_date=op_date
+            op_date=op_date,
+            target_ba_m2ha=float(target_ba)
         )
 
         # Execute and get the inserted cohort_id

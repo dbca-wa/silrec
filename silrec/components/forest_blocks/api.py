@@ -40,6 +40,7 @@ from silrec.components.proposals.models import   (
 )
 from silrec.components.forest_blocks.models import   (
     Polygon,
+    TmpPolygon,
     Cohort,
     Treatment,
     Operation,

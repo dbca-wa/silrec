@@ -143,7 +143,8 @@ class AssignCategoryToTask(models.Model):
 class AssignChtToPly(models.Model):
     cht2ply_id = models.AutoField(primary_key=True)
     polygon = models.ForeignKey('Polygon', on_delete=models.CASCADE)
-    cohort = models.OneToOneField('Cohort', on_delete=models.CASCADE)
+    #cohort = models.OneToOneField('Cohort', on_delete=models.CASCADE)
+    cohort = models.ForeignKey('Cohort', on_delete=models.CASCADE)
     op = models.ForeignKey('Operation', on_delete=models.CASCADE, blank=True, null=True, db_comment='New cohort may be created by other than an operation therefore COLUMN IS NULLABLE')
     cohort_closed = models.DateField(blank=True, null=True, db_comment='Cohort is closed when stand is overwritten by new operation or some other disturbance creating a new stand.\n\nPolygon/area MUST always have an open (not closed) or current cohort.')
     created_on = models.DateTimeField(blank=True, null=True)
@@ -993,7 +994,8 @@ class TmpPolygon(models.Model):
 class TmpAssignChtToPly(models.Model):
     cht2ply_id = models.AutoField(primary_key=True)
     polygon = models.ForeignKey('TmpPolygon', on_delete=models.CASCADE)
-    cohort = models.OneToOneField('TmpCohort', on_delete=models.CASCADE)
+    #cohort = models.OneToOneField('TmpCohort', on_delete=models.CASCADE)
+    cohort = models.ForeignKey('TmpCohort', on_delete=models.CASCADE)
     op = models.ForeignKey('Operation', on_delete=models.CASCADE, blank=True, null=True, db_comment='New cohort may be created by other than an operation therefore COLUMN IS NULLABLE')
     cohort_closed = models.DateField(blank=True, null=True, db_comment='Cohort is closed when stand is overwritten by new operation or some other disturbance creating a new stand.\n\nPolygon/area MUST always have an open (not closed) or current cohort.')
     created_on = models.DateTimeField(blank=True, null=True)

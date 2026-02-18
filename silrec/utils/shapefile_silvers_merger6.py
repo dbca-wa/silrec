@@ -376,9 +376,9 @@ class ShapefileSliversMerger():
             gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id)
 
             # get init 'polygon - assign_cht_to_ply - cohort' state
-            import ipdb; ipdb.set_trace()
-            gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
             #import ipdb; ipdb.set_trace()
+            gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
+            import ipdb; ipdb.set_trace()
             gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
             gdf_cht_init['iter_seq'] = idx_count
             gdf_cht_new['iter_seq'] = idx_count
@@ -390,7 +390,7 @@ class ShapefileSliversMerger():
             gdf_cht_init['state']    = "gdf_cht_init".upper()
             gdf_cht_new['state']     = "gdf_cht_new".upper()
 
-            import ipdb; ipdb.set_trace()
+            #import ipdb; ipdb.set_trace()
             gdf_store = {
                 "gdf_hist".upper(): gdf_hist.copy(),
                 "gdf_single".upper(): self.gdf_single.copy(),
@@ -731,7 +731,11 @@ class ShapefileSliversMerger():
             gdf_result_indexed = gdf_result.set_index('cohort_id')
             gdf2_indexed = gdf2_subset.set_index('cohort_id')
 
+            # Drop duplicate indexes, keep last
+            gdf2_indexed = gdf2_indexed[~gdf2_indexed.index.duplicated(keep='last')]
+
             # Update only NaN values (overwrite=False means only replace NaN/None values)
+            #import ipdb; ipdb.set_trace()
             gdf_result_indexed.update(gdf2_indexed, overwrite=False)
 
             # Reset index and return
@@ -792,7 +796,6 @@ class ShapefileSliversMerger():
         #gdf_cht_new_Y_newcut = gdf_cht_new_Y_newcut.rename(columns={'poly_id_new': 'polygon_id', 'cht_id_cur': 'cohort_id'})
         gdf_cht_new_Y_newcut = gdf_cht_new_Y_newcut.rename(columns={'cht_id_cur': 'cohort_id'})
 
-        #import ipdb; ipdb.set_trace()
         gdf_cht_combined = pd.concat(
             [gdf_cht_orig_Y, gdf_cht_new_Y, gdf_cht_new_N, gdf_cht_new_Y_newcut],
             ignore_index=True,      # Reset index
@@ -1057,7 +1060,7 @@ class ShapefileSliversMerger():
             logger.error(f"Error saving data to PostgreSQL: {str(e)}")
             raise
 
-    def save_cht_new_to_db(self, gdf_cht_new, user=None):
+    def ___save_cht_new_to_db(self, gdf_cht_new, user=None):
         """
         Version using Django ORM with proper model import and NA value handling
         """
@@ -1157,6 +1160,107 @@ class ShapefileSliversMerger():
                         action = "created"
 
                     cht2ply_ids.append(obj.cht2ply_id)
+                    success_count += 1
+                    logger.info(f"Successfully {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
+
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
+                    logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
+                    # Log the full traceback for debugging
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
+                    continue
+
+            logger.info(f"Successfully processed {success_count} records, {error_count} errors for 'NEW-BASE_Y'")
+            return cht2ply_ids
+
+        except Exception as e:
+            logger.error(f"Error saving data to PostgreSQL: {str(e)}")
+            raise
+
+    def save_cht_new_to_db(self, gdf_cht_new, user=None):
+        """
+        Version using Django ORM and NA value handling
+        """
+
+        from silrec.components.forest_blocks.models import TmpAssignChtToPly
+
+        if gdf_cht_new.empty:
+            logger.info("No records found. Nothing to update (model TmpAssignChtToPly).")
+            return []
+
+        db_data = gdf_cht_new[['poly_id_new','cohort_id','op_id','status_current']]
+        db_data.rename(columns={'poly_id_new': 'polygon_id'}, inplace=True)
+        # Map column names and handle missing op_id
+        db_data['op_id'] = db_data.get('op_id', None)
+
+        # Ensure correct data types
+        db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
+        db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
+        #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(0).astype(int)
+
+        # Handle op_id - convert pandas NA to None
+        if 'op_id' in db_data.columns:
+            db_data['op_id'] = db_data['op_id'].replace('', None)
+            #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
+            db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype(int)
+            # Convert pandas Int64 NA to Python None
+            db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
+
+        # Handle status_current
+        db_data['status_current'] = db_data['status_current'].fillna(False)
+        db_data['status_current'] = db_data['status_current'].astype(bool)
+
+        #import ipdb; ipdb.set_trace()
+        cht2ply_ids = []
+        current_time = timezone.now()
+        username = user.username if user else 'system'
+        success_count = 0
+        error_count = 0
+
+        try:
+            for index, row in db_data.iterrows():
+                try:
+                    # Convert all values to native Python types
+                    polygon_id = int(row['polygon_id'])
+                    cohort_id = int(row['cohort_id'])
+                    op_id = row['op_id']
+                    status_current = bool(row['status_current'])
+
+                    logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
+
+                    # Try to get existing record
+                    #import ipdb; ipdb.set_trace()
+                    obj, created = TmpAssignChtToPly.objects.update_or_create(
+                        cohort_id=cohort_id,polygon_id=polygon_id, defaults={'op_id': op_id, 'status_current': status_current}
+                    )
+#                    obj, created = TmpAssignChtToPly.objects.update_or_create(
+#                        cohort_id=cohort_id,
+#                        polygon_id=polygon_id,
+#                        defaults={
+#                            'op_id': op_id,
+#                            'status_current': status_current,
+##                            'created_on': current_time,
+##                            'created_by': username,
+##                            'updated_on': current_time,
+##                            'updated_by': username,
+#                        }
+#                    )
+
+                    if created:
+                        # Update existing record
+                        obj.created_on = current_time
+                        obj.created_by = username
+                        action = "created"
+                    else:
+                        action = "updated"
+
+                    updated_on = current_time
+                    updated_by = username
+                    obj.save()
+
+                    cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
                     success_count += 1
                     logger.info(f"Successfully {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
 

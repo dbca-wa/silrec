@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from sqlalchemy import create_engine, text
 import geopandas as gpd
 import pandas as pd
@@ -22,7 +22,9 @@ from silrec.utils.write_polygons_to_db import write_gdf_to_tmp_polygon
 from silrec.utils.write_cohort_to_db import create_cohort_record
 #from silrec.utils.create_temp_tables import create_temp_tables_django_models, clear_temp_tables_django
 
+from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly, TmpPolygon, TmpCohort, TmpAssignChtToPly
 
+import reversion
 import matplotlib as mpl
 # mpl.use('TkAgg')
 #matplotlib.use('GTKAgg')
@@ -295,6 +297,12 @@ class ShapefileSliversMerger():
 
         # SET Init history and Shapefile to list_state
         gdf_hist = self.get_polygons_gdf(self.gdf_shpfile, 'tmp_polygon', self.conn_engine, self.proposal_id)
+        polygon_ids_hist = gdf_hist.polygon_id.to_list()
+        assignments = AssignChtToPly.objects.filter(polygon_id__in=polygon_ids_hist).values('cohort_id', 'cht2ply_id')
+        cohort_ids_hist = [a['cohort_id'] for a in assignments]
+        cht2ply_ids_hist = [a['cht2ply_id'] for a in assignments]
+
+        import ipdb; ipdb.set_trace()
         gdf_store = {
             "gdf_hist".upper(): gdf_hist.copy(),
             "gdf_shp".upper(): self.gdf_shpfile.copy(),
@@ -305,116 +313,131 @@ class ShapefileSliversMerger():
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
-            idx_count += 1
-#            if idx_count==13:
-#                import ipdb; ipdb.set_trace()
+            # TODO 1. filter to 'gdf_hist' sub-set of polygons, and
+            #      2. ac2p_qs with those poly_ids [from (1)]
+            #      3. cohort_qs with those cohort_ids [from (2)]
+            polygon_qs = Polygon.objects.filter(polygon_id__in=polygon_ids_hist)
+            cohort_qs = Cohort.objects.filter(cohort_id__in=cohort_ids_hist)
+            ac2p_qs = AssignChtToPly.objects.filter(cht2ply_id__in=cht2ply_ids_hist)
+            with reversion.create_revision():
+                for polygon in polygon_qs.iterator():
+                    reversion.add_to_revision(polygon)
+                for cohort in cohort_qs.iterator():
+                    reversion.add_to_revision(cohort)
+                for assign in ac2p_qs.iterator():
+                    reversion.add_to_revision(assign)
+                reversion.set_comment("Snapshot before loop")
 
-            #import ipdb; ipdb.set_trace()
-            self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
-            self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
+                idx_count += 1
+    #            if idx_count==13:
+    #                import ipdb; ipdb.set_trace()
 
-            target_ba = float(self.gdf_single.iloc[0].target_ba_)
-            obj_code = self.gdf_single.iloc[0].obj_code
-            op_id = 1 #self.gdf_single.iloc[0].op_id
-            year = 2024 #self.gdf_single.iloc[0].completion_year
-            #cohort_id = create_cohort_record(engine=self.conn_engine, obj_code='JCROP1', op_id=1, year=2024)
-            cohort_id = create_cohort_record(engine=self.conn_engine, obj_code=obj_code, op_id=op_id, year=year, target_ba=target_ba)
+                #import ipdb; ipdb.set_trace()
+                self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
+                self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
 
-            gdf_hist = self.get_polygons_gdf(self.gdf_single, 'tmp_polygon', self.conn_engine, self.proposal_id)
+                target_ba = float(self.gdf_single.iloc[0].target_ba_)
+                obj_code = self.gdf_single.iloc[0].obj_code
+                op_id = 1 #self.gdf_single.iloc[0].op_id
+                year = 2024 #self.gdf_single.iloc[0].completion_year
+                #cohort_id = create_cohort_record(engine=self.conn_engine, obj_code='JCROP1', op_id=1, year=2024)
+                cohort_id = create_cohort_record(engine=self.conn_engine, obj_code=obj_code, op_id=op_id, year=year, target_ba=target_ba)
 
-            # ---- TEMP
-            gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
-            gdf_hist.set_geometry('geometry', inplace=True)
-            gdf_hist.set_crs(settings.CRS_GDA94, inplace=True)
-            #return self.gdf_single, gdf_hist
-            # ----
+                gdf_hist = self.get_polygons_gdf(self.gdf_single, 'tmp_polygon', self.conn_engine, self.proposal_id)
 
-            #self.gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
+                # ---- TEMP
+                gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
+                gdf_hist.set_geometry('geometry', inplace=True)
+                gdf_hist.set_crs(settings.CRS_GDA94, inplace=True)
+                #return self.gdf_single, gdf_hist
+                # ----
 
-            # Determine which geometries in polygons geodataframe (hist) intersect with any geometry in gdf_single
-            # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
-            intersects_mask_single = gdf_hist.geometry.intersects(self.gdf_shpfile.unary_union)
-            gdf_polygons_intersecting_single = gdf_hist[intersects_mask_single]
+                #self.gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
 
-            # non overlapping overlayed geometries (creates independent partitioned geometries)
-            self.gdf_polygons_partitioned = gpd.overlay(self.gdf_single[['geometry']], gdf_polygons_intersecting_single, how='union')
-            self.gdf_polygons_partitioned = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area>1] # drop tiny areas
-            self.gdf_polygons_partitioned = self.gdf_polygons_partitioned.explode() # explode multipolys to indep polys
-            self.gdf_polygons_partitioned.reset_index(inplace=True)
-            #import ipdb; ipdb.set_trace()
+                # Determine which geometries in polygons geodataframe (hist) intersect with any geometry in gdf_single
+                # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
+                intersects_mask_single = gdf_hist.geometry.intersects(self.gdf_shpfile.unary_union)
+                gdf_polygons_intersecting_single = gdf_hist[intersects_mask_single]
 
-            #import ipdb; ipdb.set_trace()
-            base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
-            base_polygon['iter_seq'] = idx_count
-            base_polygon['poly_type'] = 'BASE'
+                # non overlapping overlayed geometries (creates independent partitioned geometries)
+                self.gdf_polygons_partitioned = gpd.overlay(self.gdf_single[['geometry']], gdf_polygons_intersecting_single, how='union')
+                self.gdf_polygons_partitioned = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area>1] # drop tiny areas
+                self.gdf_polygons_partitioned = self.gdf_polygons_partitioned.explode() # explode multipolys to indep polys
+                self.gdf_polygons_partitioned.reset_index(inplace=True)
+                #import ipdb; ipdb.set_trace()
 
-            # extract the land slivers
-            self.threshold = self.threshold if self.threshold else settings.SLIVER_AREALENGTH_THRESHOLD
-            #import ipdb; ipdb.set_trace()
-            gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), base_polygon, sliver_threshold=self.threshold) # better since returns all slivers touching base_polygon
-            gdf_slivers['poly_type'] = 'SLVR'
-            mask = self.gdf_polygons_partitioned.explode().geometry.area/self.gdf_polygons_partitioned.explode().geometry.length < self.threshold
-            gdf_excl_slivers = self.gdf_polygons_partitioned.explode()[~(mask)]
-            gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
+                #import ipdb; ipdb.set_trace()
+                base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
+                base_polygon['iter_seq'] = idx_count
+                base_polygon['poly_type'] = 'BASE'
 
-            # re-merge land slivers to base_polygon and create poly_type column
-            gdf_excl_slivers_plus_base = gpd.overlay(self.gdf_polygons_partitioned, gdf_slivers_plus_base, how='difference')
-            gdf_excl_slivers_plus_base['poly_type'] = 'HIST'
-            gdf_slivers_merged = gdf_slivers_plus_base.dissolve()
-            gdf_slivers_merged['poly_type'] = 'BASE'
-            gdf_slivers_merged['polygon_id'] = 0
-            gdf_slivers_merged['proposal_id'] = self.proposal_id
+                # extract the land slivers
+                self.threshold = self.threshold if self.threshold else settings.SLIVER_AREALENGTH_THRESHOLD
+                #import ipdb; ipdb.set_trace()
+                gdf_slivers = identify_slivers(self.gdf_polygons_partitioned.explode(), base_polygon, sliver_threshold=self.threshold) # better since returns all slivers touching base_polygon
+                gdf_slivers['poly_type'] = 'SLVR'
+                mask = self.gdf_polygons_partitioned.explode().geometry.area/self.gdf_polygons_partitioned.explode().geometry.length < self.threshold
+                gdf_excl_slivers = self.gdf_polygons_partitioned.explode()[~(mask)]
+                gdf_slivers_plus_base = gpd.GeoDataFrame(pd.concat([gdf_slivers, base_polygon], ignore_index=True))
 
-            #import ipdb; ipdb.set_trace()
-            # re-merge merged base_polygon with remaining cookie-cut and hist polygons
-            gdf_result = gpd.GeoDataFrame(pd.concat([gdf_excl_slivers_plus_base, gdf_slivers_merged], ignore_index=True))
-            gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
-            gdf_result['iter_seq'] = idx_count
-            if idx_count==3:
+                # re-merge land slivers to base_polygon and create poly_type column
+                gdf_excl_slivers_plus_base = gpd.overlay(self.gdf_polygons_partitioned, gdf_slivers_plus_base, how='difference')
+                gdf_excl_slivers_plus_base['poly_type'] = 'HIST'
+                gdf_slivers_merged = gdf_slivers_plus_base.dissolve()
+                gdf_slivers_merged['poly_type'] = 'BASE'
+                gdf_slivers_merged['polygon_id'] = 0
+                gdf_slivers_merged['proposal_id'] = self.proposal_id
+
+                #import ipdb; ipdb.set_trace()
+                # re-merge merged base_polygon with remaining cookie-cut and hist polygons
+                gdf_result = gpd.GeoDataFrame(pd.concat([gdf_excl_slivers_plus_base, gdf_slivers_merged], ignore_index=True))
+                gdf_result = gdf_result[gdf_result.area>1] # drop tiny areas
+                gdf_result['iter_seq'] = idx_count
+                if idx_count==3:
+                    import ipdb; ipdb.set_trace()
+                    pass
+                gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id)
+
+                # get init 'polygon - assign_cht_to_ply - cohort' state
+                #import ipdb; ipdb.set_trace()
+                gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
                 import ipdb; ipdb.set_trace()
-                pass
-            gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id)
+                gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
+                gdf_cht_init['iter_seq'] = idx_count
+                gdf_cht_new['iter_seq'] = idx_count
 
-            # get init 'polygon - assign_cht_to_ply - cohort' state
-            #import ipdb; ipdb.set_trace()
-            gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
-            import ipdb; ipdb.set_trace()
-            gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
-            gdf_cht_init['iter_seq'] = idx_count
-            gdf_cht_new['iter_seq'] = idx_count
+                # add column identifying store type
+                gdf_hist['state']        = "gdf_hist".upper()
+                self.gdf_single['state'] = "gdf_single".upper()
+                gdf_result['state']      = "gdf_result".upper()
+                gdf_cht_init['state']    = "gdf_cht_init".upper()
+                gdf_cht_new['state']     = "gdf_cht_new".upper()
 
-            # add column identifying store type
-            gdf_hist['state']        = "gdf_hist".upper()
-            self.gdf_single['state'] = "gdf_single".upper()
-            gdf_result['state']      = "gdf_result".upper()
-            gdf_cht_init['state']    = "gdf_cht_init".upper()
-            gdf_cht_new['state']     = "gdf_cht_new".upper()
+                #import ipdb; ipdb.set_trace()
+                gdf_store = {
+                    "gdf_hist".upper(): gdf_hist.copy(),
+                    "gdf_single".upper(): self.gdf_single.copy(),
+                    "gdf_result".upper(): gdf_result.copy(),
+                    "gdf_cht_init".upper(): gdf_cht_init.copy(),
+                    "gdf_cht_new".upper(): gdf_cht_new.copy(),
+                }
 
-            #import ipdb; ipdb.set_trace()
-            gdf_store = {
-                "gdf_hist".upper(): gdf_hist.copy(),
-                "gdf_single".upper(): self.gdf_single.copy(),
-                "gdf_result".upper(): gdf_result.copy(),
-                "gdf_cht_init".upper(): gdf_cht_init.copy(),
-                "gdf_cht_new".upper(): gdf_cht_new.copy(),
-            }
+                list_state.append(
+                    gdf_store
+                )
+    #            list_state.append([
+    #                gdf_hist.copy(),
+    #                self.gdf_single.copy(),
+    #                gdf_result.copy(),
+    #                gdf_cht_init.copy(),
+    #                gdf_cht_new.copy(),
+    #            ])
 
-            list_state.append(
-                gdf_store
-            )
-#            list_state.append([
-#                gdf_hist.copy(),
-#                self.gdf_single.copy(),
-#                gdf_result.copy(),
-#                gdf_cht_init.copy(),
-#                gdf_cht_new.copy(),
-#            ])
-
-            #gdf_store = self.store_state(list_state)
-            #import ipdb; ipdb.set_trace()
-            self.save_cht_new_to_db(gdf_cht_new)
-            gdf_hist = gdf_result.copy()
-            gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
+                #gdf_store = self.store_state(list_state)
+                #import ipdb; ipdb.set_trace()
+                self.save_cht_new_to_db(gdf_cht_new)
+                gdf_hist = gdf_result.copy()
+                gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
         #return gdf_store
         return list_state

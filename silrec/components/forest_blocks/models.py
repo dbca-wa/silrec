@@ -2,8 +2,6 @@
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models import MultiPolygonField
 
-import os
-
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
     MachineLkp,
@@ -22,6 +20,9 @@ from silrec.components.proposals.models import (
     Proposal,
     Document,
 )
+
+import reversion
+import os
 
 #class TreatmentDocument(models.Model):
 class SurveyAssessmentDocument(Document):
@@ -966,9 +967,9 @@ class FpcHarvestTracker(models.Model):
 
 class TmpPolygon(models.Model):
     polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
-#    proposal = models.ForeignKey(
-#        Proposal, on_delete=models.CASCADE, related_name="tmp_polygons"
-#    )
+    proposal = models.ForeignKey(
+        Proposal, on_delete=models.CASCADE, related_name="tmp_polygons", blank=True, null=True
+    )
     name = models.CharField(max_length=10, blank=True, null=True, db_comment="Formerly 'PolyID'\nName of the polygon, usually descriptive of the administrative unit containing the polygon, e.g. code for forest block and compartment")
     compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
     area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon, as measured on flat/2D plane\nTrigger to calculate & populate ON UPDATE, ON CREATE')
@@ -1045,4 +1046,70 @@ class TmpCohort(models.Model):
         db_table_comment = "A cohort is characterised primarily by a silvicultural or management objective for a polygon, usually relating to a component of the dominant vegetation on the polygon.  The cohort has attribution related to the vegetation and institution of the silvicultural objective (which is usually some event).\nThis usually entails a suite of follow-up activities to ensure objective is achieved.\nA cohort is 'complete' when all activities prescribed for the institution of the silvicultural objective have been implemented or will not be implemented (no outstanding prescribed activities).\nA cohort is closed when superseded by an event creating a new management regime for the cohort; e.g. a thinning, wildfire or new management paradigm.  Cohort closure is a property of the assignment of the cohort to a polygon since a successive event may not (and typically doesn't) coincide geographically with the preceding event that instituted the cohort. \nIt follows that a cohort has a life that starts with some event, usually some silvicultural operation, or fire or change in the management paradigm; becomes 'complete' when required works are judged to have achieved intentions to an acceptable tolerance; and is closed when superseded by some other event.\nIf the cohort not closed, then it is the current silvicultural objective, and cohort characteristics represent the stand."
         app_label = "silrec"
 
+
+## Helper to collect all relation names (forward + reverse) for reversion.follow
+#def get_follow_fields(model):
+#    from django.db.models import ForeignKey, OneToOneField, ManyToManyField
+#    from django.db.models.fields.related import ManyToOneRel, OneToOneRel, ManyToManyRel
+#
+#    follow = []
+#    for field in model._meta.get_fields():
+#        if field.is_relation:
+#            # Forward relations: use the field name
+#            if isinstance(field, (ForeignKey, OneToOneField, ManyToManyField)):
+#                follow.append(field.name)
+#            # Reverse relations: use the reverse accessor name (e.g. 'treatment_set')
+#            # NOTE: Reverse relations can increase the size of revision data --> can cause performance issues
+#            elif isinstance(field, (ManyToOneRel, OneToOneRel, ManyToManyRel)):
+#                follow.append(field.get_accessor_name())
+#    return follow
+#
+## Register models with django-reversion
+from reversion import register
+
+#register(SurveyAssessmentDocument, follow=get_follow_fields(SurveyAssessmentDocument))
+register(SurveyAssessmentDocument, follow=['treatment'])
+register(AssignCategoryToTask, follow=['task', 'tsk_cat'])
+register(AssignChtToPly, follow=['polygon', 'cohort', 'op'])
+register(AssignObjToReport, follow=['obj_code', 'report'])
+register(AssignTaskToReport, follow=['task', 'tsk_rpt'])
+register(BaSweep, follow=['ba_transect', 'cell'])
+register(BaSweepTransfer, follow=[])
+register(BaSweepVersion, follow=[])
+register(BaTransect, follow=['cell'])
+register(BaTransectTransfer, follow=[])
+register(Cell, follow=['op'])
+register(ClComp2024PolysClearedMga202050Pl, follow=[])
+register(Cohort, follow=['regen_method', 'vrp'])
+register(CohortResult, follow=['cohort', 'metric'])
+register(CohortXtra, follow=['cohort', 'category1', 'category2'])
+register(CombinedSilrec2023, follow=[])
+register(CombinedSilrec20232, follow=[])
+register(Compartments, follow=[])
+register(Duplicates, follow=[])
+register(FeaActiveFmp25Region, follow=[])
+register(ObjectiveCategory, follow=[])
+register(ObjectiveSubtype, follow=[])
+register(Operation, follow=[])
+register(Polygon, follow=['proposal', 'compartment', 'sp_code'])
+register(PolygonDa, follow=[])
+register(PolygonMiningUnion, follow=[])
+register(PolygonPriorToAreaFix, follow=[])
+register(Prescription, follow=['obj_code', 'task', 'responsibility'])
+register(ReportCohort, follow=[])
+register(ReportTreatment, follow=[])
+register(SilrecPly2023, follow=[])
+register(SilrecVersion, follow=[])
+register(SilrecVersionTracking, follow=['version'])
+register(SilvicPlanInput, follow=[])
+register(SilviculturistComment, follow=['op', 'polygon', 'cohort', 'treatment'])
+register(SplitUnchangedPolygons, follow=[])
+register(TaskCategory, follow=[])
+register(Treatment, follow=['prescription', 'cohort', 'task'])
+register(TreatmentXtra, follow=['treatment', 'category1', 'category2', 'category3', 'category4'])
+register(VegRetPatch, follow=[])
+register(FpcHarvestTracker, follow=[])
+register(TmpPolygon, follow=['proposal', 'compartment', 'sp_code'])
+register(TmpAssignChtToPly, follow=['polygon', 'cohort', 'op'])
+register(TmpCohort, follow=['regen_method', 'vrp'])
 

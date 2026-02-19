@@ -6,6 +6,7 @@ from django.db.models import F
 from django.core.files.storage import default_storage
 from silrec.components.forest_blocks.models import (
     Polygon,
+    TmpPolygon,
     Cohort,
     Treatment,
     TreatmentXtra,
@@ -999,7 +1000,7 @@ class PolygonCohortDataSerializer(serializers.ModelSerializer):
     proposal_id = serializers.IntegerField(source='proposal.id', read_only=True)
 
     class Meta:
-        model = Polygon
+        model = TmpPolygon
         fields = (
             'polygon_id',
             'proposal_id',
@@ -1014,7 +1015,7 @@ class PolygonCohortDataSerializer(serializers.ModelSerializer):
 
     def get_assigned_cohorts(self, obj):
         # Use the correct related name
-        assigned_cht = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
+        assigned_cht = obj.tmpassignchttoply_set.filter(status_current=True).select_related('cohort')
         return AssignChtToPlySerializer(assigned_cht, many=True).data
 
 

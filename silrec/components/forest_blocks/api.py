@@ -468,7 +468,7 @@ class DatatablesFilterBackend(DatatablesFilterBackend):
         return queryset
 
 class PolygonCohortTableViewSet(viewsets.ModelViewSet):
-    queryset = Polygon.objects.none()
+    queryset = TmpPolygon.objects.none()
     serializer_class = PolygonCohortDataSerializer
     pagination_class = DatatablesPageNumberPagination
     filter_backends = (DatatablesFilterBackend,)  # Use custom filter backend
@@ -477,13 +477,13 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         proposal_id = self.request.query_params.get('proposal_id')
         if proposal_id:
-            return Polygon.objects.filter(
+            return TmpPolygon.objects.filter(
                 proposal_id=proposal_id
             ).prefetch_related(
-                'assignchttoply_set',
-                'assignchttoply_set__cohort'
+                'tmpassignchttoply_set',
+                'tmpassignchttoply_set__cohort'
             )
-        return Polygon.objects.none()
+        return TmpPolygon.objects.none()
 
 #    def _list(self, request, *args, **kwargs):
 #        """

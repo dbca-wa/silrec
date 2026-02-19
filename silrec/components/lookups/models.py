@@ -1,5 +1,6 @@
 from django.db import models
 #from django.contrib.gis.db.models import GeometryField
+import reversion
 
 
 class ValidateModelMixin(object):
@@ -276,4 +277,41 @@ class ObjectiveLkp(models.Model):
 
 '''
 '''
+
+## -------------------------------------------------------------------------------------
+#
+## Helper to collect all relation names (forward + reverse) for reversion.follow
+#def get_follow_fields(model):
+#    from django.db.models import ForeignKey, OneToOneField, ManyToManyField
+#    from django.db.models.fields.related import ManyToOneRel, OneToOneRel, ManyToManyRel
+#
+#    follow = []
+#    for field in model._meta.get_fields():
+#        if field.is_relation:
+#            # Forward relations: use the field name
+#            if isinstance(field, (ForeignKey, OneToOneField, ManyToManyField)):
+#                follow.append(field.name)
+#            # Reverse relations: use the reverse accessor name (e.g. 'treatment_set')
+#            # NOTE: Reverse relations can increase the size of revision data --> can cause performance issues
+#            elif isinstance(field, (ManyToOneRel, OneToOneRel, ManyToManyRel)):
+#                follow.append(field.get_accessor_name())
+#    return follow
+#
+#
+
+# Register models with django-reversion
+from reversion import register
+
+#register(CohortMetricsLkp, follow=get_follow_fields(CohortMetricsLkp))
+register(CohortMetricsLkp, follow=['cohortresult_set'])
+register(MachineLkp, follow=[])
+register(OrganisationLkp, follow=[])
+register(RegenerationMethodsLkp, follow=[])
+register(RescheduleReasonsLkp, follow=[])
+register(SpatialPrecisionLkp, follow=[])
+register(SpeciesApiLkp, follow=[])
+register(TaskLkp, follow=['addition_attribs'])
+register(TasksAttLkp, follow=[])
+register(TreatmentStatusLkp, follow=[])
+register(ObjectiveLkp, follow=[])
 

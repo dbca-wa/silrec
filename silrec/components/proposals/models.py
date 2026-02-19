@@ -18,6 +18,7 @@ import re
 import json
 import geopandas as gpd
 from rest_framework import serializers
+import reversion
 from reversion.models import Version
 
 from dirtyfields import DirtyFieldsMixin
@@ -1008,3 +1009,42 @@ class TextSearchFieldDisplay(models.Model):
 
     def __str__(self):
         return f"{self.field_name} → {self.display_name}"
+
+## -------------------------------------------------------------------------------------
+#
+## Helper to collect all relation names (forward + reverse) for reversion.follow
+#def get_follow_fields(model):
+#    from django.db.models import ForeignKey, OneToOneField, ManyToManyField
+#    from django.db.models.fields.related import ManyToOneRel, OneToOneRel, ManyToManyRel
+#
+#    follow = []
+#    for field in model._meta.get_fields():
+#        if field.is_relation:
+#            # Forward relations: use the field name
+#            if isinstance(field, (ForeignKey, OneToOneField, ManyToManyField)):
+#                follow.append(field.name)
+#            # Reverse relations: use the reverse accessor name (e.g. 'treatment_set')
+#            # NOTE: Reverse relations can increase the size of revision data --> can cause performance issues
+#            elif isinstance(field, (ManyToOneRel, OneToOneRel, ManyToManyRel)):
+#                follow.append(field.get_accessor_name())
+#    return follow
+#
+#
+## Register models with django-reversion
+from reversion import register
+
+#register(AdditionalDocumentType, follow=get_follow_fields(AdditionalDocumentType))
+register(AdditionalDocumentType, follow=['proposaladditionaldocumenttype_set'])
+register(ProposalDocument, follow=['proposal'])
+register(ShapefileDocument, follow=['proposal'])
+register(ProposalAdditionalDocumentType, follow=['proposal', 'additional_document_type'])
+register(ProposalType, follow=[])
+register(Proposal, follow=['proposal_type', 'previous_application', 'application_type'])
+#register(ProposalGeometry, follow=['proposal', 'copied_from'])
+#register(AmendmentReason, follow=[])
+#register(ProposalRequest, follow=[])
+#register(AmendmentRequest, follow=[])
+register(SQLReport, follow=['created_by', 'allowed_groups'])
+register(TextSearchModelConfig, follow=['created_by'])
+register(TextSearchFieldDisplay, follow=['created_by'])
+

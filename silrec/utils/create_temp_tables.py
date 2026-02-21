@@ -59,3 +59,15 @@ def drop_temp_tables_django():
             DROP TABLE IF EXISTS tmp_cohort CASCADE;
         """)
 
+def drop_prod_tables_django():
+    """
+    Drop tables, then run:
+        pg_restore -h localhost -p 5432 -U dev -d silrec_test_n silrec_test4_3tables.dump -v
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            DROP TABLE IF EXISTS assign_cht_to_ply CASCADE;
+            DROP TABLE IF EXISTS polygon CASCADE;
+            DROP TABLE IF EXISTS cohort CASCADE;
+        """)
+

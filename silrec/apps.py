@@ -5,7 +5,7 @@ from django.apps import AppConfig
 
 class SilrecConfig(AppConfig):
     name = 'silrec'
-    verbose_name = settings.SYSTEM_NAME
+    #verbose_name = settings.SYSTEM_NAME
 
     run_once = False
     def ready(self):

@@ -12,16 +12,11 @@ import json
 
 
 from silrec import helpers
-from silrec.components.main.models import (
-    ApplicationType,
-    SystemMaintenance,
-)
-from silrec.components.proposals.models import (
-    SQLReport,
-    TextSearchModelConfig,
-    TextSearchFieldDisplay
-)
-from silrec.components.proposals import forms as proposal_forms
+#from silrec.components.proposals.models import (
+#    SQLReport,
+#    TextSearchModelConfig,
+#    TextSearchFieldDisplay
+#)
 from silrec.components.proposals import models
 
 
@@ -32,33 +27,15 @@ class ProposalTypeAdmin(admin.ModelAdmin):
     list_filter = ("code",)
 
 
-class ProposalDocumentInline(admin.TabularInline):
-    model = models.ProposalDocument
-    extra = 0
+#class ProposalDocumentInline(admin.TabularInline):
+#    model = models.ProposalDocument
+#    extra = 0
+#
+#
+#@admin.register(models.AmendmentReason)
+#class AmendmentReasonAdmin(admin.ModelAdmin):
+#    list_display = ["reason"]
 
-
-@admin.register(models.AmendmentReason)
-class AmendmentReasonAdmin(admin.ModelAdmin):
-    list_display = ["reason"]
-
-
-@admin.register(SystemMaintenance)
-class SystemMaintenanceAdmin(admin.ModelAdmin):
-    list_display = ["name", "description", "start_date", "end_date", "duration"]
-    ordering = ("start_date",)
-    readonly_fields = ("duration",)
-    form = proposal_forms.SystemMaintenanceAdminForm
-
-
-@admin.register(ApplicationType)
-class ApplicationTypeAdmin(admin.ModelAdmin):
-    list_display = [
-        "name",
-        "order",
-        "visible",
-    ]
-    ordering = ("order",)
-    readonly_fields = ["name"]
 
 
 class SQLReportAdminForm(forms.ModelForm):
@@ -104,7 +81,7 @@ class SQLReportAdminForm(forms.ModelForm):
     )
 
     class Meta:
-        model = SQLReport
+        model = models.SQLReport
         fields = '__all__'
         widgets = {
             'base_sql': forms.Textarea(attrs={'rows': 10, 'cols': 100, 'style': 'font-family: monospace;'}),
@@ -220,7 +197,7 @@ class SQLReportAdminForm(forms.ModelForm):
 
         return super().save(commit)
 
-@admin.register(SQLReport)
+@admin.register(models.SQLReport)
 class SQLReportAdmin(admin.ModelAdmin):
     form = SQLReportAdminForm
     list_display = ['name', 'report_type', 'is_active', 'created_on', 'preview_sql']
@@ -287,7 +264,7 @@ class TextSearchModelConfigForm(forms.ModelForm):
     )
 
     class Meta:
-        model = TextSearchModelConfig
+        model = models.TextSearchModelConfig
         fields = '__all__'
         widgets = {
             'search_fields': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
@@ -341,7 +318,7 @@ class TextSearchModelConfigForm(forms.ModelForm):
         return super().save(commit)
 
 
-@admin.register(TextSearchModelConfig)
+@admin.register(models.TextSearchModelConfig)
 class TextSearchModelConfigAdmin(admin.ModelAdmin):
     form = TextSearchModelConfigForm
     list_display = [
@@ -380,7 +357,7 @@ class TextSearchModelConfigAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-@admin.register(TextSearchFieldDisplay)
+@admin.register(models.TextSearchFieldDisplay)
 class TextSearchFieldDisplayAdmin(admin.ModelAdmin):
     list_display = [
         'field_name', 'display_name', 'is_active', 'order', 'description_short'

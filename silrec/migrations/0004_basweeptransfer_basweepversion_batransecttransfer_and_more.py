@@ -100,7 +100,7 @@ class Migration(migrations.Migration):
                 ('value', models.FloatField(blank=True, null=True)),
                 ('w', models.FloatField(blank=True, null=True)),
                 ('z', models.FloatField(blank=True, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'cl_comp_2024_polys_cleared_mga2020_50_pl',
@@ -117,7 +117,7 @@ class Migration(migrations.Migration):
                 ('x', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('y', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('uid', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'combined_silrec_2023',
@@ -134,7 +134,7 @@ class Migration(migrations.Migration):
                 ('x', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('y', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('uid', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'combined_silrec_2023_2',
@@ -148,7 +148,7 @@ class Migration(migrations.Migration):
                 ('district', models.CharField(blank=True, max_length=10, null=True)),
                 ('supply', models.CharField(blank=True, max_length=15, null=True)),
                 ('region', models.CharField(blank=True, max_length=10, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
                 ('zmapinfo_id', models.IntegerField(blank=True, db_column='zMapInfo_ID', db_comment='Does this column need to be in compartment table?', null=True)),
             ],
             options={
@@ -188,7 +188,7 @@ class Migration(migrations.Migration):
                 ('swalcarea', models.CharField(blank=True, max_length=50, null=True)),
                 ('feayear', models.FloatField(blank=True, null=True)),
                 ('id', models.FloatField(blank=True, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'fea_active_fmp25_region',
@@ -223,7 +223,7 @@ class Migration(migrations.Migration):
                 ('editdate', models.DateField(blank=True, null=True)),
                 ('editor', models.CharField(blank=True, max_length=50, null=True)),
                 ('season', models.CharField(blank=True, max_length=50, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'fpc_harvest_tracker',
@@ -285,7 +285,7 @@ class Migration(migrations.Migration):
                 ('zstandno', models.CharField(blank=True, max_length=5, null=True)),
                 ('zmslink', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('zfea_id', models.CharField(blank=True, max_length=7, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'polygon_da',
@@ -325,7 +325,7 @@ class Migration(migrations.Migration):
                 ('zstandno', models.CharField(blank=True, max_length=5, null=True)),
                 ('zmslink', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('zfea_id', models.CharField(blank=True, max_length=7, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'polygon_mining_union',
@@ -350,7 +350,7 @@ class Migration(migrations.Migration):
                 ('zstandno', models.CharField(blank=True, db_column='zStandNo', max_length=5, null=True)),
                 ('zmslink', models.FloatField(blank=True, db_column='zMSLink', null=True)),
                 ('zfea_id', models.CharField(blank=True, max_length=7, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'polygon_prior_to_area_fix',
@@ -392,7 +392,7 @@ class Migration(migrations.Migration):
                 ('x', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('y', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
                 ('uid', models.DecimalField(blank=True, decimal_places=16, max_digits=100, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'silrec_ply_2023',
@@ -431,7 +431,7 @@ class Migration(migrations.Migration):
                 ('created_by', models.CharField(blank=True, max_length=50, null=True)),
                 ('updated_on', models.DateTimeField(blank=True, null=True)),
                 ('updated_by', models.CharField(blank=True, max_length=50, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'silvic_plan_input',
@@ -465,7 +465,7 @@ class Migration(migrations.Migration):
                 ('created_by', models.CharField(blank=True, max_length=50, null=True)),
                 ('updated_on', models.DateTimeField(blank=True, null=True)),
                 ('updated_by', models.CharField(blank=True, max_length=50, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
             ],
             options={
                 'db_table': 'veg_ret_patch',
@@ -631,7 +631,7 @@ class Migration(migrations.Migration):
                 ('zstandno', models.CharField(blank=True, db_column='zStandNo', max_length=5, null=True)),
                 ('zmslink', models.FloatField(blank=True, db_column='zMSLink', null=True)),
                 ('zfea_id', models.CharField(blank=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)', max_length=7, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
                 ('compartment', models.ForeignKey(db_column='compartment', db_comment='foreign key to compartment and blocks table', on_delete=django.db.models.deletion.CASCADE, to='silrec.compartments')),
                 ('proposal', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='polygons', to='silrec.proposal')),
                 ('sp_code', models.ForeignKey(blank=True, db_column='sp_code', db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.spatialprecisionlkp')),
@@ -827,7 +827,7 @@ class Migration(migrations.Migration):
                 ('zstandno', models.CharField(blank=True, db_column='zStandNo', max_length=5, null=True)),
                 ('zmslink', models.FloatField(blank=True, db_column='zMSLink', null=True)),
                 ('zfea_id', models.CharField(blank=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)', max_length=7, null=True)),
-                ('geom', django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=28350)),
+                ('geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, null=True, srid=28350)),
                 ('compartment', models.ForeignKey(db_column='compartment', db_comment='foreign key to compartment and blocks table', on_delete=django.db.models.deletion.CASCADE, to='silrec.compartments')),
                 ('sp_code', models.ForeignKey(blank=True, db_column='sp_code', db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table', null=True, on_delete=django.db.models.deletion.CASCADE, to='lookups.spatialprecisionlkp')),
             ],

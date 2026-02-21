@@ -72,7 +72,7 @@ def identify_slivers(gdf, base_polygon_gdf, buffer_distance=0.001, sliver_thresh
     return slivers[['geometry', 'is_sliver', 'sliver_ratio', 'area', 'length']]
 
 
-def merge_slivers_into_base(gdf, base_polygon_gdf, slivers_gdf, buffer_distance=0.001, preserve_attributes=True):
+def __merge_slivers_into_base(gdf, base_polygon_gdf, slivers_gdf, buffer_distance=0.001, preserve_attributes=True):
     """
     Merge identified slivers into the base polygon and return updated GeoDataFrame.
 

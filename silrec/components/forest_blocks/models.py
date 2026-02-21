@@ -1,6 +1,6 @@
 #from django.db import models
 from django.contrib.gis.db import models
-from django.contrib.gis.db.models import MultiPolygonField
+from django.contrib.gis.db.models import PolygonField #, MultiPolygonField
 
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
@@ -318,7 +318,8 @@ class ClComp2024PolysClearedMga202050Pl(models.Model):
     value = models.FloatField(blank=True, null=True)
     w = models.FloatField(blank=True, null=True)
     z = models.FloatField(blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
+    #geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'cl_comp_2024_polys_cleared_mga2020_50_pl'
@@ -407,7 +408,7 @@ class CombinedSilrec2023(models.Model):
     x = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     y = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     uid = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'combined_silrec_2023'
@@ -423,7 +424,7 @@ class CombinedSilrec20232(models.Model):
     x = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     y = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     uid = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'combined_silrec_2023_2'
@@ -436,7 +437,7 @@ class Compartments(models.Model):
     district = models.CharField(max_length=10, blank=True, null=True)
     supply = models.CharField(max_length=15, blank=True, null=True)
     region = models.CharField(max_length=10, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
     zmapinfo_id = models.IntegerField(db_column='zMapInfo_ID', blank=True, null=True, db_comment='Does this column need to be in compartment table?')  # Field name made lowercase.
 
     class Meta:
@@ -473,7 +474,7 @@ class FeaActiveFmp25Region(models.Model):
     swalcarea = models.CharField(max_length=50, blank=True, null=True)
     feayear = models.FloatField(blank=True, null=True)
     id = models.FloatField(blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'fea_active_fmp25_region'
@@ -578,7 +579,7 @@ class Polygon(models.Model):
     zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
     zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
     zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon'
@@ -603,7 +604,7 @@ class PolygonDa(models.Model):
     zstandno = models.CharField(max_length=5, blank=True, null=True)
     zmslink = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     zfea_id = models.CharField(max_length=7, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon_da'
@@ -642,7 +643,7 @@ class PolygonMiningUnion(models.Model):
     zstandno = models.CharField(max_length=5, blank=True, null=True)
     zmslink = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     zfea_id = models.CharField(max_length=7, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon_mining_union'
@@ -665,7 +666,7 @@ class PolygonPriorToAreaFix(models.Model):
     zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
     zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
     zfea_id = models.CharField(max_length=7, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon_prior_to_area_fix'
@@ -726,7 +727,7 @@ class SilrecPly2023(models.Model):
     x = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     y = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     uid = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'silrec_ply_2023'
@@ -775,7 +776,7 @@ class SilvicPlanInput(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'silvic_plan_input'
@@ -922,7 +923,7 @@ class VegRetPatch(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'veg_ret_patch'
@@ -957,7 +958,7 @@ class FpcHarvestTracker(models.Model):
     editdate = models.DateField(blank=True, null=True)
     editor = models.CharField(max_length=50, blank=True, null=True)
     season = models.CharField(max_length=50, blank=True, null=True)
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'fpc_harvest_tracker'
@@ -984,7 +985,7 @@ class TmpPolygon(models.Model):
     zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
     zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
     zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
-    geom = MultiPolygonField(srid=28350, blank=True, null=True)
+    geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'tmp_polygon'

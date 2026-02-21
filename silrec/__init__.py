@@ -1,1 +1,1 @@
-default_app_config = 'sqs.apps.SilrecConfig'
+default_app_config = 'silrec.apps.SilrecConfig'

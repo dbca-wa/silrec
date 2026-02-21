@@ -26,7 +26,7 @@ admin.autodiscover()
 #    def has_change_permission(self, request, obj=None):
 #        if obj is None: # and obj.status > 1:
 #            return True
-#        return None 
+#        return None
 #    def has_delete_permission(self, request, obj=None):
 #        return None
 

@@ -97,6 +97,7 @@ media/
 *.dump
 *.db
 *.sqlite3
+*.sql
 
 #parkstay import ignores
 import/

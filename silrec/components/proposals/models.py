@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.db.models.fields import PolygonField
 from django.contrib.gis.db.models.functions import Area
@@ -35,6 +36,8 @@ from silrec.components.main.models import (
 
 import logging
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 def update_proposal_doc_filename(instance, filename):
     return f"proposals/{instance.proposal.id}/documents/{filename}"
@@ -543,6 +546,7 @@ class SQLReport(models.Model):
         ordering = ['name']
         verbose_name = 'SQL Report'
         verbose_name_plural = 'SQL Reports'
+        app_label = 'silrec'
 
     def __str__(self):
         return f"{self.name} ({self.report_type})"
@@ -950,6 +954,7 @@ class TextSearchModelConfig(models.Model):
         verbose_name = _("Text Search Model Configuration")
         verbose_name_plural = _("Text Search Model Configurations")
         ordering = ['order', 'display_name']
+        app_label='silrec'
 
     def __str__(self):
         return f"{self.display_name} ({self.key})"
@@ -1006,9 +1011,46 @@ class TextSearchFieldDisplay(models.Model):
         verbose_name = _("Text Search Field Display")
         verbose_name_plural = _("Text Search Field Displays")
         ordering = ['order', 'field_name']
+        app_label='silrec'
 
     def __str__(self):
         return f"{self.field_name} → {self.display_name}"
+
+
+class AuditLog(models.Model):
+    OPERATION_CHOICES = (
+        ('INSERT', 'Insert'),
+        ('UPDATE', 'Update'),
+        ('DELETE', 'Delete'),
+    )
+
+    table_name = models.CharField(max_length=255, db_index=True)
+    record_id = models.CharField(max_length=255, db_index=True)  # supports both int and UUID PKs
+    proposal = models.ForeignKey(
+        Proposal, related_name="audit_logs", on_delete=models.CASCADE
+    )
+    operation = models.CharField(max_length=10, choices=OPERATION_CHOICES)
+    old_values = models.JSONField(null=True, blank=True)
+    new_values = models.JSONField(null=True, blank=True)
+    user = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        #related_name='audit_logs'
+    )
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['table_name', 'record_id']),
+        ]
+        ordering = ['-timestamp']
+        app_label='silrec'
+
+    def __str__(self):
+        return f"{self.operation} on {self.table_name}#{self.record_id} at {self.timestamp}"
+
 
 ## -------------------------------------------------------------------------------------
 #

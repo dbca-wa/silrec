@@ -3,6 +3,64 @@ import pandas as pd
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 
+
+def find_longest_boundary_neighbour(target_gdf, full_gdf):
+    """
+    Find the neighboring polygon that shares the longest linear boundary
+    (touching/intersecting edge) with the target polygon.
+
+    Parameters:
+    -----------
+    target_gdf : GeoDataFrame
+        Single-row GeoDataFrame containing the target polygon
+    full_gdf : GeoDataFrame
+        Full GeoDataFrame containing all polygons
+
+    Returns:
+    --------
+    GeoDataFrame or None
+        Single-row GeoDataFrame containing the neighbor with the longest
+        shared boundary, or None if no touching neighbor is found.
+    """
+    if len(target_gdf) != 1:
+        raise ValueError("target_gdf must contain exactly one row")
+
+    target_geom = target_gdf.geometry.iloc[0]
+    target_idx = target_gdf.index[0]
+
+    # Identify potential neighbors (touch or intersect, exclude target itself)
+    neighbor_candidates = full_gdf[
+        (full_gdf.geometry.touches(target_geom) |
+         full_gdf.geometry.intersects(target_geom)) &
+        (full_gdf.index != target_idx)
+    ]
+
+    if len(neighbor_candidates) == 0:
+        return None
+
+    # Compute shared boundary length for each candidate
+    def shared_boundary_length(neighbor_geom):
+        # Intersection of the boundaries gives the shared line(s)
+        shared = target_geom.boundary.intersection(neighbor_geom.boundary)
+        # Length is zero for points/empty, positive for lines
+        return shared.length
+
+    # Add temporary column with shared length
+    neighbor_candidates = neighbor_candidates.copy()
+    neighbor_candidates['shared_length'] = neighbor_candidates.geometry.apply(shared_boundary_length)
+
+    # Filter out those with zero shared length (point touches only)
+    valid_neighbors = neighbor_candidates[neighbor_candidates['shared_length'] > 0]
+
+    if len(valid_neighbors) == 0:
+        return None
+
+    # Pick the neighbor with the longest shared boundary
+    best_idx = valid_neighbors['shared_length'].idxmax()
+    best_neighbor = full_gdf.loc[[best_idx]]
+
+    return best_neighbor
+
 def find_largest_neighbor(target_gdf, full_gdf):
     """
     Find the largest neighboring/touching polygon for a given target polygon.
@@ -73,6 +131,7 @@ def merge_target_into_neighbor(target_gdf, neighbor_gdf, full_gdf):
     updated_gdf = full_gdf.copy()
 
     # Merge the geometries (target into neighbor)
+    #import ipdb; ipdb.set_trace()
     merged_geometry = unary_union([
         updated_gdf.loc[neighbor_idx].geometry,
         updated_gdf.loc[target_idx].geometry
@@ -127,7 +186,8 @@ def find_and_merge(full_gdf, sliver_threshold):
         current_target = current_gdf.loc[[target_idx]]
 
         # Find largest neighbor for this target
-        largest_neighbor = find_largest_neighbor(current_target, current_gdf)
+        #largest_neighbor = find_largest_neighbor(current_target, current_gdf)
+        largest_neighbor = find_longest_boundary_neighbour(current_target, current_gdf)
 
         if largest_neighbor is not None:
             neighbor_idx = largest_neighbor.index[0]
@@ -145,6 +205,9 @@ def find_and_merge(full_gdf, sliver_threshold):
                 print(f"Skipping target {target_idx} - neighbor no longer available")
         else:
             print(f"Skipping target {target_idx} - no neighbors found")
+
+    # update area
+    current_gdf['area_ha'] = current_gdf.area/10000
 
     print(f"Successfully merged {processed_count} out of {len(targets_to_process)} target polygons")
     print(f"Polygon count reduced from {len(full_gdf)} to {len(current_gdf)}")

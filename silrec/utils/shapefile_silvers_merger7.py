@@ -168,14 +168,11 @@ class ShapefileSliversMerger():
         cohort_ids_hist = [a['cohort_id'] for a in assignments]
         cht2ply_ids_hist = [a['cht2ply_id'] for a in assignments]
 
-        #import ipdb; ipdb.set_trace()
-        gdf_store = {
+        # initialise store
+        list_state.append({
             "gdf_hist".upper(): gdf_hist.copy(),
             "gdf_shp".upper(): self.gdf_shpfile.copy(),
-        }
-        list_state.append(
-            gdf_store
-        )
+        })
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
@@ -205,7 +202,8 @@ class ShapefileSliversMerger():
 
                 #import ipdb; ipdb.set_trace()
                 self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
-                self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
+                #self.gdf_single  = self.set_data(self.gdf_single, iter_seq=idx_count, poly_type='BASE')
+                self.gdf_single  = self.set_data(self.gdf_single, poly_type='BASE')
 
                 target_ba = float(self.gdf_single.iloc[0].target_ba_)
                 obj_code = self.gdf_single.iloc[0].obj_code
@@ -225,7 +223,7 @@ class ShapefileSliversMerger():
 
                 #self.gdf_single = gpd.read_file('silrec/utils/Shapefiles/demarcation_1_polygons/Demarcation_Boundary_1_polygons.shp')
                 gdf_result = self.process_cookie_cut(gdf_hist)
-                gdf_result['iter_seq'] = idx_count
+                #gdf_result['iter_seq'] = idx_count
 
                 if idx_count==6:
                     import ipdb; ipdb.set_trace()
@@ -233,19 +231,16 @@ class ShapefileSliversMerger():
 
                 gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id)
 
+                #import ipdb; ipdb.set_trace()
                 # get init 'polygon - assign_cht_to_ply - cohort' state
-                #import ipdb; ipdb.set_trace()
                 gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
-                #import ipdb; ipdb.set_trace()
                 gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
-                gdf_cht_init['iter_seq'] = idx_count
-                gdf_cht_new['iter_seq'] = idx_count
 
-                list_state = self.set_gdf_store(list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
+                list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
                 #import ipdb; ipdb.set_trace()
                 self.save_cht_new_to_db(gdf_cht_new)
-                gdf_hist = gdf_result.copy()
-                gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
+                #gdf_hist = gdf_result.copy()
+                #gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
         # Add combined gdf_result's to list_state. list_state[1:] --> because first idx has NO results
         #gdf_result_combined = pd.concat([d['GDF_RESULT'] for d in list_state[1:]], ignore_index=True)
@@ -255,7 +250,12 @@ class ShapefileSliversMerger():
 
         return list_state
 
-    def set_gdf_store(self, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new):
+    def set_gdf_store(self, idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new):
+        self.gdf_single['iter_seq'] = idx_count
+        gdf_result['iter_seq'] = idx_count
+        gdf_cht_init['iter_seq'] = idx_count
+        gdf_cht_new['iter_seq'] = idx_count
+
         # add column identifying store type
         gdf_hist['state']        = "gdf_hist".upper()
         self.gdf_single['state'] = "gdf_single".upper()
@@ -264,18 +264,22 @@ class ShapefileSliversMerger():
         gdf_cht_new['state']     = "gdf_cht_new".upper()
 
         #import ipdb; ipdb.set_trace()
-        gdf_store = {
+        list_state.append({i
             "gdf_hist".upper(): gdf_hist.copy(),
             "gdf_single".upper(): self.gdf_single.copy(),
             "gdf_result".upper(): gdf_result.copy(),
             "gdf_cht_init".upper(): gdf_cht_init.copy(),
             "gdf_cht_new".upper(): gdf_cht_new.copy(),
-        }
-        list_state.append(gdf_store)
+        })
 
         return list_state
 
     def process_cookie_cut(self, gdf_hist):
+        '''
+        Performs the (shapefile) polygon overlay onto historical (current) polygons nd
+        cookie-cut's the intersections. Then absorbs/merges the slivers for the
+        given area/length threshold
+        '''
         # Determine which geometries in polygons geodataframe (hist) intersect with any geometry in gdf_single
         # polygons_intersecting are a subset of geometries for gdf polygons that intersect/overlay the base gdf (gdf_single)
         intersects_mask_single = gdf_hist.geometry.intersects(self.gdf_shpfile.unary_union)
@@ -372,9 +376,9 @@ class ShapefileSliversMerger():
         #p.geojson_data_processed_iters = geom_data
         return geom_data
 
-    def set_data(self, gdf, iter_seq=None, polygon_id=0, poly_type=None):
+    def set_data(self, gdf, polygon_id=0, poly_type=None):
         gdf['proposal_id'] = self.proposal_id
-        gdf['iter_seq'] = iter_seq
+        #gdf['iter_seq'] = iter_seq
         gdf['polygon_id'] = polygon_id if 'polygon_id' not in gdf else gdf['polygon_id'].fillna(polygon_id)
         if poly_type == 'SLVR':
             try:

@@ -233,7 +233,7 @@ class ShapefileSliversMerger():
 
                 #import ipdb; ipdb.set_trace()
                 # get init 'polygon - assign_cht_to_ply - cohort' state
-                gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result)
+                gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
                 gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
 
                 list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
@@ -264,7 +264,7 @@ class ShapefileSliversMerger():
         gdf_cht_new['state']     = "gdf_cht_new".upper()
 
         #import ipdb; ipdb.set_trace()
-        list_state.append({i
+        list_state.append({
             "gdf_hist".upper(): gdf_hist.copy(),
             "gdf_single".upper(): self.gdf_single.copy(),
             "gdf_result".upper(): gdf_result.copy(),
@@ -562,7 +562,7 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
-    def merge_cohort_data_init(self, gdf_result):
+    def merge_cohort_data_init(self, gdf_result, gdf_hist):
         """
         Query DB for cohort data.
         Namely, from 'polygon - assign_cht_to_ply - cohort' triple using SQL JOIN and merge with gdf
@@ -574,35 +574,47 @@ class ShapefileSliversMerger():
         if gdf_cht_init.empty:
             return gdf_result
 
+        polygon_ids = gdf_hist.polygon_id.to_list()
+        polygon_ids = list(set(polygon_ids)) if polygon_ids else [0]
+
         cohort_ids = gdf_result.cht_id_cur.to_list()
-        cohort_ids = list(set(cohort_ids))
+        cohort_ids = list(set(cohort_ids)) if cohort_ids else [0]
         if len(cohort_ids) == 0:
             return None
 
-        query = text("""
-            SELECT
-                tp.polygon_id,
-                tp.name,
-                tp.area_ha,
-                tp.compartment,
-                tp.sp_code,
-                tactp.cht2ply_id,
-                tactp.polygon_id as assign_polygon_id,
-                tactp.cohort_id as assign_cohort_id,
-                tactp.status_current,
-                tc.cohort_id,
-                tc.obj_code,
-                tc.op_id,
-                tc.complete_date,
-                tc.target_ba_m2ha
-            FROM polygon tp
-            LEFT JOIN assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
-            LEFT JOIN cohort tc ON tactp.cohort_id = tc.cohort_id
-            WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.status_current=True;
-        """)
+        try:
+            query = text("""
+                SELECT
+                    tp.polygon_id,
+                    tp.name,
+                    tp.area_ha,
+                    tp.compartment,
+                    tp.sp_code,
+                    tactp.cht2ply_id,
+                    tactp.polygon_id as assign_polygon_id,
+                    tactp.cohort_id as assign_cohort_id,
+                    tactp.status_current,
+                    tc.cohort_id,
+                    tc.obj_code,
+                    tc.op_id,
+                    tc.complete_date,
+                    tc.target_ba_m2ha
+                FROM polygon tp
+                LEFT JOIN assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
+                LEFT JOIN cohort tc ON tactp.cohort_id = tc.cohort_id
+                WHERE tc.cohort_id=ANY(:cohort_ids) AND tactp.polygon_id=ANY(:polygon_ids) AND tactp.status_current=True;
+            """)
 
-        with self.conn_engine.connect() as conn:
-            cohort_gdf_init = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
+            #    WHERE tactp.cohort_id=ANY(:cohort_ids) AND tactp.status_current=True;
+            #    --WHERE tc.cohort_id = ANY(:cohort_ids) AND tactp.polygon_id=ANY(:polygon_ids) AND tactp.status_current=True;
+            #    --WHERE tactp.polygon_id=ANY(:polygon_ids) AND tactp.status_current=True;
+            with self.conn_engine.connect() as conn:
+                cohort_gdf_init = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids, 'polygon_ids': polygon_ids})
+        except Exception as e:
+            import ipdb; ipdb.set_trace()
+            pass
+
+
 
         # Merge with original GeoDataFrame
         gdf_cht_init = gdf_cht_init.merge(

@@ -2,16 +2,21 @@ from sqlalchemy import create_engine, Table, Column, Integer, String, DateTime, 
 from sqlalchemy.orm import sessionmaker
 
 from django.db import IntegrityError, transaction
-from silrec.components.forest_blocks.models import Cohort
+from silrec.components.forest_blocks.models import Cohort, AssignChtToPly
 from silrec.utils.create_audit_log import AuditLogger
+
+import pandas as pd
 from datetime import datetime
+from django.utils import timezone
+from copy import deepcopy
 import logging
 
 logger = logging.getLogger(__name__)
 
-def create_cohort_record(obj_code: str, op_id: int, year: int, target_ba: int, regen_method: str, user_id: int, proposal_id: int=None) -> int | None:
+def write_cohort_to_db(obj_code: str, op_id: int, year: int, target_ba: int, regen_method: str, proposal_id: int, user_id: int=None) -> int | None:
     """
-    Create a record in the cohort table using.
+    Create a record in the cohort table for the USER PROVIDED SHAPEFILE polygons.
+
     Returns the cohort_id if the record exists or is created successfully,
     otherwise returns None.
     """
@@ -39,11 +44,10 @@ def create_cohort_record(obj_code: str, op_id: int, year: int, target_ba: int, r
                 # No extra defaults needed because we're providing all field values.
             )
 
-            al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj)
+            al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj).create()
             logger.info(f"Successful INSERT cohort record with ID: {cohort_obj.cohort_id}")
         else:
             cohort_obj = cohort_qs[0]
-            #al = AuditLogger(Cohort, cohort_obj, 'UPDATE', user_id, proposal_id, cohort_obj_orig, cohort_obj)
             logger.info(f"Successful RETRIEVE of cohort record with ID: {cohort_obj.cohort_id}")
 
         return cohort_obj.cohort_id
@@ -56,4 +60,101 @@ def create_cohort_record(obj_code: str, op_id: int, year: int, target_ba: int, r
         logger.error(f"Unexpected error creating cohort record: {e}")
         return None
 
+
+def save_cht_new_to_db(gdf_cht_new, proposal_id, user_id=None):
+    """
+    Saves the gdf_cht_new to AssignChtToPly (assign_cht_to_ply) table and NA value handling
+    """
+
+    from silrec.components.forest_blocks.models import AssignChtToPly
+
+    if gdf_cht_new.empty:
+        logger.info("No records found. Nothing to update (model AssignChtToPly).")
+        return []
+
+    #import ipdb; ipdb.set_trace()
+    db_data = gdf_cht_new[['poly_id_new','cohort_id','op_id','status_current']]
+    db_data = db_data.rename(columns={'poly_id_new': 'polygon_id'})
+    # Map column names and handle missing op_id
+    db_data['op_id'] = db_data.get('op_id', None)
+
+    # Ensure correct data types
+    db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
+    db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
+    #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(0).astype(int)
+
+    # Handle op_id - convert pandas NA to None
+    if 'op_id' in db_data.columns:
+        db_data['op_id'] = db_data['op_id'].replace('', None)
+        #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
+        #import ipdb; ipdb.set_trace()
+        db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(1).astype(int)
+        # Convert pandas Int64 NA to Python None
+        db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
+
+    # Handle status_current
+    db_data['status_current'] = db_data['status_current'].fillna(False)
+    db_data['status_current'] = db_data['status_current'].astype(bool)
+
+    #import ipdb; ipdb.set_trace()
+    cht2ply_ids = []
+    current_time = timezone.now()
+    success_count = 0
+    error_count = 0
+
+    try:
+        for index, row in db_data.iterrows():
+            try:
+                # Convert all values to native Python types
+                polygon_id = int(row['polygon_id'])
+                cohort_id = int(row['cohort_id'])
+                op_id = row['op_id']
+                status_current = bool(row['status_current'])
+
+                logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
+
+                #import ipdb; ipdb.set_trace()
+                obj, created = AssignChtToPly.objects.update_or_create(
+                    cohort_id=cohort_id,
+                    polygon_id=polygon_id,
+                    defaults={
+                        'op_id': op_id,
+                        'status_current': status_current
+                    }
+                )
+
+                if created:
+                    obj.created_on = current_time
+                    obj.created_by = user_id
+                    obj_orig = deepcopy(obj)
+                    action = "INSERT"
+                else:
+                    action = "UPDATE"
+                    obj_orig = obj
+
+                obj.updated_on = current_time
+                obj.updated_by = user_id
+                obj.save()
+
+                al = AuditLogger(AssignChtToPly, obj, action, user_id, proposal_id, obj_orig, obj).create()
+
+                cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
+                success_count += 1
+                logger.info(f"Successful {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
+
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
+                logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
+                # Log the full traceback for debugging
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                continue
+
+        logger.info(f"Successfully processed {success_count} records, {error_count} errors for 'NEW-BASE_Y'")
+        return cht2ply_ids
+
+    except Exception as e:
+        logger.error(f"Error saving data to PostgreSQL: {str(e)}")
+        raise
 

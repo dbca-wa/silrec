@@ -19,8 +19,8 @@ from silrec.utils.plot_canvas import create_tabbed_charts
 from silrec.utils.sliver_merge import find_and_merge
 from silrec.utils.sliver_test1 import identify_slivers
 
-from silrec.utils.write_polygons_to_db import write_gdf_to_polygon
-from silrec.utils.write_cohort_to_db import create_cohort_record
+from silrec.utils.write_polygons_to_db import write_polygons_to_db
+from silrec.utils.write_cohort_to_db import write_cohort_to_db, save_cht_new_to_db
 #from silrec.utils.create_temp_tables import create_temp_tables_django_models, clear_temp_tables_django
 
 from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
@@ -200,7 +200,7 @@ class ShapefileSliversMerger():
 
                 idx_count += 1
                 print('****************************************************************************************')
-                print(f'                                  {idx_count}')
+                print(f'                                 Polygon {idx_count}')
                 print('****************************************************************************************')
     #            if idx_count==13:
     #                import ipdb; ipdb.set_trace()
@@ -215,7 +215,7 @@ class ShapefileSliversMerger():
                 op_id = 1 #self.gdf_single.iloc[0].op_id
                 year = 2024 #self.gdf_single.iloc[0].completion_year
                 regen_method = ' %' # non-null FK req'd
-                cohort_id = create_cohort_record(obj_code, op_id, year, target_ba, regen_method, self.user_id, self.proposal_id)
+                cohort_id = write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, self.proposal_id, self.user_id)
 
                 gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.conn_engine, self.proposal_id)
 
@@ -242,7 +242,7 @@ class ShapefileSliversMerger():
 
                 list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
                 #import ipdb; ipdb.set_trace()
-                self.save_cht_new_to_db(gdf_cht_new)
+                save_cht_new_to_db(gdf_cht_new, self.proposal_id, self.user_id)
                 #gdf_hist = gdf_result.copy()
                 #gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
@@ -255,6 +255,8 @@ class ShapefileSliversMerger():
         return list_state
 
     def set_gdf_store(self, idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new):
+        gdf_cht_init = gdf_cht_init.copy()
+
         self.gdf_single['iter_seq'] = idx_count
         gdf_result['iter_seq'] = idx_count
         gdf_cht_init['iter_seq'] = idx_count
@@ -813,7 +815,7 @@ class ShapefileSliversMerger():
 
         gdf_result = gdf_result.explode()
         gdf_result.reset_index(inplace=True)
-        operations_summary, gdf_result = write_gdf_to_polygon(gdf_result, self.user_id)
+        operations_summary, gdf_result = write_polygons_to_db(gdf_result, self.proposal_id, self.user_id)
 
         logger.info(f'\nCohort_id:  {cohort_id}')
 
@@ -840,7 +842,7 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
-    def save_cht_new_to_db(self, gdf_cht_new):
+    def ___save_cht_new_to_db(self, gdf_cht_new):
         """
         Saves the gdf_cht_new to AssignChtToPly (assign_cht_to_ply) table and NA value handling
         """
@@ -915,7 +917,7 @@ class ShapefileSliversMerger():
                     obj.updated_by = self.user_id
                     obj.save()
 
-                    al = AuditLogger(AssignChtToPly, obj, action, self.user_id, self.proposal_id, obj_orig, obj)
+                    al = AuditLogger(AssignChtToPly, obj, action, self.user_id, self.proposal_id, obj_orig, obj).create()
 
                     cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
                     success_count += 1

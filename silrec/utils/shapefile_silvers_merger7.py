@@ -578,7 +578,7 @@ class ShapefileSliversMerger():
         Namely, from 'polygon - assign_cht_to_ply - cohort' triple using SQL JOIN and merge with gdf
         """
 
-        cols = ['polygon_id', 'area_ha_orig', 'poly_type', 'cht_type', 'cht_id_cur', 'obj_code', 'iter_seq', 'proposal_id']
+        cols = ['polygon_id', 'area_ha_orig', 'poly_type', 'cht_type', 'cht_id_cur', 'iter_seq', 'proposal_id']
         gdf_cht_init = gdf_result[gdf_result.polygon_id==gdf_result.poly_id_new][cols].copy()
 
         if gdf_cht_init.empty:
@@ -680,28 +680,31 @@ class ShapefileSliversMerger():
             # Reset index and return
             return gdf_result_indexed.reset_index()
 
-        def update_columns(row):
-            ''' Find rows in gdf and resets the given column values to original (hist) values '''
-            if row['desc'] == 'NEW-BASE_N':
-                # Find matching row with same polygon_id (could be any desc except NEW-BASE_N)
-                matching_rows = gdf_cht_combined[
-                    (gdf_cht_combined['polygon_id'] == row['polygon_id']) &     # that is the original (hist) data
-                    (gdf_cht_combined['desc'] != 'NEW-BASE_N')                  # Exclude current type of row
-                ]
-                if not matching_rows.empty:
-                    # Take the first matching row's values for all three columns
-                    matching_row = matching_rows.iloc[0]
-                    row['fea_id'] = matching_row['fea_id']
-                    row['obj_code'] = matching_row['obj_code']
-                    row['target_ba_'] = matching_row['target_ba_']
-                    row['op_id'] = matching_row['op_id']
-            return row
+#        def update_columns(row):
+#            ''' Find rows in gdf and resets the given column values to original (hist) values '''
+#            if row['desc'] == 'NEW-BASE_N':
+#                # Find matching row with same polygon_id (could be any desc except NEW-BASE_N)
+#                matching_rows = gdf_cht_combined[
+#                    (gdf_cht_combined['polygon_id'] == row['polygon_id']) &     # that is the original (hist) data
+#                    (gdf_cht_combined['desc'] != 'NEW-BASE_N')                  # Exclude current type of row
+#                ]
+#                if not matching_rows.empty:
+#                    # Take the first matching row's values for all three columns
+#                    matching_row = matching_rows.iloc[0]
+#                    row['fea_id'] = matching_row['fea_id']
+#                    row['obj_code'] = matching_row['obj_code']
+#                    row['target_ba_'] = matching_row['target_ba_']
+#                    row['op_id'] = matching_row['op_id']
+#            return row
 
         if type(cohort_ids)!=list:
             cohort_ids = [cohort_ids]
 
-        cols1 = ['polygon_id', 'poly_id_new', 'area_ha', 'cht_id_new', 'fea_id', 'obj_code', 'target_ba_', 'op_id']
-        cols2 = ['polygon_id', 'poly_id_new', 'area_ha', 'cht_id_cur', 'fea_id', 'obj_code', 'target_ba_', 'op_id']
+#        cols1 = ['polygon_id', 'poly_id_new', 'area_ha', 'cht_id_new', 'fea_id', 'obj_code', 'target_ba_', 'op_id']
+#        cols2 = ['polygon_id', 'poly_id_new', 'area_ha', 'cht_id_cur', 'fea_id', 'obj_code', 'target_ba_', 'op_id']
+
+        cols1 = ['polygon_id', 'poly_id_new', 'area_ha', 'cht_id_new']
+        cols2 = ['polygon_id', 'poly_id_new', 'area_ha', 'cht_id_cur']
 
         # For assigning ASSIGN_CHT_TO_PLY - for the orig polygons assigned to ORIG cohort_id(s) - These don't need saving since they should already be present
         # in the ASSIGN_CHT_TO_PLY table
@@ -746,10 +749,11 @@ class ShapefileSliversMerger():
         gdf_cht_combined = merge_gdfs(
             gdf_cht_combined,
             cohort_gdf_init,
-            ['cohort_id', 'obj_code', 'complete_date', 'target_ba_m2ha', 'op_id']
+            #['cohort_id', 'obj_code', 'complete_date', 'target_ba_m2ha', 'op_id']
+            ['cohort_id']
         )
-        gdf_cht_combined['obj_code'] = gdf_cht_combined['obj_code'].str.strip()
-        gdf_cht_combined = gdf_cht_combined.apply(update_columns, axis=1)
+        #gdf_cht_combined['obj_code'] = gdf_cht_combined['obj_code'].str.strip()
+        #gdf_cht_combined = gdf_cht_combined.apply(update_columns, axis=1)
 
         return gdf_cht_combined
 
@@ -803,12 +807,12 @@ class ShapefileSliversMerger():
 
         gdf_result = self.classify_polygons(gdf_result, self.gdf_single, tolerance=0.95)  # set poly_type 'CUT' or 'BASE'
 
-        # ADD DATA FROM SHAPEFILE ATTRIBUTES
-        gdf_result[['fea_id', 'obj_code', 'target_ba_', 'op_id']] = None # initialize columns
-        gdf_result.loc[gdf_result['poly_type']=='BASE', 'fea_id']     = self.gdf_single.fea_id.iloc[0]
-        gdf_result.loc[gdf_result['poly_type']=='BASE', 'obj_code']   = self.gdf_single.obj_code.iloc[0]
-        gdf_result.loc[gdf_result['poly_type']=='BASE', 'target_ba_'] = self.gdf_single.target_ba_.iloc[0]
-        gdf_result.loc[gdf_result['poly_type']=='BASE', 'op_id'] = op_id #self.gdf_single.target_ba_.iloc[0]
+#        # ADD DATA FROM SHAPEFILE ATTRIBUTES
+#        gdf_result[['fea_id', 'obj_code', 'target_ba_', 'op_id']] = None # initialize columns
+#        gdf_result.loc[gdf_result['poly_type']=='BASE', 'fea_id']     = self.gdf_single.fea_id.iloc[0]
+#        gdf_result.loc[gdf_result['poly_type']=='BASE', 'obj_code']   = self.gdf_single.obj_code.iloc[0]
+#        gdf_result.loc[gdf_result['poly_type']=='BASE', 'target_ba_'] = self.gdf_single.target_ba_.iloc[0]
+#        gdf_result.loc[gdf_result['poly_type']=='BASE', 'op_id'] = op_id #self.gdf_single.target_ba_.iloc[0]
 
         if 'index_right' in gdf_result.columns:
             gdf_result.drop('index_right', axis=1, inplace=True)

@@ -73,24 +73,23 @@ def save_cht_new_to_db(gdf_cht_new, proposal_id, user_id=None):
         return []
 
     #import ipdb; ipdb.set_trace()
-    db_data = gdf_cht_new[['poly_id_new','cohort_id','op_id','status_current']]
+    db_data = gdf_cht_new[['poly_id_new','cohort_id','status_current']]
     db_data = db_data.rename(columns={'poly_id_new': 'polygon_id'})
     # Map column names and handle missing op_id
-    db_data['op_id'] = db_data.get('op_id', None)
+    #db_data['op_id'] = db_data.get('op_id', None)
 
     # Ensure correct data types
     db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
     db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
-    #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(0).astype(int)
 
     # Handle op_id - convert pandas NA to None
-    if 'op_id' in db_data.columns:
-        db_data['op_id'] = db_data['op_id'].replace('', None)
-        #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
-        #import ipdb; ipdb.set_trace()
-        db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(1).astype(int)
-        # Convert pandas Int64 NA to Python None
-        db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
+#    if 'op_id' in db_data.columns:
+#        db_data['op_id'] = db_data['op_id'].replace('', None)
+#        #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
+#        #import ipdb; ipdb.set_trace()
+#        db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(1).astype(int)
+#        # Convert pandas Int64 NA to Python None
+#        db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
 
     # Handle status_current
     db_data['status_current'] = db_data['status_current'].fillna(False)
@@ -108,17 +107,18 @@ def save_cht_new_to_db(gdf_cht_new, proposal_id, user_id=None):
                 # Convert all values to native Python types
                 polygon_id = int(row['polygon_id'])
                 cohort_id = int(row['cohort_id'])
-                op_id = row['op_id']
+#                op_id = row['op_id']
                 status_current = bool(row['status_current'])
 
-                logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
+                #logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
+                logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, status_current={status_current}")
 
                 #import ipdb; ipdb.set_trace()
                 obj, created = AssignChtToPly.objects.update_or_create(
                     cohort_id=cohort_id,
                     polygon_id=polygon_id,
                     defaults={
-                        'op_id': op_id,
+                        #'op_id': op_id,
                         'status_current': status_current
                     }
                 )
@@ -145,7 +145,8 @@ def save_cht_new_to_db(gdf_cht_new, proposal_id, user_id=None):
             except Exception as e:
                 error_count += 1
                 logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
-                logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
+                #logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
+                logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, status_current={row['status_current']}")
                 # Log the full traceback for debugging
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")

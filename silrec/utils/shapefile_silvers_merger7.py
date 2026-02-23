@@ -18,7 +18,6 @@ from silrec.utils.plot_utils import plot_overlay, plot_multi
 from silrec.utils.plot_canvas import create_tabbed_charts
 from silrec.utils.sliver_merge import find_and_merge
 from silrec.utils.sliver_test1 import identify_slivers
-from silrec.utils.audit_signals import audit_context
 
 from silrec.utils.write_polygons_to_db import write_gdf_to_polygon
 from silrec.utils.write_cohort_to_db import create_cohort_record
@@ -216,7 +215,7 @@ class ShapefileSliversMerger():
                 op_id = 1 #self.gdf_single.iloc[0].op_id
                 year = 2024 #self.gdf_single.iloc[0].completion_year
                 regen_method = ' %' # non-null FK req'd
-                cohort_id = create_cohort_record(obj_code, op_id, year, target_ba, regen_method, self.proposal_id, self.user_id)
+                cohort_id = create_cohort_record(obj_code, op_id, year, target_ba, regen_method, self.user_id, self.proposal_id)
 
                 gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.conn_engine, self.proposal_id)
 
@@ -237,7 +236,6 @@ class ShapefileSliversMerger():
 
                 gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id)
 
-                import ipdb; ipdb.set_trace()
                 # get init 'polygon - assign_cht_to_ply - cohort' state
                 gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
                 gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
@@ -623,7 +621,6 @@ class ShapefileSliversMerger():
                 #cohort_gdf_init = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids, 'polygon_ids': polygon_ids})
                 cohort_gdf_init = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
 
-            import ipdb; ipdb.set_trace()
         except Exception as e:
             #import ipdb; ipdb.set_trace(
             logger.error(f'{e}')

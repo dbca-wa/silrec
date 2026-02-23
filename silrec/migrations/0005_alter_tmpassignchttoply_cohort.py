@@ -16,11 +16,11 @@ class Migration(migrations.Migration):
 #            name='proposal',
 #            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='tmp_polygons', to='silrec.proposal'),
 #        ),
-        migrations.AlterField(
-            model_name='tmpassignchttoply',
-            name='cohort',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='silrec.tmpcohort'),
-        ),
+#        migrations.AlterField(
+#            model_name='tmpassignchttoply',
+#            name='cohort',
+#            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='silrec.tmpcohort'),
+#        ),
         migrations.AlterField(
             model_name='assignchttoply',
             name='cohort',

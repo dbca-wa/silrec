@@ -7,20 +7,18 @@ from django.db import transaction, models
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from silrec.components.forest_blocks.models import Polygon#, PolygonAudit
 from silrec.components.proposals.models import AuditLog
+from silrec.utils.create_audit_log import AuditLogger
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
-def write_gdf_to_polygon(gdf_result, current_user="system"):
+def write_gdf_to_polygon(gdf_result, user_id=None):
     """
     Write GeoDataFrame to polygon table using Django ORM.
     Handles repeated polygon_ids, prioritizes poly_type (CUT > BASE > others),
     and adds 'poly_id_new' column to the returned GeoDataFrame.
-
-    Args:
-        gdf_result: GeoDataFrame with polygon data (must contain 'poly_type' column)
-        current_user: User performing the operation
 
     Returns:
         tuple: (operations_summary, gdf_result_with_new_ids)
@@ -58,7 +56,7 @@ def write_gdf_to_polygon(gdf_result, current_user="system"):
 
             if existing_polygon is None:
                 # New polygon_id → insert
-                _insert_new_polygon(row, current_user)
+                _insert_new_polygon(row, user_id)
                 ops_summary['new_records'] += 1
                 ops_summary['new_polygon_ids'].append(polygon_id)
                 gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
@@ -70,7 +68,7 @@ def write_gdf_to_polygon(gdf_result, current_user="system"):
                     # This polygon_id appears multiple times in the input
                     if _should_update_based_on_priority(poly_type_map, polygon_id, poly_type):
                         # Higher priority → update the existing record
-                        _update_existing_polygon(row, polygon_id, current_user)
+                        _update_existing_polygon(row, polygon_id, user_id)
                         ops_summary['updated_records'] += 1
                         ops_summary['updated_polygon_ids'].append(polygon_id)
                         ops_summary['priority_updates'].append(polygon_id)
@@ -79,14 +77,14 @@ def write_gdf_to_polygon(gdf_result, current_user="system"):
                     else:
                         # Lower priority → create a new record with a new polygon_id
                         new_polygon_id = _get_next_polygon_id()
-                        _insert_duplicate_polygon(row, new_polygon_id, current_user)
+                        _insert_duplicate_polygon(row, new_polygon_id, user_id)
                         ops_summary['new_records'] += 1
                         ops_summary['new_polygon_ids'].append(new_polygon_id)
                         gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
                         logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
                 else:
                     # First occurrence of this polygon_id in the input → update
-                    _update_existing_polygon(row, polygon_id, current_user)
+                    _update_existing_polygon(row, polygon_id, user_id)
                     ops_summary['updated_records'] += 1
                     ops_summary['updated_polygon_ids'].append(polygon_id)
                     gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
@@ -94,7 +92,7 @@ def write_gdf_to_polygon(gdf_result, current_user="system"):
 
         # Capture final state and create audit records
         #final_records = _get_current_polygon_records()
-        #_create_audit_records(current_records, final_records, current_user)
+        #_create_audit_records(current_records, final_records, user_id)
 
         logger.info(f"Operation completed: {ops_summary}")
         return ops_summary, gdf_result_with_ids
@@ -169,12 +167,12 @@ def _get_current_polygon_records():
         records[poly['polygon_id']] = poly
     return records
 
-def _insert_new_polygon(row, current_user):
+def _insert_new_polygon(row, user_id):
     """Insert a new polygon record. proposal_id is set only if poly_type == 'BASE'."""
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
 
-    Polygon.objects.create(
+    ply = Polygon.objects.create(
         polygon_id=row['polygon_id'],
         name=row['name'],
         compartment_id=row['compartment'],
@@ -182,17 +180,19 @@ def _insert_new_polygon(row, current_user):
         sp_code=row['sp_code'],
         proposal_id=proposal_id,
         geom=geom,
-        created_by=current_user,
-        updated_by=current_user,
+        created_by=user_id,
+        updated_by=user_id,
         # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
     )
 
-def _insert_duplicate_polygon(row, new_polygon_id, current_user):
+    al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply)
+
+def _insert_duplicate_polygon(row, new_polygon_id, user_id):
     """Insert a duplicate polygon with a new polygon_id."""
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
 
-    Polygon.objects.create(
+    ply = Polygon.objects.create(
         polygon_id=new_polygon_id,
         name=row['name'],
         compartment_id=row['compartment'],
@@ -200,16 +200,19 @@ def _insert_duplicate_polygon(row, new_polygon_id, current_user):
         sp_code=row['sp_code'],
         proposal_id=proposal_id,
         geom=geom,
-        created_by=current_user,
-        updated_by=current_user,
+        created_by=user_id,
+        updated_by=user_id,
     )
 
-def _update_existing_polygon(row, polygon_id, current_user):
+    al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply)
+
+def _update_existing_polygon(row, polygon_id, user_id):
     """
     Update an existing polygon record.
     proposal_id is set only if the current DB value is NULL.
     """
     poly = Polygon.objects.select_for_update().get(polygon_id=polygon_id)
+    poly_orig = deepcopy(poly)
 
     # Update basic fields
     poly.name = row['name']
@@ -218,13 +221,15 @@ def _update_existing_polygon(row, polygon_id, current_user):
     poly.sp_code = row['sp_code']
     if hasattr(row['geometry'], 'wkt'):
         poly.geom = GEOSGeometry(row['geometry'].wkt)
-    poly.updated_by = current_user
+    poly.updated_by = user_id
 
     # proposal_id: set only if currently NULL and poly_type == 'BASE'
     if poly.proposal_id is None and row.get('poly_type') == 'BASE':
         poly.proposal_id = row.get('proposal_id')
 
     poly.save()
+
+    al = AuditLogger(Polygon, poly, 'UPDATE', user_id, poly.proposal_id, poly_orig, poly)
 
 def _get_next_polygon_id():
     """Return the next available polygon_id (max existing + 1)."""
@@ -234,50 +239,50 @@ def _get_next_polygon_id():
 # Inside write_polygons_to_db.py (updated)
 
 
-def _create_audit_records(before_state, after_state, current_user):
-    """
-    Create audit entries for inserted/updated polygons.
-    before_state and after_state are dicts: {polygon_id: {field: value}}
-    current_user can be a User instance or a string (username).
-    """
-    # Resolve user object if current_user is a string
-    if isinstance(current_user, str):
-        try:
-            user = User.objects.get(username=current_user)
-        except User.DoesNotExist:
-            user = None
-    else:
-        user = current_user
-
-    table_name = Polygon._meta.db_table
-    all_ids = set(before_state.keys()) | set(after_state.keys())
-
-    for pid in all_ids:
-        before = before_state.get(pid)
-        after = after_state.get(pid)
-
-        before_json = _prepare_for_json(before) if before else None
-        after_json = _prepare_for_json(after) if after else None
-
-        if before is None and after is not None:
-            # Insert
-            AuditLog.objects.create(
-                table_name=table_name,
-                record_id=pid,
-                operation='INSERT',
-                new_values=after_json,
-                user=user,
-            )
-        elif before is not None and after is not None and before != after:
-            # Update
-            AuditLog.objects.create(
-                table_name=table_name,
-                record_id=pid,
-                operation='UPDATE',
-                old_values=before_json,
-                new_values=after_json,
-                user=user,
-            )
+#def _create_audit_records(before_state, after_state, user_id):
+#    """
+#    Create audit entries for inserted/updated polygons.
+#    before_state and after_state are dicts: {polygon_id: {field: value}}
+#    user_id can be a User instance or a string (username).
+#    """
+#    # Resolve user object if user_id is a string
+#    if isinstance(user_id, str):
+#        try:
+#            user = User.objects.get(username=user_id)
+#        except User.DoesNotExist:
+#            user = None
+#    else:
+#        user = user_d
+#
+#    table_name = Polygon._meta.db_table
+#    all_ids = set(before_state.keys()) | set(after_state.keys())
+#
+#    for pid in all_ids:
+#        before = before_state.get(pid)
+#        after = after_state.get(pid)
+#
+#        before_json = _prepare_for_json(before) if before else None
+#        after_json = _prepare_for_json(after) if after else None
+#
+#        if before is None and after is not None:
+#            # Insert
+#            AuditLog.objects.create(
+#                table_name=table_name,
+#                record_id=pid,
+#                operation='INSERT',
+#                new_values=after_json,
+#                user=user,
+#            )
+#        elif before is not None and after is not None and before != after:
+#            # Update
+#            AuditLog.objects.create(
+#                table_name=table_name,
+#                record_id=pid,
+#                operation='UPDATE',
+#                old_values=before_json,
+#                new_values=after_json,
+#                user=user,
+#            )
 
 def _prepare_for_json(obj):
     """Convert datetime/date/Decimal to JSON‑serializable types."""

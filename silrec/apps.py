@@ -13,6 +13,7 @@ class SilrecConfig(AppConfig):
 #            from sqs.components.organisations import signals
 #            from sqs.components.proposals import signals
         import silrec.components.proposals.signals
+        #import silrec.utils.audit_signals
 
         #self.run_once = True
         pass

@@ -14,6 +14,17 @@
     .geometry-section {
         margin-bottom: 20px;
     }
+    .info {
+        padding: 6px 8px;
+        font: 14px/16px Arial, Helvetica, sans-serif;
+        background: white;
+        background: rgba(255,255,255,0.8);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        border-radius: 5px;
+    }
+    .info b {
+        color: #333;
+    }
 </style>
 {% endblock %}
 
@@ -37,41 +48,60 @@
         {% endif %}
     </div>
 </div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         {% if old_geometry %}
-        console.log("Old geometry received:", {{ old_geometry|safe }});
+        var oldFeature = {{ old_geometry|safe }};
+        console.log("Old feature:", oldFeature);
         var mapOld = L.map('map-old').setView([0, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(mapOld);
-        var geoJsonOld = {{ old_geometry|safe }};
-        var layerOld = L.geoJSON(geoJsonOld).addTo(mapOld);
-        console.log("Old layer bounds:", layerOld.getBounds());
+        var layerOld = L.geoJSON(oldFeature.geometry).addTo(mapOld);
         if (layerOld.getBounds().isValid()) {
             mapOld.fitBounds(layerOld.getBounds());
-        } else {
-            console.warn("Old geometry has invalid bounds");
         }
+        // Add info overlay
+        var infoOld = L.control({position: 'topright'});
+        infoOld.onAdd = function(map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        infoOld.update = function() {
+            this._div.innerHTML = '<b>Polygon ID:</b> ' + (oldFeature.properties.polygon_id || 'N/A') + '<br>' +
+                                  '<b>Area (ha):</b> ' + (oldFeature.properties.area_ha ? oldFeature.properties.area_ha.toFixed(2) : 'N/A');
+        };
+        infoOld.addTo(mapOld);
+        infoOld.update();
         {% endif %}
 
         {% if new_geometry %}
-        console.log("New geometry received:", {{ new_geometry|safe }});
+        var newFeature = {{ new_geometry|safe }};
+        console.log("New feature:", newFeature);
         var mapNew = L.map('map-new').setView([0, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(mapNew);
-        var geoJsonNew = {{ new_geometry|safe }};
-        var layerNew = L.geoJSON(geoJsonNew).addTo(mapNew);
-        console.log("New layer bounds:", layerNew.getBounds());
+        var layerNew = L.geoJSON(newFeature.geometry).addTo(mapNew);
         if (layerNew.getBounds().isValid()) {
             mapNew.fitBounds(layerNew.getBounds());
-        } else {
-            console.warn("New geometry has invalid bounds");
         }
+        var infoNew = L.control({position: 'topright'});
+        infoNew.onAdd = function(map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        infoNew.update = function() {
+            this._div.innerHTML = '<b>Polygon ID:</b> ' + (newFeature.properties.polygon_id || 'N/A') + '<br>' +
+                                  '<b>Area (ha):</b> ' + (newFeature.properties.area_ha ? newFeature.properties.area_ha.toFixed(2) : 'N/A');
+        };
+        infoNew.addTo(mapNew);
+        infoNew.update();
         {% endif %}
     });
 </script>
 {% endif %}
 {% endblock %}
-

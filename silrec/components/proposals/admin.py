@@ -550,7 +550,7 @@ class AuditLogAdmin(admin.ModelAdmin):
     formatted_new_values.short_description = 'New Values'
 
     def old_geometry(self, obj):
-        """Return transformed GeoJSON geometry from old_values if table is polygon."""
+        """Return a GeoJSON Feature with geometry and properties from old_values."""
         if obj.table_name == 'polygon' and obj.old_values:
             geom = obj.old_values.get('geom')
             if geom:
@@ -558,25 +558,44 @@ class AuditLogAdmin(admin.ModelAdmin):
                     g = GEOSGeometry(json.dumps(geom))
                     g.srid = 28350
                     g.transform(4326)
-                    return g.geojson
+                    # Extract properties from old_values
+                    polygon_id = obj.old_values.get('polygon_id')
+                    area_ha = obj.old_values.get('area_ha')
+                    feature = {
+                        'type': 'Feature',
+                        'geometry': json.loads(g.geojson),
+                        'properties': {
+                            'polygon_id': polygon_id,
+                            'area_ha': area_ha,
+                        }
+                    }
+                    return json.dumps(feature)
                 except Exception as e:
-                    # Optionally log the error: print(f"Transform failed for old geometry: {e}")
+                    # Optionally log the error
                     return None
         return None
 
     def new_geometry(self, obj):
-        """Return transformed GeoJSON geometry from new_values if table is polygon."""
+        """Return a GeoJSON Feature with geometry and properties from new_values."""
         if obj.table_name == 'polygon' and obj.new_values:
             geom = obj.new_values.get('geom')
-            #import ipdb; ipdb.set_trace()
             if geom:
                 try:
                     g = GEOSGeometry(json.dumps(geom))
                     g.srid = 28350
                     g.transform(4326)
-                    return g.geojson
+                    polygon_id = obj.new_values.get('polygon_id')
+                    area_ha = obj.new_values.get('area_ha')
+                    feature = {
+                        'type': 'Feature',
+                        'geometry': json.loads(g.geojson),
+                        'properties': {
+                            'polygon_id': polygon_id,
+                            'area_ha': area_ha,
+                        }
+                    }
+                    return json.dumps(feature)
                 except Exception as e:
-                    # Optionally log: print(f"Transform failed for new geometry: {e}")
                     return None
         return None
 

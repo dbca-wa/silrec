@@ -1,0 +1,77 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .map-container {
+        height: 300px;
+        width: 100%;
+        margin-top: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .geometry-section {
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block after_field_sets %}
+{{ block.super }}
+{% if original and original.table_name == 'polygon' %}
+<div class="geometry-section">
+    <h2>Geometry Visualisation</h2>
+    <div style="display: flex; gap: 20px;">
+        {% if old_geometry %}
+        <div style="flex: 1;">
+            <h3>Old Geometry</h3>
+            <div id="map-old" class="map-container"></div>
+        </div>
+        {% endif %}
+        {% if new_geometry %}
+        <div style="flex: 1;">
+            <h3>New Geometry</h3>
+            <div id="map-new" class="map-container"></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if old_geometry %}
+        console.log("Old geometry received:", {{ old_geometry|safe }});
+        var mapOld = L.map('map-old').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(mapOld);
+        var geoJsonOld = {{ old_geometry|safe }};
+        var layerOld = L.geoJSON(geoJsonOld).addTo(mapOld);
+        console.log("Old layer bounds:", layerOld.getBounds());
+        if (layerOld.getBounds().isValid()) {
+            mapOld.fitBounds(layerOld.getBounds());
+        } else {
+            console.warn("Old geometry has invalid bounds");
+        }
+        {% endif %}
+
+        {% if new_geometry %}
+        console.log("New geometry received:", {{ new_geometry|safe }});
+        var mapNew = L.map('map-new').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(mapNew);
+        var geoJsonNew = {{ new_geometry|safe }};
+        var layerNew = L.geoJSON(geoJsonNew).addTo(mapNew);
+        console.log("New layer bounds:", layerNew.getBounds());
+        if (layerNew.getBounds().isValid()) {
+            mapNew.fitBounds(layerNew.getBounds());
+        } else {
+            console.warn("New geometry has invalid bounds");
+        }
+        {% endif %}
+    });
+</script>
+{% endif %}
+{% endblock %}
+

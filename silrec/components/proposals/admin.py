@@ -9,6 +9,7 @@ from django.http.request import HttpRequest
 from django.urls import re_path
 from django.utils.html import format_html
 from django.urls import reverse
+from django.contrib.gis.geos import GEOSGeometry
 
 from django.utils import timezone
 import json
@@ -432,6 +433,8 @@ class AuditLogAdmin(admin.ModelAdmin):
     Provides rich display of changes, filtering by table/operation/user,
     and links to related proposal and user records.
     """
+    change_form_template = "admin/silrec/auditlog/change_form.html"
+
     list_display = [
         'id',
         'timestamp',
@@ -479,6 +482,22 @@ class AuditLogAdmin(admin.ModelAdmin):
                            'For INSERT operations old_values is null; for DELETE new_values is null.'
         }),
     )
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        # Prepare the extra context dictionary (or use an empty one)
+        extra_context = extra_context or {}
+
+        # If we are editing an existing object (object_id is not None)
+        if object_id:
+            # Retrieve the audit log instance
+            obj = self.get_object(request, object_id)
+            if obj:
+                # Add the geometry strings to the context
+                extra_context['old_geometry'] = self.old_geometry(obj)
+                extra_context['new_geometry'] = self.new_geometry(obj)
+
+        # Call the parent class method to continue normal rendering
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def user_link(self, obj):
         """Link to the User admin page."""
@@ -530,9 +549,48 @@ class AuditLogAdmin(admin.ModelAdmin):
         return "-"
     formatted_new_values.short_description = 'New Values'
 
-    # ---------- Permission overrides ----------
-    def has_add_permission(self, request):
-        return False
+    def old_geometry(self, obj):
+        """Return transformed GeoJSON geometry from old_values if table is polygon."""
+        if obj.table_name == 'polygon' and obj.old_values:
+            geom = obj.old_values.get('geom')
+            if geom:
+                try:
+                    g = GEOSGeometry(json.dumps(geom))
+                    g.srid = 28350
+                    g.transform(4326)
+                    return g.geojson
+                except Exception as e:
+                    # Optionally log the error: print(f"Transform failed for old geometry: {e}")
+                    return None
+        return None
+
+    def new_geometry(self, obj):
+        """Return transformed GeoJSON geometry from new_values if table is polygon."""
+        if obj.table_name == 'polygon' and obj.new_values:
+            geom = obj.new_values.get('geom')
+            #import ipdb; ipdb.set_trace()
+            if geom:
+                try:
+                    g = GEOSGeometry(json.dumps(geom))
+                    g.srid = 28350
+                    g.transform(4326)
+                    return g.geojson
+                except Exception as e:
+                    # Optionally log: print(f"Transform failed for new geometry: {e}")
+                    return None
+        return None
+
+    class Media:
+        css = {
+            'all': ('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',)
+        }
+        js = (
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+        )
+
+        # ---------- Permission overrides ----------
+        def has_add_permission(self, request):
+            return False
 
     def has_delete_permission(self, request, obj=None):
         return False

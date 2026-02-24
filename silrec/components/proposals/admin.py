@@ -8,6 +8,9 @@ from django.http import HttpResponseRedirect
 from django.http.request import HttpRequest
 from django.urls import re_path
 from django.utils.html import format_html
+from django.urls import reverse
+
+from django.utils import timezone
 import json
 
 
@@ -18,6 +21,7 @@ from silrec import helpers
 #    TextSearchFieldDisplay
 #)
 from silrec.components.proposals import models
+
 
 
 @admin.register(models.ProposalType)
@@ -391,4 +395,149 @@ class TextSearchFieldDisplayAdmin(admin.ModelAdmin):
         if not obj.created_by_id:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(models.ShapefileAttributeConfig)
+class ShapefileAttributeConfigAdmin(admin.ModelAdmin):
+    list_display = [
+        'application_type', 'field_name', 'display_name',
+        'target_db_field', 'is_mandatory', 'is_reserved', 'data_type', 'order'
+    ]
+    list_filter = ['application_type', 'is_mandatory', 'data_type']
+    search_fields = ['field_name', 'display_name', 'target_db_field']
+    list_editable = ['is_mandatory', 'is_reserved', 'order', 'data_type']  # target_db_field not editable here due to length
+    ordering = ['application_type', 'order', 'field_name']
+    fieldsets = (
+        (None, {
+            'fields': ('application_type', 'field_name', 'display_name')
+        }),
+        ('Validation', {
+            'fields': ('is_mandatory', 'is_reserved', 'data_type', 'order')
+        }),
+        ('Database Mapping', {
+            'fields': ('target_db_field',),
+            'description': (
+                "Optionally link this shapefile attribute to a database field. "
+                "Use the format <code>app_base.app_label.model_name.field_name</code> (e.g., <code>silrec.forest_blocks.polygon.name</code>)."
+            )
+        }),
+    )
+
+
+
+@admin.register(models.AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    """
+    Admin interface for analysing audit logs.
+    Provides rich display of changes, filtering by table/operation/user,
+    and links to related proposal and user records.
+    """
+    list_display = [
+        'id',
+        'timestamp',
+        'table_name',
+        'record_id',
+        'operation',
+        'user_link',
+        'proposal_link',
+        'changes_summary'
+    ]
+    list_filter = [
+        'table_name',
+        'operation',
+        'user',
+        ('timestamp', admin.DateFieldListFilter),   # explicit date range filter
+        ('proposal', admin.RelatedOnlyFieldListFilter),  # proposal dropdown
+    ]
+    search_fields = [
+        'table_name',
+        'record_id',
+        'user__username',
+        'proposal__lodgement_number',
+    ]
+    date_hierarchy = 'timestamp'          # Quick date drill-down
+    readonly_fields = [
+        'table_name',
+        'record_id',
+        'proposal',
+        'operation',
+        'user',
+        'timestamp',
+        'formatted_old_values',
+        'formatted_new_values',
+    ]
+    fieldsets = (
+        (None, {
+            'fields': ('timestamp', 'user', 'proposal')
+        }),
+        ('Operation Details', {
+            'fields': ('table_name', 'record_id', 'operation')
+        }),
+        ('Data Changes', {
+            'fields': ('formatted_old_values', 'formatted_new_values'),
+            'description': 'Old and new values shown as formatted JSON. '
+                           'For INSERT operations old_values is null; for DELETE new_values is null.'
+        }),
+    )
+
+    def user_link(self, obj):
+        """Link to the User admin page."""
+        if obj.user:
+            url = reverse('admin:auth_user_change', args=[obj.user.id])
+            return format_html('<a href="{}">{}</a>', url, obj.user.get_username())
+        return "-"
+    user_link.short_description = 'User'
+    user_link.admin_order_field = 'user'
+
+    def proposal_link(self, obj):
+        """Link to the internal proposal detail page (opens in new tab)."""
+        if obj.proposal:
+            url = reverse('internal-proposal-detail', args=[obj.proposal.id])
+            return format_html('<a href="{}" target="_blank">{}</a>', url, obj.proposal.lodgement_number)
+        return "-"
+    proposal_link.short_description = 'Proposal'
+    proposal_link.admin_order_field = 'proposal'
+
+    def changes_summary(self, obj):
+        """Short summary of what changed."""
+        if obj.operation == 'INSERT':
+            return "New record created"
+        elif obj.operation == 'DELETE':
+            return "Record deleted"
+        elif obj.operation == 'UPDATE' and obj.old_values and obj.new_values:
+            changed = set(obj.old_values.keys()) & set(obj.new_values.keys())
+            return f"{len(changed)} field(s) changed"
+        return "-"
+    changes_summary.short_description = 'Changes'
+
+    def formatted_old_values(self, obj):
+        """Pretty‑printed JSON for old values."""
+        if obj.old_values:
+            return format_html(
+                '<pre style="max-height: 300px; overflow: auto; background: #f8f9fa; padding: 5px;">{}</pre>',
+                json.dumps(obj.old_values, indent=2)
+            )
+        return "-"
+    formatted_old_values.short_description = 'Old Values'
+
+    def formatted_new_values(self, obj):
+        """Pretty‑printed JSON for new values."""
+        if obj.new_values:
+            return format_html(
+                '<pre style="max-height: 300px; overflow: auto; background: #f8f9fa; padding: 5px;">{}</pre>',
+                json.dumps(obj.new_values, indent=2)
+            )
+        return "-"
+    formatted_new_values.short_description = 'New Values'
+
+    # ---------- Permission overrides ----------
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('user', 'proposal')
 

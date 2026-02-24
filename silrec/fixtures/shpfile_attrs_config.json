@@ -1,0 +1,142 @@
+[
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 1,
+    "fields": {
+        "application_type": 1,
+        "field_name": "fea_id",
+        "display_name": "fea_id",
+        "is_mandatory": true,
+        "data_type": "integer",
+        "order": 0,
+        "created": "2026-02-24T05:56:55.093",
+        "updated": "2026-02-24T05:56:55.093"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 2,
+    "fields": {
+        "application_type": 1,
+        "field_name": "region",
+        "display_name": "region",
+        "is_mandatory": false,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 3,
+    "fields": {
+        "application_type": 1,
+        "field_name": "block",
+        "display_name": "block",
+        "is_mandatory": true,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 4,
+    "fields": {
+        "application_type": 1,
+        "field_name": "block_cpt",
+        "display_name": "block_cpt",
+        "is_mandatory": true,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 5,
+    "fields": {
+        "application_type": 1,
+        "field_name": "ops_status",
+        "display_name": "ops_status",
+        "is_mandatory": false,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 6,
+    "fields": {
+        "application_type": 1,
+        "field_name": "target_ba_",
+        "display_name": "target_ba_",
+        "is_mandatory": true,
+        "data_type": "float",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 6,
+    "fields": {
+        "application_type": 1,
+        "field_name": "target_ba_",
+        "display_name": "target_ba_",
+        "is_mandatory": true,
+        "data_type": "float",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 7,
+    "fields": {
+        "application_type": 1,
+        "field_name": "veg_comple",
+        "display_name": "veg_comple",
+        "is_mandatory": false,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 8,
+    "fields": {
+        "application_type": 1,
+        "field_name": "lmu",
+        "display_name": "lmu",
+        "is_mandatory": false,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 9,
+    "fields": {
+        "application_type": 1,
+        "field_name": "herbicide_",
+        "display_name": "herbicide_",
+        "is_mandatory": false,
+        "data_type": "string",
+        "order": 0,
+        "created": "2026-02-24t05:58:47.493",
+        "updated": "2026-02-24t05:58:47.493"
+    }
+}
+]

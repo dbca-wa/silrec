@@ -312,9 +312,53 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     def can_user_view(self):
         return True
 
+#    @property
+#    def shp_to_gdf(self):
+#        return gpd.read_file(json.dumps(self.shapefile_json))
+
     @property
     def shp_to_gdf(self):
+        """Return shapefile GeoJSON as a GeoDataFrame (read‑only)."""""
         return gpd.read_file(json.dumps(self.shapefile_json))
+
+    def get_shapefile_attributes_status(self):
+        """
+        Returns a dictionary with:
+        - 'gdf': GeoDataFrame of the shapefile
+        - 'present_fields': list of attribute columns present in the shapefile
+        - 'mandatory_fields': list of mandatory fields defined for this proposal's application_type
+        - 'missing_mandatory': list of mandatory fields not present
+        - 'optional_fields': list of optional fields defined
+        - 'extra_fields': fields present but not defined in configuration
+        - 'all_defined_fields': all configured fields for this application type
+        """
+        if not self.shapefile_json:
+            return None
+
+        gdf = self.shp_to_gdf
+        present_fields = list(gdf.columns) if not gdf.empty else []
+
+        # Get configuration for this proposal's application type
+        configs = ShapefileAttributeConfig.objects.filter(
+            application_type=self.application_type
+        ).order_by('order')
+
+        mandatory_fields = [c.field_name for c in configs if c.is_mandatory]
+        optional_fields = [c.field_name for c in configs if not c.is_mandatory]
+        all_defined = [c.field_name for c in configs]
+
+        missing_mandatory = [f for f in mandatory_fields if f not in present_fields]
+        extra_fields = [f for f in present_fields if f not in all_defined]
+
+        return {
+            'gdf': gdf,
+            'present_fields': present_fields,
+            'mandatory_fields': mandatory_fields,
+            'missing_mandatory': missing_mandatory,
+            'optional_fields': optional_fields,
+            'extra_fields': extra_fields,
+            'all_defined_fields': all_defined,
+        }
 
 
 class ProposalGeometryManager(models.Manager):
@@ -1017,6 +1061,99 @@ class TextSearchFieldDisplay(models.Model):
         return f"{self.field_name} → {self.display_name}"
 
 
+class ShapefileAttributeConfig(models.Model):
+    """
+    Defines expected attributes for shapefiles uploaded to a proposal
+    based on the application type.
+    """
+    DATA_TYPE_CHOICES = [
+        ('string', 'String'),
+        ('integer', 'Integer'),
+        ('float', 'Float'),
+        ('date', 'Date'),
+    ]
+
+    application_type = models.ForeignKey(
+            ApplicationType,
+            on_delete=models.CASCADE,
+            related_name='shapefile_attributes',
+            verbose_name=_("Application Type")
+    )
+    field_name = models.CharField(
+            max_length=255,
+            verbose_name=_("Field Name"),
+            help_text=_("Exact name of the attribute column in the shapefile")
+    )
+    display_name = models.CharField(
+            max_length=255,
+            blank=True,
+            verbose_name=_("Display Name"),
+            help_text=_("Human‑readable label (optional)")
+    )
+    is_mandatory = models.BooleanField(
+            default=False,
+            verbose_name=_("Mandatory"),
+            help_text=_("If checked, the shapefile must contain this attribute")
+    )
+    is_reserved = models.BooleanField(
+            default=False,
+            verbose_name=_("Is Reserved"),
+            help_text=_("If checked, the shapefile's polygon will NOT be merged")
+    )
+    data_type = models.CharField(
+            max_length=50,
+            choices=DATA_TYPE_CHOICES,
+            default='string',
+            verbose_name=_("Data Type"),
+            help_text=_("Expected data type (for future validation)")
+    )
+    target_db_field = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name=_("Target Database Field"),
+        help_text=_("Optional mapping to a database field, e.g., 'silrec.forest_blocks.polygon.sp_code'")
+    )
+    order = models.PositiveIntegerField(
+            default=0,
+            verbose_name=_("Order"),
+            help_text=_("Display order in admin/list views")
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'silrec'
+        verbose_name = _("Shapefile Attribute Configuration")
+        verbose_name_plural = _("Shapefile Attribute Configurations")
+        ordering = ['application_type', 'order', 'field_name']
+        unique_together = [['application_type', 'field_name']]
+
+    def __str__(self):
+        return f"{self.application_type} – {self.field_name} (mandatory={self.is_mandatory})"
+
+    def clean(self):
+        if self.is_mandatory and not self.field_name:
+            raise ValidationError({"field_name": _("Field name cannot be empty for mandatory attributes.")})
+
+    def get_target_db_field_parts(self):
+        """
+        Parse the target_db_field string into (app_label, model_name, field_name).
+        Returns a tuple of three strings, any of which may be None if parsing fails.
+        """
+        if not self.target_db_field:
+            return None, None, None
+        parts = self.target_db_field.split('.')
+        if len(parts) == 3:
+            return parts[0], parts[1], parts[2]
+        elif len(parts) == 2:
+            # assume model_name.field_name, app_label omitted
+            return None, parts[0], parts[1]
+        else:
+            return None, None, None
+
+
+
 class AuditLog(models.Model):
     OPERATION_CHOICES = (
         ('INSERT', 'Insert'),
@@ -1089,4 +1226,5 @@ register(Proposal, follow=['proposal_type', 'previous_application', 'application
 register(SQLReport, follow=['created_by', 'allowed_groups'])
 register(TextSearchModelConfig, follow=['created_by'])
 register(TextSearchFieldDisplay, follow=['created_by'])
+register(ShapefileAttributeConfig, follow=['application_type'])
 

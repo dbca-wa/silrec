@@ -40,7 +40,7 @@ from silrec.components.proposals.models import   (
 )
 from silrec.components.forest_blocks.models import   (
     Polygon,
-    TmpPolygon,
+    #TmpPolygon,
     Cohort,
     Treatment,
     Operation,
@@ -468,7 +468,7 @@ class DatatablesFilterBackend(DatatablesFilterBackend):
         return queryset
 
 class PolygonCohortTableViewSet(viewsets.ModelViewSet):
-    queryset = TmpPolygon.objects.none()
+    queryset = Polygon.objects.none()
     serializer_class = PolygonCohortDataSerializer
     pagination_class = DatatablesPageNumberPagination
     filter_backends = (DatatablesFilterBackend,)  # Use custom filter backend
@@ -477,13 +477,13 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         proposal_id = self.request.query_params.get('proposal_id')
         if proposal_id:
-            return TmpPolygon.objects.filter(
+            return Polygon.objects.filter(
                 proposal_id=proposal_id
             ).prefetch_related(
                 'tmpassignchttoply_set',
                 'tmpassignchttoply_set__cohort'
             )
-        return TmpPolygon.objects.none()
+        return Polygon.objects.none()
 
 #    def _list(self, request, *args, **kwargs):
 #        """

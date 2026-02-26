@@ -175,8 +175,6 @@ INSTALLED_APPS = [
     'silrec.components.lookups',
     'silrec.components.proposals',
     'silrec.components.main',
-    #'silrec.components.gisquery',
-    #'silrec.components.api',
     'reversion',
     'rest_framework',
     #'rest_framework.authtoken',

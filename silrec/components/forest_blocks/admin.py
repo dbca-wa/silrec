@@ -16,7 +16,8 @@ admin.autodiscover()
 
 @admin.register(Polygon)
 class PolygonAdmin(reversion.admin.VersionAdmin):
-    list_display = ['polygon_id', 'name', 'proposal']  # your fields
+    #list_display = ['polygon_id', 'name', 'proposal']  # your fields
+    list_display = ['polygon_id', 'name']  # your fields
 
 @admin.register(Cohort)
 class CohortAdmin(reversion.admin.VersionAdmin):

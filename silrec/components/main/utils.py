@@ -23,7 +23,6 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from silrec.settings import OGR2OGR, CRS_GDA94
-from silrec.components.proposals.models import ProposalGeometry
 
 from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
 
@@ -304,120 +303,6 @@ def validate_map_files(request, instance, foreign_key_field=None):
 
     return valid_geometry_saved
 
-
-#    # Check for intersection with DBCA geometries
-#    gdf["valid"] = False
-#    for geom in geometries:
-#        srid = SpatialReference(
-#            geometries.crs.srs
-#        ).srid  # spatial reference identifier
-#
-#        polygon = GEOSGeometry(geom.wkt, srid=srid)
-#
-#        # Add the file name as identifier to the geojson for use in the frontend
-#        if "source_" not in gdf:
-#            gdf["source_"] = shp_file_objs[0].name
-#        gdf["valid"] = True
-#
-#        ProposalGeometry.objects.create(
-#            **{
-#                "proposal": instance,
-#                "polygon": polygon,
-#                "intersects": True,
-#                "drawn_by": request.user.id,
-#            }
-#        )
-#
-#        instance.save()
-#        valid_geometry_saved = True
-#
-#    # Delete all shapefile documents so the user can upload another one if they wish.
-#    instance.shapefile_documents.all().delete()
-#
-#    return valid_geometry_saved
-
-
-#    for shp_file_obj in shp_file_objs:
-#        gdf = gpd.read_file(shp_file_obj.path)  # Shapefile to GeoDataFrame
-#
-#        if gdf.empty:
-#            raise ValidationError(f"Geometry is empty in {shp_file_obj.name}")
-#
-#        # If no prj file assume WGS-84 datum
-#        if not gdf.crs:
-#            gdf_transform = gdf.set_crs("epsg:4326", inplace=True)
-#        else:
-#            gdf_transform = gdf.to_crs("epsg:4326")
-#
-#        geometries = gdf_transform.geometry  # GeoSeries
-#
-#        # Only accept polygons
-#        geom_type = geometries.geom_type.values[0]
-#        if geom_type not in ("Polygon", "MultiPolygon"):
-#            raise ValidationError(f"Geometry of type {geom_type} not allowed")
-#
-#
-#        # Check for intersection with DBCA geometries
-#        gdf_transform["valid"] = False
-#        for geom in geometries:
-#            srid = SpatialReference(
-#                geometries.crs.srs
-#            ).srid  # spatial reference identifier
-#
-#            polygon = GEOSGeometry(geom.wkt, srid=srid)
-#
-#            # Add the file name as identifier to the geojson for use in the frontend
-#            if "source_" not in gdf_transform:
-#                gdf_transform["source_"] = shp_file_obj.name
-#
-#            specs = tenure_layer_specification()
-#
-#            test_polygon = (
-#                invert_xy_coordinates([polygon])[0] if specs["invert_xy"] else polygon
-#            )
-#
-#            # Imported geometry is valid if it intersects with any one of the DBCA geometries
-#            if not polygon_intersects_with_layer(
-#                test_polygon,
-#                specs["server_url"],
-#                specs["layer_name"],
-#                specs["properties"],
-#                specs["version"],
-#                specs["the_geom"],
-#            ):
-#                raise ValidationError(
-#                    "One or more polygons does not intersect with a relevant layer"
-#                )
-#
-#            gdf_transform["valid"] = True
-#
-#            # Some generic code to save the geometry to the database
-#            # That will work for both a proposal instance and a competitive process instance
-#            instance_name = instance._meta.model.__name__
-#
-#            if not foreign_key_field:
-#                foreign_key_field = instance_name.lower()
-#
-#            geometry_model = apps.get_model(
-#                "leaseslicensing", f"{instance_name}Geometry"
-#            )
-#
-#            geometry_model.objects.create(
-#                **{
-#                    foreign_key_field: instance,
-#                    "polygon": polygon,
-#                    "intersects": True,
-#                    "drawn_by": request.user.id,
-#                }
-#            )
-#
-#        instance.save()
-#        valid_geometry_saved = True
-#
-#    # Delete all shapefile documents so the user can upload another one if they wish.
-#    instance.shapefile_documents.all().delete()
-#
-#    return valid_geometry_saved
 
 def populate_gis_data(instance, geometries_attribute, foreign_key_field=None):
     """Fetches required GIS data from the server defined in settings.GIS_SERVER_URL

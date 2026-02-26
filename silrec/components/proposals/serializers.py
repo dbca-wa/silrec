@@ -25,7 +25,7 @@ from silrec.components.main.serializers import (
     #EmailUserSerializer,
 )
 from silrec.components.proposals.models import (
-    AmendmentRequest,
+    #AmendmentRequest,
     Proposal,
     #ProposalGeometry,
     ProposalType,

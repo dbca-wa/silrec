@@ -64,18 +64,7 @@ class SurveyAssessmentDocument(Document):
         db_table = 'survey_assessment_document'
         db_table_comment = 'Stores documents, images, and URLs related to treatment surveys and assessments'
         ordering = ['-document_date', '-created_on']
-        app_label = "silrec"
-
-#    def save(self, *args, **kwargs):
-#        if self.file:
-#            self.file_size = self.file.size
-#            self.file_name = self.file.name
-#            self.file_type = self.file.name.split('.')[-1].lower() if '.' in self.file.name else ''
-#
-#        if not self.document_date:
-#            self.document_date = timezone.now().date()
-#
-#        super().save(*args, **kwargs)
+        app_label = "forest_blocks"
 
     def save(self, *args, **kwargs):
         #import ipdb; ipdb.set_trace()
@@ -138,7 +127,7 @@ class AssignCategoryToTask(models.Model):
 
     class Meta:
         db_table = 'assign_category_to_task'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class AssignChtToPly(models.Model):
@@ -157,7 +146,7 @@ class AssignChtToPly(models.Model):
     class Meta:
         db_table = 'assign_cht_to_ply'
         db_table_comment = "As new operations or events create and subdivide polygons by creating new cohorts, cohorts apply to multiple polygons, as well as vice versa.\nSince a cohort may be closed for one polygon assignment, but open for another polygon assignment, the property of cohorts' closure is necessarily recorded in the assignment to the polygon.\nIt follows that cohort closure is most fully characterised as the date of the successive event and also a description of the nature of the cause of closure (e.g. fire, thin, ...).\nQuerying cohort closure may be part of investigations and analyses of relative frequency of types of closure events, or lifetime/return-time for different event types (e.g. thinning).\nThe property of closure relates primarily to the succeeding cohort, or the event creating the change.  Although this is often a new cohort, making the new cohort identification the closure attribute (e.g. foreign key to cohort) is inappropriate because:\n\n\t1. Complicates relationships with the assignment record already pointing to the preceding/current cohort.\n\t2. If there is a 'global' event (wildfire, polygon closure) wherein there is a universal cohort closure, and no immediate successive cohort for most assignments, it may be difficult to populate a key value.\n\nA date readily facilitates a query that will show a chronological cohort succession, but inter-row attribution and querying is difficult unless using an hierarchical query, but that query type requires a linking item.\nTherefore there are two choices to characterise cohort closure:\n\n\t1. a foreign key relationship to the succeeding cohort;\n\t2. a date and description of the nature of the event precipitating the closure of the cohort.  Likely the description is probably best implemented via a lookup table"
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class AssignObjToReport(models.Model):
@@ -177,7 +166,7 @@ class AssignObjToReport(models.Model):
     class Meta:
         db_table = 'assign_obj_to_report'
         db_table_comment = 'Table to assign cohorts to report and provide grouping labels\n\nCould create another related table for group labels-\n\nNeed created on/by, updated on/by, effective from/to, authorised/revoked by. Done (DW).Delete comment for PRD.'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class AssignTaskToReport(models.Model):
@@ -197,7 +186,7 @@ class AssignTaskToReport(models.Model):
     class Meta:
         db_table = 'assign_task_to_report'
         db_table_comment = 'Table to assign task to report and provide grouping labels'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class BaSweep(models.Model):
@@ -217,7 +206,7 @@ class BaSweep(models.Model):
 
     class Meta:
         db_table = 'ba_sweep'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class BaSweepTransfer(models.Model):
@@ -239,7 +228,7 @@ class BaSweepTransfer(models.Model):
     class Meta:
         db_table = 'ba_sweep_transfer'
         db_table_comment = 'This files is for transfer of data from CSV files'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class BaSweepVersion(models.Model):
@@ -251,7 +240,7 @@ class BaSweepVersion(models.Model):
 
     class Meta:
         db_table = 'ba_sweep_version'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class BaTransect(models.Model):
@@ -269,7 +258,7 @@ class BaTransect(models.Model):
 
     class Meta:
         db_table = 'ba_transect'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class BaTransectTransfer(models.Model):
@@ -288,7 +277,7 @@ class BaTransectTransfer(models.Model):
     class Meta:
         db_table = 'ba_transect_transfer'
         db_table_comment = 'This files is for transfer of data from CSV files'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class Cell(models.Model):
@@ -298,7 +287,7 @@ class Cell(models.Model):
 
     class Meta:
         db_table = 'cell'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class ClComp2024PolysClearedMga202050Pl(models.Model):
@@ -323,7 +312,7 @@ class ClComp2024PolysClearedMga202050Pl(models.Model):
 
     class Meta:
         db_table = 'cl_comp_2024_polys_cleared_mga2020_50_pl'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class Cohort(models.Model):
@@ -359,7 +348,7 @@ class Cohort(models.Model):
     class Meta:
         db_table = 'cohort'
         db_table_comment = "A cohort is characterised primarily by a silvicultural or management objective for a polygon, usually relating to a component of the dominant vegetation on the polygon.  The cohort has attribution related to the vegetation and institution of the silvicultural objective (which is usually some event).\nThis usually entails a suite of follow-up activities to ensure objective is achieved.\nA cohort is 'complete' when all activities prescribed for the institution of the silvicultural objective have been implemented or will not be implemented (no outstanding prescribed activities).\nA cohort is closed when superseded by an event creating a new management regime for the cohort; e.g. a thinning, wildfire or new management paradigm.  Cohort closure is a property of the assignment of the cohort to a polygon since a successive event may not (and typically doesn't) coincide geographically with the preceding event that instituted the cohort. \nIt follows that a cohort has a life that starts with some event, usually some silvicultural operation, or fire or change in the management paradigm; becomes 'complete' when required works are judged to have achieved intentions to an acceptable tolerance; and is closed when superseded by some other event.\nIf the cohort not closed, then it is the current silvicultural objective, and cohort characteristics represent the stand."
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 
@@ -373,7 +362,7 @@ class CohortResult(models.Model):
     class Meta:
         db_table = 'cohort_result'
         db_table_comment = 'Table to record the post harvest/disturbance results or achievement of the operation or disturbance.\n\nArguably could use the cohort-xtra table, but anticipate potentially more than two quantity scores for post thinning assessment of achievement'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class CohortXtra(models.Model):
@@ -396,7 +385,7 @@ class CohortXtra(models.Model):
     class Meta:
         db_table = 'cohort_xtra'
         db_table_comment = "cohort_xtra is for additional information to be recorded against individual cohorts, but the information isn't required for the majority of cohorts.\nThe structure provides an efficient means of a sparse population / attribution of items, rather than having a large 'flat table' with many rows having null values for columns.\n\nDelete comments below for PRD.\nDW>> Just for me, I need an explanation of the difference between cohorts and corhorts Xtra. (DW)\nDS> Cohorts extra table for additional information for specific objectives, but not required for all cohorts/objectives"
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class CombinedSilrec2023(models.Model):
@@ -412,7 +401,7 @@ class CombinedSilrec2023(models.Model):
 
     class Meta:
         db_table = 'combined_silrec_2023'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class CombinedSilrec20232(models.Model):
@@ -428,7 +417,7 @@ class CombinedSilrec20232(models.Model):
 
     class Meta:
         db_table = 'combined_silrec_2023_2'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class Compartments(models.Model):
@@ -443,7 +432,7 @@ class Compartments(models.Model):
     class Meta:
         db_table = 'compartments'
         db_table_comment = 'Use of supply area ???\n\nAttach geo-object for each compartment to\n\n\t1. Enable matching of compartment to operational polygon in cases where compartment misspelt or other typo\n\t2. Presentation of operational polygons in spatial context of compartment. Done (DW).'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class Duplicates(models.Model):
@@ -452,7 +441,7 @@ class Duplicates(models.Model):
 
     class Meta:
         db_table = 'duplicates'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class FeaActiveFmp25Region(models.Model):
@@ -478,7 +467,7 @@ class FeaActiveFmp25Region(models.Model):
 
     class Meta:
         db_table = 'fea_active_fmp25_region'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 
@@ -500,7 +489,7 @@ class ObjectiveCategory(models.Model):
         db_table = 'objective_category'
         unique_together = (('objective', 'target_column', 'category_value'),)
         db_table_comment = 'Relates to former code1, code2 in cohort extra table of SILREC v2\n\nProvides the categorisation values (e.g. dropdown) to be used for category1, category2'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class ObjectiveSubtype(models.Model):
@@ -513,7 +502,7 @@ class ObjectiveSubtype(models.Model):
     class Meta:
         db_table = 'objective_subtype'
         db_table_comment = "Lookup table for values and definitions for relevant silvicultural objectives\n\nThis table deprecated and contents incorporated to the cohort_xtra table because subtypes can be represented as categories applied to groups/subgroups of an objective.\n\nPlease explain why this detail  is not in the silvic_lkp table. (DW) Delete comment for PRD.\n\nDS> This table is for types of silvic objective especially those that may not be entered in some situations, e.g. different types of utility, different types of veg complex, etc.  Somewhat distinct from 'category 1/2' in that these have an official status related to the objective itself; nevertheless, could be subsumed into the category table structure."
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 #class Operation(models.Model):
@@ -554,7 +543,7 @@ class Operation(models.Model):
     class Meta:
         db_table = 'operation'
         db_table_comment = "List of operations / coupes / FEA's. Provides a link back to planning units for analysis and reporting.\nOne row per FEA, each FEA can be linked to multiple cohorts."
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
     def __str__(self):
         return f"Operation {self.op_id} - {self.fea_id}"
@@ -584,7 +573,7 @@ class Polygon(models.Model):
     class Meta:
         db_table = 'polygon'
         db_table_comment = "Geo-spatial object of non-zero area enclosing a portion of DBCA (or successor) estate.\n\nColumns in this table do and should only relate to the spatial occurrence of the polygon (DW).\nDelete comments below for PRD.\nArea column options\n1. Trigger to calculate and populate area of object when polygon created or updated.\n2. Drop the area column and recalculate area 'on the fly'\n\npreference for #1\n\nEasting and Northing have been dropped. (DW)\nPolygon_id was of type Long.  Changed to Integer. (DW)\nInteger is -32,768 to 32,768\nLong is -2,147,483,648 to 2,147,483,648\nQuestion if more than 32,768 polygons is likely?  (DW)"
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class PolygonDa(models.Model):
@@ -608,7 +597,7 @@ class PolygonDa(models.Model):
 
     class Meta:
         db_table = 'polygon_da'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class PolygonMiningUnion(models.Model):
@@ -647,7 +636,7 @@ class PolygonMiningUnion(models.Model):
 
     class Meta:
         db_table = 'polygon_mining_union'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class PolygonPriorToAreaFix(models.Model):
@@ -671,7 +660,7 @@ class PolygonPriorToAreaFix(models.Model):
     class Meta:
         db_table = 'polygon_prior_to_area_fix'
         db_table_comment = 'Polygon data was created from Microstation files which have the area in square metres.  The column area_ha is obviously hectares.\nThis version of the polygon table is before the SQL below was run. \nUPDATE public.polygon\nSET area_ha = area_ha/10000;'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class Prescription(models.Model):
@@ -694,7 +683,7 @@ class Prescription(models.Model):
     class Meta:
         db_table = 'prescription'
         db_table_comment = 'Prescribed tasks for each silvicultural objective, with default timing.\nEntity is a task prescribed for consideration to a particular silvicultural objective\n\nDS>> A prescription (set of tasks for a silvic objective) does relate to a silvic objective, and is flagged in the silvic_lkp table.\nSo in an FEA we might have several stands with silvic objective of K-ETHIN1 (to different intensities), with some specified to have coppice control.  The prescriptions will then be:\nNo coppice control\nE-THIN-K1 (the thinning task)\n(Uncertain if other tasks might be prescribed)\nCoppice Control\nE-THIN-K1 (the thinning task)\nCULL-COPC (Year harvest)\nASST-COPC (year harvest +1) to assess effectiveness of coppice control)'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class ReportCohort(models.Model):
@@ -705,7 +694,7 @@ class ReportCohort(models.Model):
     class Meta:
         db_table = 'report_cohort'
         db_table_comment = 'Names of reports to be run for cohorts - by silvic objective'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class ReportTreatment(models.Model):
@@ -716,7 +705,7 @@ class ReportTreatment(models.Model):
     class Meta:
         db_table = 'report_treatment'
         db_table_comment = 'Names of reports to be run for treatments - by task.'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class SilrecPly2023(models.Model):
@@ -731,7 +720,7 @@ class SilrecPly2023(models.Model):
 
     class Meta:
         db_table = 'silrec_ply_2023'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class SilrecVersion(models.Model):
@@ -744,7 +733,7 @@ class SilrecVersion(models.Model):
     class Meta:
         db_table = 'silrec_version'
         db_table_comment = 'Table to document and manage enhancements in versions and releases'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class SilrecVersionTracking(models.Model):
@@ -756,7 +745,7 @@ class SilrecVersionTracking(models.Model):
     class Meta:
         db_table = 'silrec_version_tracking'
         db_table_comment = 'Document changes to SILREC versions'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class SilvicPlanInput(models.Model):
@@ -781,7 +770,7 @@ class SilvicPlanInput(models.Model):
     class Meta:
         db_table = 'silvic_plan_input'
         db_table_comment = "Table to receive the shape file(s) specifying the silvicultural plan for each FEA/operation\nUncertain of publication frequency or standard\n\nMy thoughts are that annually, the Active FEA plan (Active is PM's terminology) is imported.  Overwriting this table.  Then some overlay process so that new polygons are added where they do not already exist and old polygons/cohorts possibly updated.  This is simply a rough idea of how I envisage it working. (DW) Delete comment for PRD.\nDS: Use of the table as follows:\n\n\t1. Data structure matches the structure of the silvic planning outputs (shape file).\n\t2. Aim is to provide a permanent repository of the source data for backtracking, cross referencing and validating.\n\t3. Since the silvic plan is a detailed tactical plan, it is unlikely to be revised and changed once released/published.  Not like an annual harvest plan.\n\t4. While it is possible that an FEA is carried over a year or three, the structure of the ET program makes that unlikely.\n\t5. No formal relationships to be established, but ad hoc query can link FEA_ID to OPERATION.OP_ID; as well as use of spatial operators (within, overlaps, etc.)\n\t6. Retention of successive silvic plans means that at some stage there will be overlapping spatial objects (polygons); i.e. NO planar enforcement."
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class SilviculturistComment(models.Model):
@@ -804,7 +793,7 @@ class SilviculturistComment(models.Model):
     class Meta:
         db_table = 'silviculturist_comment'
         db_table_comment = "Repository for Senior Silviculturist's comments.\n\nSuch comments may be in relation to either:\n1. The Operation\n2.  The cohort within an operation\n3. The treatments on a cohort/s \n\nIn Arc GIS Pro you can create relationship down one level I believe.  I do not know how this would work if the user entered a comment at the polygon level.  It would be stored in this table, but how then would the operation, cohort and treatment id be retrieved? Delete comment for PRD.\n\nShould this table be restricted to simply link to Operation table to maximise flexibility? Delete comment for PRD.\n\nAdd columns for easting, northing, i.e. point at which notes taken should be geo-coded. Done(DW) Delete comment for PRD."
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 
@@ -816,7 +805,7 @@ class SplitUnchangedPolygons(models.Model):
 
     class Meta:
         db_table = 'split_unchanged_polygons'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class TaskCategory(models.Model):
@@ -835,7 +824,7 @@ class TaskCategory(models.Model):
     class Meta:
         db_table = 'task_category'
         unique_together = (('task', 'target_column'),)
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 
@@ -872,7 +861,7 @@ class Treatment(models.Model):
     class Meta:
         db_table = 'treatment'
         db_table_comment = "A treatment is a task or activity applied/implemented to a cohort within a polygon; every attempt to implement a given task is a new treatment.\nThe treatment may be a task that directly establishes a cohort, such as a thinning/harvest, or a mandated follow up silvicultural treatment, such as coppice control; it may also be part of routine stand management, such as prescribed burn or some assessment of status/condition.\nTreatments are directly related to polygons because often treatments, although having an inherent spatial boundary, are best defined as clipped to a polygon boundary; it also better facilitates presentation of stand history of treatments 'with a simple click'.  A treatment may be independently defined, such as a fire burn envelope, from which overlapping polygons get treatment records inserted against the current cohort.\nBurn envelopes may necessitate polygons being split.\nDECIDE to retain planned month, year in preference to planned date because planned date implies too much precision\nDelete comments below for PRD.\nADD FK to prescription table\n**Need lookup table for METHOD** Done. (DW)"
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 
@@ -907,7 +896,7 @@ class TreatmentXtra(models.Model):
     class Meta:
         db_table = 'treatment_xtra'
         db_table_comment = "Treatments-Xtra is for additional information to be recorded against individual treatments, but the information isn't required for the majority of treatments.\nThe structure provides an efficient means of a sparse population / attribution of items, rather than having a large 'flat table' with many rows having null values for columns.\nDelete comments below for PRD.\nNeed to remove relationships to species-api and create new lookup table species-tree-lkp\ncreate lookup from api-species-assessed to species-api-lkp"
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class VegRetPatch(models.Model):
@@ -928,7 +917,7 @@ class VegRetPatch(models.Model):
     class Meta:
         db_table = 'veg_ret_patch'
         db_table_comment = 'Table of vegetation retention patches.\n\t- Stored as points\n\t- Initially imported from silvic plan as points/centroids of nominal location & size of vegetation retention patches\n\t- Updated by moving point to approximate centre of actual location and  providing information on retention elements included; possibly from post-operation imagery, or field demarcation.'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
 class FpcHarvestTracker(models.Model):
@@ -963,89 +952,89 @@ class FpcHarvestTracker(models.Model):
     class Meta:
         db_table = 'fpc_harvest_tracker'
         db_table_comment = 'placeholder for FPC Harvest Tracking tool, to facilitate tracking progress of the operation\n\nIntend for this table/dataset to be displayed as a reference layer, and the database is not intended to hold these data objects'
-        app_label = "silrec"
+        app_label = "forest_blocks"
 
 
-class TmpPolygon(models.Model):
-    polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
-    proposal = models.ForeignKey(
-        Proposal, on_delete=models.CASCADE, related_name="tmp_polygons", blank=True, null=True
-    )
-    name = models.CharField(max_length=10, blank=True, null=True, db_comment="Formerly 'PolyID'\nName of the polygon, usually descriptive of the administrative unit containing the polygon, e.g. code for forest block and compartment")
-    compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
-    area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon, as measured on flat/2D plane\nTrigger to calculate & populate ON UPDATE, ON CREATE')
-    sp_code = models.ForeignKey(SpatialPrecisionLkp, on_delete=models.CASCADE, db_column='sp_code', blank=True, null=True, db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table')
-    created_on = models.DateTimeField(blank=True, null=True, db_comment='Date/time of creation of the polygon in the SILREC database')
-    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person creating the polygon in the database')
-    updated_on = models.DateTimeField(blank=True, null=True, db_comment='date patch area was last changed')
-    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person updating the patch area in the database')
-    closed = models.DateField(blank=True, null=True, db_comment='Date when polygon is closed for activity; further work assigned to new, overlaying polygon\n\nALL open polygons (i.e. NOT CLOSED) should not overlap, i.e. planar enforcement')
-    reason_closed = models.CharField(max_length=250, blank=True, null=True, db_comment='Reason for closure of polygon, usually system related (data restructure), major perturbation resulting in destruction of multiple stands (e.g. wildfire), or new management regime (e.g. FMP24)')
-    zcoupeid = models.CharField(db_column='zCoupeID', max_length=5, blank=True, null=True)  # Field name made lowercase.
-    zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
-    zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
-    zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
-    geom = PolygonField(srid=28350, blank=True, null=True)
-
-    class Meta:
-        db_table = 'tmp_polygon'
-        db_table_comment = "Geo-spatial object of non-zero area enclosing a portion of DBCA (or successor) estate.\n\nColumns in this table do and should only relate to the spatial occurrence of the polygon (DW).\nDelete comments below for PRD.\nArea column options\n1. Trigger to calculate and populate area of object when polygon created or updated.\n2. Drop the area column and recalculate area 'on the fly'\n\npreference for #1\n\nEasting and Northing have been dropped. (DW)\nPolygon_id was of type Long.  Changed to Integer. (DW)\nInteger is -32,768 to 32,768\nLong is -2,147,483,648 to 2,147,483,648\nQuestion if more than 32,768 polygons is likely?  (DW)"
-        app_label = "silrec"
-
-
-class TmpAssignChtToPly(models.Model):
-    cht2ply_id = models.AutoField(primary_key=True)
-    polygon = models.ForeignKey('TmpPolygon', on_delete=models.CASCADE)
-    #cohort = models.OneToOneField('TmpCohort', on_delete=models.CASCADE)
-    cohort = models.ForeignKey('TmpCohort', on_delete=models.CASCADE)
-    op = models.ForeignKey('Operation', on_delete=models.CASCADE, blank=True, null=True, db_comment='New cohort may be created by other than an operation therefore COLUMN IS NULLABLE')
-    cohort_closed = models.DateField(blank=True, null=True, db_comment='Cohort is closed when stand is overwritten by new operation or some other disturbance creating a new stand.\n\nPolygon/area MUST always have an open (not closed) or current cohort.')
-    created_on = models.DateTimeField(blank=True, null=True)
-    created_by = models.CharField(max_length=50, blank=True, null=True)
-    updated_on = models.DateTimeField(blank=True, null=True)
-    updated_by = models.CharField(max_length=50, blank=True, null=True)
-    status_current = models.BooleanField(default=True)
-
-    class Meta:
-        db_table = 'tmp_assign_cht_to_ply'
-        db_table_comment = "As new operations or events create and subdivide polygons by creating new cohorts, cohorts apply to multiple polygons, as well as vice versa.\nSince a cohort may be closed for one polygon assignment, but open for another polygon assignment, the property of cohorts' closure is necessarily recorded in the assignment to the polygon.\nIt follows that cohort closure is most fully characterised as the date of the successive event and also a description of the nature of the cause of closure (e.g. fire, thin, ...).\nQuerying cohort closure may be part of investigations and analyses of relative frequency of types of closure events, or lifetime/return-time for different event types (e.g. thinning).\nThe property of closure relates primarily to the succeeding cohort, or the event creating the change.  Although this is often a new cohort, making the new cohort identification the closure attribute (e.g. foreign key to cohort) is inappropriate because:\n\n\t1. Complicates relationships with the assignment record already pointing to the preceding/current cohort.\n\t2. If there is a 'global' event (wildfire, polygon closure) wherein there is a universal cohort closure, and no immediate successive cohort for most assignments, it may be difficult to populate a key value.\n\nA date readily facilitates a query that will show a chronological cohort succession, but inter-row attribution and querying is difficult unless using an hierarchical query, but that query type requires a linking item.\nTherefore there are two choices to characterise cohort closure:\n\n\t1. a foreign key relationship to the succeeding cohort;\n\t2. a date and description of the nature of the event precipitating the closure of the cohort.  Likely the description is probably best implemented via a lookup table"
-        app_label = "silrec"
-
-
-class TmpCohort(models.Model):
-    cohort_id = models.AutoField(primary_key=True)
-    obj_code = models.CharField(max_length=20, db_comment='Silvicultural or management objective for the polygon')
-    op_id = models.IntegerField(blank=True, null=True)
-    op_date = models.DateTimeField(blank=True, null=True, db_comment='Date of creation of the operation boundary i.e. the date of photography, or other vector data capture method (GPS)')
-    pct_area = models.IntegerField(blank=True, null=True, db_comment='Percentage of stand/patch area occupied by the cohort allocated to or represented by this silvicultural objective')
-    year_last_cut = models.IntegerField(blank=True, null=True, db_comment='Year of last harvest of the cohort')
-    treatments = models.BooleanField(blank=True, null=True, db_comment='yes if treatments have been inserted for this cohort')
-    regen_date = models.DateTimeField(blank=True, null=True, db_comment='Date of majority regeneration')
-    regen_date2 = models.DateTimeField(blank=True, null=True, db_comment='Date of secondary regeneration = the latest of any minority regeneration (e.g. infill planting)')
-    species = models.CharField(max_length=3, blank=True, null=True, db_comment='Dominant overstorey API species of cohort; refer to lookup table\n\n**This is usually calculated by the regen values function following regeneration-creating treatments, and has been manually updated in other cases.  \nConsideration required for systematic update following thinning changing the species composition')
-    regen_method = models.ForeignKey(RegenerationMethodsLkp, on_delete=models.CASCADE, db_column='regen_method', db_comment="Method of Regeneration, consistent with FMIS codes; refer to lookup table\nProbably should default to value ' /' for not regenerated  **NEED TO MONITOR FOR ISSUES'")
-    regen_done = models.BooleanField(blank=True, null=True, db_comment='Yes if regeneration values  (date, species, method) have been calculated')
-    complete_date = models.DateTimeField(blank=True, null=True, db_comment='Date of completion of all activities directly required and intended for the silvic objective in this COHORT.\nExclude from consideration tasks that are long term, aspirational, or have been explicitly written off.')
-    resid_ba_m2ha = models.FloatField(blank=True, null=True, db_comment="Residual basal area of stand (average), m2/ha, including all overstorey trees following the implementation of all treatments entailed by the silvicultural objective.\n\nformerly 'ResidBA'")
-    target_ba_m2ha = models.FloatField(blank=True, null=True)
-    resid_spha = models.FloatField(blank=True, null=True, db_comment='Residual stocking of stand in stems per ha, averaged across stand, for all primary timber species.')
-    target_spha = models.IntegerField(blank=True, null=True)
-    site_quality = models.CharField(max_length=6, blank=True, null=True, db_comment='Mean cohort/polygon Site Quality class to 2 characters')
-    herbicide_app_spec = models.CharField(max_length=50, blank=True, null=True, db_comment='Intended herbicide application specification')
-    vrp = models.ForeignKey('VegRetPatch', on_delete=models.CASCADE, blank=True, null=True, db_comment='Number of vegetation retention patch')
-    vrp_tot_area = models.FloatField(blank=True, null=True, db_comment='Vegetation retention patch total area (ha)')
-    comments = models.CharField(max_length=250, blank=True, null=True, db_comment='Any comments relevant to the setting of the objective for the patch or the residual stand parameters')
-    extra_info = models.BooleanField(blank=True, null=True, db_comment='Flag to show if additional attributes recorded or should be recorded in the cohort_xtra table')
-    created_on = models.DateTimeField(blank=True, null=True, db_comment='Date the record was created')
-    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='network user ID of person creating the record in the database')
-    updated_on = models.DateTimeField(blank=True, null=True, db_comment='date record was last changed')
-    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='network user ID of person updating the record in the database')
-    stand = models.CharField(max_length=10, blank=True, null=True)
-
-    class Meta:
-        db_table = 'tmp_cohort'
-        db_table_comment = "A cohort is characterised primarily by a silvicultural or management objective for a polygon, usually relating to a component of the dominant vegetation on the polygon.  The cohort has attribution related to the vegetation and institution of the silvicultural objective (which is usually some event).\nThis usually entails a suite of follow-up activities to ensure objective is achieved.\nA cohort is 'complete' when all activities prescribed for the institution of the silvicultural objective have been implemented or will not be implemented (no outstanding prescribed activities).\nA cohort is closed when superseded by an event creating a new management regime for the cohort; e.g. a thinning, wildfire or new management paradigm.  Cohort closure is a property of the assignment of the cohort to a polygon since a successive event may not (and typically doesn't) coincide geographically with the preceding event that instituted the cohort. \nIt follows that a cohort has a life that starts with some event, usually some silvicultural operation, or fire or change in the management paradigm; becomes 'complete' when required works are judged to have achieved intentions to an acceptable tolerance; and is closed when superseded by some other event.\nIf the cohort not closed, then it is the current silvicultural objective, and cohort characteristics represent the stand."
-        app_label = "silrec"
+#class TmpPolygon(models.Model):
+#    polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+#    proposal = models.ForeignKey(
+#        Proposal, on_delete=models.CASCADE, related_name="tmp_polygons", blank=True, null=True
+#    )
+#    name = models.CharField(max_length=10, blank=True, null=True, db_comment="Formerly 'PolyID'\nName of the polygon, usually descriptive of the administrative unit containing the polygon, e.g. code for forest block and compartment")
+#    compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
+#    area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon, as measured on flat/2D plane\nTrigger to calculate & populate ON UPDATE, ON CREATE')
+#    sp_code = models.ForeignKey(SpatialPrecisionLkp, on_delete=models.CASCADE, db_column='sp_code', blank=True, null=True, db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table')
+#    created_on = models.DateTimeField(blank=True, null=True, db_comment='Date/time of creation of the polygon in the SILREC database')
+#    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person creating the polygon in the database')
+#    updated_on = models.DateTimeField(blank=True, null=True, db_comment='date patch area was last changed')
+#    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person updating the patch area in the database')
+#    closed = models.DateField(blank=True, null=True, db_comment='Date when polygon is closed for activity; further work assigned to new, overlaying polygon\n\nALL open polygons (i.e. NOT CLOSED) should not overlap, i.e. planar enforcement')
+#    reason_closed = models.CharField(max_length=250, blank=True, null=True, db_comment='Reason for closure of polygon, usually system related (data restructure), major perturbation resulting in destruction of multiple stands (e.g. wildfire), or new management regime (e.g. FMP24)')
+#    zcoupeid = models.CharField(db_column='zCoupeID', max_length=5, blank=True, null=True)  # Field name made lowercase.
+#    zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
+#    zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
+#    zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
+#    geom = PolygonField(srid=28350, blank=True, null=True)
+#
+#    class Meta:
+#        db_table = 'tmp_polygon'
+#        db_table_comment = "Geo-spatial object of non-zero area enclosing a portion of DBCA (or successor) estate.\n\nColumns in this table do and should only relate to the spatial occurrence of the polygon (DW).\nDelete comments below for PRD.\nArea column options\n1. Trigger to calculate and populate area of object when polygon created or updated.\n2. Drop the area column and recalculate area 'on the fly'\n\npreference for #1\n\nEasting and Northing have been dropped. (DW)\nPolygon_id was of type Long.  Changed to Integer. (DW)\nInteger is -32,768 to 32,768\nLong is -2,147,483,648 to 2,147,483,648\nQuestion if more than 32,768 polygons is likely?  (DW)"
+#        app_label = "forest_blocks"
+#
+#
+#class TmpAssignChtToPly(models.Model):
+#    cht2ply_id = models.AutoField(primary_key=True)
+#    polygon = models.ForeignKey('TmpPolygon', on_delete=models.CASCADE)
+#    #cohort = models.OneToOneField('TmpCohort', on_delete=models.CASCADE)
+#    cohort = models.ForeignKey('TmpCohort', on_delete=models.CASCADE)
+#    op = models.ForeignKey('Operation', on_delete=models.CASCADE, blank=True, null=True, db_comment='New cohort may be created by other than an operation therefore COLUMN IS NULLABLE')
+#    cohort_closed = models.DateField(blank=True, null=True, db_comment='Cohort is closed when stand is overwritten by new operation or some other disturbance creating a new stand.\n\nPolygon/area MUST always have an open (not closed) or current cohort.')
+#    created_on = models.DateTimeField(blank=True, null=True)
+#    created_by = models.CharField(max_length=50, blank=True, null=True)
+#    updated_on = models.DateTimeField(blank=True, null=True)
+#    updated_by = models.CharField(max_length=50, blank=True, null=True)
+#    status_current = models.BooleanField(default=True)
+#
+#    class Meta:
+#        db_table = 'tmp_assign_cht_to_ply'
+#        db_table_comment = "As new operations or events create and subdivide polygons by creating new cohorts, cohorts apply to multiple polygons, as well as vice versa.\nSince a cohort may be closed for one polygon assignment, but open for another polygon assignment, the property of cohorts' closure is necessarily recorded in the assignment to the polygon.\nIt follows that cohort closure is most fully characterised as the date of the successive event and also a description of the nature of the cause of closure (e.g. fire, thin, ...).\nQuerying cohort closure may be part of investigations and analyses of relative frequency of types of closure events, or lifetime/return-time for different event types (e.g. thinning).\nThe property of closure relates primarily to the succeeding cohort, or the event creating the change.  Although this is often a new cohort, making the new cohort identification the closure attribute (e.g. foreign key to cohort) is inappropriate because:\n\n\t1. Complicates relationships with the assignment record already pointing to the preceding/current cohort.\n\t2. If there is a 'global' event (wildfire, polygon closure) wherein there is a universal cohort closure, and no immediate successive cohort for most assignments, it may be difficult to populate a key value.\n\nA date readily facilitates a query that will show a chronological cohort succession, but inter-row attribution and querying is difficult unless using an hierarchical query, but that query type requires a linking item.\nTherefore there are two choices to characterise cohort closure:\n\n\t1. a foreign key relationship to the succeeding cohort;\n\t2. a date and description of the nature of the event precipitating the closure of the cohort.  Likely the description is probably best implemented via a lookup table"
+#        app_label = "forest_blocks"
+#
+#
+#class TmpCohort(models.Model):
+#    cohort_id = models.AutoField(primary_key=True)
+#    obj_code = models.CharField(max_length=20, db_comment='Silvicultural or management objective for the polygon')
+#    op_id = models.IntegerField(blank=True, null=True)
+#    op_date = models.DateTimeField(blank=True, null=True, db_comment='Date of creation of the operation boundary i.e. the date of photography, or other vector data capture method (GPS)')
+#    pct_area = models.IntegerField(blank=True, null=True, db_comment='Percentage of stand/patch area occupied by the cohort allocated to or represented by this silvicultural objective')
+#    year_last_cut = models.IntegerField(blank=True, null=True, db_comment='Year of last harvest of the cohort')
+#    treatments = models.BooleanField(blank=True, null=True, db_comment='yes if treatments have been inserted for this cohort')
+#    regen_date = models.DateTimeField(blank=True, null=True, db_comment='Date of majority regeneration')
+#    regen_date2 = models.DateTimeField(blank=True, null=True, db_comment='Date of secondary regeneration = the latest of any minority regeneration (e.g. infill planting)')
+#    species = models.CharField(max_length=3, blank=True, null=True, db_comment='Dominant overstorey API species of cohort; refer to lookup table\n\n**This is usually calculated by the regen values function following regeneration-creating treatments, and has been manually updated in other cases.  \nConsideration required for systematic update following thinning changing the species composition')
+#    regen_method = models.ForeignKey(RegenerationMethodsLkp, on_delete=models.CASCADE, db_column='regen_method', db_comment="Method of Regeneration, consistent with FMIS codes; refer to lookup table\nProbably should default to value ' /' for not regenerated  **NEED TO MONITOR FOR ISSUES'")
+#    regen_done = models.BooleanField(blank=True, null=True, db_comment='Yes if regeneration values  (date, species, method) have been calculated')
+#    complete_date = models.DateTimeField(blank=True, null=True, db_comment='Date of completion of all activities directly required and intended for the silvic objective in this COHORT.\nExclude from consideration tasks that are long term, aspirational, or have been explicitly written off.')
+#    resid_ba_m2ha = models.FloatField(blank=True, null=True, db_comment="Residual basal area of stand (average), m2/ha, including all overstorey trees following the implementation of all treatments entailed by the silvicultural objective.\n\nformerly 'ResidBA'")
+#    target_ba_m2ha = models.FloatField(blank=True, null=True)
+#    resid_spha = models.FloatField(blank=True, null=True, db_comment='Residual stocking of stand in stems per ha, averaged across stand, for all primary timber species.')
+#    target_spha = models.IntegerField(blank=True, null=True)
+#    site_quality = models.CharField(max_length=6, blank=True, null=True, db_comment='Mean cohort/polygon Site Quality class to 2 characters')
+#    herbicide_app_spec = models.CharField(max_length=50, blank=True, null=True, db_comment='Intended herbicide application specification')
+#    vrp = models.ForeignKey('VegRetPatch', on_delete=models.CASCADE, blank=True, null=True, db_comment='Number of vegetation retention patch')
+#    vrp_tot_area = models.FloatField(blank=True, null=True, db_comment='Vegetation retention patch total area (ha)')
+#    comments = models.CharField(max_length=250, blank=True, null=True, db_comment='Any comments relevant to the setting of the objective for the patch or the residual stand parameters')
+#    extra_info = models.BooleanField(blank=True, null=True, db_comment='Flag to show if additional attributes recorded or should be recorded in the cohort_xtra table')
+#    created_on = models.DateTimeField(blank=True, null=True, db_comment='Date the record was created')
+#    created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='network user ID of person creating the record in the database')
+#    updated_on = models.DateTimeField(blank=True, null=True, db_comment='date record was last changed')
+#    updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='network user ID of person updating the record in the database')
+#    stand = models.CharField(max_length=10, blank=True, null=True)
+#
+#    class Meta:
+#        db_table = 'tmp_cohort'
+#        db_table_comment = "A cohort is characterised primarily by a silvicultural or management objective for a polygon, usually relating to a component of the dominant vegetation on the polygon.  The cohort has attribution related to the vegetation and institution of the silvicultural objective (which is usually some event).\nThis usually entails a suite of follow-up activities to ensure objective is achieved.\nA cohort is 'complete' when all activities prescribed for the institution of the silvicultural objective have been implemented or will not be implemented (no outstanding prescribed activities).\nA cohort is closed when superseded by an event creating a new management regime for the cohort; e.g. a thinning, wildfire or new management paradigm.  Cohort closure is a property of the assignment of the cohort to a polygon since a successive event may not (and typically doesn't) coincide geographically with the preceding event that instituted the cohort. \nIt follows that a cohort has a life that starts with some event, usually some silvicultural operation, or fire or change in the management paradigm; becomes 'complete' when required works are judged to have achieved intentions to an acceptable tolerance; and is closed when superseded by some other event.\nIf the cohort not closed, then it is the current silvicultural objective, and cohort characteristics represent the stand."
+#        app_label = "forest_blocks"
 
 
 ## Helper to collect all relation names (forward + reverse) for reversion.follow
@@ -1066,6 +1055,7 @@ class TmpCohort(models.Model):
 #    return follow
 #
 ## Register models with django-reversion
+
 from reversion import register
 
 #register(SurveyAssessmentDocument, follow=get_follow_fields(SurveyAssessmentDocument))
@@ -1110,7 +1100,7 @@ register(Treatment, follow=['prescription', 'cohort', 'task'])
 register(TreatmentXtra, follow=['treatment', 'category1', 'category2', 'category3', 'category4'])
 register(VegRetPatch, follow=[])
 register(FpcHarvestTracker, follow=[])
-register(TmpPolygon, follow=['proposal', 'compartment', 'sp_code'])
-register(TmpAssignChtToPly, follow=['polygon', 'cohort', 'op'])
-register(TmpCohort, follow=['regen_method', 'vrp'])
+#register(TmpPolygon, follow=['proposal', 'compartment', 'sp_code'])
+#register(TmpAssignChtToPly, follow=['polygon', 'cohort', 'op'])
+#register(TmpCohort, follow=['regen_method', 'vrp'])
 

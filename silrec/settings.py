@@ -387,7 +387,8 @@ DATABASES = {
     # Defined in the DATABASE_URL env variable.
     'default': database.config()
 }
-DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec'})
+#DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec'})
+DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec,public'})
 
 #DATABASES = {
 #    'default': {

@@ -1,6 +1,6 @@
 [
 {
-    "model": "proposals.sqlreport",
+    "model": "silrec.sqlreport",
     "pk": 1,
     "fields": {
         "name": "Annual harvest summary for a specific year by supply",
@@ -44,7 +44,7 @@
     }
 },
 {
-    "model": "proposals.sqlreport",
+    "model": "silrec.sqlreport",
     "pk": 2,
     "fields": {
         "name": "Annual harvest summary for a specific year by block & objectives",
@@ -87,7 +87,7 @@
     }
 },
 {
-    "model": "proposals.sqlreport",
+    "model": "silrec.sqlreport",
     "pk": 3,
     "fields": {
         "name": "Annual harvest summary for a specific year",
@@ -121,7 +121,7 @@
     }
 },
 {
-    "model": "proposals.sqlreport",
+    "model": "silrec.sqlreport",
     "pk": 4,
     "fields": {
         "name": "Report for all coupes with treatment",
@@ -164,7 +164,7 @@
     }
 },
 {
-    "model": "proposals.sqlreport",
+    "model": "silrec.sqlreport",
     "pk": 5,
     "fields": {
         "name": "Report completed tasks summary for a specific year",
@@ -198,7 +198,7 @@
     }
 },
 {
-    "model": "proposals.sqlreport",
+    "model": "silrec.sqlreport",
     "pk": 6,
     "fields": {
         "name": "Report for Compartment/Objective by Net Area",

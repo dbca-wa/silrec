@@ -1,6 +1,6 @@
 #from django.db import models
 from django.contrib.gis.db import models
-from django.contrib.gis.db.models import PolygonField #, MultiPolygonField
+from django.contrib.gis.db.models import PolygonField, MultiPolygonField
 
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
@@ -24,7 +24,6 @@ from silrec.components.proposals.models import (
 import reversion
 import os
 
-#class TreatmentDocument(models.Model):
 class SurveyAssessmentDocument(Document):
     DOCUMENT_TYPES = [
         ('survey', 'Survey Report'),
@@ -136,7 +135,7 @@ class AssignChtToPly(models.Model):
     #cohort = models.OneToOneField('Cohort', on_delete=models.CASCADE)
     cohort = models.ForeignKey('Cohort', on_delete=models.CASCADE)
     op = models.ForeignKey('Operation', on_delete=models.CASCADE, blank=True, null=True, db_comment='New cohort may be created by other than an operation therefore COLUMN IS NULLABLE')
-    cohort_closed = models.DateField(blank=True, null=True, db_comment='Cohort is closed when stand is overwritten by new operation or some other disturbance creating a new stand.\n\nPolygon/area MUST always have an open (not closed) or current cohort.')
+    #cohort_closed = models.DateField(blank=True, null=True, db_comment='Cohort is closed when stand is overwritten by new operation or some other disturbance creating a new stand.\n\nPolygon/area MUST always have an open (not closed) or current cohort.')
     created_on = models.DateTimeField(blank=True, null=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
@@ -307,7 +306,7 @@ class ClComp2024PolysClearedMga202050Pl(models.Model):
     value = models.FloatField(blank=True, null=True)
     w = models.FloatField(blank=True, null=True)
     z = models.FloatField(blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
     #geom = PolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
@@ -397,7 +396,7 @@ class CombinedSilrec2023(models.Model):
     x = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     y = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     uid = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'combined_silrec_2023'
@@ -413,7 +412,7 @@ class CombinedSilrec20232(models.Model):
     x = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     y = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     uid = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'combined_silrec_2023_2'
@@ -426,7 +425,7 @@ class Compartments(models.Model):
     district = models.CharField(max_length=10, blank=True, null=True)
     supply = models.CharField(max_length=15, blank=True, null=True)
     region = models.CharField(max_length=10, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
     zmapinfo_id = models.IntegerField(db_column='zMapInfo_ID', blank=True, null=True, db_comment='Does this column need to be in compartment table?')  # Field name made lowercase.
 
     class Meta:
@@ -463,7 +462,7 @@ class FeaActiveFmp25Region(models.Model):
     swalcarea = models.CharField(max_length=50, blank=True, null=True)
     feayear = models.FloatField(blank=True, null=True)
     id = models.FloatField(blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'fea_active_fmp25_region'
@@ -562,13 +561,13 @@ class Polygon(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person creating the polygon in the database')
     updated_on = models.DateTimeField(blank=True, null=True, db_comment='date patch area was last changed')
     updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person updating the patch area in the database')
-    closed = models.DateField(blank=True, null=True, db_comment='Date when polygon is closed for activity; further work assigned to new, overlaying polygon\n\nALL open polygons (i.e. NOT CLOSED) should not overlap, i.e. planar enforcement')
+    zclosed = models.DateField(blank=True, null=True, db_comment='Date when polygon is closed for activity; further work assigned to new, overlaying polygon\n\nALL open polygons (i.e. NOT CLOSED) should not overlap, i.e. planar enforcement')
     reason_closed = models.CharField(max_length=250, blank=True, null=True, db_comment='Reason for closure of polygon, usually system related (data restructure), major perturbation resulting in destruction of multiple stands (e.g. wildfire), or new management regime (e.g. FMP24)')
-    zcoupeid = models.CharField(db_column='zCoupeID', max_length=5, blank=True, null=True)  # Field name made lowercase.
-    zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
-    zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
+    zcoupeid = models.CharField(db_column='zcoupeid', max_length=5, blank=True, null=True)  # Field name made lowercase.
+    zstandno = models.CharField(db_column='zstandno', max_length=5, blank=True, null=True)  # Field name made lowercase.
+    zmslink = models.FloatField(db_column='zmslink', blank=True, null=True)  # Field name made lowercase.
     zfea_id = models.CharField(max_length=7, blank=True, null=True, db_comment='Operation Code defining or causing creation of the patch.\nWas Opcode. Now referred to as FEA ID on plan (DW)')
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon'
@@ -580,20 +579,20 @@ class PolygonDa(models.Model):
     gid = models.AutoField(primary_key=True)
     polygon_id = models.FloatField(blank=True, null=True)
     name = models.CharField(max_length=10, blank=True, null=True)
-    compartmen = models.CharField(max_length=5, blank=True, null=True)
+    compartment = models.CharField(max_length=5, blank=True, null=True)
     area_ha = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     sp_code = models.CharField(max_length=10, blank=True, null=True)
     created_on = models.CharField(max_length=29, blank=True, null=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.CharField(max_length=29, blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
-    closed = models.DateField(blank=True, null=True)
-    reason_clo = models.CharField(max_length=250, blank=True, null=True)
+    zclosed = models.DateField(blank=True, null=True)
+    reason_closed = models.CharField(max_length=250, blank=True, null=True)
     zcoupeid = models.CharField(max_length=5, blank=True, null=True)
     zstandno = models.CharField(max_length=5, blank=True, null=True)
     zmslink = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     zfea_id = models.CharField(max_length=7, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon_da'
@@ -632,7 +631,7 @@ class PolygonMiningUnion(models.Model):
     zstandno = models.CharField(max_length=5, blank=True, null=True)
     zmslink = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     zfea_id = models.CharField(max_length=7, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon_mining_union'
@@ -655,7 +654,7 @@ class PolygonPriorToAreaFix(models.Model):
     zstandno = models.CharField(db_column='zStandNo', max_length=5, blank=True, null=True)  # Field name made lowercase.
     zmslink = models.FloatField(db_column='zMSLink', blank=True, null=True)  # Field name made lowercase.
     zfea_id = models.CharField(max_length=7, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'polygon_prior_to_area_fix'
@@ -716,7 +715,7 @@ class SilrecPly2023(models.Model):
     x = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     y = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     uid = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'silrec_ply_2023'
@@ -765,7 +764,7 @@ class SilvicPlanInput(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'silvic_plan_input'
@@ -912,7 +911,7 @@ class VegRetPatch(models.Model):
     created_by = models.CharField(max_length=50, blank=True, null=True)
     updated_on = models.DateTimeField(blank=True, null=True)
     updated_by = models.CharField(max_length=50, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'veg_ret_patch'
@@ -947,7 +946,7 @@ class FpcHarvestTracker(models.Model):
     editdate = models.DateField(blank=True, null=True)
     editor = models.CharField(max_length=50, blank=True, null=True)
     season = models.CharField(max_length=50, blank=True, null=True)
-    geom = PolygonField(srid=28350, blank=True, null=True)
+    geom = MultiPolygonField(srid=28350, blank=True, null=True)
 
     class Meta:
         db_table = 'fpc_harvest_tracker'
@@ -1059,7 +1058,7 @@ class FpcHarvestTracker(models.Model):
 from reversion import register
 
 #register(SurveyAssessmentDocument, follow=get_follow_fields(SurveyAssessmentDocument))
-register(SurveyAssessmentDocument, follow=['treatment'])
+#register(SurveyAssessmentDocument, follow=['treatment'])
 register(AssignCategoryToTask, follow=['task', 'tsk_cat'])
 register(AssignChtToPly, follow=['polygon', 'cohort', 'op'])
 register(AssignObjToReport, follow=['obj_code', 'report'])

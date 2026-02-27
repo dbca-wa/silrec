@@ -5,6 +5,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from django.db import transaction, models
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+from django.contrib.gis.geos import Polygon as GeosPolygon
 from silrec.components.forest_blocks.models import Polygon#, PolygonAudit
 from silrec.components.proposals.models import AuditLog
 from silrec.utils.create_audit_log import AuditLogger
@@ -180,7 +181,7 @@ def _insert_new_polygon(row, proposal_id, user_id):
         area_ha=row['area_ha'],
         sp_code=row['sp_code'],
         proposal_id=proposal_id_row,
-        geom=geom,
+        geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
         created_by=user_id,
         updated_by=user_id,
         # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
@@ -200,7 +201,7 @@ def _insert_duplicate_polygon(row, new_polygon_id, proposal_id, user_id):
         area_ha=row['area_ha'],
         sp_code=row['sp_code'],
         proposal_id=proposal_id_row,
-        geom=geom,
+        geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
         created_by=user_id,
         updated_by=user_id,
     )
@@ -222,7 +223,9 @@ def _update_existing_polygon(row, polygon_id, proposal_id, user_id):
     poly.area_ha = row['area_ha']
     poly.sp_code = row['sp_code']
     if hasattr(row['geometry'], 'wkt'):
-        poly.geom = GEOSGeometry(row['geometry'].wkt)
+        geom = GEOSGeometry(row['geometry'].wkt)
+        #import ipdb; ipdb.set_trace()
+        poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
     poly.updated_by = user_id
 
     # proposal_id: set only if currently NULL and poly_type == 'BASE'

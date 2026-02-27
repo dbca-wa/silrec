@@ -85,20 +85,19 @@ class ShapefileSliversMerger():
                     ph.area_ha,
                     ph.compartment,
                     ph.sp_code,
-                    ph.geom,
-                    ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) AS intersect_area,
-                    (ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) / ph.area_ha) * 100 AS overlap_perc
+                    ph.geom
                 FROM {table_name} AS ph
-                WHERE ph.closed IS NULL
+                WHERE ph.zclosed IS NULL
                 AND (
                     ST_Overlaps(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
                     OR ST_Contains(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
                     OR ST_Within(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
                     OR ST_Crosses(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))
                 )
-                AND ST_Area(ST_Intersection(ph.geom, ST_GeomFromEWKT('{base_polygon_wkt}'))) > {min_area_tolerance};'''
+                ;'''
 
 
+        #import ipdb; ipdb.set_trace()
         #gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
         gdf = gpd.read_postgis(sql, con=conn_engine, geom_col='geom')
 
@@ -110,7 +109,7 @@ class ShapefileSliversMerger():
         gdf.set_geometry('geometry', inplace=True)
         gdf.set_crs(settings.CRS_GDA94)
 
-        return gdf
+        return gdf.explode()
 
     def get_base_polygon_gdf(self, gdf_base, gdf_common_boundary):
         ''' returns the equiv. of gdf_single, but the one after

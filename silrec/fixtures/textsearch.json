@@ -1,6 +1,6 @@
 [
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 1,
     "fields": {
         "field_name": "comment",
@@ -14,7 +14,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 2,
     "fields": {
         "field_name": "comments",
@@ -28,7 +28,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 3,
     "fields": {
         "field_name": "description",
@@ -42,7 +42,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 4,
     "fields": {
         "field_name": "title",
@@ -56,7 +56,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 5,
     "fields": {
         "field_name": "name",
@@ -70,7 +70,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 6,
     "fields": {
         "field_name": "results",
@@ -84,7 +84,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 7,
     "fields": {
         "field_name": "reference",
@@ -98,7 +98,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 8,
     "fields": {
         "field_name": "extra_info",
@@ -112,7 +112,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 9,
     "fields": {
         "field_name": "herbicide_app_spec",
@@ -126,7 +126,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 10,
     "fields": {
         "field_name": "obj_code",
@@ -140,7 +140,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 11,
     "fields": {
         "field_name": "species",
@@ -154,7 +154,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 12,
     "fields": {
         "field_name": "task_description",
@@ -168,7 +168,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 13,
     "fields": {
         "field_name": "processing_status",
@@ -182,7 +182,7 @@
     }
 },
 {
-    "model": "proposals.textsearchfielddisplay",
+    "model": "silrec.textsearchfielddisplay",
     "pk": 14,
     "fields": {
         "field_name": "zresult_standard",
@@ -196,7 +196,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 1,
     "fields": {
         "key": "proposal",
@@ -215,7 +215,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 2,
     "fields": {
         "key": "polygon",
@@ -237,7 +237,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 3,
     "fields": {
         "key": "cohort",
@@ -256,7 +256,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 4,
     "fields": {
         "key": "treatment",
@@ -277,7 +277,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 5,
     "fields": {
         "key": "treatment_xtra",
@@ -296,7 +296,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 6,
     "fields": {
         "key": "survey_assessment_document",
@@ -315,7 +315,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 7,
     "fields": {
         "key": "silviculturist_comment",
@@ -334,7 +334,7 @@
     }
 },
 {
-    "model": "proposals.textsearchmodelconfig",
+    "model": "silrec.textsearchmodelconfig",
     "pk": 8,
     "fields": {
         "key": "prescription",

@@ -52,8 +52,9 @@ class AdditionalDocumentType(RevisionedMixin):
     enabled = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Additional Document Type"
+        db_table = 'additionaldocumenttype'
         app_label = "silrec"
+        verbose_name = "Additional Document Type"
         ordering = ["name"]
 
 
@@ -67,6 +68,7 @@ class DefaultDocument(Document):
     )  # to prevent deletion on file system, hidden and still be available in history
 
     class Meta:
+        db_table = 'defaultdocument'
         app_label = "silrec"
         abstract = True
 
@@ -97,6 +99,7 @@ class ProposalDocument(Document):
     )  # after initial submit prevent document from being deleted
 
     class Meta:
+        db_table = 'proposaldocument'
         app_label = "silrec"
         verbose_name = "Application Document"
 
@@ -142,6 +145,7 @@ class ShapefileDocument(Document):
         )
 
     class Meta:
+        db_table = 'shapefiledocument'
         app_label = "silrec"
 
 
@@ -154,6 +158,7 @@ class ProposalAdditionalDocumentType(models.Model):
     )
 
     class Meta:
+        db_table = 'proposaladditionaldocumenttype'
         app_label = "silrec"
 
 
@@ -178,6 +183,7 @@ class ProposalType(models.Model):
         return self.description
 
     class Meta:
+        db_table = 'proposaltype'
         app_label = "silrec"
 
 
@@ -280,6 +286,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     migrated = models.BooleanField(default=False)
 
     class Meta:
+        db_table = 'proposal'
         app_label = "silrec"
         verbose_name = "Proposal"
 
@@ -489,10 +496,11 @@ class SQLReport(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'sqlreport'
+        app_label = 'silrec'
         ordering = ['name']
         verbose_name = 'SQL Report'
         verbose_name_plural = 'SQL Reports'
-        app_label = 'silrec'
 
     def __str__(self):
         return f"{self.name} ({self.report_type})"
@@ -897,10 +905,11 @@ class TextSearchModelConfig(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'textsearchmodelconfig'
+        app_label='silrec'
         verbose_name = _("Text Search Model Configuration")
         verbose_name_plural = _("Text Search Model Configurations")
         ordering = ['order', 'display_name']
-        app_label='silrec'
 
     def __str__(self):
         return f"{self.display_name} ({self.key})"
@@ -954,10 +963,11 @@ class TextSearchFieldDisplay(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'textsearchfielddisplay'
+        app_label='silrec'
         verbose_name = _("Text Search Field Display")
         verbose_name_plural = _("Text Search Field Displays")
         ordering = ['order', 'field_name']
-        app_label='silrec'
 
     def __str__(self):
         return f"{self.field_name} → {self.display_name}"
@@ -1025,6 +1035,7 @@ class ShapefileAttributeConfig(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'shapefileattributeconfig'
         app_label = 'silrec'
         verbose_name = _("Shapefile Attribute Configuration")
         verbose_name_plural = _("Shapefile Attribute Configurations")
@@ -1081,11 +1092,12 @@ class AuditLog(models.Model):
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
+        db_table = 'auditlog'
+        app_label='silrec'
         indexes = [
             models.Index(fields=['table_name', 'record_id']),
         ]
         ordering = ['-timestamp']
-        app_label='silrec'
 
     def __str__(self):
         return f"{self.operation} on {self.table_name}#{self.record_id} at {self.timestamp}"

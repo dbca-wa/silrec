@@ -1066,7 +1066,32 @@ class ShapefileAttributeConfig(models.Model):
             return None, None, None
 
 
+class RequestMetrics(models.Model):
+    """ groups related audit logs."""
+    proposal = models.ForeignKey(
+        Proposal,
+        related_name="request_metrics",
+        on_delete=models.DO_NOTHING
+    )
+    user = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        # related_name='request_metrics'  # optional
+    )
+    timestamp = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        db_table = 'requestmetrics'
+        app_label = 'silrec'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.proposal} – {self.user} at {self.timestamp}"
+
+
+# ---------- Updated AuditLog model ----------
 class AuditLog(models.Model):
     OPERATION_CHOICES = (
         ('INSERT', 'Insert'),
@@ -1075,32 +1100,29 @@ class AuditLog(models.Model):
     )
 
     table_name = models.CharField(max_length=255, db_index=True)
-    record_id = models.CharField(max_length=255, db_index=True)  # supports both int and UUID PKs
-    proposal = models.ForeignKey(
-        Proposal, related_name="audit_logs", on_delete=models.CASCADE
+    record_id = models.PositiveIntegerField(db_index=True)   # now integer only
+    request_metrics = models.ForeignKey(
+        RequestMetrics,
+        related_name="audit_logs",
+        on_delete=models.CASCADE
     )
     operation = models.CharField(max_length=10, choices=OPERATION_CHOICES)
+    iter_seq = models.PositiveIntegerField('Iteration')
     old_values = models.JSONField(null=True, blank=True)
     new_values = models.JSONField(null=True, blank=True)
-    user = models.ForeignKey(
-        User,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        #related_name='audit_logs'
-    )
-    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    start_time = models.DateTimeField(default=timezone.now)
+    end_time = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'auditlog'
-        app_label='silrec'
+        app_label = 'silrec'
         indexes = [
             models.Index(fields=['table_name', 'record_id']),
         ]
-        ordering = ['-timestamp']
+        ordering = ['-start_time']
 
     def __str__(self):
-        return f"{self.operation} on {self.table_name}#{self.record_id} at {self.timestamp}"
+        return f"{self.operation} on {self.table_name}#{self.record_id} at {self.start_time}"
 
 
 ## -------------------------------------------------------------------------------------

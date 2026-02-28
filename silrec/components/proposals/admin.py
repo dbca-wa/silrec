@@ -425,22 +425,98 @@ class ShapefileAttributeConfigAdmin(admin.ModelAdmin):
     )
 
 
+# ---------- Inline for AuditLog within RequestMetrics ----------
+class AuditLogInline(admin.TabularInline):
+    model = models.AuditLog
+    fk_name = 'request_metrics'           # ForeignKey field name in AuditLog
+    extra = 0
+    readonly_fields = [
+        'table_name', 'record_id', 'operation', 'iter_seq',
+        'start_time', 'end_time', 'changes_summary', 'formatted_old_values_preview',
+        'formatted_new_values_preview'
+    ]
+    fields = [
+        'table_name', 'record_id', 'operation', 'iter_seq',
+        'start_time', 'end_time', 'changes_summary'
+    ]
+    can_delete = False
+    show_change_link = True                # Provides a link to the full AuditLog change form
 
+    def changes_summary(self, obj):
+        if obj.operation == 'INSERT':
+            return "New record created"
+        elif obj.operation == 'DELETE':
+            return "Record deleted"
+        elif obj.operation == 'UPDATE' and obj.old_values and obj.new_values:
+            changed = set(obj.old_values.keys()) & set(obj.new_values.keys())
+            return f"{len(changed)} field(s) changed"
+        return "-"
+    changes_summary.short_description = 'Changes'
+
+    def formatted_old_values_preview(self, obj):
+        """Truncated preview of old values (optional)."""
+        if obj.old_values:
+            preview = json.dumps(obj.old_values, indent=2)[:100]
+            return format_html('<pre style="margin:0; font-size:0.9em;">{}…</pre>', preview)
+        return "-"
+    formatted_old_values_preview.short_description = 'Old Values (preview)'
+
+    def formatted_new_values_preview(self, obj):
+        if obj.new_values:
+            preview = json.dumps(obj.new_values, indent=2)[:100]
+            return format_html('<pre style="margin:0; font-size:0.9em;">{}…</pre>', preview)
+        return "-"
+    formatted_new_values_preview.short_description = 'New Values (preview)'
+
+
+@admin.register(models.RequestMetrics)
+class RequestMetricsAdmin(admin.ModelAdmin):
+    list_display = ['id', 'proposal', 'user', 'timestamp', 'audit_logs_count_link']
+    list_filter = ['user', 'timestamp']
+    search_fields = ['proposal__lodgement_number', 'user__username']
+    readonly_fields = ['timestamp']
+    date_hierarchy = 'timestamp'
+    inlines = [AuditLogInline]                # Add the inline here
+
+    # Permission overrides
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Allow viewing (detail page) for all authenticated staff
+        #return request.user.is_authenticated and request.user.is_staff
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers may delete
+        return request.user.is_superuser
+
+    def audit_logs_count_link(self, obj):
+        """Show the number of audit logs and link to filtered changelist."""
+        count = obj.audit_logs.count()
+        url = reverse('admin:silrec_auditlog_changelist') + f'?request_metrics__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Logs</a>', url, count)
+    audit_logs_count_link.short_description = 'Audit Logs'
+    audit_logs_count_link.admin_order_field = 'audit_logs__count'  # not directly orderable
+
+
+# ---------- Updated AuditLogAdmin (no major changes) ----------
 @admin.register(models.AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
     """
     Admin interface for analysing audit logs.
     Provides rich display of changes, filtering by table/operation/user,
-    and links to related proposal and user records.
+    and links to related proposal and user records via RequestMetrics.
     """
     change_form_template = "admin/silrec/auditlog/change_form.html"
 
     list_display = [
         'id',
-        'timestamp',
+        'start_time',
         'table_name',
         'record_id',
         'operation',
+        'iter_seq',
         'user_link',
         'proposal_link',
         'changes_summary'
@@ -448,30 +524,31 @@ class AuditLogAdmin(admin.ModelAdmin):
     list_filter = [
         'table_name',
         'operation',
-        'user',
-        ('timestamp', admin.DateFieldListFilter),   # explicit date range filter
-        ('proposal', admin.RelatedOnlyFieldListFilter),  # proposal dropdown
+        'request_metrics__user',          # filter by user through request_metrics
+        ('start_time', admin.DateFieldListFilter),
+        ('request_metrics__proposal', admin.RelatedOnlyFieldListFilter),  # proposal dropdown
     ]
     search_fields = [
         'table_name',
         'record_id',
-        'user__username',
-        'proposal__lodgement_number',
+        'request_metrics__user__username',
+        'request_metrics__proposal__lodgement_number',
     ]
-    date_hierarchy = 'timestamp'          # Quick date drill-down
+    date_hierarchy = 'start_time'          # Quick date drill-down
     readonly_fields = [
         'table_name',
         'record_id',
-        'proposal',
+        'request_metrics',
         'operation',
-        'user',
-        'timestamp',
+        'iter_seq',
+        'start_time',
+        'end_time',
         'formatted_old_values',
         'formatted_new_values',
     ]
     fieldsets = (
         (None, {
-            'fields': ('timestamp', 'user', 'proposal')
+            'fields': ('start_time', 'end_time', 'request_metrics', 'iter_seq')
         }),
         ('Operation Details', {
             'fields': ('table_name', 'record_id', 'operation')
@@ -483,39 +560,45 @@ class AuditLogAdmin(admin.ModelAdmin):
         }),
     )
 
-    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
-        # Prepare the extra context dictionary (or use an empty one)
-        extra_context = extra_context or {}
+    # Permission overrides
+    def has_add_permission(self, request):
+        return False
 
-        # If we are editing an existing object (object_id is not None)
+    def has_change_permission(self, request, obj=None):
+        # Allow viewing (detail page) for all authenticated staff
+        #return request.user.is_authenticated and request.user.is_staff
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers may delete
+        return request.user.is_superuser
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
         if object_id:
-            # Retrieve the audit log instance
             obj = self.get_object(request, object_id)
             if obj:
-                # Add the geometry strings to the context
                 extra_context['old_geometry'] = self.old_geometry(obj)
                 extra_context['new_geometry'] = self.new_geometry(obj)
-
-        # Call the parent class method to continue normal rendering
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     def user_link(self, obj):
-        """Link to the User admin page."""
-        if obj.user:
-            url = reverse('admin:auth_user_change', args=[obj.user.id])
-            return format_html('<a href="{}">{}</a>', url, obj.user.get_username())
+        """Link to the User admin page via request_metrics."""
+        if obj.request_metrics and obj.request_metrics.user:
+            url = reverse('admin:auth_user_change', args=[obj.request_metrics.user.id])
+            return format_html('<a href="{}">{}</a>', url, obj.request_metrics.user.get_username())
         return "-"
     user_link.short_description = 'User'
-    user_link.admin_order_field = 'user'
+    user_link.admin_order_field = 'request_metrics__user'
 
     def proposal_link(self, obj):
-        """Link to the internal proposal detail page (opens in new tab)."""
-        if obj.proposal:
-            url = reverse('internal-proposal-detail', args=[obj.proposal.id])
-            return format_html('<a href="{}" target="_blank">{}</a>', url, obj.proposal.lodgement_number)
+        """Link to the internal proposal detail page (opens in new tab) via request_metrics."""
+        if obj.request_metrics and obj.request_metrics.proposal:
+            url = reverse('internal-proposal-detail', args=[obj.request_metrics.proposal.id])
+            return format_html('<a href="{}" target="_blank">{}</a>', url, obj.request_metrics.proposal.lodgement_number)
         return "-"
     proposal_link.short_description = 'Proposal'
-    proposal_link.admin_order_field = 'proposal'
+    proposal_link.admin_order_field = 'request_metrics__proposal'
 
     def changes_summary(self, obj):
         """Short summary of what changed."""
@@ -558,9 +641,14 @@ class AuditLogAdmin(admin.ModelAdmin):
                     g = GEOSGeometry(json.dumps(geom))
                     g.srid = 28350
                     g.transform(4326)
-                    # Extract properties from old_values
                     polygon_id = obj.old_values.get('polygon_id')
                     area_ha = obj.old_values.get('area_ha')
+                    # Convert area_ha to float if possible
+                    if area_ha is not None:
+                        try:
+                            area_ha = float(area_ha)
+                        except (ValueError, TypeError):
+                            area_ha = None  # or keep as string? Better to use None.
                     feature = {
                         'type': 'Feature',
                         'geometry': json.loads(g.geojson),
@@ -586,6 +674,11 @@ class AuditLogAdmin(admin.ModelAdmin):
                     g.transform(4326)
                     polygon_id = obj.new_values.get('polygon_id')
                     area_ha = obj.new_values.get('area_ha')
+                    if area_ha is not None:
+                        try:
+                            area_ha = float(area_ha)
+                        except (ValueError, TypeError):
+                            area_ha = None
                     feature = {
                         'type': 'Feature',
                         'geometry': json.loads(g.geojson),
@@ -607,14 +700,16 @@ class AuditLogAdmin(admin.ModelAdmin):
             'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
         )
 
-        # ---------- Permission overrides ----------
-        def has_add_permission(self, request):
-            return False
+    def has_add_permission(self, request):
+        return False
 
     def has_delete_permission(self, request, obj=None):
         return False
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related('user', 'proposal')
+        return qs.select_related(
+            'request_metrics__user',
+            'request_metrics__proposal'
+        )
 

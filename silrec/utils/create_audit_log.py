@@ -5,16 +5,32 @@ import geopandas as gpd
 from shapely.geometry import shape
 import json
 
-from silrec.components.proposals.models import AuditLog
+from silrec.components.proposals.models import AuditLog, RequestMetrics
 
 
 class AuditLogger:
     """
-        AuditLogger to track INSERT/UPDATE/DELETE's
+    AuditLogger to track INSERT/UPDATE/DELETE operations.
 
-        from silrec.utils.create_audit_log import AuditLogger
-        a=AuditLogger(Polygon, ply, 'INSERT', None, 1, ply, ply)
-        a.create()
+    Usage:
+        # Create a RequestMetrics entry first
+        rm = RequestMetrics.objects.create(
+            proposal=proposal,
+            user=request.user,
+            timestamp=timezone.now()
+        )
+
+        logger = AuditLogger(
+            model=Polygon,
+            obj=ply,
+            operation='INSERT',
+            request_metrics=rm,
+            iter_seq=1,
+            old_vals=ply,
+            new_vals=ply
+        )
+        logger.create()
+
     """
 
     class AuditLogEncoder(DjangoJSONEncoder):
@@ -27,17 +43,33 @@ class AuditLogger:
                 return json.loads(o.geojson)
             return super().default(o)
 
-    def __init__(self, model, obj, operation, user_id, proposal_id,
-                 old_vals=None, new_vals=None, fields=None):
-
+    def __init__(self, model, obj, operation,
+                 request_metrics=None, iter_seq=None,
+                 old_vals=None, new_vals=None,
+                 fields=None):
+                 #fields=None, start_time=None, end_time=None):
+        """
+        :param model: The Django model class (e.g., Polygon)
+        :param obj: The model instance being audited
+        :param operation: 'INSERT', 'UPDATE', or 'DELETE'
+        :param request_metrics: RequestMetrics instance (required)
+        :param iter_seq: Iteration sequence number (required)
+        :param old_vals: Previous state (model instance or dict) for UPDATE/DELETE
+        :param new_vals: New state (model instance or dict) for INSERT/UPDATE
+        :param fields: List of fields to include; if None, all fields are included
+        :param start_time: Optional start time (default: now)
+        :param end_time: Optional end time (default: None)
+        """
         self.model = model
         self.obj = obj
         self.operation = operation
-        self.user_id = user_id
-        self.proposal_id = proposal_id
+        self.request_metrics = request_metrics
+        self.iter_seq = iter_seq
         self.old_vals = old_vals
         self.new_vals = new_vals
         self.fields = fields
+        #self.start_time = start_time
+        #self.end_time = end_time
 
     def _to_dict(self, value):
         """Convert a model instance or dict to a dictionary. Return None if value is None."""
@@ -56,9 +88,17 @@ class AuditLogger:
         return json.loads(json.dumps(data, cls=self.AuditLogEncoder))
 
     def create(self):
+        """
+        Create and return an AuditLog entry.
+        """
         valid_ops = ['INSERT', 'UPDATE', 'DELETE']
         if self.operation not in valid_ops:
             raise ValueError(f"Operation must be one of {valid_ops}")
+
+        if self.request_metrics is None:
+            raise ValueError("request_metrics is required")
+        if self.iter_seq is None:
+            raise ValueError("iter_seq is required")
 
         # Convert old_vals and new_vals to dictionaries
         old_dict = self._to_dict(self.old_vals)
@@ -77,15 +117,16 @@ class AuditLogger:
         # Create the audit log entry
         al = AuditLog.objects.create(
             table_name=self.model._meta.db_table,
-            record_id=self.obj.pk,          # The object's primary key
+            record_id=int(self.obj.pk),          # Ensure integer (primary key)
+            request_metrics=self.request_metrics,
             operation=self.operation,
-            user_id=self.user_id,
-            proposal_id=self.proposal_id,
+            iter_seq=self.iter_seq,
             old_values=old_dict,
-            new_values=new_dict
+            new_values=new_dict,
+            #start_time=self.start_time,           # May be None; default from model
+            #end_time=self.end_time
         )
         return al
-
 
     def geojson_to_geometry(self, geojson):
         """
@@ -103,7 +144,6 @@ class AuditLogger:
         if isinstance(geojson, dict):
             geojson = json.dumps(geojson)
         return GEOSGeometry(geojson)
-
 
     def geojson_to_gdf(self, geojson, crs=None):
         """

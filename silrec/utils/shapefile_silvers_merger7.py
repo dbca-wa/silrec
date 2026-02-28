@@ -1,5 +1,8 @@
 from django.conf import settings
 from django.db import models, transaction
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
 from sqlalchemy import create_engine, text
 import geopandas as gpd
 import pandas as pd
@@ -9,7 +12,6 @@ from shapely.ops import unary_union, polygonize
 
 import json
 import os
-from django.utils import timezone
 from confy import database
 from copy import deepcopy
 
@@ -25,7 +27,7 @@ from silrec.utils.write_cohort_to_db import write_cohort_to_db, save_cht_new_to_
 
 from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
 from silrec.components.proposals.models import Proposal
-from silrec.utils.create_audit_log import AuditLogger
+from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 
 import reversion
 import matplotlib as epl
@@ -37,6 +39,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+User = get_user_model()
 
 class ShapefileSliversMerger():
     '''
@@ -178,6 +181,10 @@ class ShapefileSliversMerger():
         })
 
         proposal = Proposal.objects.get(id=self.proposal_id)
+        user = User.objects.get(id=self.user_id)
+        import ipdb; ipdb.set_trace()
+        self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
+
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
             # TODO 1. filter to 'gdf_hist' sub-set of polygons, and
@@ -214,7 +221,7 @@ class ShapefileSliversMerger():
                 op_id = 1 #self.gdf_single.iloc[0].op_id
                 year = 2024 #self.gdf_single.iloc[0].completion_year
                 regen_method = ' %' # non-null FK req'd
-                cohort_id = write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, self.proposal_id, self.user_id)
+                cohort_id = write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, self.request_metrics, idx_count)
 
                 gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.conn_engine, self.proposal_id)
 
@@ -233,7 +240,7 @@ class ShapefileSliversMerger():
                     import ipdb; ipdb.set_trace()
                     pass
 
-                gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id)
+                gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id, idx_count)
 
                 # get init 'polygon - assign_cht_to_ply - cohort' state
                 gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
@@ -241,7 +248,7 @@ class ShapefileSliversMerger():
 
                 list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
                 #import ipdb; ipdb.set_trace()
-                save_cht_new_to_db(gdf_cht_new, self.proposal_id, self.user_id)
+                save_cht_new_to_db(gdf_cht_new, self.request_metrics, idx_count)
                 #gdf_hist = gdf_result.copy()
                 #gdf_hist['iter_seq'] = gdf_hist.iter_seq + 1
 
@@ -756,7 +763,7 @@ class ShapefileSliversMerger():
 
         return gdf_cht_combined
 
-    def assemble_gdf_result(self, gdf_result, gdf_hist, cohort_id, op_id):
+    def assemble_gdf_result(self, gdf_result, gdf_hist, cohort_id, op_id, iter_seq):
         '''
             # gdf_result[['polygon_id', 'poly_id_new','name', 'area_ha_orig', 'area_ha', 'compartment', 'poly_type','cht_type', 'cht_id_cur', 'cht_id_new', 'fea_id', 'obj_code', 'target_ba_']]
 
@@ -818,7 +825,7 @@ class ShapefileSliversMerger():
 
         gdf_result = gdf_result.explode()
         gdf_result.reset_index(inplace=True)
-        operations_summary, gdf_result = write_polygons_to_db(gdf_result, self.proposal_id, self.user_id)
+        operations_summary, gdf_result = write_polygons_to_db(gdf_result, self.request_metrics, iter_seq)
 
         logger.info(f'\nCohort_id:  {cohort_id}')
 

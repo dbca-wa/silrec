@@ -13,7 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def write_cohort_to_db(obj_code: str, op_id: int, year: int, target_ba: int, regen_method: str, proposal_id: int, user_id: int=None) -> int | None:
+def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_metrics, iter_seq):
     """
     Create a record in the cohort table for the USER PROVIDED SHAPEFILE polygons.
 
@@ -44,7 +44,8 @@ def write_cohort_to_db(obj_code: str, op_id: int, year: int, target_ba: int, reg
                 # No extra defaults needed because we're providing all field values.
             )
 
-            al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj).create()
+            al = AuditLogger(Cohort, cohort_obj, 'INSERT', request_metrics, iter_seq, new_vals=cohort_obj).create()
+            #al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj).create()
             logger.info(f"Successful INSERT cohort record with ID: {cohort_obj.cohort_id}")
         else:
             cohort_obj = cohort_qs[0]
@@ -61,13 +62,14 @@ def write_cohort_to_db(obj_code: str, op_id: int, year: int, target_ba: int, reg
         return None
 
 
-def save_cht_new_to_db(gdf_cht_new, proposal_id, user_id=None):
+def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
     """
     Saves the gdf_cht_new to AssignChtToPly (assign_cht_to_ply) table and NA value handling
     """
 
     from silrec.components.forest_blocks.models import AssignChtToPly
 
+    user_id = request_metrics.user.id
     if gdf_cht_new.empty:
         logger.info("No records found. Nothing to update (model AssignChtToPly).")
         return []
@@ -136,7 +138,10 @@ def save_cht_new_to_db(gdf_cht_new, proposal_id, user_id=None):
                 obj.updated_by = user_id
                 obj.save()
 
-                al = AuditLogger(AssignChtToPly, obj, action, user_id, proposal_id, obj_orig, obj).create()
+                al = AuditLogger(
+                    AssignChtToPly, obj, action, request_metrics, iter_seq, old_vals=obj_orig, new_vals=obj
+                ).create()
+                #al = AuditLogger(AssignChtToPly, obj, action, user_id, proposal_id, obj_orig, obj).create()
 
                 cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
                 success_count += 1

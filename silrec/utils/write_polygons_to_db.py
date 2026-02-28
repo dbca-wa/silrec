@@ -8,7 +8,7 @@ from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from silrec.components.forest_blocks.models import Polygon#, PolygonAudit
 from silrec.components.proposals.models import AuditLog
-from silrec.utils.create_audit_log import AuditLogger
+from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 from copy import deepcopy
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 #def write_gdf_to_polygon(gdf_result, user_id=None):
-def write_polygons_to_db(gdf_result, proposal_id, user_id=None):
+def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
     """
     Write GeoDataFrame to polygon table using Django ORM.
     Handles repeated polygon_ids, prioritizes poly_type (CUT > BASE > others),
@@ -70,7 +70,7 @@ def write_polygons_to_db(gdf_result, proposal_id, user_id=None):
                     # This polygon_id appears multiple times in the input
                     if _should_update_based_on_priority(poly_type_map, polygon_id, poly_type):
                         # Higher priority → update the existing record
-                        _update_existing_polygon(row, polygon_id, proposal_id, user_id)
+                        _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
                         ops_summary['updated_records'] += 1
                         ops_summary['updated_polygon_ids'].append(polygon_id)
                         ops_summary['priority_updates'].append(polygon_id)
@@ -79,14 +79,14 @@ def write_polygons_to_db(gdf_result, proposal_id, user_id=None):
                     else:
                         # Lower priority → create a new record with a new polygon_id
                         new_polygon_id = _get_next_polygon_id()
-                        _insert_duplicate_polygon(row, new_polygon_id, proposal_id, user_id)
+                        _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq)
                         ops_summary['new_records'] += 1
                         ops_summary['new_polygon_ids'].append(new_polygon_id)
                         gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
                         logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
                 else:
                     # First occurrence of this polygon_id in the input → update
-                    _update_existing_polygon(row, polygon_id, proposal_id, user_id)
+                    _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
                     ops_summary['updated_records'] += 1
                     ops_summary['updated_polygon_ids'].append(polygon_id)
                     gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
@@ -169,7 +169,7 @@ def _get_current_polygon_records():
         records[poly['polygon_id']] = poly
     return records
 
-def _insert_new_polygon(row, proposal_id, user_id):
+def _insert_new_polygon(row, request_metrics, iter_seq):
     """Insert a new polygon record. proposal_id is set only if poly_type == 'BASE'."""
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
@@ -187,12 +187,14 @@ def _insert_new_polygon(row, proposal_id, user_id):
         # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
     )
 
-    al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+    al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
+    #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
 
-def _insert_duplicate_polygon(row, new_polygon_id, proposal_id, user_id):
+def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
     """Insert a duplicate polygon with a new polygon_id."""
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
+    user_id = request_metrics.user.id
 
     ply = Polygon.objects.create(
         polygon_id=new_polygon_id,
@@ -207,9 +209,10 @@ def _insert_duplicate_polygon(row, new_polygon_id, proposal_id, user_id):
     )
 
     #import ipdb; ipdb.set_trace()
-    al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+    al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
+    #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
 
-def _update_existing_polygon(row, polygon_id, proposal_id, user_id):
+def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
     """
     Update an existing polygon record.
     proposal_id is set only if the current DB value is NULL.
@@ -226,16 +229,18 @@ def _update_existing_polygon(row, polygon_id, proposal_id, user_id):
         geom = GEOSGeometry(row['geometry'].wkt)
         #import ipdb; ipdb.set_trace()
         poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
-    poly.updated_by = user_id
+    poly.updated_by = request_metrics.user.id
 
     # proposal_id: set only if currently NULL and poly_type == 'BASE'
     if poly.proposal_id is None and row.get('poly_type') == 'BASE':
-        poly.proposal_id = row.get('proposal_id')
+        #poly.proposal_id = row.get('proposal_id')
+        poly.proposal_id = request_metrics.proposal.id
 
     poly.save()
 
     #import ipdb; ipdb.set_trace()
-    al = AuditLogger(Polygon, poly, 'UPDATE', user_id, proposal_id, poly_orig, poly).create()
+    al = AuditLogger(Polygon, poly, 'UPDATE', request_metrics, iter_seq, old_vals=poly_orig, new_vals=poly).create()
+    #al = AuditLogger(Polygon, poly, 'UPDATE', user_id, proposal_id, poly_orig, poly).create()
 
 def _get_next_polygon_id():
     """Return the next available polygon_id (max existing + 1)."""

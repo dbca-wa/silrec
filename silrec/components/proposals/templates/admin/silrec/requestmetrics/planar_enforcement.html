@@ -1,0 +1,62 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:silrec_requestmetrics_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url 'admin:silrec_requestmetrics_change' original.pk %}">{{ original }}</a>
+&rsaquo; {% trans 'Planar Enforcement' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Planar Enforcement Check for RequestMetrics #{{ original.pk }}</h1>
+<p>Operation filter: <strong>{{ operation }}</strong></p>
+
+{% if result.gdf is None %}
+    <p>No polygons found for this request metrics.</p>
+{% else %}
+    <p>Total polygons: {{ result.gdf|length }}</p>
+    {% if result.has_intersections %}
+        <div style="background: #f2dede; border: 1px solid #ebccd1; color: #a94442; padding: 10px; margin-bottom: 20px;">
+            <strong>Intersections detected:</strong> {{ result.intersections|length }} overlapping pairs found.
+        </div>
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>Polygon ID 1</th>
+                    <th>Polygon ID 2</th>
+                    <th>Intersection Area (m²)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for id1, id2, area in result.intersections %}
+                <tr style="border-bottom:1px solid #ddd;">
+                    <td>{{ id1|floatformat:0 }}</td>
+                    <td>{{ id2|floatformat:0 }}</td>
+                    <td>{{ area|floatformat:4 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="background: #dff0d8; border: 1px solid #d6e9c6; color: #3c763d; padding: 10px;">
+            <strong>No intersections found.</strong> All polygons are planar‑enforced.
+        </div>
+    {% endif %}
+{% endif %}
+
+<div style="margin-top:20px;">
+    <a href="?operation=ALL">ALL</a> |
+    <a href="?operation=INSERT">INSERT</a> |
+    <a href="?operation=UPDATE">UPDATE</a> |
+    <a href="?operation=DELETE">DELETE</a>
+</div>
+
+<div style="margin-top:20px;">
+    <a href="{% url 'admin:silrec_requestmetrics_change' original.pk %}" class="button">Back to RequestMetrics</a>
+</div>
+{% endblock %}
+

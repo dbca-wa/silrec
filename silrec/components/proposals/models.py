@@ -1092,6 +1092,77 @@ class RequestMetrics(models.Model):
     def __str__(self):
         return f"{self.proposal} – {self.user} at {self.timestamp}"
 
+    def get_record_ids_for_table(self, table_name, operation='ALL'):
+        """
+        Return a list of distinct record IDs from audit logs for a given table.
+        :param table_name: The database table name (e.g., 'polygon', 'cohort')
+        :param operation: 'ALL', 'INSERT', 'UPDATE', or 'DELETE'
+        """
+        qs = self.audit_logs.filter(table_name=table_name)
+        if operation != 'ALL':
+            qs = qs.filter(operation=operation)
+        return list(qs.values_list('record_id', flat=True).distinct())
+
+    def get_polygon_ids(self, operation='ALL'):
+        """Return polygon record IDs from audit logs, optionally filtered by operation."""
+        return self.get_record_ids_for_table('polygon', operation)
+
+    def polygons_to_gdf(self, operation='ALL'):
+       from silrec.utils.helper import polygons_to_gdf
+       return polygons_to_gdf(self.get_polygon_ids(operation))
+
+    def get_cohort_ids(self, operation='ALL'):
+        """Return cohort record IDs from audit logs, optionally filtered by operation."""
+        return self.get_record_ids_for_table('cohort', operation)
+
+    def get_assign_cht_to_ply_ids(self, operation='ALL'):
+        """Return assign_cht_to_ply record IDs from audit logs, optionally filtered by operation."""
+        return self.get_record_ids_for_table('assign_cht_to_ply', operation)
+
+    def check_planar_enforcement(self, operation='ALL', area_tolerance=0.0001):
+        """
+        Check if any polygons affected in this request (by operation) overlap
+        with an intersection area greater than area_tolerance (in square meters).
+
+        Parameters:
+            operation (str): 'ALL', 'INSERT', 'UPDATE', or 'DELETE'.
+            area_tolerance (float): minimum intersection area (m²) to consider as problematic.
+                                    Use 0.0 to detect any overlap (even tiny slivers).
+
+        Returns:
+            dict: {
+                'has_intersections': bool,
+                'intersections': list of tuples (polygon_id_1, polygon_id_2, intersection_area),
+                'gdf': GeoDataFrame of the polygons (with polygon_id as index) or None if no polygons.
+            }
+        """
+        from silrec.utils.helper import polygons_to_gdf
+
+        poly_ids = self.get_polygon_ids(operation)
+        if len(poly_ids) < 2:
+            return {'has_intersections': False, 'intersections': [], 'gdf': None}
+
+        gdf = polygons_to_gdf(poly_ids)
+        # Ensure polygon_id is the index for easy lookup
+        gdf = gdf.set_index('polygon_id')
+
+        intersections = []
+        ids = list(gdf.index)
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                geom_i = gdf.loc[ids[i], 'geometry']
+                geom_j = gdf.loc[ids[j], 'geometry']
+                if geom_i.intersects(geom_j):
+                    intersection = geom_i.intersection(geom_j)
+                    area = intersection.area
+                    if area > area_tolerance:
+                        intersections.append((ids[i], ids[j], area))
+
+        return {
+            'has_intersections': len(intersections) > 0,
+            'intersections': intersections,
+            'gdf': gdf
+        }
 
 # ---------- Updated AuditLog model ----------
 class AuditLog(models.Model):

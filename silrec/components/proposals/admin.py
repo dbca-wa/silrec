@@ -8,11 +8,14 @@ from django.http import HttpResponseRedirect
 from django.http.request import HttpRequest
 from django.urls import re_path
 from django.utils.html import format_html
-from django.urls import reverse
+from django.urls import reverse, path
 from django.contrib.gis.geos import GEOSGeometry
+from django.shortcuts import render, get_object_or_404
 
 from django.utils import timezone
 import json
+
+
 
 
 from silrec import helpers
@@ -471,7 +474,7 @@ class AuditLogInline(admin.TabularInline):
 
 @admin.register(models.RequestMetrics)
 class RequestMetricsAdmin(admin.ModelAdmin):
-    list_display = ['proposal', 'user', 'timestamp', 'audit_logs_count_link']
+    list_display = ['proposal', 'user', 'timestamp', 'audit_logs_count_link', 'planar_enforcement_link']
     list_filter = ['user', 'timestamp']
     search_fields = ['proposal__lodgement_number', 'user__username']
     readonly_fields = ['timestamp']
@@ -499,6 +502,58 @@ class RequestMetricsAdmin(admin.ModelAdmin):
     audit_logs_count_link.short_description = 'Audit Logs'
     audit_logs_count_link.admin_order_field = 'audit_logs__count'  # not directly orderable
 
+#    def planar_enforcement_link(self, obj):
+#        """Link to the planar enforcement detail view."""
+#        url = reverse('admin:requestmetrics-planar-enforcement', args=[obj.pk])
+#        return format_html('<a href="{}">Check Planar Enforcement</a>', url)
+#    planar_enforcement_link.short_description = 'Planar Enforcement'
+
+    def planar_enforcement_link(self, obj):
+        """Display boolean for planar enforcement with color and link to detail view."""
+        result = obj.check_planar_enforcement(operation='ALL')
+        if result['gdf'] is None:
+            return format_html('<span style="color: grey;">–</span>')
+        has_intersections = result['has_intersections']
+        passed = not has_intersections
+        color = 'green' if passed else 'red'
+        text = 'True' if passed else 'False'
+        url = reverse('admin:requestmetrics-planar-enforcement', args=[obj.pk])
+        return format_html('<a href="{}" style="color: {};">{}</a>', url, color, text)
+    planar_enforcement_link.short_description = 'Planar Enforcement'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('<int:requestmetrics_id>/planar-enforcement/',
+                 self.admin_site.admin_view(self.planar_enforcement_view),
+                 name='requestmetrics-planar-enforcement'),
+        ]
+        return custom_urls + urls
+
+    def planar_enforcement_view(self, request, requestmetrics_id):
+        """Custom view to display planar enforcement check results."""
+        obj = get_object_or_404(self.model, pk=requestmetrics_id)
+
+        # Optionally allow operation filtering via GET parameter
+        operation = request.GET.get('operation', 'ALL')
+        if operation not in ['ALL', 'INSERT', 'UPDATE', 'DELETE']:
+            operation = 'ALL'
+
+        # Run the check (this may be heavy)
+        result = obj.check_planar_enforcement(operation=operation)
+
+        # Sort intersections by area descending (largest first)
+        if result['intersections']:
+            result['intersections'].sort(key=lambda x: x[2], reverse=True)
+
+        context = {
+            'original': obj,
+            'result': result,
+            'operation': operation,
+            'title': f'Planar Enforcement for RequestMetrics #{obj.pk}',
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/silrec/requestmetrics/planar_enforcement.html', context)
 
 # ---------- Updated AuditLogAdmin (no major changes) ----------
 @admin.register(models.AuditLog)

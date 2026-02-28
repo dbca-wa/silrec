@@ -471,7 +471,7 @@ class AuditLogInline(admin.TabularInline):
 
 @admin.register(models.RequestMetrics)
 class RequestMetricsAdmin(admin.ModelAdmin):
-    list_display = ['id', 'proposal', 'user', 'timestamp', 'audit_logs_count_link']
+    list_display = ['proposal', 'user', 'timestamp', 'audit_logs_count_link']
     list_filter = ['user', 'timestamp']
     search_fields = ['proposal__lodgement_number', 'user__username']
     readonly_fields = ['timestamp']
@@ -527,12 +527,14 @@ class AuditLogAdmin(admin.ModelAdmin):
         'request_metrics__user',          # filter by user through request_metrics
         ('start_time', admin.DateFieldListFilter),
         ('request_metrics__proposal', admin.RelatedOnlyFieldListFilter),  # proposal dropdown
+        'iter_seq',
     ]
     search_fields = [
         'table_name',
         'record_id',
         'request_metrics__user__username',
         'request_metrics__proposal__lodgement_number',
+        'iter_seq',
     ]
     date_hierarchy = 'start_time'          # Quick date drill-down
     readonly_fields = [
@@ -572,6 +574,10 @@ class AuditLogAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Only superusers may delete
         return request.user.is_superuser
+
+    def has_module_permission(self, request):
+        ''' Hide from a=Admin console '''
+        return False
 
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         extra_context = extra_context or {}

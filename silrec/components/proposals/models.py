@@ -1086,6 +1086,8 @@ class RequestMetrics(models.Model):
         db_table = 'requestmetrics'
         app_label = 'silrec'
         ordering = ['-timestamp']
+        verbose_name = 'Processing Log'
+        verbose_name_plural = 'Processing Logs'
 
     def __str__(self):
         return f"{self.proposal} – {self.user} at {self.timestamp}"

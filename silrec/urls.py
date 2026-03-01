@@ -182,6 +182,11 @@ urlpatterns = [
     ),
 
     re_path('api/merge-polygon/', proposal_api.MergePolygonView.as_view(), name='merge-polygon'),
+    re_path(
+        r"^api/proposal/(?P<pk>\d+)/save_merged_geometry/$",
+        proposal_api.SaveMergedGeometryView.as_view(),
+        name="save-merged-geometry",
+    ),
 
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]

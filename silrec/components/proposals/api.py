@@ -2643,3 +2643,35 @@ class MergePolygonView(APIView):
         })
 
 
+class SaveMergedGeometryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            proposal = Proposal.objects.get(id=pk)
+        except Proposal.DoesNotExist:
+            return Response({'error': 'Proposal not found'}, status=404)
+
+        # Permission check
+        if not request.user.is_superuser and proposal.submitter != request.user.id:
+            return Response({'error': 'Permission denied'}, status=403)
+
+        data = request.data
+        updated_geojson = data.get('updated_geojson')
+        original_ids = data.get('original_polygon_ids')
+        merged_id = data.get('merged_polygon_id')
+
+        if not updated_geojson:
+            return Response({'error': 'Missing updated_geojson'}, status=400)
+
+        # Save to proposal
+        proposal.geojson_data_processed = updated_geojson
+        proposal.save()
+
+        # Optionally log the merge event (could store in another model)
+        # For now, just return success
+
+        # Serialize updated proposal
+        serializer = ProposalSerializer(proposal, context={'request': request})
+        return Response({'success': True, 'proposal': serializer.data})
+

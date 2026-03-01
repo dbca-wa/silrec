@@ -202,40 +202,60 @@
 
         <!-- Map control buttons -->
         <div class="map-controls">
-        <button 
+          <!-- Merge button – only visible when processed layer exists -->
+          <button 
+            v-if="hasLayer3"
+            class="control-btn merge-btn"
+            @click="toggleMergeMode"
+            :class="{ 'active': mergeModeActive }"
+            :title="mergeModeActive ? 'Cancel merge' : 'Merge two polygons'"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+
+          <button 
             class="control-btn maximise-btn"
             @click="toggleMaximise"
             :title="isMaximised ? 'Minimise map' : 'Maximise map'"
-        >
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-            <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+              <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+              <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
             </svg>
-        </button>
-        
-        <button 
+          </button>
+          
+          <button 
             class="control-btn zoom-to-layer-btn"
             @click="zoomToActiveLayer"
             :title="getZoomToLayerTitle"
-        >
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
+              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
             </svg>
-        </button>
-        
-        <button 
+          </button>
+          
+          <button 
             class="control-btn layer-control-btn"
             @click="showLayerControl = !showLayerControl"
             title="Toggle Layers"
-        >
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+              <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
             </svg>
-        </button>
+          </button>
+        </div>
+
+        <!-- Merge mode indicator -->
+        <div v-if="mergeModeActive" class="merge-indicator">
+          <div class="merge-indicator-content">
+            <span>Merge mode: {{ mergeSelectedFeatures.length }}/2 polygons selected</span>
+            <button @click="cancelMerge" class="cancel-merge-btn">Cancel</button>
+          </div>
         </div>
     </div>
-
 
     <div>
         <PolygonCohortTable 
@@ -261,8 +281,9 @@ import { fromLonLat } from 'ol/proj';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { Select } from 'ol/interaction';
-import { click } from 'ol/events/condition';
+import { singleClick } from 'ol/events/condition';
 import * as XLSX from 'xlsx';
+import * as turf from '@turf/turf';
 import PolygonCohortTable from '@/components/common/table_polygon_cohort.vue';
 
 export default {
@@ -300,7 +321,7 @@ export default {
       default: null
     }
   },
-  emits: ['refresh-from-response'],
+  emits: ['refresh-from-response', 'update-processed-geometry'],
   data() {
     return {
       map: null,
@@ -348,14 +369,25 @@ export default {
       },
       showChtDialog: false,
       currentChtData: null,
-      selectedGeometryIndex: null,
-
       currentProposalId: null,
       showDataTable: true,
       selectedPolygonId: null,
       polygonHighlightLayer: null,
 
-      // Define display fields directly in data to ensure they're always set
+      // Merge mode properties
+      mergeModeActive: false,
+      mergeSelectedFeatures: [],
+      mergeTempInteraction: null,
+
+      // Flag to prevent multiple initializations
+      mapInitialized: false,
+
+      // Global click handler reference for cleanup
+      globalClickHandler: null,
+
+      // **NEW: flag to ignore the next featureCollection3 prop update**
+      ignoreNextPropUpdate: false,
+
       displayFields: [
         { key: 'Block', label: 'Block' },
         { key: 'Compno', label: 'Comp No' },
@@ -389,17 +421,10 @@ export default {
     }
   },
   watch: {
-//    featureCollection: {
-//      handler(newGeoJSON) {
-//        this.updateLayer1(newGeoJSON);
-//      },
-//      deep: true
-//    },
     featureCollection: {
         handler(newGeoJSON) {
             console.log('Feature collection updated:', newGeoJSON);
             this.updateLayer1(newGeoJSON);
-            // Force map refresh
             if (this.map) {
                 setTimeout(() => {
                     this.map.updateSize();
@@ -417,24 +442,38 @@ export default {
     },
     featureCollection3: {
       handler(newGeoJSON) {
+        console.log('Feature collection3 updated, length:', newGeoJSON?.features?.length);
+        // **NEW: skip update if ignore flag is set**
+        if (this.ignoreNextPropUpdate) {
+          console.log('Ignoring featureCollection3 update (merge just happened)');
+          this.ignoreNextPropUpdate = false;
+          return;
+        }
         this.updateLayer3(newGeoJSON);
       },
       deep: true
     },
     featureCollection4: {
       handler(newGeometryList) {
+        console.log('featureCollection4 updated:', newGeometryList);
         this.updateLayer4(newGeometryList);
+        if (this.layer4Visible && newGeometryList.length > 0) {
+          if (this.selectedGeometryIndex === null || this.selectedGeometryIndex >= newGeometryList.length) {
+            this.selectedGeometryIndex = 0;
+          }
+          this.displayGeometryCollection(this.selectedGeometryIndex);
+        } else if (newGeometryList.length === 0) {
+          this.selectedGeometryIndex = null;
+        }
       },
       deep: true
     },
-
     proposalId: {
       handler(newVal) {
         this.currentProposalId = this.ensureNumber(newVal);
       },
       immediate: true
     },
-
     '$route.params.proposal_id': {
       handler(newVal) {
         if (newVal && !this.currentProposalId) {
@@ -443,7 +482,6 @@ export default {
       },
       immediate: true
     },
-
     context: {
       handler(newVal) {
         if (newVal && newVal.id && !this.currentProposalId) {
@@ -452,59 +490,66 @@ export default {
       },
       deep: true,
       immediate: true
+    },
+    mergeSelectedFeatures: {
+      handler(newVal) {
+        console.log('mergeSelectedFeatures changed:', newVal.length, newVal);
+      },
+      deep: true
     }
-
   },
   mounted() {
+    console.log('MapComponent mounted, container exists:', !!this.$refs.mapContainer);
     this.$nextTick(() => {
-      this.initializeMap();
-
-      let proposalId = null;
-        
-      if (this.proposalId) {
-        proposalId = this.ensureNumber(this.proposalId);
-      }
-        
-      if (!proposalId && this.$route.params.proposal_id) {
-        proposalId = this.ensureNumber(this.$route.params.proposal_id);
-      }
-        
-      if (!proposalId && this.context && this.context.id) {
-        proposalId = this.ensureNumber(this.context.id);
-      }
-        
-      this.currentProposalId = proposalId;
-        
-      console.log('Current proposal ID:', this.currentProposalId, typeof this.currentProposalId);
-
-      this.hasLayer2 = !!this.featureCollection2;
-      this.layer2Visible = this.hasLayer2;
-
-      this.hasLayer3 = !!this.featureCollection3;
-      this.layer3Visible = this.hasLayer3;
-
-      this.hasLayer4 = !!this.featureCollection4 && this.featureCollection4.length > 0;
-      this.layer4Visible = false;
+      this.initializeMapWithRetry();
     });
   },
-  beforeUnmount() {
+  beforeDestroy() {
+    console.log('MapComponent beforeDestroy');
     if (this.map) {
+      if (this.globalClickHandler) {
+        this.map.un('click', this.globalClickHandler);
+      }
       this.map.setTarget(null);
     }
     window.removeEventListener('resize', this.handleResize);
     document.removeEventListener('keydown', this.handleEscape);
+    if (this.mergeTempInteraction) {
+      this.map.removeInteraction(this.mergeTempInteraction);
+    }
   },
   methods: {
+    initializeMapWithRetry(retries = 5) {
+      const container = this.$refs.mapContainer;
+      if (!container) {
+        console.warn('Map container ref not found');
+        return;
+      }
+      const width = container.offsetWidth;
+      const height = container.offsetHeight;
+      console.log(`Map container dimensions: ${width}x${height}`);
+      if (width > 0 && height > 0) {
+        this.initializeMap();
+      } else if (retries > 0) {
+        console.log(`Map container has zero dimensions, retrying... (${retries} left)`);
+        setTimeout(() => {
+          this.initializeMapWithRetry(retries - 1);
+        }, 100);
+      } else {
+        console.warn('Map container still has zero dimensions after retries, initializing anyway.');
+        this.initializeMap();
+      }
+    },
+
     forceToRefreshMap: function() {
         if (this.map) {
             this.map.updateSize();
-
-            // Re-initialize layers if needed
             if (this.featureCollection) {
                 this.updateLayer1(this.featureCollection);
             }
         }
     },
+
     async exportChtToExcel() {
         if (!this.currentChtData) return;
 
@@ -556,6 +601,7 @@ export default {
             });
         }
     },
+
     openChtDialog(geometryIndex) {
         const geometry = this.geometryCollections[geometryIndex];
         if (geometry && (geometry.cht_init || geometry.cht_new)) {
@@ -592,116 +638,121 @@ export default {
         }
     },
 
-  getChtInitKeys(chtInitJson) {
-    try {
-      const data = JSON.parse(chtInitJson);
-      return Object.keys(data);
-    } catch (error) {
-      return [];
-    }
-  },
-
-  getChtNewKeys(chtNewJson) {
-    try {
-      const data = JSON.parse(chtNewJson);
-      return Object.keys(data);
-    } catch (error) {
-      return [];
-    }
-  },
-    initializeMap() {
-      const layer1Source = new VectorSource();
-      const layer2Source = new VectorSource();
-      const layer3Source = new VectorSource();
-      const layer4Source = new VectorSource();
-
-      const layer1Style = new Style({
-        fill: new Fill({
-          color: 'rgba(255, 0, 0, 0.3)'
-        }),
-        stroke: new Stroke({
-          color: 'rgba(255, 0, 0, 0.8)',
-          width: 2
-        })
-      });
-
-      const layer2Style = new Style({
-        fill: new Fill({
-          color: 'rgba(0, 0, 255, 0.3)'
-        }),
-        stroke: new Stroke({
-          color: 'rgba(0, 0, 255, 0.8)',
-          width: 2
-        })
-      });
-
-      const layer3Style = new Style({
-        fill: new Fill({
-          color: 'rgba(68, 68, 68, 0.3)'
-        }),
-        stroke: new Stroke({
-          color: 'rgba(68, 68, 68, 0.8)',
-          width: 2
-        })
-      });
-
-      this.layer1 = new VectorLayer({
-        source: layer1Source,
-        style: layer1Style,
-        visible: this.layer1Visible
-      });
-
-      this.layer2 = new VectorLayer({
-        source: layer2Source,
-        style: layer2Style,
-        visible: this.layer2Visible
-      });
-
-      this.layer3 = new VectorLayer({
-        source: layer3Source,
-        style: layer3Style,
-        visible: this.layer3Visible
-      });
-
-      this.layer4 = new VectorLayer({
-        source: layer4Source,
-        style: this.layer4Style,
-        visible: this.layer4Visible,
-        zIndex: 10
-      });
-
-      const baseLayer = new TileLayer({
-        source: new OSM()
-      });
-
-      this.map = new Map({
-        target: this.$refs.mapContainer,
-        layers: [baseLayer, this.layer1, this.layer2, this.layer3, this.layer4],
-        view: new View({
-          projection: 'EPSG:4326',
-          center: fromLonLat([121.5, -24.5], 'EPSG:4326'),
-          zoom: 6,
-        })                                                                                                                                            
-      });
-
-      this.setupSelectInteraction();
-
-      if (this.featureCollection) {
-        this.updateLayer1(this.featureCollection);
-      }
-      if (this.featureCollection2) {
-        this.updateLayer2(this.featureCollection2);
-      }
-      if (this.featureCollection3) {
-        this.updateLayer3(this.featureCollection3);
-      }
-      if (this.featureCollection4 && this.featureCollection4.length > 0) {
-        this.updateLayer4(this.featureCollection4);
-      }
-
-      window.addEventListener('resize', this.handleResize);
-      document.addEventListener('keydown', this.handleEscape);
+    getChtInitKeys(chtInitJson) {
+        try {
+            const data = JSON.parse(chtInitJson);
+            return Object.keys(data);
+        } catch (error) {
+            return [];
+        }
     },
+
+    getChtNewKeys(chtNewJson) {
+        try {
+            const data = JSON.parse(chtNewJson);
+            return Object.keys(data);
+        } catch (error) {
+            return [];
+        }
+    },
+
+
+initializeMap() {
+  if (this.mapInitialized) return;
+  console.log('initializeMap called');
+  this.mapInitialized = true;
+
+  const layer1Source = new VectorSource();
+  const layer2Source = new VectorSource();
+  const layer3Source = new VectorSource();
+  const layer4Source = new VectorSource();
+
+  const layer1Style = new Style({
+    fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' }),
+    stroke: new Stroke({ color: 'rgba(255, 0, 0, 0.8)', width: 2 })
+  });
+
+  const layer2Style = new Style({
+    fill: new Fill({ color: 'rgba(0, 0, 255, 0.3)' }),
+    stroke: new Stroke({ color: 'rgba(0, 0, 255, 0.8)', width: 2 })
+  });
+
+  const layer3Style = new Style({
+    fill: new Fill({ color: 'rgba(68, 68, 68, 0.3)' }),
+    stroke: new Stroke({ color: 'rgba(68, 68, 68, 0.8)', width: 2 })
+  });
+
+  this.layer1 = new VectorLayer({
+    source: layer1Source,
+    style: layer1Style,
+    visible: this.layer1Visible
+  });
+
+  this.layer2 = new VectorLayer({
+    source: layer2Source,
+    style: layer2Style,
+    visible: this.layer2Visible
+  });
+
+  // Layer3 with style function that respects feature styles
+  this.layer3 = new VectorLayer({
+    source: layer3Source,
+    style: function(feature) {
+      // If the feature has its own style, use it
+      if (feature.getStyle && feature.getStyle()) {
+        return feature.getStyle();
+      }
+      // Otherwise return the default style
+      return layer3Style;
+    },
+    visible: this.layer3Visible
+  });
+
+  this.layer4 = new VectorLayer({
+    source: layer4Source,
+    style: this.layer4Style,
+    visible: this.layer4Visible,
+    zIndex: 10
+  });
+
+  const baseLayer = new TileLayer({ source: new OSM() });
+
+  this.map = new Map({
+    target: this.$refs.mapContainer,
+    layers: [baseLayer, this.layer1, this.layer2, this.layer3, this.layer4],
+    view: new View({
+      projection: 'EPSG:4326',
+      center: fromLonLat([121.5, -24.5], 'EPSG:4326'),
+      zoom: 6,
+    })
+  });
+
+  console.log('Map created, interactions count:', this.map.getInteractions().getLength());
+
+  // Add global click listener for debugging
+  this.globalClickHandler = (evt) => {
+    console.log('Map click at', evt.coordinate);
+  };
+  this.map.on('click', this.globalClickHandler);
+
+  this.setupSelectInteraction();
+
+  if (this.featureCollection) {
+    this.updateLayer1(this.featureCollection);
+  }
+  if (this.featureCollection2) {
+    this.updateLayer2(this.featureCollection2);
+  }
+  if (this.featureCollection3) {
+    this.updateLayer3(this.featureCollection3);
+  }
+  if (this.featureCollection4 && this.featureCollection4.length > 0) {
+    this.updateLayer4(this.featureCollection4);
+  }
+
+  window.addEventListener('resize', this.handleResize);
+  document.addEventListener('keydown', this.handleEscape);
+},
 
     setupSelectInteraction() {
       if (this.selectInteraction) {
@@ -709,13 +760,14 @@ export default {
       }
 
       this.selectInteraction = new Select({
-        condition: click,
+        condition: singleClick,
         layers: [this.layer1, this.layer2, this.layer3, this.layer4],
         style: this.highlightStyle,
         multi: false
       });
 
       this.selectInteraction.on('select', (event) => {
+        console.log('Default select interaction fired, selected:', event.selected.length);
         if (event.selected.length > 0) {
           this.selectedFeature = event.selected[0];
           this.showAdditionalInfo = false;
@@ -726,6 +778,335 @@ export default {
       });
 
       this.map.addInteraction(this.selectInteraction);
+      console.log('Select interaction added, total interactions:', this.map.getInteractions().getLength());
+    },
+
+    // Merge mode methods
+    toggleMergeMode() {
+      console.log('toggleMergeMode, current active:', this.mergeModeActive);
+      if (this.mergeModeActive) {
+        this.cancelMerge();
+      } else {
+        this.startMergeMode();
+      }
+    },
+
+    startMergeMode() {
+      console.log('startMergeMode called');
+      if (!this.hasLayer3 || !this.layer3Visible) {
+        alert('Please make the Processed layer visible first.');
+        return;
+      }
+      this.mergeModeActive = true;
+      this.mergeSelectedFeatures = [];
+      
+      // Remove default select interaction
+      this.map.removeInteraction(this.selectInteraction);
+      console.log('Default select interaction removed');
+      
+      // Create temporary select interaction for layer3 using singleClick
+      this.mergeTempInteraction = new Select({
+        condition: singleClick,
+        layers: [this.layer3],
+        style: this.highlightStyle,
+        multi: false
+      });
+      
+      this.mergeTempInteraction.on('select', (event) => {
+        console.log('mergeTempInteraction select event', event);
+        if (event.selected.length > 0) {
+          const feature = event.selected[0];
+          console.log('Feature selected in merge mode:', feature);
+          this.handleMergeClick(feature);
+        } else {
+          console.log('No feature selected in mergeTempInteraction');
+        }
+      });
+      
+      this.map.addInteraction(this.mergeTempInteraction);
+      console.log('mergeTempInteraction added, interactions count:', this.map.getInteractions().getLength());
+    },
+
+    cancelMerge() {
+      console.log('cancelMerge called');
+      this.mergeModeActive = false;
+      this.mergeSelectedFeatures = [];
+      if (this.mergeTempInteraction) {
+        this.map.removeInteraction(this.mergeTempInteraction);
+        this.mergeTempInteraction = null;
+        console.log('mergeTempInteraction removed');
+      }
+      // Restore default select interaction
+      this.setupSelectInteraction();
+    },
+
+    handleMergeClick(feature) {
+      console.log('handleMergeClick called with feature', feature);
+      if (this.mergeSelectedFeatures.includes(feature)) {
+        alert('You have already selected this polygon. Please choose a different one.');
+        return;
+      }
+      
+      this.mergeSelectedFeatures.push(feature);
+      console.log('mergeSelectedFeatures now:', this.mergeSelectedFeatures.length, this.mergeSelectedFeatures);
+      
+      if (this.mergeSelectedFeatures.length === 2) {
+        console.log('Two polygons selected, performing merge');
+        this.performMerge(this.mergeSelectedFeatures[0], this.mergeSelectedFeatures[1]);
+      }
+    },
+
+    // Helper to close polygon rings
+    closePolygon(geojson) {
+      if (geojson && geojson.geometry && geojson.geometry.type === 'Polygon') {
+        const coordinates = geojson.geometry.coordinates;
+        coordinates.forEach(ring => {
+          if (ring.length > 0) {
+            const first = ring[0];
+            const last = ring[ring.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+              ring.push(first);
+            }
+          }
+        });
+      }
+      return geojson;
+    },
+
+    performMerge(feature1, feature2) {
+        const format = new GeoJSON();
+        const geojson1 = format.writeFeatureObject(feature1, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+        });
+        const geojson2 = format.writeFeatureObject(feature2, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+        });
+
+        // Close polygons to satisfy GeoJSON spec
+        const closed1 = this.closePolygon(geojson1);
+        const closed2 = this.closePolygon(geojson2);
+
+        // Clean coordinates (remove redundant points)
+        const cleaned1 = turf.cleanCoords(closed1);
+        const cleaned2 = turf.cleanCoords(closed2);
+
+        // Rewind to correct orientation
+        const rewound1 = turf.rewind(cleaned1, { mutate: true });
+        const rewound2 = turf.rewind(cleaned2, { mutate: true });
+
+        console.log('Cleaned/Rewound GeoJSON1:', JSON.stringify(rewound1.geometry, null, 2));
+        console.log('Cleaned/Rewound GeoJSON2:', JSON.stringify(rewound2.geometry, null, 2));
+
+        if (!rewound1.geometry || !rewound2.geometry) {
+            console.error('One of the features has no geometry');
+            alert('Invalid polygon geometry. Cannot merge.');
+            this.cancelMerge();
+            return;
+        }
+
+        if (rewound1.geometry.type !== 'Polygon' || rewound2.geometry.type !== 'Polygon') {
+            console.error('Geometry types:', rewound1.geometry.type, rewound2.geometry.type);
+            alert('Only polygons can be merged. Selected features are not polygons.');
+            this.cancelMerge();
+            return;
+        }
+
+        try {
+            const featureCollection = turf.featureCollection([rewound1, rewound2]);
+            const union = turf.union(featureCollection);
+            console.log('Union result:', union);
+            console.log('Union geometry:', JSON.stringify(union.geometry, null, 2));
+
+            if (union.geometry.type !== 'Polygon') {
+            alert('Cannot merge these polygons: the result would be a MultiPolygon. Please select adjacent polygons.');
+            this.cancelMerge();
+            return;
+            }
+
+            // Clean the union geometry (fix self‑intersections, etc.)
+            const cleanedUnion = turf.buffer(union, 0);
+            if (cleanedUnion.geometry.type !== 'Polygon') {
+            alert('Cleaned union is not a polygon – merge failed.');
+            this.cancelMerge();
+            return;
+            }
+
+            // Simplify to reduce vertex count and fix any remaining micro‑issues
+            const simplified = turf.simplify(cleanedUnion, { tolerance: 0.00001, highQuality: false });
+            console.log('Simplified geometry vertices count:', turf.coordAll(simplified).length);
+
+            // Calculate area (hectares)
+            const areaHa = turf.area(simplified) / 10000;
+            console.log('Merged polygon area (ha):', areaHa);
+
+            // **Update feature1 in place**
+            const source = this.layer3.getSource();
+            console.log('Before removal, source features count:', source.getFeatures().length);
+
+            // Set new geometry on feature1
+            const newGeometry = format.readGeometry(simplified.geometry, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+            });
+            feature1.setGeometry(newGeometry);
+            feature1.set('area_ha', areaHa);
+            feature1.set('merged', true);
+            feature1.set('mergeId', 'merged_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
+
+            // Apply bright style
+            feature1.setStyle(new Style({
+            fill: new Fill({ color: 'rgba(0, 255, 0, 0.5)' }),
+            stroke: new Stroke({ color: 'rgba(0, 0, 0, 1)', width: 3 })
+            }));
+
+            // Remove feature2
+            source.removeFeature(feature2);
+
+            console.log('After removal and update, source features count:', source.getFeatures().length);
+
+            // Force layer update
+            source.changed();
+            this.layer3.changed();
+
+            // Log all feature IDs
+            const allIds = source.getFeatures().map(f => f.get('mergeId') || f.get('id') || 'unknown');
+            console.log('Current source feature IDs:', allIds);
+
+            const mergedExtent = feature1.getGeometry().getExtent();
+            this.map.render();
+            this.map.getView().fit(mergedExtent, { padding: [50, 50, 50, 50], duration: 500 });
+
+            const allFeatures = source.getFeatures();
+            const updatedFC = {
+            type: 'FeatureCollection',
+            features: allFeatures.map(f => format.writeFeatureObject(f, {
+                featureProjection: 'EPSG:4326',
+                dataProjection: 'EPSG:4326'
+            }))
+            };
+            console.log('updatedFC features count:', updatedFC.features.length);
+
+            this.ignoreNextPropUpdate = true;
+            this.$emit('update-processed-geometry', updatedFC);
+
+            this.$nextTick(() => {
+            setTimeout(() => {
+                this.map.render();
+                const source = this.layer3.getSource();
+                const features = source.getFeatures();
+                const mergedFeature = features.find(f => f.get('mergeId') === feature1.get('mergeId'));
+                if (mergedFeature) {
+                console.log('Merged feature found after parent update, extent:', mergedFeature.getGeometry().getExtent());
+                this.map.getView().fit(mergedFeature.getGeometry().getExtent(), {
+                    padding: [50, 50, 50, 50],
+                    duration: 500
+                });
+                mergedFeature.setStyle(new Style({
+                    fill: new Fill({ color: 'rgba(0, 255, 0, 0.5)' }),
+                    stroke: new Stroke({ color: 'rgba(0, 0, 0, 1)', width: 3 })
+                }));
+                } else {
+                console.warn('Merged feature NOT found after parent update!');
+                }
+            }, 100);
+            });
+
+            this.cancelMerge();
+
+        } catch (error) {
+            console.error('Merge error details:', error);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Stack:', error.stack);
+
+            // Fallback (same in‑place update)
+            try {
+            console.log('Attempting fallback with buffer(0)...');
+            const buffered1 = turf.buffer(rewound1, 0);
+            const buffered2 = turf.buffer(rewound2, 0);
+            const featureCollection = turf.featureCollection([buffered1, buffered2]);
+            const union = turf.union(featureCollection);
+            console.log('Fallback union result:', union);
+
+            if (union.geometry.type !== 'Polygon') {
+                throw new Error('Result is not a Polygon');
+            }
+
+            const cleanedUnion = turf.buffer(union, 0);
+            if (cleanedUnion.geometry.type !== 'Polygon') {
+                throw new Error('Cleaned union is not a polygon');
+            }
+
+            const simplified = turf.simplify(cleanedUnion, { tolerance: 0.00001, highQuality: false });
+            const areaHa = turf.area(simplified) / 10000;
+            console.log('Fallback merged area (ha):', areaHa);
+
+            const source = this.layer3.getSource();
+            const newGeometry = format.readGeometry(simplified.geometry, {
+                featureProjection: 'EPSG:4326',
+                dataProjection: 'EPSG:4326'
+            });
+            feature1.setGeometry(newGeometry);
+            feature1.set('area_ha', areaHa);
+            feature1.set('merged', true);
+            feature1.set('mergeId', 'merged_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
+            feature1.setStyle(new Style({
+                fill: new Fill({ color: 'rgba(0, 255, 0, 0.5)' }),
+                stroke: new Stroke({ color: 'rgba(0, 0, 0, 1)', width: 3 })
+            }));
+            source.removeFeature(feature2);
+
+            source.changed();
+            this.layer3.changed();
+
+            const mergedExtent = feature1.getGeometry().getExtent();
+            this.map.render();
+            this.map.getView().fit(mergedExtent, { padding: [50, 50, 50, 50], duration: 500 });
+
+            const allFeatures = source.getFeatures();
+            const updatedFC = {
+                type: 'FeatureCollection',
+                features: allFeatures.map(f => format.writeFeatureObject(f, {
+                featureProjection: 'EPSG:4326',
+                dataProjection: 'EPSG:4326'
+                }))
+            };
+
+            this.ignoreNextPropUpdate = true;
+            this.$emit('update-processed-geometry', updatedFC);
+
+            this.$nextTick(() => {
+                setTimeout(() => {
+                this.map.render();
+                const source = this.layer3.getSource();
+                const features = source.getFeatures();
+                const mergedFeature = features.find(f => f.get('mergeId') === feature1.get('mergeId'));
+                if (mergedFeature) {
+                    console.log('Fallback merged feature found after parent update');
+                    mergedFeature.setStyle(new Style({
+                    fill: new Fill({ color: 'rgba(0, 255, 0, 0.5)' }),
+                    stroke: new Stroke({ color: 'rgba(0, 0, 0, 1)', width: 3 })
+                    }));
+                    this.map.getView().fit(mergedFeature.getGeometry().getExtent(), {
+                    padding: [50, 50, 50, 50],
+                    duration: 500
+                    });
+                } else {
+                    console.warn('Fallback merged feature NOT found after parent update!');
+                }
+                }, 100);
+            });
+
+            this.cancelMerge();
+
+            } catch (fallbackError) {
+            console.error('Fallback merge also failed:', fallbackError);
+            alert(`An error occurred while merging polygons: ${error.message}`);
+            this.cancelMerge();
+            }
+        }
     },
 
     getFeatureValue(feature, fieldKey) {
@@ -809,6 +1190,7 @@ export default {
       
       this.layer1.getSource().clear();
       this.layer1.getSource().addFeatures(features);
+      console.log('Layer1 updated, features added:', features.length);
       
       if (features.length > 0 && !this.hasLayer2) {
         this.zoomToLayer('layer1');
@@ -830,6 +1212,7 @@ export default {
       
       this.layer2.getSource().clear();
       this.layer2.getSource().addFeatures(features);
+      console.log('Layer2 updated, features added:', features.length);
       
       if (features.length > 0) {
         this.zoomToLayer('layer2');
@@ -851,6 +1234,7 @@ export default {
       
       this.layer3.getSource().clear();
       this.layer3.getSource().addFeatures(features);
+      console.log('Layer3 updated, features added:', features.length);
       
       if (features.length > 0) {
         this.zoomToLayer('layer3');
@@ -858,15 +1242,20 @@ export default {
     },
 
     updateLayer4(geometryList) {
-      if (!this.layer4 || !geometryList) return;
+      if (!this.layer4) return;
       
       this.hasLayer4 = geometryList.length > 0;
       this.geometryCollections = geometryList;
       
       this.layer4.getSource().clear();
       
-      if (this.selectedGeometryIndex !== null && geometryList[this.selectedGeometryIndex]) {
+      if (this.layer4Visible && geometryList.length > 0) {
+        if (this.selectedGeometryIndex === null || this.selectedGeometryIndex >= geometryList.length) {
+          this.selectedGeometryIndex = 0;
+        }
         this.displayGeometryCollection(this.selectedGeometryIndex);
+      } else if (geometryList.length === 0) {
+        this.selectedGeometryIndex = null;
       }
     },
 
@@ -905,9 +1294,13 @@ export default {
         this.layer3.setVisible(this.layer3Visible);
       } else if (layerName === 'layer4' && this.layer4) {
         this.layer4.setVisible(this.layer4Visible);
-        if (this.layer4Visible && this.hasLayer4 && this.selectedGeometryIndex === null && this.geometryCollections.length > 0) {
-          this.selectedGeometryIndex = 0;
-          this.displayGeometryCollection(0);
+        if (this.layer4Visible && this.hasLayer4) {
+          if (this.selectedGeometryIndex === null && this.geometryCollections.length > 0) {
+            this.selectedGeometryIndex = 0;
+          }
+          if (this.selectedGeometryIndex !== null) {
+            this.displayGeometryCollection(this.selectedGeometryIndex);
+          }
         }
       }
     },
@@ -1132,6 +1525,12 @@ export default {
 .control-btn:hover {
   background: #f5f5f5;
   transform: scale(1.05);
+}
+
+.control-btn.merge-btn.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #0056b3;
 }
 
 .layer-control-popup,
@@ -1428,6 +1827,39 @@ export default {
 .cht-table th:last-child,
 .cht-table td:last-child {
   border-right: none;
+}
+
+.merge-indicator {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+  padding: 8px 16px;
+  z-index: 1001;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.merge-indicator-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cancel-merge-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.cancel-merge-btn:hover {
+  background: #c82333;
 }
 
 :deep(.swal2-container) {

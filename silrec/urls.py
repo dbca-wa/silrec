@@ -181,6 +181,8 @@ urlpatterns = [
         name="upload-shapefile",
     ),
 
+    re_path('api/merge-polygon/', proposal_api.MergePolygonView.as_view(), name='merge-polygon'),
+
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]
 

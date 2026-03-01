@@ -26,24 +26,11 @@
                             Upload Shapefile
                         </button>
 
-                        <!--<div v-if="uploadedFileName" class="ms-3">-->
-                        <div class="ms-3">
-                        <button 
-                            class="btn btn-primary process-btn"
-                            @click="!triggerShapefileProcess"
-                            :disabled="uploadingShapefile"
-                        >
-                            <i class="bi bi-upload me-2"></i>
-                            Process Shapefile
-                        </button>
-                        </div>
-
-                       
                         <!-- Display uploaded filename -->
-                        <div v-if="uploadedFileName" class="ms-3 uploaded-filename">
+                        <div v-if="fileNameToDisplay" class="ms-3 uploaded-filename">
                             <i class="bi bi-file-earmark-zip me-1"></i>
                             <span class="text-muted">Uploaded:</span>
-                            <strong class="ms-1">{{ uploadedFileName }}</strong>
+                            <strong class="ms-1">{{ fileNameToDisplay }}</strong>
                         </div>
                         
                     </div>
@@ -109,6 +96,7 @@
                 :featureCollection4="geometriesToFeatureCollection4"
                 :displayFieldsConfig="displayFieldsConfig"
                 :additionalFieldsConfig="additionalFieldsConfig"
+                @update-processed-geometry="handleProcessedGeometryUpdate"
                 :ows-query="owsQuery"
                 style-by="assessor"
                 :filterable="false"
@@ -274,9 +262,10 @@ export default {
             uploadStatus: '',
             uploadError: null,
             uploadSuccess: false,
-            uploadedFileName: '',
+            // Temporary filename for immediate feedback (until proposal updates)
+            selectedFileName: '',
             
-            // Add this to force map refresh
+            // Map key – used only if we must force a full remount (rare)
             componentMapKey: 0,
         };
     },
@@ -284,8 +273,13 @@ export default {
         proposalId: function () {
             return this.proposal ? this.proposal.id : null;
         },
-        uploadedFileName: function () {
+        // Computed property for the stored filename from proposal
+        storedFileName: function () {
             return this.proposal ? this.proposal.shapefile_name : null;
+        },
+        // Display filename: show selectedFileName during upload, otherwise storedFileName
+        fileNameToDisplay: function () {
+            return this.selectedFileName || this.storedFileName;
         },
         geometriesToFeatureCollection: function () {
             let vm = this;
@@ -440,25 +434,22 @@ export default {
     mounted: function () {
         this.$emit('formMounted');
     },
+    beforeDestroy: function () {   // Changed from beforeUnmount to beforeDestroy for Vue 2
+        // Cleanup if needed
+    },
     methods: {
+        handleProcessedGeometryUpdate(updatedGeoJSON) {
+            // Update the proposal's processed geometry data
+            //this.proposal.proposalgeometry_processed = updatedGeoJSON;
+            // Optionally trigger an API call to save
+            //this.$emit('refreshFromResponse', this.proposal);
+        },
+
+
         /*
-        Improved map refresh logic:
-            Increment componentMapKey to force Vue to re-create the MapComponent
-            Wait for $nextTick() to ensure DOM is updated
-            Call forceToRefreshMap() after a short delay to ensure the map is fully initialized
+        Map refresh: removed key increment on upload; map will update via prop watchers.
+        forceToRefreshMap is still available for resizing if necessary.
         */
-        incrementComponentMapKey: function () {
-            this.componentMapKey += 1;
-        },
-        toggleComponentMapOn: function () {
-            this.incrementComponentMapKey()
-            this.componentMapOn = true;
-            this.$nextTick(() => {
-                if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
-                    this.$refs.component_map.forceToRefreshMap();
-                }
-            });
-        },
         refreshFromResponse: function (data) {
             this.$emit('refreshFromResponse', data);
         },
@@ -474,16 +465,10 @@ export default {
                 return;
             }
 
-            // Store the file name immediately
-            if (file.name !== null || file.name !== undefined || file.name !== '') {
-                console.log('1')
-                this.uploadedFileName = file.name;
-            } else {
-                console.log('2')
-                this.uploadedFileName = this.proposal.shapefile_name;
-            }
+            // Store selected filename immediately
+            this.selectedFileName = file.name;
             
-            // Reset previous upload state (but keep filename)
+            // Reset previous upload state
             this.uploadSuccess = false;
             this.uploadError = null;
 
@@ -508,31 +493,30 @@ export default {
             formData.append('shapefile', file);
             formData.append('proposal_id', this.proposalId);
             
+            // Simulated progress interval – will be cleared on error/success
+            let progressInterval = null;
+            
             try {
-                // Create upload endpoint URL
                 const url = helpers.add_endpoint_join(
                     this.api_endpoints.proposal,
                     this.proposalId + '/upload_shapefile/'
                 );
                 
-                // Get CSRF token
                 const csrfToken = helpers.getCookie('csrftoken');
                 
-                // Simulate upload progress (since fetch doesn't support progress events)
-                const progressInterval = setInterval(() => {
+                // Simulate upload progress (will be cleared in finally)
+                progressInterval = setInterval(() => {
                     if (this.uploadProgress < 90) {
                         this.uploadProgress += 10;
                         this.uploadStatus = `Uploading... ${this.uploadProgress}%`;
                     }
                 }, 300);
                 
-                // Use fetch API instead of $http
                 const response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                     headers: {
                         'X-CSRFToken': csrfToken,
-                        // Don't set Content-Type for FormData, let browser set it
                     },
                 });
                 
@@ -540,11 +524,8 @@ export default {
                 this.uploadProgress = 100;
                 this.uploadStatus = 'Upload complete, processing...';
                 
-                // Check if response is OK
                 if (!response.ok) {
                     let errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
-                    
-                    // Try to get error details from response body
                     try {
                         const errorData = await response.json();
                         if (errorData.error) {
@@ -554,40 +535,26 @@ export default {
                             errorMessage += ` - ${errorData.details}`;
                         }
                     } catch (e) {
-                        // If we can't parse JSON, use status text
                         console.error('Error parsing error response:', e);
                     }
-                    
                     throw new Error(errorMessage);
                 }
                 
-                // Parse successful response
                 const data = await response.json();
                 
-                // Update status
                 this.uploadStatus = 'Processing shapefile...';
-                
-                // Wait a moment for processing feedback
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Handle success
-                this.uploadSuccess = true;
-                this.uploadStatus = 'Shapefile processed successfully!';
-                
-                // Check if data contains the expected structure
                 if (data.success && data.proposal) {
+                    this.uploadSuccess = true;
+                    this.uploadStatus = 'Shapefile processed successfully!';
+                    
                     // Emit refresh event to update parent component
                     this.$emit('refreshFromResponse', data.proposal);
                     
-                    // Force map refresh by incrementing the key
-                    this.incrementComponentMapKey();
-                    
-                    // Wait for Vue to update the DOM
+                    // Force map resize after data update (without remounting)
                     await this.$nextTick();
-                    
-                    // Also call forceToRefreshMap on the map component
                     if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
-                        // Give the map a moment to initialize
                         setTimeout(() => {
                             this.$refs.component_map.forceToRefreshMap();
                         }, 500);
@@ -598,12 +565,17 @@ export default {
                         this.uploadSuccess = false;
                     }, 5000);
                 } else {
-                    // Handle unexpected response structure
                     throw new Error(data.message || 'Unexpected response from server');
                 }
                 
             } catch (error) {
                 console.error('Error uploading shapefile:', error);
+                
+                // Stop progress simulation if it's still running
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
                 
                 let errorMessage = 'Failed to upload shapefile';
                 if (error.message) {
@@ -611,7 +583,6 @@ export default {
                 }
                 
                 this.uploadError = errorMessage;
-                
                 // Clear error after 10 seconds
                 setTimeout(() => {
                     this.uploadError = null;
@@ -621,6 +592,7 @@ export default {
                 this.uploadProgress = 0;
                 this.uploadStatus = '';
                 this.clearFileInput();
+                // Do not clear selectedFileName here – it will be replaced by storedFileName after refresh
             }
         },
         
@@ -730,9 +702,5 @@ export default {
 
 .nav-pills .nav-link.active {
     background: gray;
-}
-
-.process-btn {
-  float: right;
 }
 </style>

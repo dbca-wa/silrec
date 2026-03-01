@@ -35,6 +35,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, B
 
 import json
 import pandas as pd
+from shapely import wkt
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -2589,4 +2590,56 @@ class ShapefileUploadView(APIView):
                 'message': 'Unexpected error processing shapefile',
                 'errors': [str(e)]
             }
+
+class MergePolygonView(APIView):
+    """
+    POST: Receive merged polygon GeoJSON and return it for inspection.
+    Optional: save to a temporary table.
+    """
+    permission_classes = [IsAuthenticated]  # or whatever fits your project
+
+    def post(self, request):
+        data = request.data
+        polygon_ids = data.get('polygon_ids', [])
+        merged_geojson = data.get('merged_geojson')
+
+        if not polygon_ids or len(polygon_ids) != 2:
+            return Response({'error': 'Two polygon IDs required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not merged_geojson:
+            return Response({'error': 'Missing merged_geojson'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Optional: Validate that the GeoJSON is a valid geometry
+        try:
+            #geom = GEOSGeometry(json.dumps(merged_geojson))  # converts to GEOS
+            geom = GEOSGeometry(json.dumps(merged_geojson['geometry']))
+
+            shapely_geom = wkt.loads(geom.wkt)
+            gdf = gpd.GeoDataFrame(geometry=[shapely_geom], crs='EPSG:4326')
+            #gdf.to_crs(settings.CRS_GDA94)
+            #plot_gdf(gdf.to_crs(settings.CRS_GDA94))
+
+            #from silrec.utils.helper import polygons_to_gdf
+            #plot_gdf(polygons_to_gdf(polygon_ids))
+            #plot_gdf(polygons_to_gdf([458402, 424215]))
+#
+
+        except Exception as e:
+            return Response({'error': f'Invalid geometry: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If you want to save it to the database, create a model (see step 2)
+        # merged = MergedPolygon.objects.create(
+        #     polygon1_id=polygon_ids[0],
+        #     polygon2_id=polygon_ids[1],
+        #     merged_geometry=geom
+        # )
+        # return Response({'id': merged.id, 'geometry': merged_geojson})
+
+        # For simple inspection, just return the geometry
+        #import ipdb; ipdb.set_trace()
+        return Response({
+            'polygon_ids': polygon_ids,
+            'merged_geojson': merged_geojson,
+            'message': 'Merge received successfully'
+        })
+
 

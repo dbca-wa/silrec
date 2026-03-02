@@ -245,6 +245,19 @@
             @disable-select-interaction="disableSelectInteraction"
             @enable-select-interaction="enableSelectInteraction"
           />
+
+          <CutPolygonTool
+            v-if="hasLayer3"
+            :map="map"
+            :layer3="layer3"
+            :hasLayer3="hasLayer3"
+            :proposalId="currentProposalId"
+            :highlightStyle="highlightStyle"
+            @update-processed-geometry="handleProcessedGeometryUpdate"
+            @disable-select-interaction="disableSelectInteraction"
+            @enable-select-interaction="enableSelectInteraction"
+          />
+
         </div>
     </div>
 
@@ -276,13 +289,15 @@ import { singleClick } from 'ol/events/condition';
 import * as XLSX from 'xlsx';
 import * as turf from '@turf/turf';
 import PolygonCohortTable from '@/components/common/table_polygon_cohort.vue';
-import MergePolygonTool from '@/components/common/merge_polygon_tool.vue'; // <-- import
+import MergePolygonTool from '@/components/common/merge_polygon_tool.vue';
+import CutPolygonTool from '@/components/common/cut_polygon_tool.vue';
 
 export default {
   name: 'MapComponent',
   components: {
     PolygonCohortTable,
     MergePolygonTool,
+    CutPolygonTool,
   },
   props: {
     proposalId: {
@@ -1091,6 +1106,24 @@ export default {
         }
     },
 
+    // Add to methods in component_map.vue
+    getJSONFeatures() {
+    console.log('getJSONFeatures called');
+    // Return the current feature collection from layer3 or whatever is needed
+    if (this.layer3) {
+        const features = this.layer3.getSource().getFeatures();
+        return {
+        type: 'FeatureCollection',
+        features: features.map(f => 
+            new GeoJSON().writeFeatureObject(f, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+            })
+        )
+        };
+    }
+    return null;
+    },
   }
 };
 </script>

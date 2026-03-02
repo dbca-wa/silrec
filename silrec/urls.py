@@ -187,6 +187,7 @@ urlpatterns = [
         proposal_api.SaveMergedGeometryView.as_view(),
         name="save-merged-geometry",
     ),
+    re_path('api/proposal/<int:pk>/save_cut_geometry/', proposal_api.SaveCutGeometryView.as_view(), name='save_cut_geometry'),
 
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 ]

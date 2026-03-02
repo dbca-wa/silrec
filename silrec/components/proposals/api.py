@@ -2675,3 +2675,63 @@ class SaveMergedGeometryView(APIView):
         serializer = ProposalSerializer(proposal, context={'request': request})
         return Response({'success': True, 'proposal': serializer.data})
 
+
+class SaveCutGeometryView(APIView):
+    """
+    POST: Save cut geometry results to the proposal's geojson_data_processed field
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            proposal = Proposal.objects.get(id=pk)
+        except Proposal.DoesNotExist:
+            return Response({'error': 'Proposal not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Permission check
+        if not request.user.is_superuser and proposal.submitter != request.user.id:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data
+        updated_geojson = data.get('updated_geojson')
+        original_polygon_ids = data.get('original_polygon_ids', [])
+        new_polygon_ids = data.get('new_polygon_ids', [])
+        cut_line = data.get('cut_line', [])
+
+        if not updated_geojson:
+            return Response({'error': 'Missing updated_geojson'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate the GeoJSON
+        try:
+            # Optional: Validate geometry structure
+            if not isinstance(updated_geojson, dict) or 'features' not in updated_geojson:
+                return Response({'error': 'Invalid GeoJSON format'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Save to proposal
+            proposal.geojson_data_processed = updated_geojson
+            proposal.save()
+
+            # Log the cut operation (you can expand this to a separate log model if needed)
+            logger.info(f"Cut operation saved for proposal {proposal.id}. "
+                       f"Original polygons: {original_polygon_ids}, "
+                       f"New polygons: {new_polygon_ids}")
+
+            # Serialize updated proposal
+            from silrec.components.proposals.serializers import ProposalSerializer
+            serializer = ProposalSerializer(proposal, context={'request': request})
+
+            return Response({
+                'success': True,
+                'message': 'Cut geometry saved successfully',
+                'proposal': serializer.data,
+                'original_polygon_ids': original_polygon_ids,
+                'new_polygon_ids': new_polygon_ids
+            })
+
+        except Exception as e:
+            logger.error(f"Error saving cut geometry: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Error saving cut geometry: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+

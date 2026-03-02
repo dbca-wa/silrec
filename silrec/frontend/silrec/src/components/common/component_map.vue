@@ -256,6 +256,7 @@
             @update-processed-geometry="handleProcessedGeometryUpdate"
             @disable-select-interaction="disableSelectInteraction"
             @enable-select-interaction="enableSelectInteraction"
+            @clear-selection="clearCutSelection"
           />
 
         </div>
@@ -1094,16 +1095,27 @@ export default {
       this.$emit('update-processed-geometry', updatedGeoJSON);
     },
 
+    // Update these methods in component_map.vue
     disableSelectInteraction() {
-        if (this.selectInteraction) {
-            this.map.removeInteraction(this.selectInteraction);
-            this.selectInteraction = null;
-        }
+    console.log('Disabling select interaction');
+    if (this.selectInteraction) {
+        // First clear any selected features
+        this.selectInteraction.getFeatures().clear();
+        // Then remove the interaction
+        this.map.removeInteraction(this.selectInteraction);
+        this.selectInteraction = null;
+        
+        // Also clear the selected feature data
+        this.selectedFeature = null;
+        this.showAdditionalInfo = false;
+    }
     },
+
     enableSelectInteraction() {
-        if (!this.selectInteraction) {
-            this.setupSelectInteraction();
-        }
+    console.log('Enabling select interaction');
+    if (!this.selectInteraction) {
+        this.setupSelectInteraction();
+    }
     },
 
     // Add to methods in component_map.vue
@@ -1160,6 +1172,32 @@ export default {
         
         // Return empty string if not found
         return '';
+    },
+
+    // In component_map.vue, update the clearCutSelection method:
+    clearCutSelection() {
+        console.log('CLEAR CUT SELECTION CALLED - starting cleanup');
+        // Clear the selected feature data
+        this.selectedFeature = null;
+        this.showAdditionalInfo = false;
+        // Clear the select interaction
+        if (this.selectInteraction) {
+            console.log('Clearing select interaction features');
+            this.selectInteraction.getFeatures().clear();
+        } else {
+            console.log('No select interaction found');
+        }
+        // Also clear any highlighted polygon from the polygon highlight layer
+        if (this.polygonHighlightLayer) {
+            console.log('Clearing polygon highlight layer');
+            this.polygonHighlightLayer.getSource().clear();
+        }
+        // Force a re-render
+        if (this.map) {
+            console.log('Forcing map re-render');
+            this.map.render();
+        }
+        console.log('CLEAR CUT SELECTION COMPLETED');
     },
 
   },

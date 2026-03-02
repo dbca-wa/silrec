@@ -1124,7 +1124,45 @@ export default {
     }
     return null;
     },
-  }
+
+    // Add this method to safely extract feature values
+    getFeatureValue(feature, key) {
+        if (!feature) return '';
+        
+        // Check if the property exists directly on the feature
+        const value = feature.get(key);
+        if (value !== undefined) return value;
+        
+        // Check in properties object (common in GeoJSON)
+        const properties = feature.get('properties');
+        if (properties && properties[key] !== undefined) {
+            return properties[key];
+        }
+        
+        // Check for nested properties with different naming conventions
+        const alternativeKeys = [
+            key.toLowerCase(),
+            key.replace(/_/g, ''),
+            key.replace(/_/g, ' '),
+            key.toUpperCase()
+        ];
+        
+        for (const altKey of alternativeKeys) {
+            // Check direct
+            const directValue = feature.get(altKey);
+            if (directValue !== undefined) return directValue;
+            
+            // Check in properties
+            if (properties && properties[altKey] !== undefined) {
+                return properties[altKey];
+            }
+        }
+        
+        // Return empty string if not found
+        return '';
+    },
+
+  },
 };
 </script>
 

@@ -163,7 +163,7 @@ class TaskClassification(models.Model):
     updated_on = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        db_table = 'silrec.task_classification'
+        db_table = 'task_classification'
         verbose_name = 'Task Classification'
         app_label = "lookups"
 
@@ -175,6 +175,7 @@ class TaskLkp(ValidateModelMixin, models.Model):
     task = models.CharField(primary_key=True, unique=True, max_length=20, db_comment='Code for the task\n\nAPPLY check constraint to restrict to upper case')
     task_name = models.CharField(max_length=100, blank=True, null=True, db_comment='Short meaningful name for the task')
     task_class_id = models.IntegerField(blank=True, null=True)
+    #task_class_id = models.ForeignKey('TaskClassification', on_delete=models.CASCADE, blank=True, null=True)
     definition = models.TextField(blank=True, null=True, db_comment='Detailed definition of task')
     category1_label = models.CharField(max_length=50, blank=True, null=True)
     category2_label = models.CharField(max_length=50, blank=True, null=True)
@@ -261,7 +262,7 @@ class ObjectiveClassification(models.Model):
     updated_on = models.DateTimeField(blank=True, null=True, db_column='updated_on')
 
     class Meta:
-        db_table = 'silrec\".\"objective_classification'
+        db_table = 'objective_classification'
         verbose_name = 'Objective Classification'
         app_label = "lookups"
 

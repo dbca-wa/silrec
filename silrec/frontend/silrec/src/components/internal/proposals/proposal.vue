@@ -17,6 +17,7 @@
                 }}
             </h3>
 
+<!--
             <div class="col-md-3">
                 <CommsLogs
                     :comms_url="comms_url"
@@ -25,8 +26,9 @@
                     :disable_add_entry="false"
                 />
             </div>
+-->
 
-            <div class="col-md-9">
+            <div class="col-md-12">
                 <!-- Main contents -->
                         <ApplicationForm
                             v-if="proposal"

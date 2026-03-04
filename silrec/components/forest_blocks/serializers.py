@@ -422,7 +422,7 @@ class CohortSerializer(serializers.ModelSerializer):
                 'name': ass.polygon.name,
                 'area_ha': ass.polygon.area_ha,
                 'status_current': ass.status_current,
-                'cohort_closed': ass.cohort_closed,
+                #'cohort_closed': ass.cohort_closed,
                 'compartment': ass.polygon.compartment.compartment if ass.polygon.compartment else None
             }
             for ass in assignments
@@ -889,7 +889,7 @@ class PolygonGeometrySerializer(GeoFeatureModelSerializer):
             "area_ha",
             "created_on",
             "created_by",
-            "closed",
+            #"closed",
             "reason_closed",
             "zfea_id",
             "compartments",
@@ -989,7 +989,7 @@ class AssignChtToPlySerializer(serializers.ModelSerializer):
             'cht2ply_id',
             'cohort',
             'cohort_details',
-            'cohort_closed',
+            #'cohort_closed',
             'status_current',
             'created_on',
             'updated_on'
@@ -1051,7 +1051,7 @@ class SimpleAssignChtToPlySerializer(serializers.ModelSerializer):
     class Meta:
         model = AssignChtToPly
         fields = [
-            'cht2ply_id', 'cohort', 'cohort_details', 'cohort_closed',
+            'cht2ply_id', 'cohort', 'cohort_details',
             'status_current', 'created_on', 'updated_on'
         ]
 
@@ -1153,7 +1153,7 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
         fields = [
             # Basic polygon info
             'polygon_id', 'name', 'area_ha', 'created_on', 'updated_on',
-            'created_by', 'updated_by', 'closed', 'reason_closed',
+            'created_by', 'updated_by', 'reason_closed',
             'zcoupeid', 'zstandno', 'zmslink', 'zfea_id', 'geom',
 
             # Compartment details

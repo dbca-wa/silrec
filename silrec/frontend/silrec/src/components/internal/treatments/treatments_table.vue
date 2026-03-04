@@ -29,26 +29,29 @@
         @created="collapsible_component_mounted"
       >
         <div class="row mt-1 p-2">
+          <!-- Task Classification Filter (Parent) -->
           <div class="col-md-3">
             <div class="form-group">
-              <label for="filterTaskCategory">Task Category</label>
+              <label for="filterTaskClassification">Task Classification</label>
               <select
-                v-model="filterTaskCategory"
+                v-model="filterTaskClassificationId"
                 class="form-select"
-                id="filterTaskCategory"
+                id="filterTaskClassification"
+                @change="onTaskClassificationChange"
               >
-                <option value="all">All Categories</option>
-                <option value="1">Prescribed Burn</option>
-                <option value="2">Rehabilitation</option>
-                <option value="3">Silvicultural Treatment</option>
-                <option value="4">Survey and Assessment</option>
-                <option value="5">Disturbance</option>
-                <option value="6">Clearance</option>
-                <option value="7">Harvest</option>
-                <option value="8">Planting</option>
+                <option value="all">All Classifications</option>
+                <option 
+                  v-for="classification in taskClassifications" 
+                  :key="classification.id"
+                  :value="classification.id"
+                >
+                  {{ classification.task_class }} - {{ classification.description }}
+                </option>
               </select>
             </div>
           </div>
+          
+          <!-- Task Filter (Child - dependent on classification) -->
           <div class="col-md-3">
             <div class="form-group">
               <label for="filterTask">Task</label>
@@ -59,6 +62,7 @@
                   type="text"
                   class="form-control"
                   :placeholder="taskPlaceholder"
+                  :disabled="isTaskDisabled"
                   @focus="onTaskFocus"
                   @blur="onTaskBlur"
                   @input="filterTasks"
@@ -85,11 +89,8 @@
               </div>
             </div>
           </div>
-
         </div>
         <div class="row mt-1 p-2">
-          <!-- Task Filter -->
-
           <!-- Status Filter -->
           <div class="col-md-3">
             <div class="form-group">
@@ -288,17 +289,18 @@ export default {
       datatableId: 'treatments-table-' + uuid(),
       
       filterTask: '',
+      filterTaskClassificationId: 'all',
       filterStatus: 'all',
       filterPlanYear: '',
-      filterTaskCategory: 'all',
       filterPlanMonth: 'all',
       filterCompleteDateFrom: '',
       filterCompleteDateTo: '',
       filterMachine: '',
       filterOperator: '',
+      filterPost2024Only: true,
 
       lookups: {
-        tasks: [],
+        tasksWithClassification: null,
         treatment_statuses: [],
         machines: []
       },
@@ -321,6 +323,19 @@ export default {
     };
   },
   computed: {
+    taskClassifications() {
+      return this.lookups.tasksWithClassification?.classifications || [];
+    },
+    
+    allTasks() {
+      return this.lookups.tasksWithClassification?.tasks || [];
+    },
+    
+    isTaskDisabled() {
+      return !this.lookups.tasksWithClassification?.classification_table_exists || 
+             (this.filterTaskClassificationId !== 'all' && this.taskClassifications.length === 0);
+    },
+    
     dtHeaders() {
       const headers = [
         'Treatment ID',
@@ -353,6 +368,7 @@ export default {
           data: function(d) {
             d.cohort_id = vm.cohortId;
             d.filter_task = vm.filterTask;
+            d.filter_task_classification_id = vm.filterTaskClassificationId;
             d.filter_status = vm.filterStatus;
             d.filter_plan_year = vm.filterPlanYear;
             d.filter_plan_month = vm.filterPlanMonth;
@@ -360,6 +376,7 @@ export default {
             d.filter_complete_date_to = vm.filterCompleteDateTo;
             d.filter_machine = vm.filterMachine;
             d.filter_operator = vm.filterOperator;
+            d.filter_post_2024_only = vm.filterPost2024Only;
           },
           dataSrc: function (json) {
             return json.data;
@@ -473,18 +490,23 @@ export default {
     },
     areFiltersActive() {
       return this.filterTask !== '' ||
+             this.filterTaskClassificationId !== 'all' ||
              this.filterStatus !== 'all' ||
              this.filterPlanYear !== '' ||
              this.filterPlanMonth !== 'all' ||
              this.filterCompleteDateFrom !== '' ||
              this.filterCompleteDateTo !== '' ||
              this.filterMachine !== '' ||
-             this.filterOperator !== '';
+             this.filterOperator !== '' ||
+             this.filterPost2024Only !== true;
     },
     filterWarningIcon() {
       return this.areFiltersActive ? 'filter-active' : 'filter-clear';
     },
     taskPlaceholder() {
+      if (this.isTaskDisabled) {
+        return 'Select classification first';
+      }
       return (this.taskSearch === '' || this.taskInputFocused) ? 'Type to search tasks...' : '';
     },
     statusPlaceholder() {
@@ -505,11 +527,12 @@ export default {
 
             const data = await response.json();
 
-            this.lookups.tasks = data.tasks || [];
+            this.lookups.tasksWithClassification = data.tasks_with_classification;
             this.lookups.treatment_statuses = data.treatment_statuses || [];
             this.lookups.machines = data.machines || [];
 
-            this.filteredTasks = [...this.lookups.tasks];
+            // Initialize filtered lists
+            this.updateFilteredTasks();
             this.filteredStatuses = [...this.lookups.treatment_statuses];
             this.filteredMachines = [...this.lookups.machines];
 
@@ -526,20 +549,54 @@ export default {
             this.loadingLookups = false;
         }
     },
+
+    onTaskClassificationChange() {
+      // Clear selected task when classification changes
+      this.filterTask = '';
+      this.taskSearch = '';
+      this.showTaskDropdown = false;
+      
+      // Update filtered tasks based on new classification
+      this.updateFilteredTasks();
+      
+      // Refresh the data table
+      this.refreshData();
+    },
+
+    updateFilteredTasks() {
+      if (!this.allTasks.length) {
+        this.filteredTasks = [];
+        return;
+      }
+
+      if (this.filterTaskClassificationId === 'all') {
+        // Show all tasks
+        this.filteredTasks = [...this.allTasks];
+      } else {
+        // Filter tasks by selected classification
+        this.filteredTasks = this.allTasks.filter(task => 
+          task.classification && task.classification.id === parseInt(this.filterTaskClassificationId)
+        );
+      }
+    },
+
     filterTasks() {
       const searchTerm = this.taskSearch.toLowerCase();
+      let tasksToFilter = this.filteredTasks; // Start with already filtered by classification
       
-      if (searchTerm === '' || searchTerm === 'all tasks') {
-        this.filteredTasks = [...this.lookups.tasks];
-      } else {
-        this.filteredTasks = this.lookups.tasks.filter(task => 
+      if (searchTerm !== '' && searchTerm !== 'all tasks') {
+        tasksToFilter = tasksToFilter.filter(task => 
           task.task.toLowerCase().includes(searchTerm) ||
           (task.task_name && task.task_name.toLowerCase().includes(searchTerm))
         );
       }
+      
+      this.filteredTasks = tasksToFilter;
     },
     
     onTaskFocus() {
+      if (this.isTaskDisabled) return;
+      
       this.taskInputFocused = true;
       this.showTaskDropdown = true;
       if (this.taskSearch === 'All Tasks') {
@@ -552,7 +609,6 @@ export default {
       this.taskSearch = 'All Tasks';
       this.taskInputFocused = false;
       this.showTaskDropdown = false;
-      this.filteredTasks = [...this.lookups.tasks];
       this.refreshData();
     },
     
@@ -568,7 +624,7 @@ export default {
       this.taskInputFocused = false;
       setTimeout(() => {
         this.showTaskDropdown = false;
-        if (this.taskSearch === '') {
+        if (this.taskSearch === '' && !this.isTaskDisabled) {
           this.taskSearch = 'All Tasks';
         }
       }, 200);
@@ -644,6 +700,7 @@ export default {
 
     clearFilters() {
       this.filterTask = '';
+      this.filterTaskClassificationId = 'all';
       this.filterStatus = 'all';
       this.filterPlanYear = '';
       this.filterPlanMonth = 'all';
@@ -651,6 +708,7 @@ export default {
       this.filterCompleteDateTo = '';
       this.filterMachine = '';
       this.filterOperator = '';
+      this.filterPost2024Only = true;
 
       this.taskSearch = '';
       this.statusSearch = '';
@@ -659,7 +717,7 @@ export default {
       this.taskInputFocused = false;
       this.statusInputFocused = false;
 
-      this.filteredTasks = [...this.lookups.tasks];
+      this.updateFilteredTasks();
       this.filteredStatuses = [...this.lookups.treatment_statuses];
       this.filteredMachines = [...this.lookups.machines];
 
@@ -762,7 +820,16 @@ export default {
       },
       immediate: true
     },
+    filterTaskClassificationId: {
+      handler() {
+        this.updateFilteredTasks();
+      }
+    },
     filterTask() {
+      this.refreshData();
+      this.$nextTick(() => this.updateFilterIconColor());
+    },
+    filterTaskClassificationId() {
       this.refreshData();
       this.$nextTick(() => this.updateFilterIconColor());
     },
@@ -794,6 +861,10 @@ export default {
       this.refreshData();
       this.$nextTick(() => this.updateFilterIconColor());
     },
+    filterPost2024Only() {
+      this.refreshData();
+      this.$nextTick(() => this.updateFilterIconColor());
+    },
     filterWarningIcon: {
       handler(newVal) {
         this.$nextTick(() => this.updateFilterIconColor());
@@ -806,6 +877,7 @@ export default {
   }
 };
 </script>
+
 
 <style scoped>
 .treatments-table-container {

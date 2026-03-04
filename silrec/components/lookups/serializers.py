@@ -7,12 +7,14 @@ from rest_framework import serializers
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
     MachineLkp,
+    ObjectiveClassification,
     ObjectiveLkp,
     OrganisationLkp,
     RegenerationMethodsLkp,
     RescheduleReasonsLkp,
     SpatialPrecisionLkp,
     SpeciesApiLkp,
+    TaskClassification,
     TaskLkp,
     TasksAttLkp,
     TreatmentStatusLkp,
@@ -401,12 +403,14 @@ class CombinedLkpSerializer(serializers.Serializer):
     cohort_metrics = serializers.SerializerMethodField()
     machines = serializers.SerializerMethodField()
     objectives = serializers.SerializerMethodField()
+    objectives_with_classification = serializers.SerializerMethodField()
     organisations = serializers.SerializerMethodField()
     regeneration_methods = serializers.SerializerMethodField()
     reschedule_reasons = serializers.SerializerMethodField()
     spatial_precision = serializers.SerializerMethodField()
     species = serializers.SerializerMethodField()
     tasks = serializers.SerializerMethodField()
+    tasks_with_classification = serializers.SerializerMethodField()
     task_attributes = serializers.SerializerMethodField()
     treatment_statuses = serializers.SerializerMethodField()
     compartments = serializers.SerializerMethodField()
@@ -615,4 +619,214 @@ class CombinedLkpSerializer(serializers.Serializer):
         queryset = Compartments.objects.all().values_list('district', flat=True).distinct()
         return [item.rstrip() for item in list(queryset) if item is not None] # strip trailing spaces
 
+    def get_tasks_with_classification(self, obj):
+        """Get tasks with their associated classification data for chained dropdowns"""
+        from django.apps import apps
+        from django.core.exceptions import ImproperlyConfigured
+        import logging
+        logger = logging.getLogger(__name__)
+
+        current_date = timezone.now()
+
+        try:
+            # Check if TaskClassification model is available and table exists
+            task_classification_model = None
+            classification_dict = {}
+            classifications_data = []
+            table_exists = False
+
+            try:
+                # Try to get the model
+                task_classification_model = apps.get_model('lookups', 'TaskClassification')
+
+                # Check if the table exists by attempting a simple query
+                if task_classification_model.objects.all().exists():
+                    table_exists = True
+
+                    # Get all classifications
+                    classifications = task_classification_model.objects.all().order_by('task_class')
+
+                    # Debug: Log classifications found
+                    logger.info(f"Found {classifications.count()} task classifications")
+
+                    # Build classification lookup dict - ensure keys are properly cast
+                    classification_dict = {}
+                    for cls in classifications:
+                        # Log each classification for debugging
+                        logger.info(f"Classification ID: {cls.task_class_id} (type: {type(cls.task_class_id).__name__}), Task Class: {cls.task_class}")
+
+                        classification_dict[cls.task_class_id] = {
+                            'id': cls.task_class_id,
+                            'task_class': cls.task_class,
+                            'description': cls.description
+                        }
+
+                    classifications_data = list(classification_dict.values())
+            except (LookupError, ImproperlyConfigured, Exception) as e:
+                logger.warning(f"TaskClassification model/table not available: {str(e)}")
+
+            # Get active tasks
+            tasks = TaskLkp.objects.filter(
+                Q(effective_from__lte=current_date) &
+                Q(effective_to__gte=current_date) |
+                Q(effective_from__isnull=True) &
+                Q(effective_to__isnull=True)
+            ).order_by('task')
+
+            # Debug: Log some tasks with their task_class_id
+            logger.info(f"Found {tasks.count()} tasks")
+            for task in tasks[:10]:  # Log first 10 tasks for debugging
+                logger.info(f"Task: {task.task}, task_class_id: {task.task_class_id} (type: {type(task.task_class_id).__name__})")
+
+            # Prepare tasks with nested classification data
+            tasks_data = []
+            tasks_with_classification_count = 0
+
+            for task in tasks:
+                task_data = {
+                    'id': task.task.strip() if task.task else None,
+                    'task': task.task.strip() if task.task else None,
+                    'task_name': task.task_name.strip() if task.task_name else None,
+                    'definition': task.definition,
+                    'forest_type': task.forest_type.strip() if task.forest_type else None,
+                    'regen_init': task.regen_init,
+                    'financial_activity': task.financial_activity,
+                    'default_organisation': task.default_organisation,
+                    'effective_from': task.effective_from,
+                    'effective_to': task.effective_to,
+                    'is_active': task.effective_to is None,
+                }
+
+                # Add classification data if available
+                if table_exists and task.task_class_id:
+                    # Try to match with classification_dict
+                    classification = classification_dict.get(task.task_class_id)
+                    if classification:
+                        tasks_with_classification_count += 1
+                        task_data['classification'] = classification
+                    else:
+                        # Log mismatches for debugging
+                        logger.warning(f"No classification found for task_class_id: {task.task_class_id} (type: {type(task.task_class_id).__name__})")
+                        task_data['classification'] = None
+                else:
+                    task_data['classification'] = None
+
+                tasks_data.append(task_data)
+
+            logger.info(f"Tasks with classification: {tasks_with_classification_count} out of {len(tasks_data)}")
+
+            return {
+                'tasks': tasks_data,
+                'classifications': classifications_data,
+                'total_tasks': len(tasks_data),
+                'total_classifications': len(classifications_data),
+                'classification_table_exists': table_exists,
+                'tasks_with_classification_count': tasks_with_classification_count
+            }
+
+        except Exception as e:
+            logger.error(f"Error in get_tasks_with_classification: {str(e)}")
+            return {
+                'tasks': [],
+                'classifications': [],
+                'total_tasks': 0,
+                'total_classifications': 0,
+                'error': str(e)
+            }
+
+    def get_objectives_with_classification(self, obj):
+        """Get objectives with their associated classification data for chained dropdowns"""
+        from django.apps import apps
+        from django.core.exceptions import ImproperlyConfigured
+
+        current_date = timezone.now()
+
+        try:
+            # Check if ObjectiveClassification model is available and table exists
+            objective_classification_model = None
+            classification_dict = {}
+            classifications_data = []
+            table_exists = False
+
+            try:
+                # Try to get the model
+                objective_classification_model = apps.get_model('lookups', 'ObjectiveClassification')
+
+                # Check if the table exists by attempting a simple query
+                if objective_classification_model.objects.all().exists():
+                    table_exists = True
+
+                    # Get all classifications
+                    classifications = objective_classification_model.objects.all().order_by('obj_class')
+
+                    # Build classification lookup dict
+                    classification_dict = {
+                        cls.obj_class_id: {
+                            'id': cls.obj_class_id,
+                            'obj_class': cls.obj_class,
+                            'description': cls.description
+                        }
+                        for cls in classifications
+                    }
+                    classifications_data = list(classification_dict.values())
+            except (LookupError, ImproperlyConfigured, Exception) as e:
+                # Model doesn't exist or table doesn't exist
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"ObjectiveClassification model/table not available: {str(e)}")
+
+            # Get active objectives (this always works as ObjectiveLkp exists)
+            objectives = ObjectiveLkp.objects.filter(
+                Q(effective_from__lte=current_date) &
+                Q(effective_to__gte=current_date) |
+                Q(effective_from__isnull=True) &
+                Q(effective_to__isnull=True)
+            ).order_by('obj_code')
+
+            # Prepare objectives with nested classification data
+            objectives_data = []
+            for objective in objectives:
+                objective_data = {
+                    'id': objective.obj_code,
+                    'obj_code': objective.obj_code,
+                    'description': objective.description,
+                    'definition': objective.definition,
+                    'cut': objective.cut,
+                    'forest_type': objective.forest_type,
+                    'fmis_code': objective.fmis_code,
+                    'prescription': objective.prescription,
+                    'effective_from': objective.effective_from,
+                    'effective_to': objective.effective_to,
+                    'is_active': objective.effective_to is None,
+                }
+
+                # Add classification data if available
+                if table_exists and objective.obj_class_id:
+                    objective_data['classification'] = classification_dict.get(objective.obj_class_id)
+                else:
+                    objective_data['classification'] = None
+
+                objectives_data.append(objective_data)
+
+            # Also include classifications separately
+            return {
+                'objectives': objectives_data,
+                'classifications': classifications_data,
+                'total_objectives': len(objectives_data),
+                'total_classifications': len(classifications_data),
+                'classification_table_exists': table_exists
+            }
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_objectives_with_classification: {str(e)}")
+
+            return {
+                'objectives': [],
+                'classifications': [],
+                'total_objectives': 0,
+                'total_classifications': 0,
+                'error': str(e)
+            }
 

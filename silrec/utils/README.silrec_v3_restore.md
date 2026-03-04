@@ -1,3 +1,59 @@
+03-Mar-2026
+
+ 1156  psql -h localhost -p 5432 -U postgres -W -f  ~/projects/docker_scripts/silrec_test3.sql
+ 1157  ./manage.py showmigrations
+ 1161  ./manage.py migrate lookups 0001 --fake
+ 1162  ./manage.py migrate forest_blocks 0001 --fake
+ 1164  ./manage.py migrate
+ 1157  ./manage.py showmigrations
+
+ 1166  ./manage.py loaddata silrec/fixtures/application_type.json silrec/fixtures/group.json silrec/fixtures/proposal_type.json silrec/fixtures/proposal.json silrec/fixtures/textsearch.json silrec/fixtures/shpfile_attrs_config.json silrec/fixtures/sqlreport.js
+
+ ./manage.py shell_plus
+ u=User.objects.create(first_name='jawaid', last_name='mushtaq', username='jawaidm', email='jawaid.mushtaq@dbca.wa.gov.au')
+ u.set_password('jm')
+ u.is_staff=True
+ u.is_superuser=True
+ u.save()
+
+./manage.py dbshell
+ ALTER TABLE polygon RENAME COLUMN compartmen TO compartment;
+
+CREATE DATABASE silrec_orig_mpoly_silrec_v3_25Feb2026 WITH TEMPLATE silrec_test3;
+
+# PG_DUMP
+pg_dump -h localhost -p 5432 -U dev -d silrec_orig_mpoly_silrec_v3_25feb2026 -t silrec.assign_cht_to_ply -t silrec.cohort -t silrec.polygon -Fc -f silrec_test4_3tables_25Feb2026.dump
+
+./manage shell_plus
+import geopandas as gpd
+from silrec.utils.plot_utils import plot_gdf, plot_multi, plot_overlay
+from silrec.utils.shapefile_silvers_merger7 import ShapefileSliversMerger
+from silrec.utils.helper import polygons_to_gdf
+import json
+from silrec.utils.create_temp_tables import create_temp_tables, drop_temp_tables_django, drop_prod_tables_django
+
+gdf_shp_16 = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+
+c=Cohort.objects.create(cohort_id=1, obj_code='NOTDEF', regen_method_id=' %')
+
+ssm = ShapefileSliversMerger(gdf_shp_16, proposal_id=1, threshold=5, user_id=1)
+list_state = ssm.create_gdf()
+geom_data = ssm.set_proposal_data(list_state)
+
+p = Proposal.objects.get(id=2)
+p.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
+p.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
+p.shapefile_json = json.loads(list_state[0]['GDF_SHP'].to_crs(settings.CRS).to_json())
+p.geojson_data_processed_iters = geom_data
+p.save()
+
+plot_multi([list_state[0]['GDF_SHP'], list_state[0]['GDF_HIST'], list_state[0]['GDF_RESULT_COMBINED']])
+
+
+
+------------------------------------------------------
+26-Feb-2026
+
 silrec_v3_backup_25Feb2026.sql
 
 
@@ -96,11 +152,16 @@ These migrations need to be faked
  u=User.objects.create(first_name='jawaid', last_name='mushtaq', username='jawaidm', email='jawaid.mushtaq@dbca.wa.gov.au')
  u.set_password('jm')
  u.is_staff=True 
- u.is_superuser=True  (allows Admin access)
+ u.is_superuser=True
  u.save()
 
 # Load Fixtures
 ./manage.py loaddata silrec/fixtures/application_type.json silrec/fixtures/group.json silrec/fixtures/proposal_type.json silrec/fixtures/proposal.json silrec/fixtures/textsearch.json silrec/fixtures/shpfile_attrs_config.json silrec/fixtures/sqlreport.json
+
+
+./manage.py dbshell
+ ALTER TABLE polygon RENAME COLUMN compartmen TO compartment;
+
 
 CREATE DATABASE silrec_orig_mpoly_silrec_v3_25Feb2026 WITH TEMPLATE silrec_test2;
 

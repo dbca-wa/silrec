@@ -1081,8 +1081,8 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
         # Filter by allowed groups
         user_groups = user.groups.all()
         return qs.filter(
-            models.Q(allowed_groups__in=user_groups) |
-            models.Q(allowed_groups__isnull=True)
+            Q(allowed_groups__in=user_groups) |
+            Q(allowed_groups__isnull=True)
         ).distinct()
 
     @action(detail=False, methods=['get'])

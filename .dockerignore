@@ -1,0 +1,12 @@
+# comment
+**/csv
+**/archive
+**/excel_export*
+*/utils/tests*
+**/*.pyc
+**/*.csv
+**/*.xls*
+**/*.bak
+**/*.dump
+**/*.pgdump
+**/node_modules

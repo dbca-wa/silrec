@@ -119,13 +119,14 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = False
 
-SHELL_PLUS_POST_IMPORTS = [
-    'import pandas as pd',
-    'import geopandas as gpd',
-    'import matplotlib.pyplot as plt',
-    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
-    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
-]
+
+#SHELL_PLUS_POST_IMPORTS = [
+#    'import pandas as pd',
+#    'import geopandas as gpd',
+#    'import matplotlib.pyplot as plt',
+#    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
+#    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
+#]
 
 # For Auto Reloading
 #~/.ipython/profile_default/ipython_config.py

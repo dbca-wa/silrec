@@ -31,22 +31,6 @@
     "file": "woff2/fa-v4compatibility.woff2",
     "src": "node_modules/@fortawesome/fontawesome-free/webfonts/fa-v4compatibility.woff2"
   },
-  "src/assets/info-query.svg": {
-    "file": "svg/info-query.svg",
-    "src": "src/assets/info-query.svg"
-  },
-  "src/assets/map-zoom.svg": {
-    "file": "svg/map-zoom.svg",
-    "src": "src/assets/map-zoom.svg"
-  },
-  "src/assets/map_icon.png": {
-    "file": "png/map_icon.png",
-    "src": "src/assets/map_icon.png"
-  },
-  "src/assets/transform-polygon.svg": {
-    "file": "svg/transform-polygon.svg",
-    "src": "src/assets/transform-polygon.svg"
-  },
   "src/main.js": {
     "file": "js/main.js",
     "name": "main",
@@ -56,10 +40,6 @@
       "css/main.css"
     ],
     "assets": [
-      "png/map_icon.png",
-      "svg/transform-polygon.svg",
-      "svg/map-zoom.svg",
-      "svg/info-query.svg",
       "woff2/fa-brands-400.woff2",
       "ttf/fa-brands-400.ttf",
       "woff2/fa-regular-400.woff2",

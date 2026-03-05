@@ -35,11 +35,7 @@ class UserLogoutView(LogoutView):
 
 
 class InternalView(UserPassesTestMixin, TemplateView):
-    #template_name = 'sqs/dash/index.html'
-    #template_name = 'silrec/index2.html'
-    #template_name = 'silrec/base.html'
-    #template_name = 'silrec/base_ll.html'
-    template_name = 'silrec/dash/index_ll.html'
+    template_name = 'silrec/dash/index.html'
 
     def test_func(self):
         return is_internal(self.request)
@@ -52,7 +48,7 @@ class InternalView(UserPassesTestMixin, TemplateView):
 
 class ExternalView(LoginRequiredMixin, TemplateView):
     #template_name = 'sqs/dash/index.html'
-    template_name = 'silrec/index2.html'
+    template_name = 'silrec/index.html'
 
     def get_context_data(self, **kwargs):
         context = super(ExternalView, self).get_context_data(**kwargs)
@@ -62,7 +58,7 @@ class ExternalView(LoginRequiredMixin, TemplateView):
 
 
 class SilrecRoutingView(TemplateView):
-    template_name = 'silrec/index2.html'
+    template_name = 'silrec/index.html'
 
     def get(self, *args, **kwargs):
         if self.request.user.is_authenticated:
@@ -85,7 +81,7 @@ class SilrecFurtherInformationView(TemplateView):
 class InternalProposalView(DetailView):
     model = Proposal
     #template_name = "silrec/dash/index.html"
-    template_name = "silrec/index2.html"
+    template_name = "silrec/index.html"
 
     def get(self, *args, **kwargs):
         if self.request.user.is_authenticated:

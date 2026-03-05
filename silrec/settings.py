@@ -254,8 +254,9 @@ NOTIFICATION_EMAIL=env('NOTIFICATION_EMAIL')
 CRON_NOTIFICATION_EMAIL = env('CRON_NOTIFICATION_EMAIL', NOTIFICATION_EMAIL).lower()
 EMAIL_HOST = env('EMAIL_HOST', 'smtp.lan.fyi')
 
+PROTECTED_MEDIA = "protected_media"
 PROTECTED_MEDIA_ROOT = env(
-    "PROTECTED_MEDIA_ROOT", os.path.join(BASE_DIR, "protected_media")
+    "PROTECTED_MEDIA_ROOT", os.path.join(BASE_DIR, PROTECTED_MEDIA)
 )
 SECURE_FILE_API_BASE_PATH = "/api/main/secure_file/"
 SECURE_DOCUMENT_API_BASE_PATH = "/api/main/secure_document/"

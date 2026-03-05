@@ -7,7 +7,6 @@ import datetime
 
 from django.http import HttpResponseRedirect
 from django.utils import timezone
-#from sqs.components.bookings.models import ApplicationFee
 from reversion.middleware  import RevisionMiddleware
 from reversion.views import _request_creates_revision
 

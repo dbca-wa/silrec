@@ -12,8 +12,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 confy.read_environment_file(BASE_DIR+"/.env")
 os.environ.setdefault("BASE_DIR", BASE_DIR)
 
-os.environ['SHAPE_RESTORE_SHX'] = 'YES'
-
 #from ledger_api_client.settings_base import *
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG', False)
@@ -29,87 +27,34 @@ ROOT_URLCONF = 'silrec.urls'
 SITE_ID = 1
 DEPT_DOMAINS = env('DEPT_DOMAINS', ['dpaw.wa.gov.au', 'dbca.wa.gov.au'])
 SYSTEM_MAINTENANCE_WARNING = env('SYSTEM_MAINTENANCE_WARNING', 24) # hours
-LEDGER_USER = env('LEDGER_USER', 'asi@dbca.wa.gov.au')
-LEDGER_PASS = env('LEDGER_PASS')
 #SHOW_DEBUG_TOOLBAR = env('SHOW_DEBUG_TOOLBAR', False)
 BUILD_TAG = env('BUILD_TAG', hashlib.md5(os.urandom(32)).hexdigest())  # URL of the Dev app.js served by webpack & express
 ENABLE_DJANGO_LOGIN = env('ENABLE_DJANGO_LOGIN', False)
 LOGIN_REDIRECT_URL = "/"  # new
 
-REQUEST_TIMEOUT = env('REQUEST_TIMEOUT', 300) # 20 secs
-
-CACHE_TIMEOUT_1_MINUTE = 60
-CACHE_TIMEOUT_5_MINUTES = 60 * 5
-CACHE_TIMEOUT_2_HOURS = 60 * 60 * 2
-CACHE_TIMEOUT_24_HOURS = 60 * 60 * 24
-
-# This cache is updated first Sunday of each month by cron. Also, updated if an existing layer
-# is updated (on demand, and by nightly cron 'manage.py update_active_layers')
-CACHE_TIMEOUT = env('CACHE_TIMEOUT', None)
-
-# API Request cache
-REQUEST_CACHE_TIMEOUT = env('REQUEST_CACHE_TIMEOUT', 60*10) # 10 mins
-REQUEST_PARTIAL_CACHE_TIMEOUT = env('REQUEST_PARTIAL_CACHE_TIMEOUT', 60*2) # 2 mins
-
-CHECK_APIURL_TOKEN = env('CHECK_APIURL_TOKEN', True)
-CHECK_IP = env('CHECK_IP', True)
-
 INCLUDE_ROOT_VIEW = env("INCLUDE_ROOT_VIEW", False)
 
-#USE_SQS_CACHING = env('USE_SQS_CACHING', True)
+REQUEST_TIMEOUT = env('REQUEST_TIMEOUT', 300) # 20 secs
 
-# Use 'epsg:4326' as projected coordinate system - 'epcg:4326' coordinate system is in meters (Then the buffer distance will be in meters)
 CRS = env('CRS', 'epsg:4326')
 CRS_CARTESIAN = env('CRS_CARTESIAN', 'epsg:3043')
 CRS_GDA94 = env('CRS_GDA94', 'epsg:28350')
 OGR2OGR = env('OGR2OGR', '/usr/bin/ogr2ogr')
 
-#GEOM_AREA_LENGTH_FILTER = env('GEOM_AREA_LENGTH_FILTER', 1)
-DEFAULT_BUFFER = env('DEFAULT_BUFFER', -1) # reduce the polygon perimeter - in meters
-MAX_GEOJSON_SIZE = env('MAX_GEOJSON_SIZE', None) # MB
-GEOJSON_BATCH_SIZE = env('GEOJSON_BATCH_SIZE', 5000)
-SHOW_SYS_MEM_STATS = env('SHOW_SYS_MEM_STATS', False)
-USE_LAYER_STREAMING = env('USE_LAYER_STREAMING', False)
-USE_LAYER_SPLIT_FILES = env('USE_LAYER_SPLIT_FILES', True)
-MAX_GEOJSPLIT_SIZE = env('MAX_GEOJSPLIT_SIZE', 50) # MB
-GC_ITER_LOOP = env('GC_ITER_LOOP', 5)
-MAX_RETRIES = env('MAX_RETRIES', 3)
-STALE_TASKS_DAYS = env('STALE_TASKS_DAYS', 7)
-LOG_ELAPSED_TIME = env('LOG_ELAPSED_TIME', False)
-LOG_REQUEST_STATS = env('LOG_REQUEST_STATS', False)
-TASK_PREFILL_RUNNING_LIMIT_TIME = env('TASK_PREFILL_RUNNING_LIMIT_TIME', 3) # In Hrs, Used to error-out task if running for longer that given no. of hours
-TASK_REFRESH_RUNNING_LIMIT_TIME = env('TASK_REFRESH_RUNNING_LIMIT_TIME', 0.5) # In Hrs, Used to error-out task if running for longer that given no. of hours
-TASK_TEST_RUNNING_LIMIT_TIME = env('TASK_TEST_RUNNING_LIMIT_TIME', 0.5) # In Hrs, Used to error-out task if running for longer that given no. of hours
-
-KB_BASE_URL = env('KB_BASE_URL', 'https://kaartdijin-boodja.dbca.wa.gov.au/api/')
-KB_RECENT_LAYERS_URL = KB_BASE_URL + 'catalogue/entries/recent/?days_ago={}'
-KB_LAYER_URL = KB_BASE_URL + 'catalogue/entries/{}/layer/'
-KB_EXCLUDE_LAYERS = env('KB_EXCLUDE_LAYERS', [])
-#KB_RECENT_LAYERS_URL = env('KB_RECENT_LAYERS_URL', 'https://kaartdijin-boodja.dbca.wa.gov.au/api/catalogue/entries/recent/?days_ago=')
-DATA_STORE = env('DATA_STORE', 'data_store') # MB
-if not os.path.exists(DATA_STORE):
-    os.makedirs(DATA_STORE)
-
 SLIVER_AREALENGTH_THRESHOLD=5 # Polygon AREA/LENGTH
 
-
-KMI_SERVER_URL = env("KMI_SERVER_URL", "https://kmi.dbca.wa.gov.au")
-
-GIS_SERVER_URL = env(
-            "GIS_SERVER_URL", "https://kaartdijin-boodja-geoserver.dbca.wa.gov.au"
-            )
-GIS_LANDS_AND_WATERS_LAYER_NAME = env(
-            "GIS_LANDS_AND_WATERS_LAYER_NAME",
-                "kaartdijin-boodja-public:CPT_DBCA_LEGISLATED_TENURE",
-                )
-GIS_INVERT_XY = env("GIS_INVERT_XY", True)
+#KMI_SERVER_URL = env("KMI_SERVER_URL", "https://kmi.dbca.wa.gov.au")
 #
-#ABS_API_URL = env("ABS_API_URL", "https://api.data.abs.gov.au")
-#ABS_API_CPI_SUBDIRECTORY = env("ABD_API_CPI_PATH", "/data/CPI/")
-#ABS_API_CPI_PATH = env("ABD_API_CPI_PATH", "3.10001.10.5.Q")
+#GIS_SERVER_URL = env(
+#            "GIS_SERVER_URL", "https://kaartdijin-boodja-geoserver.dbca.wa.gov.au"
+#            )
+#GIS_LANDS_AND_WATERS_LAYER_NAME = env(
+#            "GIS_LANDS_AND_WATERS_LAYER_NAME",
+#                "kaartdijin-boodja-public:CPT_DBCA_LEGISLATED_TENURE",
+#                )
 
-KMI_AUTH_USERNAME = env("KMI_AUTH_USERNAME")
-KMI_AUTH_PASSWORD = env("KMI_AUTH_PASSWORD")
+#KMI_AUTH_USERNAME = env("KMI_AUTH_USERNAME")
+#KMI_AUTH_PASSWORD = env("KMI_AUTH_PASSWORD")
 
 
 
@@ -119,14 +64,13 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = False
 
-
-#SHELL_PLUS_POST_IMPORTS = [
-#    'import pandas as pd',
-#    'import geopandas as gpd',
-#    'import matplotlib.pyplot as plt',
-#    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
-#    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
-#]
+SHELL_PLUS_POST_IMPORTS = [
+    'import pandas as pd',
+    'import geopandas as gpd',
+    'import matplotlib.pyplot as plt',
+    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
+    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
+]
 
 # For Auto Reloading
 #~/.ipython/profile_default/ipython_config.py
@@ -189,24 +133,7 @@ INSTALLED_APPS = [
 
 ADD_REVERSION_ADMIN=True
 
-# maximum number of days allowed for a booking
 WSGI_APPLICATION = 'silrec.wsgi.application'
-
-'''REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': (
-        'silrec.perms.OfficerPermission',
-    ),
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'
-}'''
-
-#REST_FRAMEWORK = {
-#    'DEFAULT_RENDERER_CLASSES': (
-#        'rest_framework.renderers.JSONRenderer',
-#        'rest_framework.renderers.BrowsableAPIRenderer',
-#        #'rest_framework_datatables.renderers.DatatablesRenderer',
-#    ),
-#    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
-#}
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -250,27 +177,6 @@ MIDDLEWARE = [
 #        "debug_toolbar.middleware.DebugToolbarMiddleware",
 #        *MIDDLEWARE,
 #    ]
-#
-#    DEBUG_TOOLBAR_PANELS = [
-#	'debug_toolbar.panels.timer.TimerPanel',
-#	'pympler.panels.MemoryPanel',
-#
-#	'debug_toolbar.panels.history.HistoryPanel',
-#	'debug_toolbar.panels.versions.VersionsPanel',
-#	'debug_toolbar.panels.timer.TimerPanel',
-#	'debug_toolbar.panels.settings.SettingsPanel',
-#	'debug_toolbar.panels.headers.HeadersPanel',
-#	'debug_toolbar.panels.request.RequestPanel',
-#	'debug_toolbar.panels.sql.SQLPanel',
-#	'debug_toolbar.panels.staticfiles.StaticFilesPanel',
-#	'debug_toolbar.panels.templates.TemplatesPanel',
-#	'debug_toolbar.panels.alerts.AlertsPanel',
-#	'debug_toolbar.panels.cache.CachePanel',
-#	'debug_toolbar.panels.signals.SignalsPanel',
-#	'debug_toolbar.panels.redirects.RedirectsPanel',
-#	'debug_toolbar.panels.profiling.ProfilingPanel',
-#
-#    ]
 
 TEMPLATES = [
     {
@@ -291,29 +197,15 @@ TEMPLATES = [
         },
     },
 ]
-#BOOTSTRAP3 = {
-#    'jquery_url': '//static.dpaw.wa.gov.au/static/libs/jquery/2.2.1/jquery.min.js',
-#    #'base_url': '//static.dpaw.wa.gov.au/static/libs/twitter-bootstrap/3.3.6/',
-#    'base_url': '/static/ledger/',
-#    'css_url': None,
-#    'theme_url': None,
-#    'javascript_url': None,
-#    'javascript_in_head': False,
-#    'include_jquery': False,
-#    'required_css_class': 'required-form-field',
-#    'set_placeholder': False,
+
+#CACHES = {
+#    'default': {
+#        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+#        'LOCATION': os.path.join(BASE_DIR, 'silrec', 'cache'),
+#    }
 #}
-#
-#del BOOTSTRAP3['css_url']
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': os.path.join(BASE_DIR, 'silrec', 'cache'),
-    }
-}
-
-CACHE_KEY_MAP_PROPOSALS = "map-proposals"
+#CACHE_KEY_MAP_PROPOSALS = "map-proposals"
 
 STATIC_ROOT=os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
@@ -368,20 +260,10 @@ PROTECTED_MEDIA_ROOT = env(
 SECURE_FILE_API_BASE_PATH = "/api/main/secure_file/"
 SECURE_DOCUMENT_API_BASE_PATH = "/api/main/secure_document/"
 
-# ---------- Identifier fields for logging ----------
-""" Fields that the logging functions will check for on the instance
-    and use to identify the instance in the logs. """
-ACTION_LOGGING_IDENTIFIER_FIELDS = [
-    "lodgement_number",
-    "id",
-]
-
 API_EXCEPTION_MESSAGE = (
     "An error occurred while processing your request, "
     f"please try again and if the problem persists contact {SUPPORT_EMAIL}"
 )
-
-#SILKY_PYTHON_PROFILER = True
 
 # Database
 DATABASES = {
@@ -504,20 +386,13 @@ LOGGING = {
 
 DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
-# for testing
-if "--disable-cache" in sys.argv:
-    #USE_SQS_CACHING = False
-    CACHES['default'] = {'BACKEND': 'django.core.cache.backends.dummy.DummyCache',}
-    sys.argv.remove("--disable-cache")
-
-
-CSRF_TRUSTED_ORIGINS_STRING = decouple.config("CSRF_TRUSTED_ORIGINS", default='[]')
-CSRF_TRUSTED_ORIGINS = json.loads(str(CSRF_TRUSTED_ORIGINS_STRING))
+#CSRF_TRUSTED_ORIGINS_STRING = decouple.config("CSRF_TRUSTED_ORIGINS", default='[]')
+#CSRF_TRUSTED_ORIGINS = json.loads(str(CSRF_TRUSTED_ORIGINS_STRING))
 
 # This is needed so that the chmod is not called in django/core/files/storage.py
 # (_save method of FileSystemStorage class)
 # As it causes a permission exception when using azure network drives
-FILE_UPLOAD_PERMISSIONS = None
+#FILE_UPLOAD_PERMISSIONS = None
 
 TEMPLATE_HEADER_LOGO = "/static/silrec/img/logo-park-stay-trunc.gif"
 

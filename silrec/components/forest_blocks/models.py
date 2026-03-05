@@ -1,6 +1,7 @@
 #from django.db import models
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models import PolygonField, MultiPolygonField
+from django.conf import settings
 
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
@@ -21,8 +22,15 @@ from silrec.components.proposals.models import (
     Document,
 )
 
+from silrec.components.main.models import SecureFileField
+
 import reversion
 import os
+
+
+def update_treatment_doc_filename(instance, filename):
+    return f"treatments/{instance.treatment.treatment_id}/documents/{filename}"
+
 
 class SurveyAssessmentDocument(Document):
     DOCUMENT_TYPES = [
@@ -45,7 +53,8 @@ class SurveyAssessmentDocument(Document):
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='other')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    file = models.FileField(upload_to='treatment_documents/%Y/%m/%d/', blank=True, null=True)
+    #file = models.FileField(upload_to='treatment_documents/%Y/%m/%d/', blank=True, null=True)
+    file = SecureFileField(upload_to=update_treatment_doc_filename, max_length=512, blank=True, null=True)
     file_url = models.URLField(blank=True, null=True, help_text='External URL for document')
     file_size = models.BigIntegerField(blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)

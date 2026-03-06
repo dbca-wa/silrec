@@ -57,34 +57,6 @@
             </div>
         </div>
 
-    <!--
-        <ProposedApproval
-            v-if="showProposedModals"
-            ref="proposed_approval"
-            :key="proposedApprovalKey"
-            :proposal="proposal"
-            :processing_status="proposal.processing_status"
-            :proposal_id="proposal.id"
-            :proposal_type="
-                proposal.proposal_type ? proposal.proposal_type.code : ''
-            "
-            :is-approval-level-document="isApprovalLevelDocument"
-            :submitter_email="submitter_email"
-            :applicant_email="applicant_email"
-            :proposed-approval-key="proposedApprovalKey"
-            :proposed-approval-state="proposedApprovalState"
-            :assessment="assessment"
-        />
-        <ProposedDecline
-            v-if="showProposedModals"
-            ref="proposed_decline"
-            :processing_status="proposal.processing_status"
-            :proposal="proposal"
-            :proposed-approval-key="proposedApprovalKey"
-        />
-        <AmendmentRequest ref="amendment_request" :proposal="proposal" />
-    -->
-
         <div v-if="displaySaveBtns" class="navbar fixed-bottom bg-navbar">
             <div class="container">
                 <div class="col-md-12 text-end">
@@ -131,37 +103,22 @@
 </template>
 
 <script>
-import ProposedDecline from '@/components/internal/proposals/proposal_proposed_decline.vue';
-import AmendmentRequest from '@/components/internal/proposals/amendment_request.vue';
-import Requirements from '@/components/internal/proposals/proposal_requirements.vue';
-import ProposedApproval from '@/components/internal/proposals/proposed_issuance.vue';
-import ApprovalScreen from '@/components/internal/proposals/proposal_approval.vue';
-import CommsLogs from '@common-utils/comms_logs.vue';
-import Submission from '@common-utils/submission.vue';
-import Workflow from '@common-utils/workflow.vue';
+//import CommsLogs from '@common-utils/comms_logs.vue';
+//import Submission from '@common-utils/submission.vue';
 import { api_endpoints, helpers, constants } from '@/utils/hooks';
 //import ApplicationForm from '@/components/form_jm.vue';
 import ApplicationForm from '@/components/form.vue';
 import FormSection from '@/components/forms/section_toggle.vue';
 import AssessmentComments from '@/components/forms/collapsible_component.vue';
-import TableRelatedItems from '@/components/common/table_related_items.vue';
 import { declineProposal } from '@/components/common/workflow_functions.js';
 
 export default {
     name: 'InternalProposal',
     components: {
-        ProposedDecline,
-        AmendmentRequest,
-        Requirements,
-        ProposedApproval,
-        ApprovalScreen,
-        CommsLogs,
-        Submission,
-        Workflow,
+        //CommsLogs,
         ApplicationForm,
         FormSection,
         AssessmentComments,
-        TableRelatedItems,
     },
     data: function () {
         let vm = this;

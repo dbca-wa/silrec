@@ -581,7 +581,8 @@ export default {
       previewData: null,
       
       // Select2 instances
-      select2Instances: {}
+      select2Instances: {},
+      filterPost2024Only: true,
     };
   },
   computed: {

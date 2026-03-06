@@ -227,6 +227,7 @@ export default {
                 keepInvalid: true,
                 allowInputToggle: true,
             },
+            filterPost2024Only: true,
         };
     },
     computed: {

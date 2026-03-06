@@ -20,21 +20,6 @@
                     >Proposals</a
                 >
             </li>
-            <!--
-            <li v-if="show_applications_datatable" class="nav-item">
-                <a
-                    id="pills-map-tab"
-                    class="nav-link"
-                    data-bs-toggle="pill"
-                    href="#pills-map"
-                    role="tab"
-                    aria-controls="pills-map"
-                    aria-selected="false"
-                    @click="mapTabClicked"
-                    >Map</a
-                >
-            </li>
-            -->
         </ul>
         <div id="pills-tabContent" class="tab-content">
             <div
@@ -57,41 +42,6 @@
                         filter-proposal-lodged-from-cache-name="filterApplicationLodgedFrom"
                         filter-proposal-lodged-to-cache-name="filterApplicationLodgedTo"
                         @filter-appied="filterAppliedApplications()"
-                    />
-                </FormSection>
-		<!--
-                <FormSection
-                    :form-collapse="false"
-                    label="Proposals Referred to Me"
-                    index="leases_and_licences"
-                >
-                    <ApplicationsReferredToMeTable
-                        v-if="accessing_user"
-                        ref="applications_referred_to_me_table"
-                        level="internal"
-                        :email_user_id_assigned="accessing_user.id"
-                        filter-application-type-cache-name="filterApplicationTypeForApplicationReferredToMeTable"
-                        filter-application-status-cache-name="filterApplicationStatusForApplicationReferredToMeTable"
-                        filter-proposal-lodged-from-cache-name="filterApplicationLodgedFromForApplicationReferredToMeTable"
-                        filter-proposal-lodged-to-cache-name="filterApplicationLodgedToForApplicationReferredToMeTable"
-                    />
-                </FormSection>
-		-->
-            </div>
-            <div
-                v-if="show_competitive_processes_tab"
-                id="pills-competitive-processes"
-                class="tab-pane"
-                role="tabpanel"
-                aria-labelledby="pills-competitive-processes-tab"
-            >
-                <FormSection
-                    :form-collapse="false"
-                    label="Competitive Processes"
-                    index="competitive_processes"
-                >
-                    <CompetitiveProcessesTable
-                        ref="competitive_processes_table"
                     />
                 </FormSection>
             </div>
@@ -117,8 +67,6 @@
 <script>
 import FormSection from '@/components/forms/section_toggle.vue';
 import ApplicationsTable from '@/components/common/table_proposals.vue';
-import ApplicationsReferredToMeTable from '@/components/common/table_proposals.vue';
-import CompetitiveProcessesTable from '@/components/common/table_competitive_processes.vue';
 import MapComponent2 from '@/components/common/component_map2.vue';
 import { api_endpoints } from '@/utils/hooks.js';
 
@@ -127,8 +75,6 @@ export default {
     components: {
         FormSection,
         ApplicationsTable,
-        ApplicationsReferredToMeTable,
-        CompetitiveProcessesTable,
         MapComponent2,
     },
     data() {

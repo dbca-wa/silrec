@@ -378,7 +378,8 @@ export default {
             select2RecordsToSearch: null,
             
             // Error handling
-            errorMessage: ''
+            errorMessage: '',
+            filterPost2024Only: true,
         };
     },
     computed: {

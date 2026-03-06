@@ -285,7 +285,8 @@ export default {
             select2UserSelect: null,
             
             // Error handling
-            errorMessage: ''
+            errorMessage: '',
+			filterPost2024Only: true,
         };
     },
     computed: {

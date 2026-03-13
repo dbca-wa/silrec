@@ -746,6 +746,7 @@ class ShapefileUploadSerializer(serializers.Serializer):
         return data
 
 
+# TODO check if this class can be removed
 class ShapefileProcessResultSerializer(serializers.Serializer):
     """Serializer for shapefile processing results"""
     success = serializers.BooleanField()
@@ -754,4 +755,28 @@ class ShapefileProcessResultSerializer(serializers.Serializer):
     geojson = serializers.DictField(required=False)
     errors = serializers.ListField(child=serializers.CharField(), required=False)
 
+# Add to serializers.py after ShapefileProcessResultSerializer
+
+class ShapefileProcessRequestSerializer(serializers.Serializer):
+    """Serializer for shapefile processing request"""
+    threshold = serializers.FloatField(required=False, default=5.0, min_value=0.1, max_value=100)
+    user_id = serializers.IntegerField(required=True)
+    proposal_id = serializers.IntegerField(required=True)
+
+    def validate_threshold(self, value):
+        if value < 0.1:
+            raise serializers.ValidationError("Threshold must be at least 0.1")
+        if value > 100:
+            raise serializers.ValidationError("Threshold must not exceed 100")
+        return value
+
+
+class ShapefileProcessResponseSerializer(serializers.Serializer):
+    """Serializer for shapefile processing response"""
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    proposal = serializers.DictField(required=False)
+    feature_count = serializers.IntegerField(required=False)
+    processed_geometries = serializers.DictField(required=False)
+    warnings = serializers.ListField(child=serializers.CharField(), required=False)
 

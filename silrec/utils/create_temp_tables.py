@@ -71,3 +71,6 @@ def drop_prod_tables_django():
             DROP TABLE IF EXISTS cohort CASCADE;
         """)
 
+    print('DONE. Next ...')
+    print('pg_restore -h localhost -p 5432 -U dev -d silrec_test3 silrec_3tables_27Feb2026.dump')
+

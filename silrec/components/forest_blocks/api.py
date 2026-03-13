@@ -480,8 +480,10 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
             return Polygon.objects.filter(
                 proposal_id=proposal_id
             ).prefetch_related(
-                'tmpassignchttoply_set',
-                'tmpassignchttoply_set__cohort'
+                #'tmpassignchttoply_set',
+                #'tmpassignchttoply_set__cohort'
+                'assignchttoply_set',
+                'assignchttoply_set__cohort'
             )
         return Polygon.objects.none()
 

@@ -16,9 +16,9 @@
         >
             <div class="shapefile-upload-container">
                 <div class="upload-controls">
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center flex-wrap">
                         <button 
-                            class="btn btn-primary"
+                            class="btn btn-primary me-2"
                             @click="triggerShapefileUpload"
                             :disabled="uploadingShapefile"
                         >
@@ -27,12 +27,28 @@
                         </button>
 
                         <!-- Display uploaded filename -->
-                        <div v-if="fileNameToDisplay" class="ms-3 uploaded-filename">
+                        <div v-if="fileNameToDisplay" class="ms-2 uploaded-filename">
                             <i class="bi bi-file-earmark-zip me-1"></i>
                             <span class="text-muted">Uploaded:</span>
                             <strong class="ms-1">{{ fileNameToDisplay }}</strong>
                         </div>
                         
+                        <!-- Process Shapefile Button -->
+                        <div class="ms-auto">
+                            <button 
+                                class="btn btn-success process-btn"
+                                @click="openProcessDialog"
+                                :disabled="!hasShapefile || processingShapefile"
+                                :title="!hasShapefile ? 'Upload a shapefile first' : ''"
+                            >
+                                <i class="bi bi-gear me-2"></i>
+                                <span v-if="processingShapefile">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    Processing...
+                                </span>
+                                <span v-else>Process Shapefile</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <input 
@@ -67,6 +83,11 @@
                         <i class="bi bi-check-circle me-2"></i>
                         Shapefile uploaded and processed successfully!
                     </div>
+                    
+                    <!-- Processing Error -->
+                    <div v-if="processError" class="alert alert-danger mt-2">
+                        {{ processError }}
+                    </div>
                 </div>
                 
                 <div class="upload-info mt-2">
@@ -97,6 +118,7 @@
                 :displayFieldsConfig="displayFieldsConfig"
                 :additionalFieldsConfig="additionalFieldsConfig"
                 @update-processed-geometry="handleProcessedGeometryUpdate"
+                @refresh-datatable="refreshPolygonCohortTable"
                 :ows-query="owsQuery"
                 style-by="assessor"
                 :filterable="false"
@@ -109,14 +131,15 @@
                     is_internal
                         ? ''
                         : leaseLicence
-                          ? 'You cannot change the area anymore at this stage.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
-                          : 'Use the <b>draw</b> tool to draw the area of the proposal you are interested in on the map.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
+                        ? 'You cannot change the area anymore at this stage.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
+                        : 'Use the <b>draw</b> tool to draw the area of the proposal you are interested in on the map.</br>Display layers to check attributes of polygons with the <b>info</b> tool.</br>You can <b>save</b> the proposal and continue at a later time.'
                 "
                 @validate-feature="validateFeature.bind(this)()"
                 @refresh-from-response="refreshFromResponse"
                 @finished-drawing="$emit('finished-drawing')"
                 @deleted-features="$emit('deleted-features')"
             />
+
         </FormSection>
     </div>
 </template>
@@ -128,6 +151,7 @@ import MapComponent from '@/components/common/component_map.vue';
 import Multiselect from 'vue-multiselect';
 import GisDataDetails from '@/components/common/gis_data_details.vue';
 import { v4 as uuid } from 'uuid';
+import Swal from 'sweetalert2';
 
 import { api_endpoints, helpers, utils } from '@/utils/hooks';
 import {
@@ -258,11 +282,19 @@ export default {
             uploadStatus: '',
             uploadError: null,
             uploadSuccess: false,
+            
+            // Shapefile processing states
+            processingShapefile: false,
+            processError: null,
+            
             // Temporary filename for immediate feedback (until proposal updates)
             selectedFileName: '',
             
             // Map key – used only if we must force a full remount (rare)
             componentMapKey: 0,
+            
+            // Current user ID (you'll need to set this from your auth system)
+            currentUserId: null,
         };
     },
     computed: {
@@ -276,6 +308,10 @@ export default {
         // Display filename: show selectedFileName during upload, otherwise storedFileName
         fileNameToDisplay: function () {
             return this.selectedFileName || this.storedFileName;
+        },
+        // Check if shapefile exists
+        hasShapefile: function () {
+            return !!(this.storedFileName || this.proposal.shapefile_json);
         },
         geometriesToFeatureCollection: function () {
             let vm = this;
@@ -356,6 +392,13 @@ export default {
                 features: [],
             };
 
+            // Use processed geometries if available
+            if (vm.proposal && vm.proposal.proposalgeometry_processed) {
+                if (vm.proposal.proposalgeometry_processed.type === 'FeatureCollection') {
+                    return vm.proposal.proposalgeometry_processed;
+                }
+            }
+
             let proposalgeometries = {
                 ...(vm.proposal.proposalgeometry_processed ? vm.proposal.proposalgeometry_processed : {}),
             };
@@ -426,6 +469,10 @@ export default {
     },
     created: function () {
         this.uuid = uuid();
+        
+        // Get current user ID from your auth system
+        // This depends on how your app manages user authentication
+        this.getCurrentUser();
     },
     mounted: function () {
         this.$emit('formMounted');
@@ -441,13 +488,30 @@ export default {
             //this.$emit('refreshFromResponse', this.proposal);
         },
 
-
         /*
         Map refresh: removed key increment on upload; map will update via prop watchers.
         forceToRefreshMap is still available for resizing if necessary.
         */
         refreshFromResponse: function (data) {
             this.$emit('refreshFromResponse', data);
+        },
+        
+        // Get current user
+        getCurrentUser: async function () {
+            try {
+                // You'll need to implement this based on your auth system
+                // This is just an example
+                const response = await fetch('/api/user/');
+                const data = await response.json();
+                this.currentUserId = data.id;
+            } catch (error) {
+                console.error('Error getting current user:', error);
+                
+                // Fallback: try to get from the proposal submitter
+                if (this.proposal && this.proposal.submitter_obj) {
+                    this.currentUserId = this.proposal.submitter_obj.id;
+                }
+            }
         },
         
         // Shapefile Upload Methods
@@ -467,6 +531,7 @@ export default {
             // Reset previous upload state
             this.uploadSuccess = false;
             this.uploadError = null;
+            this.processError = null;
 
             // Validate file type
             if (!file.name.toLowerCase().endsWith('.zip')) {
@@ -596,6 +661,243 @@ export default {
             if (this.$refs.shapefileInput) {
                 this.$refs.shapefileInput.value = '';
             }
+        },
+        
+    // Shapefile Processing Methods
+    openProcessDialog: function () {
+        if (!this.hasShapefile) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No Shapefile',
+                text: 'Please upload a shapefile first',
+                confirmButtonColor: '#3085d6'
+            });
+            return;
+        }
+        
+        // Show SweetAlert2 dialog with compact horizontal layout
+        Swal.fire({
+            title: 'Process Shapefile',
+            html: `
+                <div style="padding: 5px 0;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+                        <label for="threshold" style="font-weight: bold; min-width: 120px; text-align: right;">Threshold Value:</label>
+                        <div style="flex: 1;">
+                            <input 
+                                type="number" 
+                                id="threshold" 
+                                class="swal2-input" 
+                                value="5.0" 
+                                min="0.1" 
+                                max="100" 
+                                step="0.1"
+                                style="width: 100%; margin: 0;"
+                            >
+                        </div>
+                    </div>
+                    <div style="font-size: 0.85em; color: #6c757d; text-align: left; margin-top: 5px; padding-left: 130px;">
+                        Higher values remove more sliver polygons. Default is 5.0.
+                    </div>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Process',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            showConfirmButton: true,
+            showLoaderOnConfirm: true, // This shows a spinner on the button
+            preConfirm: () => {
+                const threshold = document.getElementById('threshold').value;
+                
+                // Validate threshold
+                const thresholdValue = parseFloat(threshold);
+                if (isNaN(thresholdValue) || thresholdValue < 0.1 || thresholdValue > 100) {
+                    Swal.showValidationMessage('Threshold must be between 0.1 and 100');
+                    return false;
+                }
+                
+                return {
+                    threshold: thresholdValue
+                };
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                this.processShapefile(result.value.threshold);
+            }
+        });
+    },
+
+    processShapefile: async function (threshold) {
+        // Show processing dialog with spinner
+        Swal.fire({
+            title: 'Processing Shapefile',
+            html: 'Please wait while the shapefile is being processed...',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        this.processingShapefile = true;
+        this.processError = null;
+        
+        try {
+            const url = helpers.add_endpoint_join(
+                this.api_endpoints.proposal,
+                this.proposalId + '/process_shapefile/'
+            );
+            
+            const csrfToken = helpers.getCookie('csrftoken');
+            
+            const payload = {
+                threshold: threshold,
+                user_id: this.currentUserId,
+                proposal_id: this.proposalId
+            };
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            
+            // Close loading dialog
+            Swal.close();
+            
+            if (!response.ok) {
+                throw new Error(data.error || data.message || 'Failed to process shapefile');
+            }
+            
+            // Success
+            if (data.success) {
+                // Show compact success message
+                const successHtml = `
+                    <div style="text-align: center;">
+                        <p style="margin-bottom: 10px;">${data.message || 'Shapefile processed successfully!'}</p>
+                        ${data.feature_count ? `<p style="font-size: 0.9em; color: #6c757d;">Features processed: ${data.feature_count}</p>` : ''}
+                    </div>
+                `;
+                
+                if (data.warnings && data.warnings.length) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'Processing Complete with Warnings',
+                        html: `
+                            <div style="text-align: left;">
+                                <p>${data.message || 'Shapefile processed with warnings'}</p>
+                                <div style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                                    <ul style="margin: 0; padding-left: 20px;">
+                                        ${data.warnings.map(w => `<li style="font-size: 0.9em;">${w}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonColor: '#ffc107',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        html: successHtml,
+                        confirmButtonColor: '#28a745',
+                        timer: 2000,
+                        timerProgressBar: true,
+                        showConfirmButton: true
+                    });
+                }
+                
+                // Update the proposal data with the processed version
+                if (data.proposal) {
+                    this.$emit('refreshFromResponse', data.proposal);
+                }
+                
+                // Always refresh the map
+                this.refreshMapAfterProcessing();
+                
+            } else {
+                throw new Error(data.message || 'Unknown error occurred');
+            }
+            
+        } catch (error) {
+            console.error('Error processing shapefile:', error);
+            
+            // Close loading dialog
+            Swal.close();
+            
+            // Show compact error message
+            await Swal.fire({
+                icon: 'error',
+                title: 'Processing Failed',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="color: #dc3545;">${error.message || 'An error occurred while processing the shapefile'}</p>
+                    </div>
+                `,
+                confirmButtonColor: '#dc3545'
+            });
+            
+            this.processError = error.message;
+        } finally {
+            this.processingShapefile = false;
+        }
+    },        
+
+        refreshMapAfterProcessing: function () {
+            // Method 1: Increment map key to force full remount (if needed)
+            // this.componentMapKey += 1;
+            
+            // Method 2: Use map's refresh method
+            this.$nextTick(() => {
+                if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
+                    // Small delay to ensure data is updated
+                    setTimeout(() => {
+                        this.$refs.component_map.forceToRefreshMap();
+                    }, 500);
+                }
+            });
+        },
+
+        // Add this method to refresh the polygon cohort table
+        refreshPolygonCohortTable: function () {
+            console.log('Refreshing polygon cohort table from parent');
+            // Find the PolygonCohortTable component in the DOM
+            // Since it's inside the MapComponent, we need to access it through the map component's ref
+            if (this.$refs.component_map && this.$refs.component_map.$refs.polygonCohortTable) {
+                this.$refs.component_map.$refs.polygonCohortTable.refreshData();
+            } else {
+                console.warn('PolygonCohortTable ref not found');
+                // Fallback: try to find by query selector
+                setTimeout(() => {
+                    const tableComponent = document.querySelector('[data-table="polygon-cohort"]');
+                    if (tableComponent && tableComponent.__vue__) {
+                        tableComponent.__vue__.refreshData();
+                    }
+                }, 500);
+            }
+        }
+
+    },
+    
+    watch: {
+        // Watch for changes in proposal data and update map if needed
+        'proposal.proposalgeometry_processed': {
+            handler: function (newVal, oldVal) {
+                if (newVal && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+                    // Map will update via prop watchers, but we can force a refresh if needed
+                    this.refreshMapAfterProcessing();
+                }
+            },
+            deep: true
         }
     }
 };
@@ -620,6 +922,10 @@ export default {
     border-radius: 4px;
     border: 1px solid #dee2e6;
     font-size: 0.9em;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .upload-progress {
@@ -632,6 +938,10 @@ export default {
 
 .upload-info {
     font-size: 0.9em;
+}
+
+.process-btn {
+    min-width: 160px;
 }
 
 /* Existing styles */
@@ -698,5 +1008,29 @@ export default {
 
 .nav-pills .nav-link.active {
     background: gray;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .d-flex.align-items-center.flex-wrap {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .uploaded-filename {
+        margin-left: 0 !important;
+        margin-top: 10px;
+        max-width: 100%;
+    }
+    
+    .ms-auto {
+        margin-left: 0 !important;
+        margin-top: 10px;
+        width: 100%;
+    }
+    
+    .process-btn {
+        width: 100%;
+    }
 }
 </style>

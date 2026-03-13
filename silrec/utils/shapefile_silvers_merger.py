@@ -44,13 +44,27 @@ User = get_user_model()
 class ShapefileSliversMerger():
     '''
     '''
-    def __init__(self, gdf_shpfile, proposal_id, threshold=None, sql_polygons=None, user_id=None):
-        self.gdf_shpfile = gdf_shpfile
+    def __init__(self, proposal_id, gdf_shpfile=None, threshold=None, sql_polygons=None, user_id=None):
         self.proposal_id = proposal_id
+        self.gdf_shpfile = self.get_shapefile(gdf_shpfile)
         self.threshold = threshold
         self.user_id = user_id
         self.conn_engine = self.get_conn_engine()
         #self.gdf_hist_polygons_total = self.get_polygons_gdf(gdf_shpfile, 'polygon', sql_polygons)
+
+    def get_shapefile(self, gdf_shpfile):
+        if gdf_shpfile is None:
+            try:
+                p = Proposal.objects.get(id=self.proposal_id)
+                if p.geojson_shpfile_to_gdf is not None:
+                    return p.geojson_shpfile_to_gdf.to_crs(settings.CRS_GDA94)
+                raise Exception(f'There is no Shapefile associated with this Proposal {self.proposal_id}')
+            except Proposal.DoesNotExist as pe:
+                raise Proposal.DoesNotExist(f'{pe}. Proposal ID {self.proposal_id}')
+            except Exception as e:
+                raise Exception(f'{e}')
+
+        return gdf_shpfile
 
     @staticmethod
     def get_conn_engine():
@@ -182,7 +196,7 @@ class ShapefileSliversMerger():
 
         proposal = Proposal.objects.get(id=self.proposal_id)
         user = User.objects.get(id=self.user_id)
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
@@ -236,9 +250,9 @@ class ShapefileSliversMerger():
                 gdf_result = self.process_cookie_cut(gdf_hist)
                 #gdf_result['iter_seq'] = idx_count
 
-                if idx_count==6:
-                    import ipdb; ipdb.set_trace()
-                    pass
+#                if idx_count==6:
+#                    import ipdb; ipdb.set_trace()
+#                    pass
 
                 gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id, idx_count)
 
@@ -307,7 +321,6 @@ class ShapefileSliversMerger():
         self.gdf_polygons_partitioned.reset_index(inplace=True)
         #import ipdb; ipdb.set_trace()
 
-        #import ipdb; ipdb.set_trace()
         base_polygon = self.get_base_polygon_gdf(self.gdf_single, self.gdf_polygons_partitioned)[['geometry']]
         #base_polygon['iter_seq'] = idx_count
         base_polygon['poly_type'] = 'BASE'

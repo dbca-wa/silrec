@@ -1045,8 +1045,8 @@ export default {
 
 .cut-panel {
   position: absolute;
-  top: 50px;
-  right: 0;
+  top: 60px;
+  right: 55px;
   width: 300px;
   background: white;
   border: 1px solid #ccc;

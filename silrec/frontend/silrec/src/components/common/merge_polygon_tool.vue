@@ -1004,7 +1004,7 @@ export default {
 .merge-panel {
   position: absolute;
   top: 50px;
-  right: 0;
+  right: 41px;
   width: 300px;
   background: white;
   border: 1px solid #ccc;

@@ -1015,7 +1015,8 @@ class PolygonCohortDataSerializer(serializers.ModelSerializer):
 
     def get_assigned_cohorts(self, obj):
         # Use the correct related name
-        assigned_cht = obj.tmpassignchttoply_set.filter(status_current=True).select_related('cohort')
+        #assigned_cht = obj.tmpassignchttoply_set.filter(status_current=True).select_related('cohort')
+        assigned_cht = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
         return AssignChtToPlySerializer(assigned_cht, many=True).data
 
 

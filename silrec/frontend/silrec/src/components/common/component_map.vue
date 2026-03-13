@@ -18,7 +18,10 @@
                 v-model="layer1Visible" 
                 @change="toggleLayer('layer1')"
                 >
-                Shapefile Layer
+                <span class="layer-label">
+                    Shapefile Layer
+                    <span v-if="layer1FeatureCount > 0" class="feature-count-badge">{{ layer1FeatureCount }}</span>
+                </span>
             </label>
             </div>
             <div class="layer-item" v-if="hasLayer2">
@@ -28,7 +31,10 @@
                 v-model="layer2Visible" 
                 @change="toggleLayer('layer2')"
                 >
-                Pre-processed (current) Layer
+                <span class="layer-label">
+                    Pre-processed (current) Layer
+                    <span v-if="layer2FeatureCount > 0" class="feature-count-badge">{{ layer2FeatureCount }}</span>
+                </span>
             </label>
             </div>
             <div class="layer-item" v-if="hasLayer3">
@@ -38,7 +44,10 @@
                 v-model="layer3Visible" 
                 @change="toggleLayer('layer3')"
                 >
-                Processed
+                <span class="layer-label">
+                    Processed Layer
+                    <span v-if="layer3FeatureCount > 0" class="feature-count-badge">{{ layer3FeatureCount }}</span>
+                </span>
             </label>
             </div>
             <!-- New Layer 4 with nested radio buttons -->
@@ -49,7 +58,10 @@
                 v-model="layer4Visible" 
                 @change="toggleLayer('layer4')"
                 >
-                Geometry Collections
+                <span class="layer-label">
+                    Geometry Collections
+                    <span v-if="layer4FeatureCount > 0" class="feature-count-badge">{{ layer4FeatureCount }}</span>
+                </span>
             </label>
             
             <!-- Nested radio buttons for geometry collections -->
@@ -264,6 +276,7 @@
 
     <div>
         <PolygonCohortTable 
+        ref="polygonCohortTable"
         :proposalId="currentProposalId"
         :initialVisible="showDataTable"
         @polygon-selected="onPolygonSelected"
@@ -330,7 +343,7 @@ export default {
       default: null
     }
   },
-  emits: ['refresh-from-response', 'update-processed-geometry'],
+  emits: ['refresh-from-response', 'update-processed-geometry', 'refresh-datatable'],
   data() {
     return {
       map: null,
@@ -390,6 +403,12 @@ export default {
 
       // Global click handler reference for cleanup
       globalClickHandler: null,
+
+      // Feature counts
+      layer1FeatureCount: 0,
+      layer2FeatureCount: 0,
+      layer3FeatureCount: 0,
+      layer4FeatureCount: 0,
 
       displayFields: [
         { key: 'Block', label: 'Block' },
@@ -452,6 +471,9 @@ export default {
           return;
         }
         this.updateLayer3(newGeoJSON);
+        
+        // Refresh datatable when layer3 is updated
+        this.refreshDataTable();
       },
       deep: true
     },
@@ -541,6 +563,18 @@ export default {
                 this.updateLayer1(this.featureCollection);
             }
         }
+    },
+
+    // Method to refresh the datatable
+    refreshDataTable() {
+      console.log('Refreshing polygon cohort datatable');
+      this.$emit('refresh-datatable');
+      // Also directly call the table's refresh method if ref is available
+      if (this.$refs.polygonCohortTable) {
+        this.$nextTick(() => {
+          this.$refs.polygonCohortTable.refreshData();
+        });
+      }
     },
 
     async exportChtToExcel() {
@@ -814,6 +848,7 @@ export default {
       
       this.layer1.getSource().clear();
       this.layer1.getSource().addFeatures(features);
+      this.layer1FeatureCount = features.length;
       console.log('Layer1 updated, features added:', features.length);
       
       if (features.length > 0 && !this.hasLayer2) {
@@ -836,6 +871,7 @@ export default {
       
       this.layer2.getSource().clear();
       this.layer2.getSource().addFeatures(features);
+      this.layer2FeatureCount = features.length;
       console.log('Layer2 updated, features added:', features.length);
       
       if (features.length > 0) {
@@ -858,6 +894,7 @@ export default {
       
       this.layer3.getSource().clear();
       this.layer3.getSource().addFeatures(features);
+      this.layer3FeatureCount = features.length;
       console.log('Layer3 updated, features added:', features.length);
       
       if (features.length > 0) {
@@ -870,6 +907,15 @@ export default {
       
       this.hasLayer4 = geometryList.length > 0;
       this.geometryCollections = geometryList;
+      
+      // Calculate total features across all geometry collections
+      let totalFeatures = 0;
+      geometryList.forEach(geo => {
+        if (geo && geo.features) {
+          totalFeatures += geo.features.length;
+        }
+      });
+      this.layer4FeatureCount = totalFeatures;
       
       this.layer4.getSource().clear();
       
@@ -1266,7 +1312,7 @@ export default {
 .feature-popup {
   position: absolute;
   top: 50px;
-  right: 10px;
+  right: 50px;
   background: white;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -1316,10 +1362,31 @@ export default {
   gap: 8px;
   cursor: pointer;
   font-size: 13px;
+  width: 100%;
 }
 
 .layer-item input[type="checkbox"] {
   margin: 0;
+}
+
+.layer-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.feature-count-badge {
+  display: inline-block;
+  background-color: #007bff;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  min-width: 24px;
+  text-align: center;
 }
 
 .nested-radio-group {

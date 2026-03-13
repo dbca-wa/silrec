@@ -181,6 +181,12 @@ urlpatterns = [
         name="upload-shapefile",
     ),
 
+    re_path(
+        r"^api/proposal/(?P<pk>\d+)/process_shapefile/$",
+        proposal_api.ProcessShapefileView.as_view(),
+        name="process-shapefile",
+    ),
+
     re_path('api/merge-polygon/', proposal_api.MergePolygonView.as_view(), name='merge-polygon'),
     re_path(
         r"^api/proposal/(?P<pk>\d+)/save_merged_geometry/$",

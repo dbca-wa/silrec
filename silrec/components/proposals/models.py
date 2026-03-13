@@ -324,9 +324,19 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
 #        return gpd.read_file(json.dumps(self.shapefile_json))
 
     @property
-    def shp_to_gdf(self):
+    def geojson_shpfile_to_gdf(self):
         """Return shapefile GeoJSON as a GeoDataFrame (read‑only)."""""
         return gpd.read_file(json.dumps(self.shapefile_json))
+
+    @property
+    def geojson_hist_to_gdf(self):
+        """Return shapefile GeoJSON as a GeoDataFrame (read‑only)."""""
+        return gpd.read_file(json.dumps(self.geojson_data_hist))
+
+    @property
+    def geojson_processed_to_gdf(self):
+        """Return shapefile GeoJSON as a GeoDataFrame (read‑only)."""""
+        return gpd.read_file(json.dumps(self.geojson_data_processed))
 
     def get_shapefile_attributes_status(self):
         """
@@ -342,7 +352,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         if not self.shapefile_json:
             return None
 
-        gdf = self.shp_to_gdf
+        gdf = self.geojson_shpfile_to_gdf
         present_fields = list(gdf.columns) if not gdf.empty else []
 
         # Get configuration for this proposal's application type

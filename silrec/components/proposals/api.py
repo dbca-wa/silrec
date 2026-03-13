@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
+import copy
 
 
 from django.conf import settings
@@ -76,10 +77,12 @@ from silrec.components.proposals.serializers import (
     TextSearchModelConfigSerializer,
     ShapefileUploadSerializer,
     ShapefileProcessResultSerializer,
+    ShapefileProcessRequestSerializer,
 )
 from silrec.components.main.api import (
     UserActionLoggingViewset,
 )
+from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
 from silrec.components.main.decorators import basic_exception_handler
 
 import logging
@@ -2735,3 +2738,157 @@ class SaveCutGeometryView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+# Add to api.py after ShapefileUploadView
+
+class ProcessShapefileView(APIView):
+    """API endpoint for processing an uploaded shapefile with sliver removal"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """Handle shapefile processing request"""
+        try:
+            # Validate request data
+            serializer = ShapefileProcessRequestSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'error': 'Invalid request', 'details': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            threshold = serializer.validated_data['threshold']
+            user_id = serializer.validated_data['user_id']
+            proposal_id = serializer.validated_data['proposal_id']
+
+            # Verify user matches authenticated user
+            if request.user.id != user_id and not request.user.is_superuser:
+                return Response(
+                    {'error': 'User ID mismatch'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Get proposal instance
+            try:
+                proposal = Proposal.objects.get(id=proposal_id)
+            except Proposal.DoesNotExist:
+                return Response(
+                    {'error': f'Proposal with ID {proposal_id} not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Check permissions
+            if not request.user.is_superuser and proposal.submitter != request.user.id:
+                return Response(
+                    {'error': 'You do not have permission to modify this proposal'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Check if shapefile exists
+            if not proposal.shapefile_json:
+                return Response(
+                    {'error': 'No shapefile has been uploaded for this proposal'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Process the shapefile with the given threshold
+            result = self.process_shapefile_with_threshold(proposal, threshold, user_id)
+
+            if not result['success']:
+                return Response(
+                    {'error': result['message'], 'details': result.get('errors', [])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Save the processed geometries to the proposal
+#            proposal.geojson_data_processed = result['processed_geometries']
+#            proposal.save()
+
+            # Create a processing log entry (optional)
+            logger.info(f"Shapefile processed for proposal {proposal_id} with threshold {threshold} by user {user_id}")
+
+            # Serialize and return the updated proposal
+            proposal_serializer = ProposalSerializer(proposal, context={'request': request})
+
+            response_data = {
+                'success': True,
+                'message': f'Shapefile processed successfully with threshold {threshold}. {result["feature_count"]} features processed.',
+                'proposal': proposal_serializer.data,
+                'feature_count_orig': result['feature_count_orig'],
+                'feature_count': result['feature_count'],
+                #'processed_geometries': result['processed_geometries'],
+                'warnings': result.get('warnings', [])
+            }
+
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error processing shapefile: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Error processing shapefile: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def process_shapefile_with_threshold(self, proposal, threshold, user_id):
+        """
+        Process shapefile with sliver removal based on threshold
+
+        This is a placeholder for your actual shapefile processing logic.
+        You'll need to implement the actual geometry processing based on your requirements.
+        """
+        try:
+            if not proposal.shapefile_json or not proposal.shapefile_json.get('features'):
+                return {
+                    'success': False,
+                    'message': 'No valid features found in shapefile',
+                    'errors': ['Shapefile contains no features']
+                }
+
+            # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
+            ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
+            list_state = ssm.create_gdf()
+            geom_data = ssm.set_proposal_data(list_state)
+
+            proposal.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
+            proposal.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
+            #p.shapefile_json = json.loads(list_state[0]['GDF_SHP'].to_crs(settings.CRS).to_json()) # Already saved by 'Upload Shapefile' operation
+            proposal.geojson_data_processed_iters = geom_data
+            proposal.save()
+
+            # For now, we'll just return the original geometries with a warning
+            # This is a placeholder - replace with actual processing logic
+#            processed_geojson = copy.deepcopy(shapefile_geojson)
+
+            # Example: Add processing metadata to properties
+            for i, feature in enumerate(proposal.geojson_data_processed['features']):
+                if 'properties' not in feature:
+                    feature['properties'] = {}
+                feature['properties']['processed'] = True
+                feature['properties']['threshold_applied'] = threshold
+
+            warnings = []
+            feature_count = len(proposal.geojson_data_processed['features'])
+            feature_count_orig = len(proposal.shapefile_json['features'])
+
+            # Check if any features would be removed (example logic)
+            if feature_count > 0:
+                # This is where you'd implement actual sliver detection
+                # For demonstration, we'll just add a note
+                warnings.append(f"Processed {feature_count} features with threshold {threshold}")
+
+            return {
+                'success': True,
+                'message': 'Shapefile processed successfully',
+                'feature_count_orig': feature_count_orig,
+                'feature_count': feature_count,
+                #'processed_geometries': processed_geojson,
+                'warnings': warnings
+            }
+
+        except Exception as e:
+            logger.error(f"Error in process_shapefile_with_threshold: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': 'Error processing shapefile geometries',
+                'errors': [str(e)]
+            }

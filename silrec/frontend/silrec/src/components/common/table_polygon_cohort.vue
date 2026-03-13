@@ -1,5 +1,5 @@
 <template>
-    <div class="polygon-cohort-table-container">
+    <div class="polygon-cohort-table-container" data-table="polygon-cohort">
     <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/table_polygon_cohort.vue</div>
         <div class="table-controls mb-3">
             <div class="row align-items-center">
@@ -350,7 +350,7 @@ export default {
                 });
             }
         },
-        async refreshData() {
+        async __refreshData() {
             try {
                 if (this.$refs.polygon_cohort_datatable && this.$refs.polygon_cohort_datatable.vmDataTable) {
                     await this.$refs.polygon_cohort_datatable.vmDataTable.ajax.reload();
@@ -365,6 +365,26 @@ export default {
                 });
             }
         },
+
+        refreshData: async function() {
+            try {
+                if (this.$refs.polygon_cohort_datatable && this.$refs.polygon_cohort_datatable.vmDataTable) {
+                    await this.$refs.polygon_cohort_datatable.vmDataTable.ajax.reload();
+                    console.log('Datatable refreshed successfully');
+                } else {
+                    console.warn('Datatable ref not found for refresh');
+                }
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Refresh Failed',
+                    text: 'Failed to refresh table data. Please try again.',
+                    confirmButtonText: 'OK'
+                });
+            }
+        },
+
         collapsible_component_mounted() {
             // Filter warning icon logic if needed
         },

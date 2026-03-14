@@ -2832,11 +2832,11 @@ class ProcessShapefileView(APIView):
     def process_shapefile_with_threshold(self, proposal, threshold, user_id):
         """
         Process shapefile with sliver removal based on threshold
-
-        This is a placeholder for your actual shapefile processing logic.
-        You'll need to implement the actual geometry processing based on your requirements.
         """
         try:
+            import reversion
+            from django.db import transaction
+
             if not proposal.shapefile_json or not proposal.shapefile_json.get('features'):
                 return {
                     'success': False,
@@ -2844,44 +2844,36 @@ class ProcessShapefileView(APIView):
                     'errors': ['Shapefile contains no features']
                 }
 
-            # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
-            ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
-            list_state = ssm.create_gdf()
-            geom_data = ssm.set_proposal_data(list_state)
+            with transaction.atomic():
+                if True:
+                #with reversion.create_revision():
+                    try:
+                        # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
+                        ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
+                        list_state = ssm.create_gdf()
+                        geom_data = ssm.set_proposal_data(list_state)
 
-            proposal.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
-            proposal.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
-            #p.shapefile_json = json.loads(list_state[0]['GDF_SHP'].to_crs(settings.CRS).to_json()) # Already saved by 'Upload Shapefile' operation
-            proposal.geojson_data_processed_iters = geom_data
-            proposal.save()
+                        proposal.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
+                        proposal.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
+                        proposal.geojson_data_processed_iters = geom_data
+                        proposal.save()
 
-            # For now, we'll just return the original geometries with a warning
-            # This is a placeholder - replace with actual processing logic
-#            processed_geojson = copy.deepcopy(shapefile_geojson)
-
-            # Example: Add processing metadata to properties
-            for i, feature in enumerate(proposal.geojson_data_processed['features']):
-                if 'properties' not in feature:
-                    feature['properties'] = {}
-                feature['properties']['processed'] = True
-                feature['properties']['threshold_applied'] = threshold
+                        # Set reversion comment for easy identification
+                        reversion.set_comment(f'Shapefile processing with threshold {threshold}')
+                    except Exception as e:
+                        raise Exception(e)
 
             warnings = []
             feature_count = len(proposal.geojson_data_processed['features'])
             feature_count_orig = len(proposal.shapefile_json['features'])
 
-            # Check if any features would be removed (example logic)
-            if feature_count > 0:
-                # This is where you'd implement actual sliver detection
-                # For demonstration, we'll just add a note
-                warnings.append(f"Processed {feature_count} features with threshold {threshold}")
+            warnings.append(f"Processed {feature_count} features with threshold {threshold}")
 
             return {
                 'success': True,
                 'message': 'Shapefile processed successfully',
                 'feature_count_orig': feature_count_orig,
                 'feature_count': feature_count,
-                #'processed_geometries': processed_geojson,
                 'warnings': warnings
             }
 
@@ -2892,3 +2884,313 @@ class ProcessShapefileView(APIView):
                 'message': 'Error processing shapefile geometries',
                 'errors': [str(e)]
             }
+
+class RevertShapefileProcessingView(APIView):
+    """API endpoint for reverting shapefile processing changes using only django-reversion"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """Handle shapefile processing revert request"""
+        try:
+            # Validate request data
+            user_id = request.data.get('user_id')
+            proposal_id = request.data.get('proposal_id')
+
+            if not user_id or not proposal_id:
+                return Response(
+                    {'error': 'Missing required parameters: user_id and proposal_id'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Verify user matches authenticated user
+            if request.user.id != user_id and not request.user.is_superuser:
+                return Response(
+                    {'error': 'User ID mismatch'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Get proposal instance
+            try:
+                proposal = Proposal.objects.get(id=proposal_id)
+            except Proposal.DoesNotExist:
+                return Response(
+                    {'error': f'Proposal with ID {proposal_id} not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Check permissions
+            if not request.user.is_superuser and proposal.submitter != request.user.id:
+                return Response(
+                    {'error': 'You do not have permission to modify this proposal'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Perform revert operation using only reversion
+            result = self.revert_shapefile_processing(proposal)
+
+            if not result['success']:
+                return Response(
+                    {'error': result['message'], 'details': result.get('errors', [])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Serialize and return the updated proposal
+            proposal_serializer = ProposalSerializer(proposal, context={'request': request})
+
+            response_data = {
+                'success': True,
+                'message': f'Successfully reverted to previous state. {result["records_removed"]} records removed.',
+                'proposal': proposal_serializer.data,
+                'records_removed': result['records_removed'],
+                'warnings': result.get('warnings', [])
+            }
+
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error reverting shapefile processing: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Error reverting shapefile processing: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def revert_shapefile_processing(self, proposal):
+        """
+        Revert shapefile processing changes using django-reversion timestamps
+        """
+        try:
+            import reversion
+            from django.db import transaction
+            from django.utils import timezone
+            from datetime import timedelta
+            from silrec.components.forest_blocks.models import (
+                Polygon, Cohort, AssignChtToPly, Treatment, TreatmentXtra
+            )
+
+            records_removed = 0
+            warnings = []
+
+            # Get the timestamp of the most recent reversion version for this proposal
+            versions = Version.objects.get_for_object(proposal).order_by('-revision__date_created')
+
+            if versions.count() <= 1:
+                warnings.append('Not enough versions to revert - clearing processed fields only')
+                # Just clear processed fields
+                with transaction.atomic():
+                    proposal.geojson_data_processed = None
+                    proposal.geojson_data_processed_iters = None
+                    proposal.save()
+
+                return {
+                    'success': True,
+                    'message': 'Cleared processed fields (no previous version found)',
+                    'records_removed': 0,
+                    'warnings': warnings
+                }
+
+            # Get the timestamp of the most recent version (current state)
+            latest_version = versions[0]
+            latest_timestamp = latest_version.revision.date_created
+
+            # Get the previous version timestamp
+            previous_version = versions[1]
+            previous_timestamp = previous_version.revision.date_created
+
+            logger.info(f"Current version timestamp: {latest_timestamp}")
+            logger.info(f"Previous version timestamp: {previous_timestamp}")
+
+            with transaction.atomic():
+                # Delete records created after the previous version timestamp
+                # These would be records that don't have reversion versions
+
+                # Delete polygons created after previous timestamp
+                new_polygons = Polygon.objects.filter(
+                    proposal_id=proposal.id,
+                    created_on__gt=previous_timestamp
+                )
+                polygon_count = new_polygons.count()
+                if polygon_count > 0:
+                    new_polygons.delete()
+                    records_removed += polygon_count
+                    warnings.append(f"Removed {polygon_count} new polygons")
+
+                # Delete cohorts created after previous timestamp
+                # Need to go through assign_cht_to_ply to find cohorts for this proposal
+                new_cohorts = Cohort.objects.filter(
+                    assignchtoply__polygon__proposal_id=proposal.id,
+                    created_on__gt=previous_timestamp
+                ).distinct()
+                cohort_count = new_cohorts.count()
+                if cohort_count > 0:
+                    new_cohorts.delete()
+                    records_removed += cohort_count
+                    warnings.append(f"Removed {cohort_count} new cohorts")
+
+                # Delete assign_cht_to_ply records created after previous timestamp
+                new_assignments = AssignChtToPly.objects.filter(
+                    polygon__proposal_id=proposal.id,
+                    created_on__gt=previous_timestamp
+                )
+                assignment_count = new_assignments.count()
+                if assignment_count > 0:
+                    new_assignments.delete()
+                    records_removed += assignment_count
+                    warnings.append(f"Removed {assignment_count} new assignments")
+
+                # Delete treatments created after previous timestamp
+                new_treatments = Treatment.objects.filter(
+                    cohort__assignchtoply__polygon__proposal_id=proposal.id,
+                    created_on__gt=previous_timestamp
+                ).distinct()
+                treatment_count = new_treatments.count()
+                if treatment_count > 0:
+                    new_treatments.delete()
+                    records_removed += treatment_count
+                    warnings.append(f"Removed {treatment_count} new treatments")
+
+                # Delete treatment_xtra created after previous timestamp
+                new_treatment_xtra = TreatmentXtra.objects.filter(
+                    treatment__cohort__assignchtoply__polygon__proposal_id=proposal.id,
+                    treatment__created_on__gt=previous_timestamp
+                ).distinct()
+                treatment_xtra_count = new_treatment_xtra.count()
+                if treatment_xtra_count > 0:
+                    new_treatment_xtra.delete()
+                    records_removed += treatment_xtra_count
+                    warnings.append(f"Removed {treatment_xtra_count} new treatment extras")
+
+                # Now revert the proposal itself using reversion
+                with reversion.create_revision():
+                    previous_version.revision.revert()
+                    proposal.refresh_from_db()
+
+                    # Ensure processed fields are cleared
+                    proposal.geojson_data_processed = None
+                    proposal.geojson_data_processed_iters = None
+                    proposal.save()
+
+                    records_removed += 1
+                    warnings.append("Reverted proposal to previous version")
+
+            logger.info(f"Revert completed: removed {records_removed} records")
+
+            return {
+                'success': True,
+                'message': 'Successfully reverted shapefile processing',
+                'records_removed': records_removed,
+                'warnings': warnings
+            }
+
+        except Exception as e:
+            logger.error(f"Error in revert_shapefile_processing: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': 'Error reverting shapefile processing',
+                'errors': [str(e)]
+            }
+
+class SnapshotDebugView(APIView):
+    """API endpoint for snapshot debugging and testing"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """Handle GET requests - list snapshots or get snapshot details"""
+        from silrec.utils.snapshot_utils import SnapshotManager
+
+        sm = SnapshotManager()
+        action = request.query_params.get('action', 'list')
+        proposal_id = request.query_params.get('proposal_id')
+        snapshot_id = request.query_params.get('snapshot_id')
+
+        if action == 'list':
+            # List all snapshots
+            snapshots = sm.list_snapshots(
+                proposal_id=int(proposal_id) if proposal_id else None
+            )
+            return Response({
+                'success': True,
+                'snapshots': snapshots
+            })
+
+        elif action == 'get' and snapshot_id:
+            # Get specific snapshot
+            snapshot = sm.get_snapshot(snapshot_id)
+            if snapshot:
+                return Response({
+                    'success': True,
+                    'snapshot': snapshot
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'error': f'Snapshot {snapshot_id} not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+        elif action == 'compare':
+            # Compare two snapshots
+            snapshot1_id = request.query_params.get('snapshot1')
+            snapshot2_id = request.query_params.get('snapshot2')
+
+            if not snapshot1_id or not snapshot2_id:
+                return Response({
+                    'success': False,
+                    'error': 'Both snapshot1 and snapshot2 parameters are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            comparison = sm.compare_snapshots(snapshot1_id, snapshot2_id)
+            return Response({
+                'success': True,
+                'comparison': comparison
+            })
+
+        return Response({
+            'success': False,
+            'error': 'Invalid action'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, *args, **kwargs):
+        """Handle POST requests - create snapshots"""
+        from silrec.utils.snapshot_utils import SnapshotManager
+
+        sm = SnapshotManager()
+
+        proposal_id = request.data.get('proposal_id')
+        user_id = request.data.get('user_id')
+        tag = request.data.get('tag', 'manual_snapshot')
+
+        if not proposal_id or not user_id:
+            return Response({
+                'success': False,
+                'error': 'proposal_id and user_id are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify user permissions
+        if request.user.id != user_id and not request.user.is_superuser:
+            return Response({
+                'success': False,
+                'error': 'Permission denied'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            snapshot = sm.create_snapshot(proposal_id, user_id, tag)
+
+            return Response({
+                'success': True,
+                'message': f'Snapshot {snapshot["id"]} created successfully',
+                'snapshot': {
+                    'id': snapshot['id'],
+                    'tag': snapshot['tag'],
+                    'timestamp': snapshot['timestamp'],
+                    'record_counts': snapshot['metadata']['record_counts']
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error creating snapshot: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'error': f'Error creating snapshot: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

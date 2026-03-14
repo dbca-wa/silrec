@@ -23,7 +23,7 @@ class ValidateModelMixin(object):
 
 
 class CohortMetricsLkp(models.Model):
-    metric_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    metric_id = models.IntegerField(primary_key=True, db_comment='Primary key')
     name = models.CharField(max_length=50, blank=True, null=True, db_comment='Brief name for the success measure')
     definition = models.CharField(max_length=500, blank=True, null=True, db_comment='Full description and definition of the success measure, including measurement protocols, if required.')
     rating = models.BooleanField(blank=True, null=True, db_comment='Yes if the success measure is a rating or classification or categorical variable\nNo => numeric or quantitative variable')
@@ -49,7 +49,7 @@ class CohortMetricsLkp(models.Model):
 
 
 class MachineLkp(models.Model):
-    machine_id = models.AutoField(primary_key=True)
+    machine_id = models.IntegerField(primary_key=True)
     manufacturer = models.CharField(max_length=50, blank=True, null=True, db_comment="Manufacturer of the machine, e.g. 'John Deere'.")
     model = models.CharField(max_length=50, blank=True, null=True, db_comment="Designation of machine model by the manufacturer, for example '1270G'.\nModel should INCLUDE length of boom, tracked or wheeled \n??and machine type.")
     machine_type = models.CharField(max_length=50, blank=True, null=True, db_comment='Machine type defined by model but inserted for convenience.\nPredominantly harvester, skidder, forwarder and maybe in forest chipper.')

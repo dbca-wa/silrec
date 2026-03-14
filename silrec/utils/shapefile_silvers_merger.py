@@ -114,9 +114,9 @@ class ShapefileSliversMerger():
                 ;'''
 
 
-        #import ipdb; ipdb.set_trace()
         #gdf = gpd.read_postgis(sql, con=self.conn_engine, geom_col='geom')
         gdf = gpd.read_postgis(sql, con=conn_engine, geom_col='geom')
+        gdf['polygon_id'] = pd.to_numeric(gdf['polygon_id'], errors='coerce').astype(int)
 
         gdf['poly_type'] = 'HIST'
         gdf['iter_seq'] = 1 #0 #self.next_iter_seq
@@ -200,7 +200,8 @@ class ShapefileSliversMerger():
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
-        for index, row in self.gdf_shpfile.iterrows():
+        #for index, row in self.gdf_shpfile.iterrows():
+        for index, row in self.gdf_shpfile[:1].iterrows():
             # TODO 1. filter to 'gdf_hist' sub-set of polygons, and
             #      2. ac2p_qs with those poly_ids [from (1)]
             #      3. cohort_qs with those cohort_ids [from (2)]
@@ -255,11 +256,22 @@ class ShapefileSliversMerger():
 #                    pass
 
                 gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id, idx_count)
+                gdf_result['poly_id_new'] = pd.to_numeric(gdf_result['poly_id_new'], errors='coerce').fillna(0).astype(int)
 
                 # get init 'polygon - assign_cht_to_ply - cohort' state
-                gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
-                gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
+                try:
+                    gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
+                    gdf_cht_init['polygon_id'] = pd.to_numeric(gdf_cht_init['polygon_id'], errors='coerce').fillna(0).astype(int)
+                    gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
+                except:
+                    import ipdb; ipdb.set_trace()
+                    pass
 
+
+                #db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
+                #db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
+
+                #import ipdb; ipdb.set_trace()
                 list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
                 #import ipdb; ipdb.set_trace()
                 save_cht_new_to_db(gdf_cht_new, self.request_metrics, idx_count)
@@ -270,6 +282,7 @@ class ShapefileSliversMerger():
         #gdf_result_combined = pd.concat([d['GDF_RESULT'] for d in list_state[1:]], ignore_index=True)
         gdf_result_combined = self.get_gdf_result_combined(list_state)
         list_state[0].update({'GDF_RESULT_COMBINED': gdf_result_combined})
+        logger.info(list_state)
 
 
         return list_state
@@ -671,6 +684,13 @@ class ShapefileSliversMerger():
 
         cols_reqd = ['cohort_id', 'polygon_id', 'cht2ply_id', 'name', 'area_ha_orig', 'obj_code', 'complete_date', 'target_ba_m2ha', 'op_id', 'status_current']
         #import ipdb; ipdb.set_trace()
+        gdf_cht_init = gdf_cht_init[cols_reqd]
+        gdf_cht_init['cohort_id'] = pd.to_numeric(gdf_cht_init['cohort_id'], errors='coerce').fillna(0).astype(int)
+        gdf_cht_init['polygon_id'] = pd.to_numeric(gdf_cht_init['polygon_id'], errors='coerce').fillna(0).astype(int)
+        gdf_cht_init['cht2ply_id'] = pd.to_numeric(gdf_cht_init['cht2ply_id'], errors='coerce').fillna(0).astype(int)
+        gdf_cht_init['op_id'] = pd.to_numeric(gdf_cht_init['op_id'], errors='coerce').fillna(0).astype(int)
+
+
         return gdf_cht_init[cols_reqd], cohort_gdf_init
 
     def merge_cohort_data_new(self, gdf_result, gdf_hist, cohort_gdf_init, cohort_ids, op_id):
@@ -773,6 +793,7 @@ class ShapefileSliversMerger():
         )
         #gdf_cht_combined['obj_code'] = gdf_cht_combined['obj_code'].str.strip()
         #gdf_cht_combined = gdf_cht_combined.apply(update_columns, axis=1)
+        import ipdb; ipdb.set_trace()
 
         return gdf_cht_combined
 

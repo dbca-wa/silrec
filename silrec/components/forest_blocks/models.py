@@ -48,7 +48,7 @@ class SurveyAssessmentDocument(Document):
         #('archived', 'Archived'),
     ]
 
-    document_id = models.AutoField(primary_key=True)
+    document_id = models.BigIntegerField(primary_key=True)
     treatment = models.ForeignKey('Treatment', on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='other')
     title = models.CharField(max_length=255)
@@ -125,7 +125,7 @@ class SurveyAssessmentDocument(Document):
 
 
 class AssignCategoryToTask(models.Model):
-    tsk2cat_id = models.AutoField(primary_key=True)
+    tsk2cat_id = models.BigIntegerField(primary_key=True)
     task = models.ForeignKey(TaskLkp, on_delete=models.CASCADE, db_column='task', blank=True, null=True)
     tsk_cat = models.ForeignKey('TaskCategory', on_delete=models.CASCADE, blank=True, null=True)
     created_on = models.DateTimeField(blank=True, null=True)
@@ -139,7 +139,7 @@ class AssignCategoryToTask(models.Model):
 
 
 class AssignChtToPly(models.Model):
-    cht2ply_id = models.AutoField(primary_key=True)
+    cht2ply_id = models.BigIntegerField(primary_key=True)
     polygon = models.ForeignKey('Polygon', on_delete=models.CASCADE)
     #cohort = models.OneToOneField('Cohort', on_delete=models.CASCADE)
     cohort = models.ForeignKey('Cohort', on_delete=models.CASCADE)
@@ -158,7 +158,7 @@ class AssignChtToPly(models.Model):
 
 
 class AssignObjToReport(models.Model):
-    obj2rpt_id = models.AutoField(primary_key=True, db_comment='primary key')
+    obj2rpt_id = models.BigIntegerField(primary_key=True, db_comment='primary key')
     obj_code = models.ForeignKey(ObjectiveLkp, on_delete=models.CASCADE, db_column='obj_code', blank=True, null=True, db_comment='FK to objective table')
     report = models.ForeignKey('ReportCohort', on_delete=models.CASCADE, blank=True, null=True, db_comment='FK to report table')
     report_group_label = models.CharField(max_length=50, blank=True, null=True, db_comment='label to be used for the cohort (or group) report')
@@ -178,7 +178,7 @@ class AssignObjToReport(models.Model):
 
 
 class AssignTaskToReport(models.Model):
-    tsk2rpt_id = models.AutoField(primary_key=True, db_comment='primary key')
+    tsk2rpt_id = models.BigIntegerField(primary_key=True, db_comment='primary key')
     task = models.ForeignKey(TaskLkp, on_delete=models.CASCADE, db_column='task', blank=True, null=True, db_comment='FK to cohort table')
     tsk_rpt = models.ForeignKey('ReportTreatment', on_delete=models.CASCADE, blank=True, null=True, db_comment='FK to report table')
     report_group_label = models.CharField(max_length=50, blank=True, null=True, db_comment='label to be used for the cohort (or group) report')
@@ -240,7 +240,7 @@ class BaSweepTransfer(models.Model):
 
 
 class BaSweepVersion(models.Model):
-    ba_version_id = models.AutoField(primary_key=True)
+    ba_version_id = models.BigIntegerField(primary_key=True)
     name = models.CharField(max_length=50, blank=True, null=True)
     deployed_on = models.DateTimeField(blank=True, null=True)
     author = models.CharField(max_length=50, blank=True, null=True)
@@ -252,7 +252,7 @@ class BaSweepVersion(models.Model):
 
 
 class BaTransect(models.Model):
-    ba_transect_id = models.AutoField(primary_key=True)
+    ba_transect_id = models.BigIntegerField(primary_key=True)
     cell = models.ForeignKey('Cell', on_delete=models.CASCADE, blank=True, null=True)
     fpc_survey_id = models.IntegerField(blank=True, null=True)
     assessment_date = models.DateTimeField(blank=True, null=True)
@@ -289,7 +289,7 @@ class BaTransectTransfer(models.Model):
 
 
 class Cell(models.Model):
-    cell_id = models.AutoField(primary_key=True)
+    cell_id = models.BigIntegerField(primary_key=True)
     cell_no = models.IntegerField()
     op = models.ForeignKey('Operation', on_delete=models.CASCADE)
 
@@ -299,7 +299,7 @@ class Cell(models.Model):
 
 
 class ClComp2024PolysClearedMga202050Pl(models.Model):
-    gid = models.AutoField(primary_key=True)
+    gid = models.BigIntegerField(primary_key=True)
     bbm_bio_di = models.CharField(db_column='bbm:bio-di', max_length=10, blank=True, null=True)  # Field renamed to remove unsuitable characters.
     bbm_teneme = models.CharField(db_column='bbm:teneme', max_length=10, blank=True, null=True)  # Field renamed to remove unsuitable characters.
     bbm_vegeta = models.CharField(db_column='bbm:vegeta', max_length=12, blank=True, null=True)  # Field renamed to remove unsuitable characters.
@@ -324,7 +324,7 @@ class ClComp2024PolysClearedMga202050Pl(models.Model):
 
 
 class Cohort(models.Model):
-    cohort_id = models.AutoField(primary_key=True)
+    cohort_id = models.BigIntegerField(primary_key=True)
     obj_code = models.CharField(max_length=20, db_comment='Silvicultural or management objective for the polygon')
     op_id = models.IntegerField(blank=True, null=True)
     op_date = models.DateTimeField(blank=True, null=True, db_comment='Date of creation of the operation boundary i.e. the date of photography, or other vector data capture method (GPS)')
@@ -361,7 +361,7 @@ class Cohort(models.Model):
 
 
 class CohortResult(models.Model):
-    cr_id = models.AutoField(primary_key=True, db_comment='Primary key for the table')
+    cr_id = models.BigIntegerField(primary_key=True, db_comment='Primary key for the table')
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, blank=True, null=True, db_comment='Foreign key to cohort table')
     metric = models.ForeignKey(CohortMetricsLkp, on_delete=models.CASCADE, blank=True, null=True, db_comment='Foreign key to the success measures table')
     quantity = models.FloatField(blank=True, null=True, db_comment='Polygon / cohort average quantity (e.g. average BA or average crown density or average LAI)')
@@ -374,7 +374,7 @@ class CohortResult(models.Model):
 
 
 class CohortXtra(models.Model):
-    cohort_extra_id = models.AutoField(primary_key=True)
+    cohort_extra_id = models.BigIntegerField(primary_key=True)
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE)
     sub_type = models.CharField(max_length=25, blank=True, null=True)
     timeframe = models.IntegerField(blank=True, null=True)
@@ -397,7 +397,7 @@ class CohortXtra(models.Model):
 
 
 class CombinedSilrec2023(models.Model):
-    gid = models.AutoField(primary_key=True)
+    gid = models.BigIntegerField(primary_key=True)
     poly_id = models.CharField(max_length=254, blank=True, null=True)
     area = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     hectares = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
@@ -413,7 +413,7 @@ class CombinedSilrec2023(models.Model):
 
 
 class CombinedSilrec20232(models.Model):
-    gid = models.AutoField(primary_key=True)
+    gid = models.BigIntegerField(primary_key=True)
     poly_id = models.CharField(max_length=254, blank=True, null=True)
     area = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
     hectares = models.DecimalField(max_digits=100, decimal_places=16, blank=True, null=True)
@@ -453,7 +453,7 @@ class Duplicates(models.Model):
 
 
 class FeaActiveFmp25Region(models.Model):
-    gid = models.AutoField(primary_key=True)
+    gid = models.BigIntegerField(primary_key=True)
     feaid = models.CharField(max_length=10, blank=True, null=True)
     area = models.FloatField(blank=True, null=True)
     nett_area = models.FloatField(blank=True, null=True)
@@ -480,7 +480,7 @@ class FeaActiveFmp25Region(models.Model):
 
 
 class ObjectiveCategory(models.Model):
-    obj_cat_id = models.AutoField(primary_key=True)
+    obj_cat_id = models.BigIntegerField(primary_key=True)
     objective = models.CharField(max_length=50, blank=True, null=True)
     target_column = models.CharField(max_length=9, blank=True, null=True)
     category_value = models.CharField(max_length=25, blank=True, null=True)
@@ -501,7 +501,7 @@ class ObjectiveCategory(models.Model):
 
 
 class ObjectiveSubtype(models.Model):
-    type_id = models.AutoField(primary_key=True)
+    type_id = models.BigIntegerField(primary_key=True)
     silvic = models.CharField(max_length=20, blank=True, null=True, db_comment='Silvicultural Objective the sub-type applies to')
     subtype = models.CharField(unique=True, max_length=50, blank=True, null=True, db_comment='Name of the Sub type for the silvicultural objective')
     description = models.CharField(max_length=50, blank=True, null=True, db_comment='Brief description of the sub type')
@@ -514,7 +514,7 @@ class ObjectiveSubtype(models.Model):
 
 
 #class Operation(models.Model):
-#    op_id = models.AutoField(primary_key=True, db_comment='Unique identifier for each operation')
+#    op_id = models.BigIntegerField(primary_key=True, db_comment='Unique identifier for each operation')
 #    das_id = models.IntegerField(blank=True, null=True, db_comment='Disturbance Approval System (DAS) identifier')
 #    fea_id = models.CharField(max_length=20, blank=True, null=True, db_comment='Unique identifier for the FEA / OPERATION as determined by the planner (Peter Murray).\n\nWith historical v2 data FEA ID will be Stands.OpCode')
 #    plan_release = models.CharField(max_length=50, blank=True, null=True, db_comment='identifier for the release package including the FEA')
@@ -532,7 +532,7 @@ class Operation(models.Model):
         ('final', 'Final'),
     ]
 
-    op_id = models.AutoField(primary_key=True, db_comment='Unique identifier for each operation')
+    op_id = models.BigIntegerField(primary_key=True, db_comment='Unique identifier for each operation')
     das_id = models.IntegerField(blank=True, null=True, db_comment='Disturbance Approval System (DAS) identifier')
     fea_id = models.CharField(max_length=20, blank=True, null=True, db_comment='Unique identifier for the FEA / OPERATION as determined by the planner')
     plan_release = models.CharField(max_length=50, blank=True, null=True, db_comment='identifier for the release package including the FEA')
@@ -558,7 +558,7 @@ class Operation(models.Model):
 
 
 class Polygon(models.Model):
-    polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    polygon_id = models.BigIntegerField(primary_key=True, db_comment='Primary key')
     proposal = models.ForeignKey(
         Proposal, on_delete=models.CASCADE, related_name="polygons", blank=True, null=True
     )
@@ -585,7 +585,7 @@ class Polygon(models.Model):
 
 
 class PolygonDa(models.Model):
-    gid = models.AutoField(primary_key=True)
+    gid = models.BigIntegerField(primary_key=True)
     polygon_id = models.FloatField(blank=True, null=True)
     name = models.CharField(max_length=10, blank=True, null=True)
     compartment = models.CharField(max_length=5, blank=True, null=True)
@@ -609,7 +609,7 @@ class PolygonDa(models.Model):
 
 
 class PolygonMiningUnion(models.Model):
-    gid = models.AutoField(primary_key=True)
+    gid = models.BigIntegerField(primary_key=True)
     cpt = models.CharField(max_length=10, blank=True, null=True)
     bbm_teneme = models.CharField(max_length=10, blank=True, null=True)
     bbm_vegeta = models.CharField(max_length=12, blank=True, null=True)
@@ -672,7 +672,7 @@ class PolygonPriorToAreaFix(models.Model):
 
 
 class Prescription(models.Model):
-    prescription_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    prescription_id = models.BigIntegerField(primary_key=True, db_comment='Primary key')
     obj_code = models.ForeignKey(ObjectiveLkp, on_delete=models.CASCADE, related_name='prescriptions', db_column='obj_code', blank=True, null=True, db_comment='silvicultural objective task entry applies to\nForeign key to silvic_lkp  (OBJECTIVE-LKP??)\n**Change column name to match lookup table PK')
     sequence = models.IntegerField(blank=True, null=True, db_comment='Sequence of this task in the prescription for the silvicultural objective')
     task = models.ForeignKey(TaskLkp, on_delete=models.CASCADE, db_column='task', blank=True, null=True, db_comment='Foreign key to tasks table')
@@ -695,7 +695,7 @@ class Prescription(models.Model):
 
 
 class ReportCohort(models.Model):
-    report_id = models.AutoField(primary_key=True, db_comment='primary key')
+    report_id = models.BigIntegerField(primary_key=True, db_comment='primary key')
     report_name = models.CharField(max_length=50, blank=True, null=True, db_comment='Name of report')
     description = models.CharField(max_length=50, blank=True, null=True, db_comment='description of report, with additional clarifying information as to target audience, filtering, etc.')
 
@@ -706,7 +706,7 @@ class ReportCohort(models.Model):
 
 
 class ReportTreatment(models.Model):
-    tsk_rpt_id = models.AutoField(primary_key=True, db_comment='primary key')
+    tsk_rpt_id = models.BigIntegerField(primary_key=True, db_comment='primary key')
     report_name = models.CharField(max_length=50, blank=True, null=True, db_comment='Name of report')
     description = models.CharField(max_length=50, blank=True, null=True, db_comment='description of report, with additional clarifying information as to target audience, filtering, etc.')
 
@@ -732,7 +732,7 @@ class SilrecPly2023(models.Model):
 
 
 class SilrecVersion(models.Model):
-    version_id = models.AutoField(primary_key=True, db_comment="Primary key\nCorresponds to 'Build Number'")
+    version_id = models.BigIntegerField(primary_key=True, db_comment="Primary key\nCorresponds to 'Build Number'")
     name = models.CharField(max_length=50, blank=True, null=True, db_comment='Name or numeric code for version / release (User supplied)')
     deployed_on = models.DateTimeField(blank=True, null=True, db_comment='Date of final submission of version for Change Request')
     author = models.CharField(max_length=50, blank=True, null=True, db_comment='Author or person releasing the update/version')
@@ -745,7 +745,7 @@ class SilrecVersion(models.Model):
 
 
 class SilrecVersionTracking(models.Model):
-    tracking_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    tracking_id = models.BigIntegerField(primary_key=True, db_comment='Primary key')
     version = models.ForeignKey(SilrecVersion, on_delete=models.CASCADE, blank=True, null=True, db_comment='Foreign key to versions table, identifies what version/release the changes refer to')
     object = models.CharField(max_length=50, blank=True, null=True, db_comment='Object that has been changed or created')
     description = models.CharField(max_length=250, blank=True, null=True, db_comment='Description of the changes')
@@ -757,7 +757,7 @@ class SilrecVersionTracking(models.Model):
 
 
 class SilvicPlanInput(models.Model):
-    silvplan_id = models.AutoField(primary_key=True, db_comment='Unique identifier for rows/items in the table\n(not part of input shape file)')
+    silvplan_id = models.BigIntegerField(primary_key=True, db_comment='Unique identifier for rows/items in the table\n(not part of input shape file)')
     plan_release = models.CharField(max_length=50, blank=True, null=True, db_comment='Date stamp or identifier for the release of one or more silvic plans.\n(not part of input shape file)')
     id = models.IntegerField(blank=True, null=True, db_comment='integer field allegedly an identifier (but most rows have same value)')
     fea_id = models.CharField(max_length=10, blank=True, null=True, db_comment='Identifier for the FEA or operation incorporating the polygon.\nFollows the convention (using former LOIS coding)\nDBBCCYY\nwhere\nD = District code\nBB = Forest Block code\nCC = compartment (can be 3 digits)\nYY = last two digits of calendar year of operational plan.\n\ne.g. PWR0623, DOGO010023, DOSU071524')
@@ -782,7 +782,7 @@ class SilvicPlanInput(models.Model):
 
 
 class SilviculturistComment(models.Model):
-    s_comment_id = models.AutoField(primary_key=True)
+    s_comment_id = models.BigIntegerField(primary_key=True)
     comment = models.CharField(max_length=1000, blank=True, null=True)
     scope = models.CharField(max_length=50, blank=True, null=True, db_comment='scope of comment:\n\t- polygon\n\t- cohort\n\t- treatment\n\t- operation\n\t- proposed operation\n\nIn a forms environment this is populated with help of a dropdown')
     required_action = models.CharField(max_length=100, blank=True, null=True, db_comment='Specification of any follow up action in relation to this note')
@@ -817,7 +817,7 @@ class SplitUnchangedPolygons(models.Model):
 
 
 class TaskCategory(models.Model):
-    tsk_cat_id = models.AutoField(primary_key=True)
+    tsk_cat_id = models.BigIntegerField(primary_key=True)
     task = models.CharField(max_length=20, blank=True, null=True)
     target_column = models.CharField(max_length=9, blank=True, null=True)
     category_value = models.CharField(max_length=30, blank=True, null=True)
@@ -837,7 +837,7 @@ class TaskCategory(models.Model):
 
 
 class Treatment(models.Model):
-    treatment_id = models.AutoField(primary_key=True, db_comment='Primary key identifying treatment\n(task implemented on polygon/cohort)')
+    treatment_id = models.BigIntegerField(primary_key=True, db_comment='Primary key identifying treatment\n(task implemented on polygon/cohort)')
     prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, blank=True, null=True, db_comment='If/when a new prescription is created for a silvic objective, there is a linkage back to the prescription item that created the treatment (where it exists … sometimes there are ‘unprescribed’ treatments)')
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, blank=True, null=True, db_comment='Foreign key to cohort table\nidentifies the cohort the task was applied to')
     task = models.ForeignKey(TaskLkp, on_delete=models.CASCADE, db_column='task', blank=True, null=True, db_comment='Foreign key to task_lkp to identify task applied')
@@ -874,7 +874,7 @@ class Treatment(models.Model):
 
 
 class TreatmentXtra(models.Model):
-    treatment_xtra_id = models.AutoField(primary_key=True)
+    treatment_xtra_id = models.BigIntegerField(primary_key=True)
     treatment = models.ForeignKey(Treatment, on_delete=models.CASCADE)
     rescheduled_reason = models.CharField(max_length=30, blank=True, null=True, db_comment='Reason for rescheduling treatment')
     success_rate_pct = models.IntegerField(blank=True, null=True, db_comment='Number of sample points / plots meeting the specified stocking rate, as a percent of total sample points / plots\n\nis a real number between 0 and 100\nApply check constraint')
@@ -908,7 +908,7 @@ class TreatmentXtra(models.Model):
 
 
 class VegRetPatch(models.Model):
-    vrp_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    vrp_id = models.BigIntegerField(primary_key=True, db_comment='Primary key')
     habitat_log = models.IntegerField(blank=True, null=True, db_comment='Number of habitat logs included when demarcated in the field')
     habitat_tree = models.IntegerField(blank=True, null=True, db_comment='Number of habitat trees included when demarcated in the field')
     midstorey = models.IntegerField(blank=True, null=True, db_comment='Number of midstorey items included when demarcated in the field')
@@ -964,7 +964,7 @@ class FpcHarvestTracker(models.Model):
 
 
 #class TmpPolygon(models.Model):
-#    polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+#    polygon_id = models.BigIntegerField(primary_key=True, db_comment='Primary key')
 #    proposal = models.ForeignKey(
 #        Proposal, on_delete=models.CASCADE, related_name="tmp_polygons", blank=True, null=True
 #    )
@@ -991,7 +991,7 @@ class FpcHarvestTracker(models.Model):
 #
 #
 #class TmpAssignChtToPly(models.Model):
-#    cht2ply_id = models.AutoField(primary_key=True)
+#    cht2ply_id = models.BigIntegerField(primary_key=True)
 #    polygon = models.ForeignKey('TmpPolygon', on_delete=models.CASCADE)
 #    #cohort = models.OneToOneField('TmpCohort', on_delete=models.CASCADE)
 #    cohort = models.ForeignKey('TmpCohort', on_delete=models.CASCADE)
@@ -1010,7 +1010,7 @@ class FpcHarvestTracker(models.Model):
 #
 #
 #class TmpCohort(models.Model):
-#    cohort_id = models.AutoField(primary_key=True)
+#    cohort_id = models.BigIntegerField(primary_key=True)
 #    obj_code = models.CharField(max_length=20, db_comment='Silvicultural or management objective for the polygon')
 #    op_id = models.IntegerField(blank=True, null=True)
 #    op_date = models.DateTimeField(blank=True, null=True, db_comment='Date of creation of the operation boundary i.e. the date of photography, or other vector data capture method (GPS)')

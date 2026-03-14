@@ -33,8 +33,22 @@
                             <strong class="ms-1">{{ fileNameToDisplay }}</strong>
                         </div>
                         
-                        <!-- Process Shapefile Button -->
-                        <div class="ms-auto">
+                        <!-- In the template, update the button section -->
+                        <div class="ms-auto d-flex gap-2">
+                            <button 
+                                class="btn btn-warning revert-btn"
+                                @click="openRevertDialog"
+                                :disabled="!hasProcessedData || revertingShapefile"
+                                :title="!hasProcessedData ? 'No processed data to revert' : ''"
+                            >
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>
+                                <span v-if="revertingShapefile">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    Reverting...
+                                </span>
+                                <span v-else>Revert</span>
+                            </button>
+                            
                             <button 
                                 class="btn btn-success process-btn"
                                 @click="openProcessDialog"
@@ -49,6 +63,7 @@
                                 <span v-else>Process Shapefile</span>
                             </button>
                         </div>
+
                     </div>
                     
                     <input 
@@ -141,6 +156,16 @@
             />
 
         </FormSection>
+
+        <!-- Debug Snapshot Toggle -->
+        <SnapshotDebugToggle
+            v-if="$route.query.debug?.toLowerCase() === 'true'"
+            :proposal-id="proposalId"
+            :user-id="currentUserId"
+            :show-debug="true"
+            ref="snapshotDebugToggle"
+        />
+
     </div>
 </template>
 
@@ -150,6 +175,7 @@ import FileField from '@/components/forms/filefield_immediate.vue';
 import MapComponent from '@/components/common/component_map.vue';
 import Multiselect from 'vue-multiselect';
 import GisDataDetails from '@/components/common/gis_data_details.vue';
+import SnapshotDebugToggle from '@/components/common/SnapshotDebugToggle.vue';
 import { v4 as uuid } from 'uuid';
 import Swal from 'sweetalert2';
 
@@ -164,6 +190,7 @@ export default {
     components: {
         FormSection,
         MapComponent,
+        SnapshotDebugToggle,
     },
     props: {
         proposal: {
@@ -295,6 +322,15 @@ export default {
             
             // Current user ID (you'll need to set this from your auth system)
             currentUserId: null,
+
+            // Shapefile processing states
+            processingShapefile: false,
+            processError: null,
+            
+            // Add these new properties
+            revertingShapefile: false,
+            revertError: null,
+
         };
     },
     computed: {
@@ -466,6 +502,15 @@ export default {
 
             return resultList;
         },
+
+        // Check if there's processed data to revert
+        hasProcessedData: function () {
+            return !!(this.proposal && 
+                    (this.proposal.proposalgeometry_processed || 
+                    this.proposal.proposalgeometry_processed_iters ||
+                    this.proposal.geojson_data_processed ||
+                    this.proposal.geojson_data_processed_iters));
+        }
     },
     created: function () {
         this.uuid = uuid();
@@ -884,6 +929,142 @@ export default {
                     }
                 }, 500);
             }
+        },
+
+        // Open revert confirmation dialog
+        openRevertDialog: function () {
+            Swal.fire({
+                title: 'Revert Changes',
+                html: `
+                    <div style="text-align: left;">
+                        <p>Are you sure you want to revert all changes made by the last shapefile processing operation?</p>
+                        <p style="font-weight: bold; color: #dc3545;">This action cannot be undone!</p>
+                        <p>This will:</p>
+                        <ul style="margin-top: 5px;">
+                            <li>Restore the proposal to its state before processing</li>
+                            <li>Remove any new polygons and cohorts created</li>
+                            <li>Restore original geometry data</li>
+                        </ul>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Revert Changes',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return this.revertShapefileProcessing();
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    // Success message already shown in revert method
+                }
+            });
+        },
+        
+        // Revert shapefile processing
+        revertShapefileProcessing: async function () {
+            this.revertingShapefile = true;
+            this.revertError = null;
+            
+            // Show processing dialog
+            Swal.fire({
+                title: 'Reverting Changes',
+                html: 'Please wait while reverting to previous state...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            try {
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/revert_shapefile_processing/'
+                );
+                
+                const csrfToken = helpers.getCookie('csrftoken');
+                
+                const payload = {
+                    user_id: this.currentUserId,
+                    proposal_id: this.proposalId
+                };
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                // Close loading dialog
+                Swal.close();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || 'Failed to revert changes');
+                }
+                
+                // Success
+                if (data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Revert Successful',
+                        html: `
+                            <div style="text-align: center;">
+                                <p>${data.message || 'Successfully reverted to previous state'}</p>
+                                ${data.records_removed ? `<p style="font-size: 0.9em; color: #6c757d;">Records removed: ${data.records_removed}</p>` : ''}
+                            </div>
+                        `,
+                        confirmButtonColor: '#28a745',
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                    
+                    // Update the proposal data with the reverted version
+                    if (data.proposal) {
+                        this.$emit('refreshFromResponse', data.proposal);
+                    }
+                    
+                    // Always refresh the map
+                    this.refreshMapAfterProcessing();
+                    
+                    // Refresh the datatable
+                    this.refreshPolygonCohortTable();
+                    
+                } else {
+                    throw new Error(data.message || 'Unknown error occurred');
+                }
+                
+            } catch (error) {
+                console.error('Error reverting changes:', error);
+                
+                // Close loading dialog
+                Swal.close();
+                
+                // Show error message
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Revert Failed',
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="color: #dc3545;">${error.message || 'An error occurred while reverting changes'}</p>
+                        </div>
+                    `,
+                    confirmButtonColor: '#dc3545'
+                });
+                
+                this.revertError = error.message;
+            } finally {
+                this.revertingShapefile = false;
+            }
         }
 
     },
@@ -1016,20 +1197,26 @@ export default {
         flex-direction: column;
         align-items: flex-start !important;
     }
-    
+
     .uploaded-filename {
         margin-left: 0 !important;
         margin-top: 10px;
         max-width: 100%;
     }
-    
+
     .ms-auto {
         margin-left: 0 !important;
         margin-top: 10px;
         width: 100%;
     }
-    
+
+    .revert-btn,
     .process-btn {
+        width: 100%;
+    }
+
+    .d-flex.gap-2 {
+        flex-direction: column;
         width: 100%;
     }
 }

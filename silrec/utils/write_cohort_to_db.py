@@ -9,6 +9,7 @@ import pandas as pd
 from datetime import datetime
 from django.utils import timezone
 from copy import deepcopy
+import reversion
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,22 +35,26 @@ def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_m
             regen_method_id=regen_method #' %', # FK req'd
         )
 
-        if len(cohort_qs) == 0:
-            cohort_obj = Cohort.objects.create(
-                obj_code=obj_code,
-                op_id=op_id,
-                op_date=op_date,
-                target_ba_m2ha=target_ba_float,
-                regen_method_id=regen_method #' %', # FK req'd
-                # No extra defaults needed because we're providing all field values.
-            )
+        with reversion.create_revision():
+            try:
+                if len(cohort_qs) == 0:
+                    cohort_obj = Cohort.objects.create(
+                        obj_code=obj_code,
+                        op_id=op_id,
+                        op_date=op_date,
+                        target_ba_m2ha=target_ba_float,
+                        regen_method_id=regen_method #' %', # FK req'd
+                        # No extra defaults needed because we're providing all field values.
+                    )
 
-            al = AuditLogger(Cohort, cohort_obj, 'INSERT', request_metrics, iter_seq, new_vals=cohort_obj).create()
-            #al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj).create()
-            logger.info(f"Successful INSERT cohort record with ID: {cohort_obj.cohort_id}")
-        else:
-            cohort_obj = cohort_qs[0]
-            logger.info(f"Successful RETRIEVE of cohort record with ID: {cohort_obj.cohort_id}")
+                    al = AuditLogger(Cohort, cohort_obj, 'INSERT', request_metrics, iter_seq, new_vals=cohort_obj).create()
+                    #al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj).create()
+                    logger.info(f"Successful INSERT cohort record with ID: {cohort_obj.cohort_id}")
+                else:
+                    cohort_obj = cohort_qs[0]
+                    logger.info(f"Successful RETRIEVE of cohort record with ID: {cohort_obj.cohort_id}")
+            except Exception as e:
+                raise Exception(e)
 
         return cohort_obj.cohort_id
 
@@ -116,36 +121,40 @@ def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
                 logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, status_current={status_current}")
 
                 #import ipdb; ipdb.set_trace()
-                obj, created = AssignChtToPly.objects.update_or_create(
-                    cohort_id=cohort_id,
-                    polygon_id=polygon_id,
-                    defaults={
-                        #'op_id': op_id,
-                        'status_current': status_current
-                    }
-                )
+                with reversion.create_revision():
+                    try:
+                        obj, created = AssignChtToPly.objects.update_or_create(
+                            cohort_id=int(cohort_id),
+                            polygon_id=int(polygon_id),
+                            defaults={
+                                #'op_id': op_id,
+                                'status_current': status_current
+                            }
+                        )
 
-                if created:
-                    obj.created_on = current_time
-                    obj.created_by = user_id
-                    obj_orig = deepcopy(obj)
-                    action = "INSERT"
-                else:
-                    action = "UPDATE"
-                    obj_orig = obj
+                        if created:
+                            obj.created_on = current_time
+                            obj.created_by = user_id
+                            obj_orig = deepcopy(obj)
+                            action = "INSERT"
+                        else:
+                            action = "UPDATE"
+                            obj_orig = obj
 
-                obj.updated_on = current_time
-                obj.updated_by = user_id
-                obj.save()
+                        obj.updated_on = current_time
+                        obj.updated_by = user_id
+                        obj.save()
 
-                al = AuditLogger(
-                    AssignChtToPly, obj, action, request_metrics, iter_seq, old_vals=obj_orig, new_vals=obj
-                ).create()
-                #al = AuditLogger(AssignChtToPly, obj, action, user_id, proposal_id, obj_orig, obj).create()
+                        al = AuditLogger(
+                            AssignChtToPly, obj, action, request_metrics, iter_seq, old_vals=obj_orig, new_vals=obj
+                        ).create()
+                        #al = AuditLogger(AssignChtToPly, obj, action, user_id, proposal_id, obj_orig, obj).create()
 
-                cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
-                success_count += 1
-                logger.info(f"Successful {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
+                        cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
+                        success_count += 1
+                        logger.info(f"Successful {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
+                    except Exception as e:
+                        raise Exception(e)
 
             except Exception as e:
                 error_count += 1

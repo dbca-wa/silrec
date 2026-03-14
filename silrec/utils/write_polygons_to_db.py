@@ -10,6 +10,8 @@ from silrec.components.forest_blocks.models import Polygon#, PolygonAudit
 from silrec.components.proposals.models import AuditLog
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 from copy import deepcopy
+import pandas as pd
+import reversion
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,9 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
         # Build a map of polygon_id -> highest priority poly_type in the input
         poly_type_map = _create_poly_type_map(gdf_sorted)
 
+        gdf_sorted['polygon_id'] = pd.to_numeric(gdf_sorted['polygon_id'], errors='coerce').fillna(0).astype(int)
+
+        #import ipdb; ipdb.set_trace()
         for idx, row in gdf_sorted.iterrows():
             polygon_id = row['polygon_id']
             poly_type = row.get('poly_type', 'OTHER')
@@ -174,21 +179,25 @@ def _insert_new_polygon(row, request_metrics, iter_seq):
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
 
-    ply = Polygon.objects.create(
-        polygon_id=row['polygon_id'],
-        name=row['name'],
-        compartment_id=row['compartment'],
-        area_ha=row['area_ha'],
-        sp_code=row['sp_code'],
-        proposal_id=proposal_id_row,
-        geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
-        created_by=user_id,
-        updated_by=user_id,
-        # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
-    )
+    with reversion.create_revision():
+        try:
+            ply = Polygon.objects.create(
+                polygon_id=int(row['polygon_id']),
+                name=row['name'],
+                compartment_id=row['compartment'],
+                area_ha=row['area_ha'],
+                sp_code=row['sp_code'],
+                proposal_id=proposal_id_row,
+                geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
+                created_by=user_id,
+                updated_by=user_id,
+                # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
+            )
 
-    al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
-    #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+            al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
+            #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+        except Exception as e:
+            raise Exception(e)
 
 def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
     """Insert a duplicate polygon with a new polygon_id."""
@@ -196,56 +205,67 @@ def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
     user_id = request_metrics.user.id
 
-    ply = Polygon.objects.create(
-        polygon_id=new_polygon_id,
-        name=row['name'],
-        compartment_id=row['compartment'],
-        area_ha=row['area_ha'],
-        sp_code=row['sp_code'],
-        proposal_id=proposal_id_row,
-        geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
-        created_by=user_id,
-        updated_by=user_id,
-    )
+    with reversion.create_revision():
+        try:
+            ply = Polygon.objects.create(
+                polygon_id=int(new_polygon_id),
+                name=row['name'],
+                compartment_id=row['compartment'],
+                area_ha=row['area_ha'],
+                sp_code=row['sp_code'],
+                proposal_id=proposal_id_row,
+                geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
+                created_by=user_id,
+                updated_by=user_id,
+            )
 
-    #import ipdb; ipdb.set_trace()
-    al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
-    #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+            #import ipdb; ipdb.set_trace()
+            al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
+            #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+        except Exception as e:
+            raise Exception(e)
 
 def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
     """
     Update an existing polygon record.
     proposal_id is set only if the current DB value is NULL.
     """
-    poly = Polygon.objects.select_for_update().get(polygon_id=polygon_id)
-    poly_orig = deepcopy(poly)
+    with reversion.create_revision():
+        try:
+            #import ipdb; ipdb.set_trace()
+            poly = Polygon.objects.select_for_update().get(polygon_id=int(polygon_id))
+            poly_orig = deepcopy(poly)
 
-    # Update basic fields
-    poly.name = row['name']
-    poly.compartment_id = row['compartment']
-    poly.area_ha = row['area_ha']
-    poly.sp_code = row['sp_code']
-    if hasattr(row['geometry'], 'wkt'):
-        geom = GEOSGeometry(row['geometry'].wkt)
-        #import ipdb; ipdb.set_trace()
-        poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
-    poly.updated_by = request_metrics.user.id
+            # Update basic fields
+            poly.name = row['name']
+            poly.compartment_id = row['compartment']
+            poly.area_ha = row['area_ha']
+            poly.sp_code = row['sp_code']
+            if hasattr(row['geometry'], 'wkt'):
+                geom = GEOSGeometry(row['geometry'].wkt)
+                #import ipdb; ipdb.set_trace()
+                poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
+            poly.updated_by = request_metrics.user.id
 
-    # proposal_id: set only if currently NULL and poly_type == 'BASE'
-    if poly.proposal_id is None and row.get('poly_type') == 'BASE':
-        #poly.proposal_id = row.get('proposal_id')
-        poly.proposal_id = request_metrics.proposal.id
+            # proposal_id: set only if currently NULL and poly_type == 'BASE'
+            if poly.proposal_id is None and row.get('poly_type') == 'BASE':
+                #poly.proposal_id = row.get('proposal_id')
+                poly.proposal_id = request_metrics.proposal.id
 
-    poly.save()
+            poly.save()
 
-    #import ipdb; ipdb.set_trace()
-    al = AuditLogger(Polygon, poly, 'UPDATE', request_metrics, iter_seq, old_vals=poly_orig, new_vals=poly).create()
-    #al = AuditLogger(Polygon, poly, 'UPDATE', user_id, proposal_id, poly_orig, poly).create()
+            #import ipdb; ipdb.set_trace()
+            al = AuditLogger(Polygon, poly, 'UPDATE', request_metrics, iter_seq, old_vals=poly_orig, new_vals=poly).create()
+            #al = AuditLogger(Polygon, poly, 'UPDATE', user_id, proposal_id, poly_orig, poly).create()
+        except Exception as e:
+            raise Exception(e)
+            import ipdb; ipdb.set_trace()
+            pass
 
 def _get_next_polygon_id():
     """Return the next available polygon_id (max existing + 1)."""
     max_id = Polygon.objects.aggregate(models.Max('polygon_id'))['polygon_id__max']
-    return (max_id or 0) + 1
+    return (int(max_id) or 0) + 1
 
 # Inside write_polygons_to_db.py (updated)
 

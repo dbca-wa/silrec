@@ -26,14 +26,24 @@
                             Upload Shapefile
                         </button>
 
-                        <!-- Display uploaded filename -->
+                        <!-- Display uploaded filename with delete button -->
                         <div v-if="fileNameToDisplay" class="ms-2 uploaded-filename">
                             <i class="bi bi-file-earmark-zip me-1"></i>
                             <span class="text-muted">Uploaded:</span>
                             <strong class="ms-1">{{ fileNameToDisplay }}</strong>
+                            
+                            <!-- Delete button -->
+                            <button 
+                                class="btn btn-sm btn-link text-danger ms-2 p-0"
+                                @click="confirmDeleteShapefile"
+                                :disabled="uploadingShapefile || !hasShapefile"
+                                :title="'Delete current shapefile'"
+                            >
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </div>
                         
-                        <!-- In the template, update the button section -->
+                        <!-- Process and Revert buttons -->
                         <div class="ms-auto d-flex gap-2">
                             <button 
                                 class="btn btn-warning revert-btn"
@@ -63,13 +73,14 @@
                                 <span v-else>Process Shapefile</span>
                             </button>
                         </div>
-
                     </div>
                     
+                    <!-- Hidden file input for shapefile upload -->
                     <input 
                         type="file" 
                         ref="shapefileInput"
-                        accept=".zip"
+                        accept=".zip,.shp,.shx,.dbf,.prj"
+                        :multiple="true"
                         style="display: none"
                         @change="handleShapefileUpload"
                     >
@@ -108,7 +119,11 @@
                 <div class="upload-info mt-2">
                     <small class="text-muted">
                         <i class="bi bi-info-circle me-1"></i>
-                        Upload a .zip file containing shapefile components (.shp, .shx, .dbf, .prj)
+                        Upload either:
+                        <ul class="mt-1 mb-0 ps-3">
+                            <li>A single <strong>.zip</strong> file containing all shapefile components</li>
+                            <li>OR select multiple files: <strong>.shp, .shx, .dbf, .prj</strong> (select all at once)</li>
+                        </ul>
                     </small>
                 </div>
             </div>
@@ -154,7 +169,6 @@
                 @finished-drawing="$emit('finished-drawing')"
                 @deleted-features="$emit('deleted-features')"
             />
-
         </FormSection>
 
         <!-- Debug Snapshot Toggle -->
@@ -165,21 +179,18 @@
             :show-debug="true"
             ref="snapshotDebugToggle"
         />
-
     </div>
 </template>
 
 <script>
 import FormSection from '@/components/forms/section_toggle.vue';
-import FileField from '@/components/forms/filefield_immediate.vue';
 import MapComponent from '@/components/common/component_map.vue';
-import Multiselect from 'vue-multiselect';
-import GisDataDetails from '@/components/common/gis_data_details.vue';
 import SnapshotDebugToggle from '@/components/common/SnapshotDebugToggle.vue';
 import { v4 as uuid } from 'uuid';
 import Swal from 'sweetalert2';
+import moment from 'moment';
 
-import { api_endpoints, helpers, utils } from '@/utils/hooks';
+import { api_endpoints, helpers } from '@/utils/hooks';
 import {
     owsQuery,
     validateFeature,
@@ -320,17 +331,15 @@ export default {
             // Map key – used only if we must force a full remount (rare)
             componentMapKey: 0,
             
-            // Current user ID (you'll need to set this from your auth system)
+            // Current user ID
             currentUserId: null,
-
-            // Shapefile processing states
-            processingShapefile: false,
-            processError: null,
             
-            // Add these new properties
+            // Revert states
             revertingShapefile: false,
             revertError: null,
 
+            // Pending upload for confirmation flow
+            pendingUpload: null,
         };
     },
     computed: {
@@ -515,28 +524,22 @@ export default {
     created: function () {
         this.uuid = uuid();
         
-        // Get current user ID from your auth system
-        // This depends on how your app manages user authentication
+        // Get current user ID
         this.getCurrentUser();
     },
     mounted: function () {
         this.$emit('formMounted');
     },
-    beforeDestroy: function () {   // Changed from beforeUnmount to beforeDestroy for Vue 2
+    beforeDestroy: function () {
         // Cleanup if needed
     },
     methods: {
         handleProcessedGeometryUpdate(updatedGeoJSON) {
             // Update the proposal's processed geometry data
-            //this.proposal.proposalgeometry_processed = updatedGeoJSON;
-            // Optionally trigger an API call to save
-            //this.$emit('refreshFromResponse', this.proposal);
+            // this.proposal.proposalgeometry_processed = updatedGeoJSON;
+            // this.$emit('refreshFromResponse', this.proposal);
         },
 
-        /*
-        Map refresh: removed key increment on upload; map will update via prop watchers.
-        forceToRefreshMap is still available for resizing if necessary.
-        */
         refreshFromResponse: function (data) {
             this.$emit('refreshFromResponse', data);
         },
@@ -544,8 +547,6 @@ export default {
         // Get current user
         getCurrentUser: async function () {
             try {
-                // You'll need to implement this based on your auth system
-                // This is just an example
                 const response = await fetch('/api/user/');
                 const data = await response.json();
                 this.currentUserId = data.id;
@@ -565,30 +566,177 @@ export default {
         },
 
         handleShapefileUpload: function (event) {
-            const file = event.target.files[0];
-            if (!file) {
+            const files = event.target.files;
+            if (!files || files.length === 0) {
                 return;
             }
 
-            // Store selected filename immediately
-            this.selectedFileName = file.name;
-            
+            // Store files for potential confirmation flow
+            this.pendingUpload = files;
+
+            // Check if there's an existing shapefile
+            if (this.hasShapefile) {
+                this.showReplaceConfirmation();
+            } else {
+                this.processUploadedFiles();
+            }
+        },
+
+        showReplaceConfirmation: function () {
+            Swal.fire({
+                title: 'Replace Existing Shapefile?',
+                html: `
+                    <div style="text-align: left;">
+                        <p>Uploading a new shapefile will:</p>
+                        <ul style="margin-top: 5px;">
+                            <li>Delete the current shapefile: <strong>${this.fileNameToDisplay || 'Unknown'}</strong></li>
+                            <li>Clear all processed geometry data</li>
+                            <li>Remove any generated polygons and cohorts</li>
+                        </ul>
+                        <p style="font-weight: bold; color: #dc3545; margin-top: 15px;">This action cannot be undone!</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Replace',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.processUploadedFiles(true);
+                } else {
+                    this.clearFileInput();
+                    this.pendingUpload = null;
+                }
+            });
+        },
+
+        processUploadedFiles: async function (confirmed = false) {
+            const files = this.pendingUpload;
+            if (!files) return;
+
             // Reset previous upload state
             this.uploadSuccess = false;
             this.uploadError = null;
             this.processError = null;
-
-            // Validate file type
-            if (!file.name.toLowerCase().endsWith('.zip')) {
-                this.uploadError = 'Please upload a .zip file';
-                this.clearFileInput();
+            
+            // Case 1: Single ZIP file
+            if (files.length === 1 && files[0].name.toLowerCase().endsWith('.zip')) {
+                this.selectedFileName = files[0].name;
+                await this.uploadShapefile(files[0], confirmed);
                 return;
             }
 
-            this.uploadShapefile(file);
+            // Case 2: Multiple shapefile components
+            const shapefileComponents = this.validateShapefileComponents(files);
+            if (shapefileComponents.valid) {
+                // Use the .shp filename for display
+                const shpFile = shapefileComponents.files.find(f => 
+                    f.name.toLowerCase().endsWith('.shp')
+                );
+                this.selectedFileName = shpFile ? shpFile.name.replace('.shp', ' (components)') : 'Shapefile components';
+                
+                // Create a zip on the fly
+                await this.createAndUploadShapefileZip(shapefileComponents.files, confirmed);
+            } else {
+                this.uploadError = shapefileComponents.error || 'Invalid file selection. Please select either a single .zip file OR all required shapefile components (.shp, .shx, .dbf, .prj)';
+                this.clearFileInput();
+                
+                // Auto-clear error after 10 seconds
+                setTimeout(() => {
+                    this.uploadError = null;
+                }, 10000);
+            }
+            
+            this.pendingUpload = null;
         },
 
-        uploadShapefile: async function (file) {
+        validateShapefileComponents: function (files) {
+            const allowedExtensions = ['.shp', '.shx', '.dbf', '.prj'];
+            const requiredExtensions = ['.shp', '.shx', '.dbf']; // .prj is optional
+            const fileMap = new Map();
+            
+            // Check each file extension
+            for (let file of files) {
+                const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+                if (!allowedExtensions.includes(ext)) {
+                    return {
+                        valid: false,
+                        error: `Invalid file type: ${file.name}. Allowed: .shp, .shx, .dbf, .prj`
+                    };
+                }
+                fileMap.set(ext, file);
+            }
+            
+            // Check for required components
+            const missingComponents = requiredExtensions.filter(ext => !fileMap.has(ext));
+            if (missingComponents.length > 0) {
+                return {
+                    valid: false,
+                    error: `Missing required shapefile components: ${missingComponents.join(', ')}`
+                };
+            }
+            
+            return {
+                valid: true,
+                files: Array.from(fileMap.values())
+            };
+        },
+
+        createAndUploadShapefileZip: async function (files, confirmed = false) {
+            this.uploadingShapefile = true;
+            this.uploadProgress = 0;
+            this.uploadStatus = 'Creating zip file...';
+            
+            try {
+                // Use JSZip to create a zip file
+                const JSZip = (await import('jszip')).default;
+                const zip = new JSZip();
+                
+                // Add each file to the zip
+                files.forEach(file => {
+                    zip.file(file.name, file);
+                });
+                
+                // Generate the zip file
+                this.uploadStatus = 'Compressing files...';
+                const content = await zip.generateAsync({ 
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                }, (metadata) => {
+                    // Update progress during compression
+                    this.uploadProgress = Math.round(metadata.percent);
+                    this.uploadStatus = `Compressing... ${this.uploadProgress}%`;
+                });
+                
+                // Create a File object from the blob
+                const zipFileName = `shapefile_${Date.now()}.zip`;
+                const zipFile = new File([content], zipFileName, { type: 'application/zip' });
+                
+                // Upload the generated zip
+                await this.uploadShapefile(zipFile, confirmed);
+                
+            } catch (error) {
+                console.error('Error creating zip file:', error);
+                this.uploadError = 'Failed to create zip file from components';
+                this.uploadingShapefile = false;
+                this.clearFileInput();
+            }
+        },
+
+        clearFileInput: function () {
+            if (this.$refs.shapefileInput) {
+                this.$refs.shapefileInput.value = '';
+                // For multiple file input, we need to clear differently
+                if (this.$refs.shapefileInput.files) {
+                    this.$refs.shapefileInput.files = null;
+                }
+            }
+        },
+
+        uploadShapefile: async function (file, confirmed = false) {
             this.uploadingShapefile = true;
             this.uploadProgress = 0;
             this.uploadStatus = 'Preparing upload...';
@@ -598,8 +746,9 @@ export default {
             const formData = new FormData();
             formData.append('shapefile', file);
             formData.append('proposal_id', this.proposalId);
+            formData.append('confirm_replace', confirmed ? 'true' : 'false');
             
-            // Simulated progress interval – will be cleared on error/success
+            // Simulated progress interval
             let progressInterval = null;
             
             try {
@@ -610,7 +759,7 @@ export default {
                 
                 const csrfToken = helpers.getCookie('csrftoken');
                 
-                // Simulate upload progress (will be cleared in finally)
+                // Simulate upload progress
                 progressInterval = setInterval(() => {
                     if (this.uploadProgress < 90) {
                         this.uploadProgress += 10;
@@ -627,38 +776,66 @@ export default {
                 });
                 
                 clearInterval(progressInterval);
+                
+                const data = await response.json();
+                
+                // Check if confirmation is required (shouldn't happen now since we handle it client-side)
+                if (data.requires_confirmation) {
+                    this.uploadingShapefile = false;
+                    this.clearFileInput();
+                    
+                    const result = await Swal.fire({
+                        title: 'Replace Existing Shapefile?',
+                        html: `
+                            <div style="text-align: left;">
+                                <p>${data.message}</p>
+                                <p>Existing file: <strong>${data.existing_filename}</strong></p>
+                                <p style="font-weight: bold; color: #dc3545; margin-top: 15px;">This action cannot be undone!</p>
+                            </div>
+                        `,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, Replace',
+                        cancelButtonText: 'Cancel',
+                        confirmButtonColor: '#dc3545',
+                    });
+                    
+                    if (result.isConfirmed) {
+                        // Retry with confirmation
+                        formData.set('confirm_replace', 'true');
+                        this.uploadShapefile(file, true);
+                    }
+                    return;
+                }
+                
                 this.uploadProgress = 100;
                 this.uploadStatus = 'Upload complete, processing...';
                 
                 if (!response.ok) {
-                    let errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData.error) {
-                            errorMessage = errorData.error;
-                        }
-                        if (errorData.details) {
-                            errorMessage += ` - ${errorData.details}`;
-                        }
-                    } catch (e) {
-                        console.error('Error parsing error response:', e);
-                    }
-                    throw new Error(errorMessage);
+                    throw new Error(data.error || data.message || 'Upload failed');
                 }
-                
-                const data = await response.json();
-                
-                this.uploadStatus = 'Processing shapefile...';
-                await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 if (data.success && data.proposal) {
                     this.uploadSuccess = true;
                     this.uploadStatus = 'Shapefile processed successfully!';
                     
+                    // Show success message with feature count
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Upload Successful',
+                        html: `
+                            <div style="text-align: center;">
+                                <p>${data.feature_count} features loaded from shapefile</p>
+                            </div>
+                        `,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
                     // Emit refresh event to update parent component
                     this.$emit('refreshFromResponse', data.proposal);
                     
-                    // Force map resize after data update (without remounting)
+                    // Force map resize after data update
                     await this.$nextTick();
                     if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
                         setTimeout(() => {
@@ -677,19 +854,12 @@ export default {
             } catch (error) {
                 console.error('Error uploading shapefile:', error);
                 
-                // Stop progress simulation if it's still running
                 if (progressInterval) {
                     clearInterval(progressInterval);
-                    progressInterval = null;
                 }
                 
-                let errorMessage = 'Failed to upload shapefile';
-                if (error.message) {
-                    errorMessage = error.message;
-                }
+                this.uploadError = error.message || 'Failed to upload shapefile';
                 
-                this.uploadError = errorMessage;
-                // Clear error after 10 seconds
                 setTimeout(() => {
                     this.uploadError = null;
                 }, 10000);
@@ -698,213 +868,275 @@ export default {
                 this.uploadProgress = 0;
                 this.uploadStatus = '';
                 this.clearFileInput();
-                // Do not clear selectedFileName here – it will be replaced by storedFileName after refresh
             }
         },
-        
-        clearFileInput: function () {
-            if (this.$refs.shapefileInput) {
-                this.$refs.shapefileInput.value = '';
-            }
-        },
-        
-    // Shapefile Processing Methods
-    openProcessDialog: function () {
-        if (!this.hasShapefile) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'No Shapefile',
-                text: 'Please upload a shapefile first',
-                confirmButtonColor: '#3085d6'
-            });
-            return;
-        }
-        
-        // Show SweetAlert2 dialog with compact horizontal layout
-        Swal.fire({
-            title: 'Process Shapefile',
-            html: `
-                <div style="padding: 5px 0;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
-                        <label for="threshold" style="font-weight: bold; min-width: 120px; text-align: right;">Threshold Value:</label>
-                        <div style="flex: 1;">
-                            <input 
-                                type="number" 
-                                id="threshold" 
-                                class="swal2-input" 
-                                value="5.0" 
-                                min="0.1" 
-                                max="100" 
-                                step="0.1"
-                                style="width: 100%; margin: 0;"
-                            >
-                        </div>
-                    </div>
-                    <div style="font-size: 0.85em; color: #6c757d; text-align: left; margin-top: 5px; padding-left: 130px;">
-                        Higher values remove more sliver polygons. Default is 5.0.
-                    </div>
-                </div>
-            `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Process',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
-            showConfirmButton: true,
-            showLoaderOnConfirm: true, // This shows a spinner on the button
-            preConfirm: () => {
-                const threshold = document.getElementById('threshold').value;
-                
-                // Validate threshold
-                const thresholdValue = parseFloat(threshold);
-                if (isNaN(thresholdValue) || thresholdValue < 0.1 || thresholdValue > 100) {
-                    Swal.showValidationMessage('Threshold must be between 0.1 and 100');
-                    return false;
-                }
-                
-                return {
-                    threshold: thresholdValue
-                };
-            }
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                this.processShapefile(result.value.threshold);
-            }
-        });
-    },
 
-    processShapefile: async function (threshold) {
-        // Show processing dialog with spinner
-        Swal.fire({
-            title: 'Processing Shapefile',
-            html: 'Please wait while the shapefile is being processed...',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            showConfirmButton: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        this.processingShapefile = true;
-        this.processError = null;
-        
-        try {
-            const url = helpers.add_endpoint_join(
-                this.api_endpoints.proposal,
-                this.proposalId + '/process_shapefile/'
-            );
-            
-            const csrfToken = helpers.getCookie('csrftoken');
-            
-            const payload = {
-                threshold: threshold,
-                user_id: this.currentUserId,
-                proposal_id: this.proposalId
-            };
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: JSON.stringify(payload)
-            });
-            
-            const data = await response.json();
-            
-            // Close loading dialog
-            Swal.close();
-            
-            if (!response.ok) {
-                throw new Error(data.error || data.message || 'Failed to process shapefile');
-            }
-            
-            // Success
-            if (data.success) {
-                // Show compact success message
-                const successHtml = `
-                    <div style="text-align: center;">
-                        <p style="margin-bottom: 10px;">${data.message || 'Shapefile processed successfully!'}</p>
-                        ${data.feature_count ? `<p style="font-size: 0.9em; color: #6c757d;">Features processed: ${data.feature_count}</p>` : ''}
-                    </div>
-                `;
-                
-                if (data.warnings && data.warnings.length) {
-                    await Swal.fire({
-                        icon: 'warning',
-                        title: 'Processing Complete with Warnings',
-                        html: `
-                            <div style="text-align: left;">
-                                <p>${data.message || 'Shapefile processed with warnings'}</p>
-                                <div style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
-                                    <ul style="margin: 0; padding-left: 20px;">
-                                        ${data.warnings.map(w => `<li style="font-size: 0.9em;">${w}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            </div>
-                        `,
-                        confirmButtonColor: '#ffc107',
-                        confirmButtonText: 'OK'
-                    });
-                } else {
-                    await Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        html: successHtml,
-                        confirmButtonColor: '#28a745',
-                        timer: 2000,
-                        timerProgressBar: true,
-                        showConfirmButton: true
-                    });
-                }
-                
-                // Update the proposal data with the processed version
-                if (data.proposal) {
-                    this.$emit('refreshFromResponse', data.proposal);
-                }
-                
-                // Always refresh the map
-                this.refreshMapAfterProcessing();
-                
-            } else {
-                throw new Error(data.message || 'Unknown error occurred');
-            }
-            
-        } catch (error) {
-            console.error('Error processing shapefile:', error);
-            
-            // Close loading dialog
-            Swal.close();
-            
-            // Show compact error message
-            await Swal.fire({
-                icon: 'error',
-                title: 'Processing Failed',
+        confirmDeleteShapefile: function () {
+            Swal.fire({
+                title: 'Delete Shapefile?',
                 html: `
-                    <div style="text-align: center;">
-                        <p style="color: #dc3545;">${error.message || 'An error occurred while processing the shapefile'}</p>
+                    <div style="text-align: left;">
+                        <p>Are you sure you want to delete the current shapefile?</p>
+                        <p>This will:</p>
+                        <ul style="margin-top: 5px;">
+                            <li>Permanently delete the file from the server</li>
+                            <li>Clear all geometry data from the proposal</li>
+                            <li>Remove any generated polygons and cohorts</li>
+                        </ul>
+                        <p style="font-weight: bold; color: #dc3545; margin-top: 15px;">This action cannot be undone!</p>
                     </div>
                 `,
-                confirmButtonColor: '#dc3545'
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Delete',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.deleteShapefile();
+                }
+            });
+        },
+
+        deleteShapefile: async function () {
+            this.uploadingShapefile = true;
+            
+            try {
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/delete_shapefile/'
+                );
+                
+                const csrfToken = helpers.getCookie('csrftoken');
+                
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        proposal_id: this.proposalId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to delete shapefile');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Clear local state
+                    this.selectedFileName = '';
+                    
+                    // Update proposal data
+                    if (data.proposal) {
+                        this.$emit('refreshFromResponse', data.proposal);
+                    }
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted',
+                        text: 'Shapefile deleted successfully',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Refresh map
+                    this.refreshMapAfterProcessing();
+                }
+                
+            } catch (error) {
+                console.error('Error deleting shapefile:', error);
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Failed to delete shapefile'
+                });
+            } finally {
+                this.uploadingShapefile = false;
+            }
+        },
+
+        // Shapefile Processing Methods
+        openProcessDialog: function () {
+            if (!this.hasShapefile) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Shapefile',
+                    text: 'Please upload a shapefile first',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
+            }
+            
+            Swal.fire({
+                title: 'Process Shapefile',
+                html: `
+                    <div style="padding: 5px 0;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+                            <label for="threshold" style="font-weight: bold; min-width: 120px; text-align: right;">Threshold Value:</label>
+                            <div style="flex: 1;">
+                                <input 
+                                    type="number" 
+                                    id="threshold" 
+                                    class="swal2-input" 
+                                    value="5.0" 
+                                    min="0.1" 
+                                    max="100" 
+                                    step="0.1"
+                                    style="width: 100%; margin: 0;"
+                                >
+                            </div>
+                        </div>
+                        <div style="font-size: 0.85em; color: #6c757d; text-align: left; margin-top: 5px; padding-left: 130px;">
+                            Higher values remove more sliver polygons. Default is 5.0.
+                        </div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Process',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    const threshold = document.getElementById('threshold').value;
+                    const thresholdValue = parseFloat(threshold);
+                    
+                    if (isNaN(thresholdValue) || thresholdValue < 0.1 || thresholdValue > 100) {
+                        Swal.showValidationMessage('Threshold must be between 0.1 and 100');
+                        return false;
+                    }
+                    
+                    return { threshold: thresholdValue };
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    this.processShapefile(result.value.threshold);
+                }
+            });
+        },
+
+        processShapefile: async function (threshold) {
+            Swal.fire({
+                title: 'Processing Shapefile',
+                html: 'Please wait while the shapefile is being processed...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
             
-            this.processError = error.message;
-        } finally {
-            this.processingShapefile = false;
-        }
-    },        
+            this.processingShapefile = true;
+            this.processError = null;
+            
+            try {
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/process_shapefile/'
+                );
+                
+                const csrfToken = helpers.getCookie('csrftoken');
+                
+                const payload = {
+                    threshold: threshold,
+                    user_id: this.currentUserId,
+                    proposal_id: this.proposalId
+                };
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                Swal.close();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || 'Failed to process shapefile');
+                }
+                
+                if (data.success) {
+                    if (data.warnings && data.warnings.length) {
+                        await Swal.fire({
+                            icon: 'warning',
+                            title: 'Processing Complete with Warnings',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p>${data.message || 'Shapefile processed with warnings'}</p>
+                                    <div style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                                        <ul style="margin: 0; padding-left: 20px;">
+                                            ${data.warnings.map(w => `<li style="font-size: 0.9em;">${w}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonColor: '#ffc107'
+                        });
+                    } else {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p>${data.message || 'Shapefile processed successfully!'}</p>
+                                    ${data.feature_count ? `<p style="font-size: 0.9em; color: #6c757d;">Features processed: ${data.feature_count}</p>` : ''}
+                                </div>
+                            `,
+                            confirmButtonColor: '#28a745',
+                            timer: 2000
+                        });
+                    }
+                    
+                    // Update the proposal data with the processed version
+                    if (data.proposal) {
+                        this.$emit('refreshFromResponse', data.proposal);
+                    }
+                    
+                    // Refresh the map
+                    this.refreshMapAfterProcessing();
+                    
+                } else {
+                    throw new Error(data.message || 'Unknown error occurred');
+                }
+                
+            } catch (error) {
+                console.error('Error processing shapefile:', error);
+                
+                Swal.close();
+                
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Processing Failed',
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="color: #dc3545;">${error.message || 'An error occurred while processing the shapefile'}</p>
+                        </div>
+                    `,
+                    confirmButtonColor: '#dc3545'
+                });
+                
+                this.processError = error.message;
+            } finally {
+                this.processingShapefile = false;
+            }
+        },
 
         refreshMapAfterProcessing: function () {
-            // Method 1: Increment map key to force full remount (if needed)
-            // this.componentMapKey += 1;
-            
-            // Method 2: Use map's refresh method
             this.$nextTick(() => {
                 if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
-                    // Small delay to ensure data is updated
                     setTimeout(() => {
                         this.$refs.component_map.forceToRefreshMap();
                     }, 500);
@@ -912,16 +1144,12 @@ export default {
             });
         },
 
-        // Add this method to refresh the polygon cohort table
         refreshPolygonCohortTable: function () {
             console.log('Refreshing polygon cohort table from parent');
-            // Find the PolygonCohortTable component in the DOM
-            // Since it's inside the MapComponent, we need to access it through the map component's ref
             if (this.$refs.component_map && this.$refs.component_map.$refs.polygonCohortTable) {
                 this.$refs.component_map.$refs.polygonCohortTable.refreshData();
             } else {
                 console.warn('PolygonCohortTable ref not found');
-                // Fallback: try to find by query selector
                 setTimeout(() => {
                     const tableComponent = document.querySelector('[data-table="polygon-cohort"]');
                     if (tableComponent && tableComponent.__vue__) {
@@ -931,7 +1159,6 @@ export default {
             }
         },
 
-        // Open revert confirmation dialog
         openRevertDialog: function () {
             Swal.fire({
                 title: 'Revert Changes',
@@ -964,12 +1191,10 @@ export default {
             });
         },
         
-        // Revert shapefile processing
         revertShapefileProcessing: async function () {
             this.revertingShapefile = true;
             this.revertError = null;
             
-            // Show processing dialog
             Swal.fire({
                 title: 'Reverting Changes',
                 html: 'Please wait while reverting to previous state...',
@@ -1005,14 +1230,12 @@ export default {
                 
                 const data = await response.json();
                 
-                // Close loading dialog
                 Swal.close();
                 
                 if (!response.ok) {
                     throw new Error(data.error || data.message || 'Failed to revert changes');
                 }
                 
-                // Success
                 if (data.success) {
                     await Swal.fire({
                         icon: 'success',
@@ -1024,19 +1247,14 @@ export default {
                             </div>
                         `,
                         confirmButtonColor: '#28a745',
-                        timer: 3000,
-                        timerProgressBar: true
+                        timer: 3000
                     });
                     
-                    // Update the proposal data with the reverted version
                     if (data.proposal) {
                         this.$emit('refreshFromResponse', data.proposal);
                     }
                     
-                    // Always refresh the map
                     this.refreshMapAfterProcessing();
-                    
-                    // Refresh the datatable
                     this.refreshPolygonCohortTable();
                     
                 } else {
@@ -1046,10 +1264,8 @@ export default {
             } catch (error) {
                 console.error('Error reverting changes:', error);
                 
-                // Close loading dialog
                 Swal.close();
                 
-                // Show error message
                 await Swal.fire({
                     icon: 'error',
                     title: 'Revert Failed',
@@ -1066,15 +1282,12 @@ export default {
                 this.revertingShapefile = false;
             }
         }
-
     },
     
     watch: {
-        // Watch for changes in proposal data and update map if needed
         'proposal.proposalgeometry_processed': {
             handler: function (newVal, oldVal) {
                 if (newVal && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-                    // Map will update via prop watchers, but we can force a refresh if needed
                     this.refreshMapAfterProcessing();
                 }
             },
@@ -1103,10 +1316,21 @@ export default {
     border-radius: 4px;
     border: 1px solid #dee2e6;
     font-size: 0.9em;
-    max-width: 300px;
+    max-width: 400px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+}
+
+.uploaded-filename button {
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.uploaded-filename button:hover {
+    opacity: 1;
 }
 
 .upload-progress {
@@ -1121,8 +1345,17 @@ export default {
     font-size: 0.9em;
 }
 
+.upload-info ul {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
 .process-btn {
     min-width: 160px;
+}
+
+.revert-btn {
+    min-width: 100px;
 }
 
 /* Existing styles */

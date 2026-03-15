@@ -377,6 +377,481 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
             'all_defined_fields': all_defined,
         }
 
+    def check_planar_enforcement(self, geojson_data, area_tolerance=0.0001):
+        """
+        Check for overlapping polygons that exceed area_tolerance.
+
+        Args:
+            geojson_data: GeoJSON (string or dict) OR GeoPandas GeoDataFrame
+            area_tolerance: Minimum intersection area in square meters to report (default: 0.0001 m²)
+
+        Returns:
+            List of dictionaries: [
+                {
+                    'polygon_1_id': str/int,
+                    'polygon_2_id': str/int,
+                    'intersection_area_m2': float,
+                    'polygon_1_index': int,  # index in feature collection
+                    'polygon_2_index': int   # index in feature collection
+                },
+                ...
+            ]
+            Returns empty list if no intersections found or invalid input.
+
+            Eg.
+                p=Proposal.objects.get(id=1)
+                intersections = p.check_planar_enforcement(p.shapefile_json)
+                intersections = p.check_planar_enforcement(gdf_shp_16)
+
+                for idx, i in enumerate(intersections):
+                    print(idx, i['intersection_area_m2'])
+                0 0.0004
+                1 0.0114
+                2 0.1179
+
+                intersections = p.check_planar_enforcement(list_state[0]['GDF_HIST'])
+                for idx, i in enumerate(intersections):
+                    print(idx, i['polygon_1_id'], i['polygon_2_id'], i['intersection_area_m2'], i['polygon_1_index'], i['polygon_2_index'])
+                0 424207 424092 0.0007 16 65
+                1 458410 458411 470.3053 20 31
+                2 458425 458426 2.209 26 37
+
+                plot_multi([list_state[0]['GDF_SHP'], list_state[0]['GDF_HIST'], list_state[0]['GDF_RESULT_COMBINED']])
+                plot_overlay(list_state[0]['GDF_HIST'].iloc[[20]], list_state[0]['GDF_HIST'].iloc[[31]])
+        """
+        import geopandas as gpd
+        from shapely.geometry import shape
+        import json
+        import pandas as pd
+        import numpy as np
+
+        if geojson_data is None:
+            return []
+
+        try:
+            # Handle different input types
+            gdf = None
+
+            # Case 1: Already a GeoDataFrame
+            if isinstance(geojson_data, gpd.GeoDataFrame):
+                gdf = geojson_data.copy()
+
+            # Case 2: GeoJSON string
+            elif isinstance(geojson_data, str):
+                try:
+                    geojson_dict = json.loads(geojson_data)
+                    gdf = gpd.read_file(json.dumps(geojson_dict))
+                except:
+                    # Try reading directly as file path or URL
+                    try:
+                        gdf = gpd.read_file(geojson_data)
+                    except:
+                        return []
+
+            # Case 3: GeoJSON dict
+            elif isinstance(geojson_data, dict):
+                try:
+                    gdf = gpd.read_file(json.dumps(geojson_data))
+                except:
+                    # Try reading as feature collection
+                    features = geojson_data.get('features', [])
+                    if features:
+                        # Manual conversion
+                        geoms = []
+                        props_list = []
+                        for feat in features:
+                            geom = shape(feat.get('geometry', {}))
+                            props = feat.get('properties', {})
+                            geoms.append(geom)
+                            props_list.append(props)
+
+                        if geoms:
+                            gdf = gpd.GeoDataFrame(props_list, geometry=geoms)
+
+            # Case 4: List of features
+            elif isinstance(geojson_data, list):
+                geoms = []
+                props_list = []
+                for idx, item in enumerate(geojson_data):
+                    if isinstance(item, dict):
+                        if 'geometry' in item:
+                            # Feature format
+                            geom = shape(item.get('geometry', {}))
+                            props = item.get('properties', {})
+                        else:
+                            # Assume it's a geometry dict
+                            geom = shape(item)
+                            props = {}
+
+                        geoms.append(geom)
+                        props_list.append(props)
+
+                if geoms:
+                    gdf = gpd.GeoDataFrame(props_list, geometry=geoms)
+
+            else:
+                return []
+
+            # Validate we have a GeoDataFrame with data
+            if gdf is None or gdf.empty:
+                return []
+
+            # Ensure we have a geometry column
+            if 'geometry' not in gdf.columns:
+                return []
+
+            # Filter to only polygon/multipolygon geometries
+            valid_types = ['Polygon', 'MultiPolygon']
+            gdf = gdf[gdf.geometry.type.isin(valid_types)].copy()
+
+            if len(gdf) < 2:
+                return []
+
+            # Reset index for clean tracking
+            gdf = gdf.reset_index(drop=True)
+
+            # Extract or create polygon IDs
+            ids = []
+            for idx, row in gdf.iterrows():
+                # Look for ID in various possible columns
+                polygon_id = None
+                for id_field in ['polygon_id', 'id', 'fid', 'OBJECTID', 'OBJECTID_1', 'FID', 'index']:
+                    if id_field in gdf.columns:
+                        val = row[id_field]
+                        if pd.notna(val) and val is not None:
+                            polygon_id = str(val)
+                            break
+
+                # If no ID found, use index
+                if polygon_id is None:
+                    polygon_id = f"polygon_{idx}"
+
+                ids.append({
+                    'id': polygon_id,
+                    'index': idx,
+                    'properties': row.to_dict() if hasattr(row, 'to_dict') else {}
+                })
+
+            # Convert to projected CRS for accurate area calculation
+            try:
+                # Check if we have valid bounds
+                if gdf.total_bounds is not None:
+                    # Convert to numpy array if needed and check for any NaN values
+                    bounds = np.array(gdf.total_bounds)
+                    if not np.any(np.isnan(bounds)):
+                        centroid_lon = (bounds[0] + bounds[2]) / 2
+                        centroid_lat = (bounds[1] + bounds[3]) / 2
+
+                        # Validate coordinates
+                        if -180 <= centroid_lon <= 180 and -90 <= centroid_lat <= 90:
+                            # UTM zones: 1-60, each 6 degrees wide
+                            utm_zone = int((centroid_lon + 180) / 6) + 1
+                            utm_zone = max(1, min(60, utm_zone))  # Clamp to valid range
+
+                            # Choose hemisphere
+                            if centroid_lat >= 0:
+                                projected_crs = f"EPSG:326{utm_zone:02d}"  # Northern hemisphere
+                            else:
+                                projected_crs = f"EPSG:327{utm_zone:02d}"  # Southern hemisphere
+
+                            try:
+                                gdf_projected = gdf.to_crs(projected_crs)
+                            except Exception as e:
+                                logger.warning(f"UTM projection failed: {e}, trying Albers")
+                                # Fallback to Albers Equal Area for Australia if available
+                                try:
+                                    gdf_projected = gdf.to_crs('EPSG:3577')  # GDA94 / Australian Albers
+                                except:
+                                    # Last resort: Web Mercator (approximate)
+                                    gdf_projected = gdf.to_crs('EPSG:3857')
+                        else:
+                            # Invalid coordinates, use Web Mercator
+                            gdf_projected = gdf.to_crs('EPSG:3857')
+                    else:
+                        # Bounds contain NaN, use Web Mercator
+                        gdf_projected = gdf.to_crs('EPSG:3857')
+                else:
+                    # No bounds available, use Web Mercator
+                    gdf_projected = gdf.to_crs('EPSG:3857')
+
+            except Exception as e:
+                logger.warning(f"CRS conversion failed, using original geometry for area calculation (areas may be inaccurate): {e}")
+                gdf_projected = gdf
+
+            # Check for intersections
+            intersections = []
+            n = len(gdf_projected)
+
+            # Use spatial indexing for better performance if available
+            try:
+                from shapely.strtree import STRtree
+                tree = STRtree(gdf_projected.geometry)
+
+                for i in range(n):
+                    geom_i = gdf_projected.geometry.iloc[i]
+
+                    # Get potential intersecting geometries using spatial index
+                    potential_matches = tree.query(geom_i)
+
+                    for j in potential_matches:
+                        if j <= i:  # Avoid duplicates and self-intersections
+                            continue
+
+                        geom_j = gdf_projected.geometry.iloc[j]
+
+                        if geom_i.intersects(geom_j):
+                            try:
+                                intersection = geom_i.intersection(geom_j)
+
+                                # Skip point/line intersections
+                                if intersection.geom_type in ['Point', 'LineString', 'MultiPoint', 'MultiLineString']:
+                                    continue
+
+                                # Calculate area in square meters
+                                # If we're in geographic coordinates, area will be in square degrees, which is wrong
+                                # So we need to ensure we're in a projected CRS
+                                if gdf_projected.crs and gdf_projected.crs.is_geographic:
+                                    # Try one more time to project
+                                    try:
+                                        if gdf.total_bounds is not None:
+                                            bounds = np.array(gdf.total_bounds)
+                                            if not np.any(np.isnan(bounds)):
+                                                centroid_lon = (bounds[0] + bounds[2]) / 2
+                                                centroid_lat = (bounds[1] + bounds[3]) / 2
+                                                if -180 <= centroid_lon <= 180 and -90 <= centroid_lat <= 90:
+                                                    utm_zone = int((centroid_lon + 180) / 6) + 1
+                                                    utm_zone = max(1, min(60, utm_zone))
+                                                    if centroid_lat >= 0:
+                                                        proj_crs = f"EPSG:326{utm_zone:02d}"
+                                                    else:
+                                                        proj_crs = f"EPSG:327{utm_zone:02d}"
+
+                                                    # Create a small GeoDataFrame with just these two geometries
+                                                    temp_gdf = gpd.GeoDataFrame(
+                                                        geometry=[geom_i, geom_j],
+                                                        crs=gdf_projected.crs
+                                                    )
+                                                    temp_gdf_proj = temp_gdf.to_crs(proj_crs)
+                                                    intersection_proj = temp_gdf_proj.geometry.iloc[0].intersection(
+                                                        temp_gdf_proj.geometry.iloc[1]
+                                                    )
+                                                    area_m2 = intersection_proj.area
+                                                else:
+                                                    area_m2 = intersection.area  # Will be inaccurate
+                                            else:
+                                                area_m2 = intersection.area  # Will be inaccurate
+                                        else:
+                                            area_m2 = intersection.area  # Will be inaccurate
+                                    except:
+                                        area_m2 = intersection.area  # Will be inaccurate
+                                else:
+                                    area_m2 = intersection.area
+
+                                # Report if above tolerance
+                                if area_m2 > area_tolerance:
+                                    intersections.append({
+                                        'polygon_1_id': ids[i]['id'],
+                                        'polygon_2_id': ids[j]['id'],
+                                        'intersection_area_m2': round(area_m2, 4),
+                                        'polygon_1_index': ids[i]['index'],
+                                        'polygon_2_index': ids[j]['index'],
+                                        'polygon_1_properties': ids[i]['properties'],
+                                        'polygon_2_properties': ids[j]['properties'],
+                                        'intersection_geom_type': intersection.geom_type
+                                    })
+                            except Exception as e:
+                                logger.warning(f"Error calculating intersection between {i} and {j}: {e}")
+                                continue
+
+            except ImportError:
+                # Fallback to brute force if STRtree not available
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        geom_i = gdf_projected.geometry.iloc[i]
+                        geom_j = gdf_projected.geometry.iloc[j]
+
+                        if geom_i.intersects(geom_j):
+                            try:
+                                intersection = geom_i.intersection(geom_j)
+
+                                if intersection.geom_type in ['Point', 'LineString', 'MultiPoint', 'MultiLineString']:
+                                    continue
+
+                                # Calculate area with CRS handling
+                                if gdf_projected.crs and gdf_projected.crs.is_geographic:
+                                    try:
+                                        if gdf.total_bounds is not None:
+                                            bounds = np.array(gdf.total_bounds)
+                                            if not np.any(np.isnan(bounds)):
+                                                centroid_lon = (bounds[0] + bounds[2]) / 2
+                                                centroid_lat = (bounds[1] + bounds[3]) / 2
+                                                if -180 <= centroid_lon <= 180 and -90 <= centroid_lat <= 90:
+                                                    utm_zone = int((centroid_lon + 180) / 6) + 1
+                                                    utm_zone = max(1, min(60, utm_zone))
+                                                    if centroid_lat >= 0:
+                                                        proj_crs = f"EPSG:326{utm_zone:02d}"
+                                                    else:
+                                                        proj_crs = f"EPSG:327{utm_zone:02d}"
+
+                                                    temp_gdf = gpd.GeoDataFrame(
+                                                        geometry=[geom_i, geom_j],
+                                                        crs=gdf_projected.crs
+                                                    )
+                                                    temp_gdf_proj = temp_gdf.to_crs(proj_crs)
+                                                    intersection_proj = temp_gdf_proj.geometry.iloc[0].intersection(
+                                                        temp_gdf_proj.geometry.iloc[1]
+                                                    )
+                                                    area_m2 = intersection_proj.area
+                                                else:
+                                                    area_m2 = intersection.area
+                                            else:
+                                                area_m2 = intersection.area
+                                        else:
+                                            area_m2 = intersection.area
+                                    except:
+                                        area_m2 = intersection.area
+                                else:
+                                    area_m2 = intersection.area
+
+                                if area_m2 > area_tolerance:
+                                    intersections.append({
+                                        'polygon_1_id': ids[i]['id'],
+                                        'polygon_2_id': ids[j]['id'],
+                                        'intersection_area_m2': round(area_m2, 4),
+                                        'polygon_1_index': ids[i]['index'],
+                                        'polygon_2_index': ids[j]['index'],
+                                        'polygon_1_properties': ids[i]['properties'],
+                                        'polygon_2_properties': ids[j]['properties'],
+                                        'intersection_geom_type': intersection.geom_type
+                                    })
+                            except Exception as e:
+                                logger.warning(f"Error calculating intersection between {i} and {j}: {e}")
+                                continue
+
+            return intersections
+
+        except Exception as e:
+            logger.error(f"Error in check_planar_enforcement: {e}")
+            return []
+
+
+    def check_all_geometries_planar(self, area_tolerance=0.0001):
+        """
+        Check all geometry fields for planar enforcement issues.
+
+        Args:
+            area_tolerance: Minimum intersection area in square meters
+
+        Returns:
+            Dictionary with results for each geometry type
+        """
+        results = {}
+
+        # Check shapefile_json
+        if self.shapefile_json:
+            results['shapefile_json'] = self.check_planar_enforcement(
+                self.shapefile_json,
+                area_tolerance
+            )
+
+        # Check geojson_data_hist
+        if self.geojson_data_hist:
+            results['geojson_data_hist'] = self.check_planar_enforcement(
+                self.geojson_data_hist,
+                area_tolerance
+            )
+
+        # Check geojson_data_processed
+        if self.geojson_data_processed:
+            results['geojson_data_processed'] = self.check_planar_enforcement(
+                self.geojson_data_processed,
+                area_tolerance
+            )
+
+        # Check geojson_data_processed_iters if it exists
+        if hasattr(self, 'geojson_data_processed_iters') and self.geojson_data_processed_iters:
+            if isinstance(self.geojson_data_processed_iters, dict):
+                # Handle iteration data
+                iter_results = {}
+                for key, iter_data in self.geojson_data_processed_iters.items():
+                    if isinstance(iter_data, (dict, gpd.GeoDataFrame)):
+                        iter_results[key] = self.check_planar_enforcement(
+                            iter_data,
+                            area_tolerance
+                        )
+                if iter_results:
+                    results['geojson_data_processed_iters'] = iter_results
+
+        return results
+
+    def get_intersection_summary(self, geojson_data=None, area_tolerance=0.0001):
+        """
+        Get a simple summary of intersections without detailed properties.
+
+        Args:
+            geojson_data: Optional specific geometry to check (if None, checks all)
+                        Can be GeoJSON (str/dict) or GeoDataFrame
+            area_tolerance: Minimum intersection area in square meters
+
+        Returns:
+            List of simple intersection records
+        """
+        if geojson_data is not None:
+            intersections = self.check_planar_enforcement(geojson_data, area_tolerance)
+            return [
+                {
+                    'polygon_1_id': inter['polygon_1_id'],
+                    'polygon_2_id': inter['polygon_2_id'],
+                    'intersection_area_m2': inter['intersection_area_m2']
+                }
+                for inter in intersections
+            ]
+        else:
+            # Check all and flatten
+            all_results = self.check_all_geometries_planar(area_tolerance)
+            simple_results = []
+
+            for geom_type, intersections in all_results.items():
+                if isinstance(intersections, list):
+                    for inter in intersections:
+                        simple_results.append({
+                            'geometry_type': geom_type,
+                            'polygon_1_id': inter['polygon_1_id'],
+                            'polygon_2_id': inter['polygon_2_id'],
+                            'intersection_area_m2': inter['intersection_area_m2']
+                        })
+                elif isinstance(intersections, dict):
+                    # Handle nested iteration data
+                    for iter_key, iter_intersections in intersections.items():
+                        for inter in iter_intersections:
+                            simple_results.append({
+                                'geometry_type': f"{geom_type}[{iter_key}]",
+                                'polygon_1_id': inter['polygon_1_id'],
+                                'polygon_2_id': inter['polygon_2_id'],
+                                'intersection_area_m2': inter['intersection_area_m2']
+                            })
+
+            return simple_results
+
+    def geometries_are_planar(self, area_tolerance=0.0001):
+        """
+        Quick check if all geometries are planar (no intersections above tolerance).
+
+        Returns:
+            bool: True if no intersections found, False otherwise
+        """
+        all_results = self.check_all_geometries_planar(area_tolerance)
+
+        for geom_type, intersections in all_results.items():
+            if isinstance(intersections, list) and intersections:
+                return False
+            elif isinstance(intersections, dict):
+                for iter_intersections in intersections.values():
+                    if iter_intersections:
+                        return False
+
+        return True
+
 
 class SQLReport(models.Model):
     """Model for storing SQL query reports with dynamic WHERE clauses"""

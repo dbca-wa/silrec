@@ -11,7 +11,6 @@ from silrec.components.proposals.models import AuditLog
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 from copy import deepcopy
 import pandas as pd
-import reversion
 
 logger = logging.getLogger(__name__)
 
@@ -27,82 +26,81 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
     Returns:
         tuple: (operations_summary, gdf_result_with_new_ids)
     """
-    with transaction.atomic():
-        # Create a copy to add the new IDs
-        gdf_result_with_ids = gdf_result.copy()
-        gdf_result_with_ids['poly_id_new'] = None
+    # Create a copy to add the new IDs
+    gdf_result_with_ids = gdf_result.copy()
+    gdf_result_with_ids['poly_id_new'] = None
 
-        # Capture current state for audit trail
-        #current_records = _get_current_polygon_records()
+    # Capture current state for audit trail
+    #current_records = _get_current_polygon_records()
 
-        # Track operations
-        ops_summary = {
-            'new_records': 0,
-            'updated_records': 0,
-            'skipped_records': 0,
-            'new_polygon_ids': [],
-            'updated_polygon_ids': [],
-            'priority_updates': []
-        }
+    # Track operations
+    ops_summary = {
+        'new_records': 0,
+        'updated_records': 0,
+        'skipped_records': 0,
+        'new_polygon_ids': [],
+        'updated_polygon_ids': [],
+        'priority_updates': []
+    }
 
-        # Sort by poly_type priority (CUT > BASE > others)
-        gdf_sorted = _sort_gdf_by_polytype_priority(gdf_result_with_ids)
+    # Sort by poly_type priority (CUT > BASE > others)
+    gdf_sorted = _sort_gdf_by_polytype_priority(gdf_result_with_ids)
 
-        # Build a map of polygon_id -> highest priority poly_type in the input
-        poly_type_map = _create_poly_type_map(gdf_sorted)
+    # Build a map of polygon_id -> highest priority poly_type in the input
+    poly_type_map = _create_poly_type_map(gdf_sorted)
 
-        gdf_sorted['polygon_id'] = pd.to_numeric(gdf_sorted['polygon_id'], errors='coerce').fillna(0).astype(int)
+    gdf_sorted['polygon_id'] = pd.to_numeric(gdf_sorted['polygon_id'], errors='coerce').fillna(0).astype(int)
 
-        #import ipdb; ipdb.set_trace()
-        for idx, row in gdf_sorted.iterrows():
-            polygon_id = row['polygon_id']
-            poly_type = row.get('poly_type', 'OTHER')
+    #import ipdb; ipdb.set_trace()
+    for idx, row in gdf_sorted.iterrows():
+        polygon_id = row['polygon_id']
+        poly_type = row.get('poly_type', 'OTHER')
 
-            # Check if polygon_id already exists in the database
-            existing_polygon = Polygon.objects.filter(polygon_id=polygon_id).first()
+        # Check if polygon_id already exists in the database
+        existing_polygon = Polygon.objects.filter(polygon_id=polygon_id).first()
 
-            if existing_polygon is None:
-                # New polygon_id → insert
-                _insert_new_polygon(row, proposal_id, user_id)
-                ops_summary['new_records'] += 1
-                ops_summary['new_polygon_ids'].append(polygon_id)
-                gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
-                logger.info(f"Inserted new record with polygon_id: {polygon_id}, poly_type: {poly_type}")
+        if existing_polygon is None:
+            # New polygon_id → insert
+            _insert_new_polygon(row, proposal_id, user_id)
+            ops_summary['new_records'] += 1
+            ops_summary['new_polygon_ids'].append(polygon_id)
+            gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
+            logger.info(f"Inserted new record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
-            else:
-                # Polygon_id already exists
-                if _is_duplicate_in_gdf(gdf_sorted, polygon_id, idx):
-                    # This polygon_id appears multiple times in the input
-                    if _should_update_based_on_priority(poly_type_map, polygon_id, poly_type):
-                        # Higher priority → update the existing record
-                        _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
-                        ops_summary['updated_records'] += 1
-                        ops_summary['updated_polygon_ids'].append(polygon_id)
-                        ops_summary['priority_updates'].append(polygon_id)
-                        gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
-                        logger.info(f"Priority update - Updated existing record with polygon_id: {polygon_id}, new poly_type: {poly_type}")
-                    else:
-                        # Lower priority → create a new record with a new polygon_id
-                        new_polygon_id = _get_next_polygon_id()
-                        _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq)
-                        ops_summary['new_records'] += 1
-                        ops_summary['new_polygon_ids'].append(new_polygon_id)
-                        gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
-                        logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
-                else:
-                    # First occurrence of this polygon_id in the input → update
+        else:
+            # Polygon_id already exists
+            if _is_duplicate_in_gdf(gdf_sorted, polygon_id, idx):
+                # This polygon_id appears multiple times in the input
+                if _should_update_based_on_priority(poly_type_map, polygon_id, poly_type):
+                    # Higher priority → update the existing record
                     _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
                     ops_summary['updated_records'] += 1
                     ops_summary['updated_polygon_ids'].append(polygon_id)
+                    ops_summary['priority_updates'].append(polygon_id)
                     gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
-                    logger.info(f"Updated existing record with polygon_id: {polygon_id}, poly_type: {poly_type}")
+                    logger.info(f"Priority update - Updated existing record with polygon_id: {polygon_id}, new poly_type: {poly_type}")
+                else:
+                    # Lower priority → create a new record with a new polygon_id
+                    new_polygon_id = _get_next_polygon_id()
+                    _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq)
+                    ops_summary['new_records'] += 1
+                    ops_summary['new_polygon_ids'].append(new_polygon_id)
+                    gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
+                    logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
+            else:
+                # First occurrence of this polygon_id in the input → update
+                _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
+                ops_summary['updated_records'] += 1
+                ops_summary['updated_polygon_ids'].append(polygon_id)
+                gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
+                logger.info(f"Updated existing record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
-        # Capture final state and create audit records
-        #final_records = _get_current_polygon_records()
-        #_create_audit_records(current_records, final_records, user_id)
+    # Capture final state and create audit records
+    #final_records = _get_current_polygon_records()
+    #_create_audit_records(current_records, final_records, user_id)
 
-        logger.info(f"Operation completed: {ops_summary}")
-        return ops_summary, gdf_result_with_ids
+    logger.info(f"Operation completed: {ops_summary}")
+    return ops_summary, gdf_result_with_ids
 
 
 # ------------------------------------------------------------------------------
@@ -179,25 +177,29 @@ def _insert_new_polygon(row, request_metrics, iter_seq):
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
 
-    with reversion.create_revision():
-        try:
-            ply = Polygon.objects.create(
-                polygon_id=int(row['polygon_id']),
-                name=row['name'],
-                compartment_id=row['compartment'],
-                area_ha=row['area_ha'],
-                sp_code=row['sp_code'],
-                proposal_id=proposal_id_row,
-                geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
-                created_by=user_id,
-                updated_by=user_id,
-                # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
-            )
+    try:
+        ply = Polygon.objects.create(
+            polygon_id=int(row['polygon_id']),
+            name=row['name'],
+            compartment_id=row['compartment'],
+            area_ha=row['area_ha'],
+            sp_code=row['sp_code'],
+            proposal_id=proposal_id_row,
+            geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
+            created_by=user_id,
+            updated_by=user_id,
+            # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
+        )
 
-            al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
-            #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
-        except Exception as e:
-            raise Exception(e)
+        al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
+        #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+    except IntegrityError as e:
+        logger.error(f"Database integrity error creating cohort record: {e}")
+        raise  # Re-raise to break the transaction
+    except Exception as e2:
+        logger.error(f"Error: {e2}")
+        raise
+
 
 def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
     """Insert a duplicate polygon with a new polygon_id."""
@@ -205,62 +207,67 @@ def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
     user_id = request_metrics.user.id
 
-    with reversion.create_revision():
-        try:
-            ply = Polygon.objects.create(
-                polygon_id=int(new_polygon_id),
-                name=row['name'],
-                compartment_id=row['compartment'],
-                area_ha=row['area_ha'],
-                sp_code=row['sp_code'],
-                proposal_id=proposal_id_row,
-                geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
-                created_by=user_id,
-                updated_by=user_id,
-            )
+    try:
+        ply = Polygon.objects.create(
+            polygon_id=int(new_polygon_id),
+            name=row['name'],
+            compartment_id=row['compartment'],
+            area_ha=row['area_ha'],
+            sp_code=row['sp_code'],
+            proposal_id=proposal_id_row,
+            geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
+            created_by=user_id,
+            updated_by=user_id,
+        )
 
-            #import ipdb; ipdb.set_trace()
-            al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
-            #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
-        except Exception as e:
-            raise Exception(e)
+        #import ipdb; ipdb.set_trace()
+        al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
+        #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+    except IntegrityError as e:
+        logger.error(f"Database integrity error creating cohort record: {e}")
+        raise  # Re-raise to break the transaction
+    except Exception as e2:
+        logger.error(f"Error: {e2}")
+        raise
+
 
 def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
     """
     Update an existing polygon record.
-    proposal_id is set only if the current DB value is NULL.
     """
-    with reversion.create_revision():
-        try:
-            #import ipdb; ipdb.set_trace()
-            poly = Polygon.objects.select_for_update().get(polygon_id=int(polygon_id))
-            poly_orig = deepcopy(poly)
+    try:
+        poly = Polygon.objects.get(polygon_id=int(polygon_id))
+        poly_orig = deepcopy(poly)
 
-            # Update basic fields
-            poly.name = row['name']
-            poly.compartment_id = row['compartment']
-            poly.area_ha = row['area_ha']
-            poly.sp_code = row['sp_code']
-            if hasattr(row['geometry'], 'wkt'):
-                geom = GEOSGeometry(row['geometry'].wkt)
-                #import ipdb; ipdb.set_trace()
-                poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
-            poly.updated_by = request_metrics.user.id
+        # Update fields
+        poly.name = row['name']
+        poly.compartment_id = row['compartment']
+        poly.area_ha = row['area_ha']
+        poly.sp_code = row['sp_code']
 
-            # proposal_id: set only if currently NULL and poly_type == 'BASE'
-            if poly.proposal_id is None and row.get('poly_type') == 'BASE':
-                #poly.proposal_id = row.get('proposal_id')
-                poly.proposal_id = request_metrics.proposal.id
+        if hasattr(row['geometry'], 'wkt'):
+            geom = GEOSGeometry(row['geometry'].wkt)
+            poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
 
-            poly.save()
+        poly.updated_by = request_metrics.user.id
 
-            #import ipdb; ipdb.set_trace()
-            al = AuditLogger(Polygon, poly, 'UPDATE', request_metrics, iter_seq, old_vals=poly_orig, new_vals=poly).create()
-            #al = AuditLogger(Polygon, poly, 'UPDATE', user_id, proposal_id, poly_orig, poly).create()
-        except Exception as e:
-            raise Exception(e)
-            import ipdb; ipdb.set_trace()
-            pass
+        if poly.proposal_id is None and row.get('poly_type') == 'BASE':
+            poly.proposal_id = request_metrics.proposal.id
+
+        poly.save()
+
+        al = AuditLogger(Polygon, poly, 'UPDATE', request_metrics, iter_seq,
+                        old_vals=poly_orig, new_vals=poly).create()
+
+    except IntegrityError as e:
+        logger.error(f"Database integrity error creating cohort record: {e}")
+        raise  # Re-raise to break the transaction
+    except Polygon.DoesNotExist:
+        logger.error(f"Polygon with ID {polygon_id} not found")
+        raise
+    except Exception as e2:
+        logger.error(f"Error updating polygon {polygon_id}: {e2}")
+        raise
 
 def _get_next_polygon_id():
     """Return the next available polygon_id (max existing + 1)."""

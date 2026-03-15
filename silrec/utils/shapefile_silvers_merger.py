@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -146,7 +146,7 @@ class ShapefileSliversMerger():
         gdf['polygon_id'] = gdf['polygon_id'] if 'polygon_id' in gdf.columns else 0
         gdf['proposal_id'] = self.proposal_id
 
-        return gdf
+        return gdf.iloc[[0]]
 
     def merge_touching(self, gdf, buffer_distance=0.0001):
         '''
@@ -177,6 +177,7 @@ class ShapefileSliversMerger():
         '''
 
         idx_count = 0
+        #import ipdb; ipdb.set_trace()
         gdf_shpfile = self.gdf_shpfile.copy()
 
         list_state = []
@@ -200,8 +201,8 @@ class ShapefileSliversMerger():
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         #for index, row in self.gdf_shpfile.iloc[::-1].iterrows():
-        #for index, row in self.gdf_shpfile.iterrows():
-        for index, row in self.gdf_shpfile[:1].iterrows():
+        for index, row in self.gdf_shpfile.iterrows():
+        #for index, row in self.gdf_shpfile[:1].iterrows():
             # TODO 1. filter to 'gdf_hist' sub-set of polygons, and
             #      2. ac2p_qs with those poly_ids [from (1)]
             #      3. cohort_qs with those cohort_ids [from (2)]
@@ -259,13 +260,9 @@ class ShapefileSliversMerger():
                 gdf_result['poly_id_new'] = pd.to_numeric(gdf_result['poly_id_new'], errors='coerce').fillna(0).astype(int)
 
                 # get init 'polygon - assign_cht_to_ply - cohort' state
-                try:
-                    gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
-                    gdf_cht_init['polygon_id'] = pd.to_numeric(gdf_cht_init['polygon_id'], errors='coerce').fillna(0).astype(int)
-                    gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
-                except:
-                    import ipdb; ipdb.set_trace()
-                    pass
+                gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
+                gdf_cht_init['polygon_id'] = pd.to_numeric(gdf_cht_init['polygon_id'], errors='coerce').fillna(0).astype(int)
+                gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
 
 
                 #db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
@@ -282,7 +279,7 @@ class ShapefileSliversMerger():
         #gdf_result_combined = pd.concat([d['GDF_RESULT'] for d in list_state[1:]], ignore_index=True)
         gdf_result_combined = self.get_gdf_result_combined(list_state)
         list_state[0].update({'GDF_RESULT_COMBINED': gdf_result_combined})
-        logger.info(list_state)
+        #logger.info(list_state)
 
 
         return list_state
@@ -558,23 +555,35 @@ class ShapefileSliversMerger():
         polygon_ids = gdf_result['polygon_id'].tolist()
 
         # Query using Django ORM
-        queryset = AssignChtToPly.objects.filter(
-            polygon_id__in=polygon_ids,
-            status_current=True
-        ).values('polygon_id', 'cohort_id')
+        #import ipdb ; ipdb.set_trace()
+        try:
+            queryset = AssignChtToPly.objects.filter(
+                polygon_id__in=polygon_ids,
+                status_current=True
+            ).values('polygon_id', 'cohort_id')
 
-        # Create mapping dictionary
-        cohort_mapping = {item['polygon_id']: item['cohort_id'] for item in queryset}
+            # Create mapping dictionary
+            cohort_mapping = {item['polygon_id']: item['cohort_id'] for item in queryset}
 
-        # Apply to GeoDataFrame using apply
-        gdf_result['cht_id_cur'] = gdf_result.apply(
-            lambda row: cohort_mapping.get(row['polygon_id']),
-            axis=1
-        )
+            # Apply to GeoDataFrame using apply
+            gdf_result['cht_id_cur'] = gdf_result.apply(
+                lambda row: cohort_mapping.get(row['polygon_id']),
+                axis=1
+            )
 
-        # Apply using map (more efficient than apply for simple mapping)
-        # Some Polygons do not have an associated assign_cht_to_ply record - we are setting to a dummy record of cohort_id=1
-        gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping).fillna(1).astype(int)
+            # Apply using map (more efficient than apply for simple mapping)
+            # Some Polygons do not have an associated assign_cht_to_ply record - we are setting to a dummy record of cohort_id=1
+            gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping).fillna(1).astype(int)
+
+        except IntegrityError as e:
+            # Handle any database integrity errors (e.g., duplicate key despite check)
+            logger.error(f"Database integrity error creating cohort record: {e}")
+            return None
+        except Exception as e2:
+            logger.error(f"Unexpected error creating cohort record: {e2}")
+            return None
+
+
 
         return gdf_result
 
@@ -793,7 +802,7 @@ class ShapefileSliversMerger():
         )
         #gdf_cht_combined['obj_code'] = gdf_cht_combined['obj_code'].str.strip()
         #gdf_cht_combined = gdf_cht_combined.apply(update_columns, axis=1)
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
 
         return gdf_cht_combined
 
@@ -886,100 +895,4 @@ class ShapefileSliversMerger():
 
         return gdf_result
 
-    def ___save_cht_new_to_db(self, gdf_cht_new):
-        """
-        Saves the gdf_cht_new to AssignChtToPly (assign_cht_to_ply) table and NA value handling
-        """
-
-        from silrec.components.forest_blocks.models import AssignChtToPly
-
-        if gdf_cht_new.empty:
-            logger.info("No records found. Nothing to update (model AssignChtToPly).")
-            return []
-
-        #import ipdb; ipdb.set_trace()
-        db_data = gdf_cht_new[['poly_id_new','cohort_id','op_id','status_current']]
-        db_data = db_data.rename(columns={'poly_id_new': 'polygon_id'})
-        # Map column names and handle missing op_id
-        db_data['op_id'] = db_data.get('op_id', None)
-
-        # Ensure correct data types
-        db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
-        db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
-        #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(0).astype(int)
-
-        # Handle op_id - convert pandas NA to None
-        if 'op_id' in db_data.columns:
-            db_data['op_id'] = db_data['op_id'].replace('', None)
-            #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
-            #import ipdb; ipdb.set_trace()
-            db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(1).astype(int)
-            # Convert pandas Int64 NA to Python None
-            db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
-
-        # Handle status_current
-        db_data['status_current'] = db_data['status_current'].fillna(False)
-        db_data['status_current'] = db_data['status_current'].astype(bool)
-
-        #import ipdb; ipdb.set_trace()
-        cht2ply_ids = []
-        current_time = timezone.now()
-        success_count = 0
-        error_count = 0
-
-        try:
-            for index, row in db_data.iterrows():
-                try:
-                    # Convert all values to native Python types
-                    polygon_id = int(row['polygon_id'])
-                    cohort_id = int(row['cohort_id'])
-                    op_id = row['op_id']
-                    status_current = bool(row['status_current'])
-
-                    logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
-
-                    #import ipdb; ipdb.set_trace()
-                    obj, created = AssignChtToPly.objects.update_or_create(
-                        cohort_id=cohort_id,
-                        polygon_id=polygon_id,
-                        defaults={
-                            'op_id': op_id,
-                            'status_current': status_current
-                        }
-                    )
-
-                    if created:
-                        obj.created_on = current_time
-                        obj.created_by = self.user_id
-                        obj_orig = deepcopy(obj)
-                        action = "INSERT"
-                    else:
-                        action = "UPDATE"
-                        obj_orig = obj
-
-                    obj.updated_on = current_time
-                    obj.updated_by = self.user_id
-                    obj.save()
-
-                    al = AuditLogger(AssignChtToPly, obj, action, self.user_id, self.proposal_id, obj_orig, obj).create()
-
-                    cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
-                    success_count += 1
-                    logger.info(f"Successful {action} record for cohort_id {cohort_id} (cht2ply_id: {obj.cht2ply_id})")
-
-                except Exception as e:
-                    error_count += 1
-                    logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
-                    logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
-                    # Log the full traceback for debugging
-                    import traceback
-                    logger.error(f"Traceback: {traceback.format_exc()}")
-                    continue
-
-            logger.info(f"Successfully processed {success_count} records, {error_count} errors for 'NEW-BASE_Y'")
-            return cht2ply_ids
-
-        except Exception as e:
-            logger.error(f"Error saving data to PostgreSQL: {str(e)}")
-            raise
 

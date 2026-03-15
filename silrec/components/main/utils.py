@@ -289,7 +289,6 @@ def validate_map_files(request, instance, foreign_key_field=None):
     if geom_type not in ("Polygon", "MultiPolygon"):
         raise ValidationError(f"Geometry of type {geom_type} not allowed")
 
-    #result = subprocess.run(f'{OGR2OGR} -t_srs {CRS_GDA94} -f GeoJSON /vsistdout/ {shp_file_objs[0].path}', capture_output=True, text=True, check=True, shell=True)
     result_ogr = subprocess.run(f'{OGR2OGR} -t_srs EPSG:4326 -f GeoJSON /vsistdout/ {shp_file_objs[0].path}', capture_output=True, text=True, check=True, shell=True)
     shp_json = json.loads(result_ogr.stdout)
 

@@ -188,6 +188,12 @@ urlpatterns = [
     ),
 
     re_path(
+        r"^api/proposal/(?P<pk>\d+)/delete_shapefile/$",
+        proposal_api.DeleteShapefileView.as_view(),
+        name="delete-shapefile",
+    ),
+
+    re_path(
         r"^api/proposal/(?P<pk>\d+)/revert_shapefile_processing/$",
         proposal_api.RevertShapefileProcessingView.as_view(),
         name="revert-shapefile-processing",

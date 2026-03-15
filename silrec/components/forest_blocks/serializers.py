@@ -995,6 +995,7 @@ class AssignChtToPlySerializer(serializers.ModelSerializer):
             'updated_on'
         )
 
+
 class PolygonCohortDataSerializer(serializers.ModelSerializer):
     assigned_cohorts = serializers.SerializerMethodField()
     proposal_id = serializers.IntegerField(source='proposal.id', read_only=True)
@@ -1013,11 +1014,38 @@ class PolygonCohortDataSerializer(serializers.ModelSerializer):
             'assigned_cohorts'
         )
 
+    def __get_assigned_cohorts(self, obj):
+        # Manually query the assignments for this polygon
+        # This creates N+1 queries but avoids the Django ORM bug
+        assignments = AssignChtToPly.objects.filter(
+            polygon=obj,
+            status_current=True
+        ).select_related('cohort')
+
+        return AssignChtToPlySerializer(assignments, many=True).data
+
     def get_assigned_cohorts(self, obj):
-        # Use the correct related name
-        #assigned_cht = obj.tmpassignchttoply_set.filter(status_current=True).select_related('cohort')
-        assigned_cht = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
-        return AssignChtToPlySerializer(assigned_cht, many=True).data
+        # This will be called for each polygon, but we can cache
+        if not hasattr(self, '_assignments_cache'):
+            # Get all polygon IDs from the context
+            polygon_ids = [p.polygon_id for p in self.context['view'].get_queryset()]
+
+            # Fetch all assignments for these polygons in one query
+            all_assignments = AssignChtToPly.objects.filter(
+                polygon_id__in=polygon_ids,
+                status_current=True
+            ).select_related('cohort')
+
+            # Group by polygon_id
+            self._assignments_cache = {}
+            for assignment in all_assignments:
+                if assignment.polygon_id not in self._assignments_cache:
+                    self._assignments_cache[assignment.polygon_id] = []
+                self._assignments_cache[assignment.polygon_id].append(assignment)
+
+        # Return cached assignments for this polygon
+        assignments = self._assignments_cache.get(obj.polygon_id, [])
+        return AssignChtToPlySerializer(assignments, many=True).data
 
 
 class SimpleCohortSerializer(serializers.ModelSerializer):

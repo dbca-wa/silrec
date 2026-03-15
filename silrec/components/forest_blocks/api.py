@@ -467,7 +467,32 @@ class DatatablesFilterBackend(DatatablesFilterBackend):
 
         return queryset
 
+
 class PolygonCohortTableViewSet(viewsets.ModelViewSet):
+    queryset = Polygon.objects.none()
+    serializer_class = PolygonCohortDataSerializer
+    pagination_class = DatatablesPageNumberPagination
+    filter_backends = (DatatablesFilterBackend,)
+
+    def get_queryset(self):
+        proposal_id = self.request.query_params.get('proposal_id')
+        if not proposal_id:
+            return Polygon.objects.none()
+
+        try:
+            # Keep it simple - use only select_related
+            return Polygon.objects.filter(
+                proposal_id=proposal_id
+            ).select_related(
+                'compartment',
+                'sp_code'
+            ).distinct()
+        except Exception as e:
+            logger.error(f"Error in get_queryset: {str(e)}")
+            return Polygon.objects.none()
+
+
+class _PolygonCohortTableViewSet(viewsets.ModelViewSet):
     queryset = Polygon.objects.none()
     serializer_class = PolygonCohortDataSerializer
     pagination_class = DatatablesPageNumberPagination

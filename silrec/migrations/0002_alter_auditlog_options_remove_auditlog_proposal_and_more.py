@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'requestmetrics',
-                'ordering': ['-timestamp'],
+                'ordering': ['-timestamp'], 'verbose_name': 'Processing Log', 'verbose_name_plural': 'Processing Logs',
             },
         ),
         migrations.AddField(

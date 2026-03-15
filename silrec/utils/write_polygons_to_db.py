@@ -3,11 +3,10 @@ import logging
 import json
 from datetime import datetime, date
 from decimal import Decimal
-from django.db import transaction, models
+from django.db import transaction, models, IntegrityError
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from django.contrib.gis.geos import Polygon as GeosPolygon
-from silrec.components.forest_blocks.models import Polygon#, PolygonAudit
-from silrec.components.proposals.models import AuditLog
+from silrec.components.forest_blocks.models import Polygon
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 from copy import deepcopy
 import pandas as pd
@@ -16,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
-#def write_gdf_to_polygon(gdf_result, user_id=None):
-def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
+def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
     """
     Write GeoDataFrame to polygon table using Django ORM.
     Handles repeated polygon_ids, prioritizes poly_type (CUT > BASE > others),
@@ -29,9 +27,6 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
     # Create a copy to add the new IDs
     gdf_result_with_ids = gdf_result.copy()
     gdf_result_with_ids['poly_id_new'] = None
-
-    # Capture current state for audit trail
-    #current_records = _get_current_polygon_records()
 
     # Track operations
     ops_summary = {
@@ -51,7 +46,6 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
 
     gdf_sorted['polygon_id'] = pd.to_numeric(gdf_sorted['polygon_id'], errors='coerce').fillna(0).astype(int)
 
-    #import ipdb; ipdb.set_trace()
     for idx, row in gdf_sorted.iterrows():
         polygon_id = row['polygon_id']
         poly_type = row.get('poly_type', 'OTHER')
@@ -61,11 +55,16 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
 
         if existing_polygon is None:
             # New polygon_id → insert
-            _insert_new_polygon(row, proposal_id, user_id)
-            ops_summary['new_records'] += 1
-            ops_summary['new_polygon_ids'].append(polygon_id)
-            gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
-            logger.info(f"Inserted new record with polygon_id: {polygon_id}, poly_type: {poly_type}")
+            ply = _insert_new_polygon(row, request_metrics, iter_seq)
+            if ply:
+                # Add to revision if provided
+                if revision:
+                    revision.add_to_revision(ply)
+
+                ops_summary['new_records'] += 1
+                ops_summary['new_polygon_ids'].append(polygon_id)
+                gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
+                logger.info(f"Inserted new record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
         else:
             # Polygon_id already exists
@@ -73,31 +72,42 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
                 # This polygon_id appears multiple times in the input
                 if _should_update_based_on_priority(poly_type_map, polygon_id, poly_type):
                     # Higher priority → update the existing record
-                    _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
-                    ops_summary['updated_records'] += 1
-                    ops_summary['updated_polygon_ids'].append(polygon_id)
-                    ops_summary['priority_updates'].append(polygon_id)
-                    gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
-                    logger.info(f"Priority update - Updated existing record with polygon_id: {polygon_id}, new poly_type: {poly_type}")
+                    ply = _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
+                    if ply:
+                        # Add to revision if provided
+                        if revision:
+                            revision.add_to_revision(ply)
+
+                        ops_summary['updated_records'] += 1
+                        ops_summary['updated_polygon_ids'].append(polygon_id)
+                        ops_summary['priority_updates'].append(polygon_id)
+                        gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
+                        logger.info(f"Priority update - Updated existing record with polygon_id: {polygon_id}, new poly_type: {poly_type}")
                 else:
                     # Lower priority → create a new record with a new polygon_id
                     new_polygon_id = _get_next_polygon_id()
-                    _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq)
-                    ops_summary['new_records'] += 1
-                    ops_summary['new_polygon_ids'].append(new_polygon_id)
-                    gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
-                    logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
+                    ply = _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq)
+                    if ply:
+                        # Add to revision if provided
+                        if revision:
+                            revision.add_to_revision(ply)
+
+                        ops_summary['new_records'] += 1
+                        ops_summary['new_polygon_ids'].append(new_polygon_id)
+                        gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
+                        logger.info(f"Created duplicate record: {polygon_id} -> {new_polygon_id}, poly_type: {poly_type}")
             else:
                 # First occurrence of this polygon_id in the input → update
-                _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
-                ops_summary['updated_records'] += 1
-                ops_summary['updated_polygon_ids'].append(polygon_id)
-                gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
-                logger.info(f"Updated existing record with polygon_id: {polygon_id}, poly_type: {poly_type}")
+                ply = _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
+                if ply:
+                    # Add to revision if provided
+                    if revision:
+                        revision.add_to_revision(ply)
 
-    # Capture final state and create audit records
-    #final_records = _get_current_polygon_records()
-    #_create_audit_records(current_records, final_records, user_id)
+                    ops_summary['updated_records'] += 1
+                    ops_summary['updated_polygon_ids'].append(polygon_id)
+                    gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
+                    logger.info(f"Updated existing record with polygon_id: {polygon_id}, poly_type: {poly_type}")
 
     logger.info(f"Operation completed: {ops_summary}")
     return ops_summary, gdf_result_with_ids
@@ -161,21 +171,11 @@ def _is_duplicate_in_gdf(gdf, polygon_id, current_index):
 # Django ORM database helpers
 # ------------------------------------------------------------------------------
 
-def _get_current_polygon_records():
-    """
-    Fetch all polygon records from the database.
-    Returns a dict {polygon_id: {field: value}} for audit comparison.
-    """
-    records = {}
-    for poly in Polygon.objects.all().values():
-        # Convert datetime/date/Decimal to JSON‑serializable types later
-        records[poly['polygon_id']] = poly
-    return records
-
 def _insert_new_polygon(row, request_metrics, iter_seq):
-    """Insert a new polygon record. proposal_id is set only if poly_type == 'BASE'."""
+    """Insert a new polygon record. Returns the created object."""
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
+    user_id = request_metrics.user.id
 
     try:
         ply = Polygon.objects.create(
@@ -188,21 +188,21 @@ def _insert_new_polygon(row, request_metrics, iter_seq):
             geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
             created_by=user_id,
             updated_by=user_id,
-            # created_on/updated_on are auto‑set if the model uses auto_now_add/auto_now
         )
 
         al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
-        #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+        return ply
+
     except IntegrityError as e:
-        logger.error(f"Database integrity error creating cohort record: {e}")
-        raise  # Re-raise to break the transaction
+        logger.error(f"Database integrity error creating polygon record: {e}")
+        return None
     except Exception as e2:
-        logger.error(f"Error: {e2}")
-        raise
+        logger.error(f"Error inserting polygon: {e2}")
+        return None
 
 
 def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
-    """Insert a duplicate polygon with a new polygon_id."""
+    """Insert a duplicate polygon with a new polygon_id. Returns the created object."""
     geom = GEOSGeometry(row['geometry'].wkt) if hasattr(row['geometry'], 'wkt') else None
     proposal_id_row = row.get('proposal_id') if row.get('poly_type') == 'BASE' else None
     user_id = request_metrics.user.id
@@ -220,20 +220,20 @@ def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
             updated_by=user_id,
         )
 
-        #import ipdb; ipdb.set_trace()
         al = AuditLogger(Polygon, ply, 'INSERT', request_metrics, iter_seq, new_vals=ply).create()
-        #al = AuditLogger(Polygon, ply, 'INSERT', user_id, proposal_id, None, ply).create()
+        return ply
+
     except IntegrityError as e:
-        logger.error(f"Database integrity error creating cohort record: {e}")
-        raise  # Re-raise to break the transaction
+        logger.error(f"Database integrity error creating duplicate polygon: {e}")
+        return None
     except Exception as e2:
-        logger.error(f"Error: {e2}")
-        raise
+        logger.error(f"Error inserting duplicate polygon: {e2}")
+        return None
 
 
 def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
     """
-    Update an existing polygon record.
+    Update an existing polygon record. Returns the updated object.
     """
     try:
         poly = Polygon.objects.get(polygon_id=int(polygon_id))
@@ -259,68 +259,23 @@ def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
         al = AuditLogger(Polygon, poly, 'UPDATE', request_metrics, iter_seq,
                         old_vals=poly_orig, new_vals=poly).create()
 
+        return poly
+
     except IntegrityError as e:
-        logger.error(f"Database integrity error creating cohort record: {e}")
-        raise  # Re-raise to break the transaction
+        logger.error(f"Database integrity error updating polygon {polygon_id}: {e}")
+        return None
     except Polygon.DoesNotExist:
         logger.error(f"Polygon with ID {polygon_id} not found")
-        raise
+        return None
     except Exception as e2:
         logger.error(f"Error updating polygon {polygon_id}: {e2}")
-        raise
+        return None
 
 def _get_next_polygon_id():
     """Return the next available polygon_id (max existing + 1)."""
     max_id = Polygon.objects.aggregate(models.Max('polygon_id'))['polygon_id__max']
     return (int(max_id) or 0) + 1
 
-# Inside write_polygons_to_db.py (updated)
-
-
-#def _create_audit_records(before_state, after_state, user_id):
-#    """
-#    Create audit entries for inserted/updated polygons.
-#    before_state and after_state are dicts: {polygon_id: {field: value}}
-#    user_id can be a User instance or a string (username).
-#    """
-#    # Resolve user object if user_id is a string
-#    if isinstance(user_id, str):
-#        try:
-#            user = User.objects.get(username=user_id)
-#        except User.DoesNotExist:
-#            user = None
-#    else:
-#        user = user_d
-#
-#    table_name = Polygon._meta.db_table
-#    all_ids = set(before_state.keys()) | set(after_state.keys())
-#
-#    for pid in all_ids:
-#        before = before_state.get(pid)
-#        after = after_state.get(pid)
-#
-#        before_json = _prepare_for_json(before) if before else None
-#        after_json = _prepare_for_json(after) if after else None
-#
-#        if before is None and after is not None:
-#            # Insert
-#            AuditLog.objects.create(
-#                table_name=table_name,
-#                record_id=pid,
-#                operation='INSERT',
-#                new_values=after_json,
-#                user=user,
-#            )
-#        elif before is not None and after is not None and before != after:
-#            # Update
-#            AuditLog.objects.create(
-#                table_name=table_name,
-#                record_id=pid,
-#                operation='UPDATE',
-#                old_values=before_json,
-#                new_values=after_json,
-#                user=user,
-#            )
 
 def _prepare_for_json(obj):
     """Convert datetime/date/Decimal to JSON‑serializable types."""
@@ -332,4 +287,3 @@ def _prepare_for_json(obj):
         return float(obj)
     else:
         return obj
-

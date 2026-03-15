@@ -1712,7 +1712,16 @@ register(ProposalDocument, follow=['proposal'])
 register(ShapefileDocument, follow=['proposal'])
 register(ProposalAdditionalDocumentType, follow=['proposal', 'additional_document_type'])
 register(ProposalType, follow=[])
-register(Proposal, follow=['proposal_type', 'previous_application', 'application_type'])
+#register(Proposal, follow=['proposal_type', 'previous_application', 'application_type'])
+register(Proposal, follow=[
+    'proposal_type',
+    'previous_application',
+    'application_type',
+    'polygons',              # Reverse relation to Polygon
+    'shapefile_documents',   # Shapefile documents
+    'supporting_documents',  # Other documents
+    #'request_metrics'        # Request metrics
+])
 #register(ProposalGeometry, follow=['proposal', 'copied_from'])
 #register(AmendmentReason, follow=[])
 #register(ProposalRequest, follow=[])

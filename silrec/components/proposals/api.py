@@ -2920,20 +2920,43 @@ class ProcessShapefileView(APIView):
                 }
 
             with transaction.atomic():
-                #if True:
                 with reversion.create_revision():
-                        # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
-                        ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
-                        list_state = ssm.create_gdf()
-                        geom_data = ssm.set_proposal_data(list_state)
+                    # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
+                    ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
+                    list_state = ssm.create_gdf()
+                    geom_data = ssm.set_proposal_data(list_state)
 
-                        proposal.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
-                        proposal.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
-                        proposal.geojson_data_processed_iters = geom_data
-                        proposal.save()
+                    # Update proposal
+                    proposal.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
+                    proposal.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
+                    proposal.geojson_data_processed_iters = geom_data
+                    proposal.save()
 
-                        # Set reversion comment for easy identification
-                        #reversion.set_comment(f'Shapefile processing with threshold {threshold}')
+                    # Set a comment to easily identify this revision
+                    reversion.set_comment(f'Shapefile processing with threshold {threshold} by user {user_id}')
+
+                    # IMPORTANT: You need to manually add the related objects to the revision
+                    # if they're not automatically included via follow relationships
+
+                    # Get all polygons created/updated for this proposal
+                    from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
+
+                    # Add all polygons for this proposal to the revision
+                    polygons = Polygon.objects.filter(proposal_id=proposal.id)
+                    for polygon in polygons:
+                        reversion.add_to_revision(polygon)
+
+                    # Add all cohorts for this proposal to the revision
+                    cohorts = Cohort.objects.filter(
+                        assignchttoply__polygon__proposal_id=proposal.id
+                    ).distinct()
+                    for cohort in cohorts:
+                        reversion.add_to_revision(cohort)
+
+                    # Add all assignments for this proposal to the revision
+                    assignments = AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id)
+                    for assignment in assignments:
+                        reversion.add_to_revision(assignment)
 
             warnings = []
             feature_count = len(proposal.geojson_data_processed['features'])
@@ -2998,8 +3021,8 @@ class RevertShapefileProcessingView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            # Perform revert operation using only reversion
-            result = self.revert_shapefile_processing(proposal)
+            # Perform revert operation
+            result = self.revert_shapefile_processing(proposal, user_id)
 
             if not result['success']:
                 return Response(
@@ -3012,9 +3035,9 @@ class RevertShapefileProcessingView(APIView):
 
             response_data = {
                 'success': True,
-                'message': f'Successfully reverted to previous state. {result["records_removed"]} records removed.',
+                'message': result['message'],
                 'proposal': proposal_serializer.data,
-                'records_removed': result['records_removed'],
+                'records_removed': result.get('records_removed', 0),
                 'warnings': result.get('warnings', [])
             }
 
@@ -3027,30 +3050,31 @@ class RevertShapefileProcessingView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    def revert_shapefile_processing(self, proposal):
+    def revert_shapefile_processing(self, proposal, user_id):
         """
-        Revert shapefile processing changes using django-reversion timestamps
+        Revert shapefile processing changes using django-reversion
         """
         try:
             import reversion
             from django.db import transaction
-            from django.utils import timezone
-            from datetime import timedelta
+            from reversion.models import Version
+            from django.contrib.contenttypes.models import ContentType
             from silrec.components.forest_blocks.models import (
                 Polygon, Cohort, AssignChtToPly, Treatment, TreatmentXtra
             )
+            from django.db.models import Q
 
             records_removed = 0
             warnings = []
 
-            # Get the timestamp of the most recent reversion version for this proposal
+            # Get all versions for this proposal
             versions = Version.objects.get_for_object(proposal).order_by('-revision__date_created')
+
+            logger.info(f"Found {versions.count()} versions for proposal {proposal.id}")
 
             if versions.count() <= 1:
                 warnings.append('Not enough versions to revert - clearing processed fields only')
-                # Just clear processed fields
-                #with transaction.atomic():
-                if True:
+                with transaction.atomic():
                     proposal.geojson_data_processed = None
                     proposal.geojson_data_processed_iters = None
                     proposal.save()
@@ -3062,81 +3086,176 @@ class RevertShapefileProcessingView(APIView):
                     'warnings': warnings
                 }
 
-            # Get the timestamp of the most recent version (current state)
-            latest_version = versions[0]
-            latest_timestamp = latest_version.revision.date_created
+            # Get the version right before the shapefile processing
+            target_version = None
+            for version in versions:
+                if version.revision.comment and 'Shapefile processing' in version.revision.comment:
+                    idx = list(versions).index(version)
+                    if idx + 1 < len(versions):
+                        target_version = versions[idx + 1]
+                        break
 
-            # Get the previous version timestamp
-            previous_version = versions[1]
-            previous_timestamp = previous_version.revision.date_created
+            if not target_version:
+                target_version = versions[1]
 
-            logger.info(f"Current version timestamp: {latest_timestamp}")
-            logger.info(f"Previous version timestamp: {previous_timestamp}")
+            target_timestamp = target_version.revision.date_created
+            logger.info(f"Target version timestamp: {target_timestamp}")
 
-            #with transaction.atomic():
-            if True:
-                # Delete records created after the previous version timestamp
-                # These would be records that don't have reversion versions
+            # CRITICAL FIX: Get original polygon IDs from the VERSION HISTORY, not from current shapefile_json
+            # The version at target_timestamp contains the original state
+            original_polygon_ids = []
 
-                # Delete polygons created after previous timestamp
-                new_polygons = Polygon.objects.filter(
-                    proposal_id=proposal.id,
-                    created_on__gt=previous_timestamp
-                )
-                polygon_count = new_polygons.count()
-                if polygon_count > 0:
-                    new_polygons.delete()
-                    records_removed += polygon_count
-                    warnings.append(f"Removed {polygon_count} new polygons")
+            # Get all polygons that existed at target_timestamp
+            # First, get the revision at target_timestamp
+            target_revision = target_version.revision
 
-                # Delete cohorts created after previous timestamp
-                # Need to go through assign_cht_to_ply to find cohorts for this proposal
-                new_cohorts = Cohort.objects.filter(
-                    assignchtoply__polygon__proposal_id=proposal.id,
-                    created_on__gt=previous_timestamp
-                ).distinct()
-                cohort_count = new_cohorts.count()
-                if cohort_count > 0:
-                    new_cohorts.delete()
-                    records_removed += cohort_count
-                    warnings.append(f"Removed {cohort_count} new cohorts")
+            # Find all polygon versions in that revision
+            polygon_versions = Version.objects.filter(
+                content_type=ContentType.objects.get_for_model(Polygon),
+                revision=target_revision
+            )
 
-                # Delete assign_cht_to_ply records created after previous timestamp
-                new_assignments = AssignChtToPly.objects.filter(
-                    polygon__proposal_id=proposal.id,
-                    created_on__gt=previous_timestamp
-                )
-                assignment_count = new_assignments.count()
-                if assignment_count > 0:
-                    new_assignments.delete()
-                    records_removed += assignment_count
-                    warnings.append(f"Removed {assignment_count} new assignments")
+            for pv in polygon_versions:
+                # These are the polygons that existed before processing
+                original_polygon_ids.append(int(pv.object_id))
 
-                # Delete treatments created after previous timestamp
-                new_treatments = Treatment.objects.filter(
-                    cohort__assignchtoply__polygon__proposal_id=proposal.id,
-                    created_on__gt=previous_timestamp
-                ).distinct()
-                treatment_count = new_treatments.count()
-                if treatment_count > 0:
-                    new_treatments.delete()
-                    records_removed += treatment_count
-                    warnings.append(f"Removed {treatment_count} new treatments")
+            logger.info(f"Original polygon IDs from version history: {original_polygon_ids}")
 
-                # Delete treatment_xtra created after previous timestamp
-                new_treatment_xtra = TreatmentXtra.objects.filter(
-                    treatment__cohort__assignchtoply__polygon__proposal_id=proposal.id,
-                    treatment__created_on__gt=previous_timestamp
-                ).distinct()
-                treatment_xtra_count = new_treatment_xtra.count()
-                if treatment_xtra_count > 0:
-                    new_treatment_xtra.delete()
-                    records_removed += treatment_xtra_count
-                    warnings.append(f"Removed {treatment_xtra_count} new treatment extras")
+            # Get all polygon IDs that exist NOW after processing
+            current_polygon_ids = list(Polygon.objects.filter(
+                proposal_id=proposal.id
+            ).values_list('polygon_id', flat=True))
 
-                # Now revert the proposal itself using reversion
+            logger.info(f"Current polygon IDs: {current_polygon_ids}")
+
+            # NEW polygons are those in current but NOT in original
+            new_polygon_ids = list(set(current_polygon_ids) - set(original_polygon_ids))
+            logger.info(f"New polygon IDs to delete: {new_polygon_ids}")
+
+            # UPDATED polygons are those in both sets
+            updated_polygon_ids = list(set(current_polygon_ids) & set(original_polygon_ids))
+            logger.info(f"Updated polygon IDs to revert: {updated_polygon_ids}")
+
+            # Store counts before revert for logging
+            before_counts = {
+                'polygon': Polygon.objects.filter(proposal_id=proposal.id).count(),
+                'cohort': Cohort.objects.filter(assignchttoply__polygon__proposal_id=proposal.id).distinct().count(),
+                'assign_cht_to_ply': AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id).count(),
+                'treatment': Treatment.objects.filter(cohort__assignchttoply__polygon__proposal_id=proposal.id).distinct().count(),
+            }
+            logger.info(f"Before revert counts: {before_counts}")
+
+            # Perform the revert
+            with transaction.atomic():
                 with reversion.create_revision():
-                    previous_version.revision.revert()
+                    # STEP 1: Handle NEW polygons (created during processing)
+                    if new_polygon_ids:
+                        logger.info(f"Processing {len(new_polygon_ids)} new polygons")
+
+                        # Get assignments for new polygons
+                        new_assignments = AssignChtToPly.objects.filter(
+                            polygon_id__in=new_polygon_ids
+                        )
+
+                        # Get cohort IDs from these assignments
+                        new_cohort_ids = list(new_assignments.values_list('cohort_id', flat=True).distinct())
+                        logger.info(f"Cohorts linked to new polygons: {new_cohort_ids}")
+
+                        # Get treatments linked to these cohorts and disconnect them
+                        if new_cohort_ids:
+                            affected_treatments = Treatment.objects.filter(cohort_id__in=new_cohort_ids)
+                            if affected_treatments.exists():
+                                treatment_count = affected_treatments.count()
+                                logger.info(f"Disconnecting {treatment_count} treatments from new cohorts")
+                                affected_treatments.update(cohort=None)
+
+                        # Delete assignments for new polygons
+                        assignment_count = new_assignments.count()
+                        if assignment_count > 0:
+                            new_assignments.delete()
+                            records_removed += assignment_count
+                            warnings.append(f"Deleted {assignment_count} assignments for new polygons")
+
+                        # Delete new cohorts
+                        if new_cohort_ids:
+                            cohorts_to_delete = Cohort.objects.filter(cohort_id__in=new_cohort_ids)
+                            cohort_count = cohorts_to_delete.count()
+                            if cohort_count > 0:
+                                cohorts_to_delete.delete()
+                                records_removed += cohort_count
+                                warnings.append(f"Deleted {cohort_count} new cohorts")
+
+                        # Delete new polygons
+                        polygons_to_delete = Polygon.objects.filter(polygon_id__in=new_polygon_ids)
+                        polygon_count = polygons_to_delete.count()
+                        if polygon_count > 0:
+                            polygons_to_delete.delete()
+                            records_removed += polygon_count
+                            warnings.append(f"Deleted {polygon_count} new polygons")
+
+                    # STEP 2: Handle UPDATED polygons (revert to pre-processing state)
+                    if updated_polygon_ids:
+                        logger.info(f"Processing {len(updated_polygon_ids)} updated polygons")
+
+                        # Get all cohorts linked to these polygons
+                        updated_cohort_ids = list(AssignChtToPly.objects.filter(
+                            polygon_id__in=updated_polygon_ids,
+                            status_current=True
+                        ).values_list('cohort_id', flat=True).distinct())
+
+                        # Revert each updated polygon to its state at target_timestamp
+                        for polygon_id in updated_polygon_ids:
+                            try:
+                                polygon = Polygon.objects.get(polygon_id=polygon_id)
+                                # Get the version of this polygon at target_timestamp
+                                polygon_versions = Version.objects.get_for_object(polygon).filter(
+                                    revision__date_created__lte=target_timestamp
+                                ).order_by('-revision__date_created')
+
+                                if polygon_versions.exists():
+                                    # Store the field values from that version
+                                    version_data = polygon_versions.first().field_dict
+
+                                    # Update the polygon with the version data
+                                    for field, value in version_data.items():
+                                        if field != 'id' and hasattr(polygon, field):
+                                            setattr(polygon, field, value)
+
+                                    polygon.save()
+                                    logger.info(f"Reverted polygon {polygon_id} to pre-processing state")
+                                    records_removed += 1
+                                else:
+                                    logger.warning(f"No version found for polygon {polygon_id}")
+                            except Polygon.DoesNotExist:
+                                logger.warning(f"Polygon {polygon_id} not found")
+
+                        # Revert each updated cohort
+                        for cohort_id in updated_cohort_ids:
+                            try:
+                                cohort = Cohort.objects.get(cohort_id=cohort_id)
+                                cohort_versions = Version.objects.get_for_object(cohort).filter(
+                                    revision__date_created__lte=target_timestamp
+                                ).order_by('-revision__date_created')
+
+                                if cohort_versions.exists():
+                                    # Store the field values from that version
+                                    version_data = cohort_versions.first().field_dict
+
+                                    # Update the cohort with the version data
+                                    for field, value in version_data.items():
+                                        if field != 'id' and hasattr(cohort, field):
+                                            setattr(cohort, field, value)
+
+                                    cohort.save()
+                                    logger.info(f"Reverted cohort {cohort_id} to pre-processing state")
+                                    records_removed += 1
+                                else:
+                                    logger.warning(f"No version found for cohort {cohort_id}")
+                            except Cohort.DoesNotExist:
+                                logger.warning(f"Cohort {cohort_id} not found")
+
+                    # STEP 3: Now revert the proposal itself
+                    target_version.revision.revert()
                     proposal.refresh_from_db()
 
                     # Ensure processed fields are cleared
@@ -3144,16 +3263,41 @@ class RevertShapefileProcessingView(APIView):
                     proposal.geojson_data_processed_iters = None
                     proposal.save()
 
-                    records_removed += 1
-                    warnings.append("Reverted proposal to previous version")
+                    reversion.set_comment(f'Reverted shapefile processing to state from {target_timestamp.strftime("%Y-%m-%d %H:%M:%S")}')
 
-            logger.info(f"Revert completed: removed {records_removed} records")
+            # Get counts after revert
+            after_counts = {
+                'polygon': Polygon.objects.filter(proposal_id=proposal.id).count(),
+                'cohort': Cohort.objects.filter(assignchttoply__polygon__proposal_id=proposal.id).distinct().count(),
+                'assign_cht_to_ply': AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id).count(),
+                'treatment': Treatment.objects.filter(cohort__assignchttoply__polygon__proposal_id=proposal.id).distinct().count(),
+            }
+            logger.info(f"After revert counts: {after_counts}")
+
+            # Calculate total records removed/changed
+            total_changes = (
+                (before_counts['polygon'] - after_counts['polygon']) +
+                (before_counts['cohort'] - after_counts['cohort']) +
+                (before_counts['assign_cht_to_ply'] - after_counts['assign_cht_to_ply']) +
+                (before_counts['treatment'] - after_counts['treatment'])
+            )
+
+            logger.info(f"Revert completed: {records_removed} records affected")
 
             return {
                 'success': True,
-                'message': 'Successfully reverted shapefile processing',
+                'message': f'Successfully reverted to state from {target_timestamp.strftime("%Y-%m-%d %H:%M:%S")}',
                 'records_removed': records_removed,
-                'warnings': warnings
+                'warnings': warnings,
+                'before_counts': before_counts,
+                'after_counts': after_counts,
+                'details': {
+                    'original_polygon_count': len(original_polygon_ids),
+                    'new_polygon_count': len(new_polygon_ids),
+                    'updated_polygon_count': len(updated_polygon_ids),
+                    'new_polygons_deleted': new_polygon_ids,
+                    'updated_polygons_reverted': updated_polygon_ids
+                }
             }
 
         except Exception as e:
@@ -3163,6 +3307,7 @@ class RevertShapefileProcessingView(APIView):
                 'message': 'Error reverting shapefile processing',
                 'errors': [str(e)]
             }
+
 
 class SnapshotDebugView(APIView):
     """API endpoint for snapshot debugging and testing"""

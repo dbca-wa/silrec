@@ -13,7 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_metrics, iter_seq):
+def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_metrics, iter_seq, revision=None):
     """
     Create a record in the cohort table for the USER PROVIDED SHAPEFILE polygons.
 
@@ -25,14 +25,11 @@ def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_m
         target_ba_float = float(target_ba)
 
         # Use get_or_create to either fetch the existing record or create a new one.
-        # The lookup uses all fields that define uniqueness.
-        #import ipdb; ipdb.set_trace()
         cohort_qs = Cohort.objects.filter(
             obj_code=obj_code,
             op_id=op_id,
             op_date=op_date,
             target_ba_m2ha=target_ba_float,
-            #regen_method_id=regen_method #' %', # FK req'd
             regen_method_id=' %', # FK req'd
         )
 
@@ -42,12 +39,14 @@ def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_m
                 op_id=op_id,
                 op_date=op_date,
                 target_ba_m2ha=target_ba_float,
-                regen_method_id=regen_method #' %', # FK req'd
-                # No extra defaults needed because we're providing all field values.
+                regen_method_id=regen_method
             )
 
+            # Add to revision if provided
+            if revision:
+                revision.add_to_revision(cohort_obj)
+
             al = AuditLogger(Cohort, cohort_obj, 'INSERT', request_metrics, iter_seq, new_vals=cohort_obj).create()
-            #al = AuditLogger(Cohort, cohort_obj, 'INSERT', user_id, proposal_id, None, cohort_obj).create()
             logger.info(f"Successful INSERT cohort record with ID: {cohort_obj.cohort_id}")
         else:
             cohort_obj = cohort_qs[0]
@@ -64,7 +63,7 @@ def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_m
         return None
 
 
-def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
+def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq, revision=None):
     """
     Saves the gdf_cht_new to AssignChtToPly (assign_cht_to_ply) table and NA value handling
     """
@@ -76,30 +75,17 @@ def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
         logger.info("No records found. Nothing to update (model AssignChtToPly).")
         return []
 
-    #import ipdb; ipdb.set_trace()
     db_data = gdf_cht_new[['poly_id_new','cohort_id','status_current']]
     db_data = db_data.rename(columns={'poly_id_new': 'polygon_id'})
-    # Map column names and handle missing op_id
-    #db_data['op_id'] = db_data.get('op_id', None)
 
     # Ensure correct data types
     db_data['polygon_id'] = pd.to_numeric(db_data['polygon_id'], errors='coerce').fillna(0).astype(int)
     db_data['cohort_id'] = pd.to_numeric(db_data['cohort_id'], errors='coerce').fillna(0).astype(int)
 
-    # Handle op_id - convert pandas NA to None
-#    if 'op_id' in db_data.columns:
-#        db_data['op_id'] = db_data['op_id'].replace('', None)
-#        #db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').astype('Int64')
-#        #import ipdb; ipdb.set_trace()
-#        db_data['op_id'] = pd.to_numeric(db_data['op_id'], errors='coerce').fillna(1).astype(int)
-#        # Convert pandas Int64 NA to Python None
-#        db_data['op_id'] = db_data['op_id'].where(db_data['op_id'].notna(), None)
-
     # Handle status_current
     db_data['status_current'] = db_data['status_current'].fillna(False)
     db_data['status_current'] = db_data['status_current'].astype(bool)
 
-    #import ipdb; ipdb.set_trace()
     cht2ply_ids = []
     current_time = timezone.now()
     success_count = 0
@@ -111,21 +97,21 @@ def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
                 # Convert all values to native Python types
                 polygon_id = int(row['polygon_id'])
                 cohort_id = int(row['cohort_id'])
-#                op_id = row['op_id']
                 status_current = bool(row['status_current'])
 
-                #logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, op_id={op_id}, status_current={status_current}")
                 logger.info(f"Processing cohort_id {cohort_id}: polygon_id={polygon_id}, status_current={status_current}")
 
-                #import ipdb; ipdb.set_trace()
                 obj, created = AssignChtToPly.objects.update_or_create(
                     cohort_id=int(cohort_id),
                     polygon_id=int(polygon_id),
                     defaults={
-                        #'op_id': op_id,
                         'status_current': status_current
                     }
                 )
+
+                # Add to revision if provided
+                if revision:
+                    revision.add_to_revision(obj)
 
                 if created:
                     obj.created_on = current_time
@@ -143,7 +129,6 @@ def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
                 al = AuditLogger(
                     AssignChtToPly, obj, action, request_metrics, iter_seq, old_vals=obj_orig, new_vals=obj
                 ).create()
-                #al = AuditLogger(AssignChtToPly, obj, action, user_id, proposal_id, obj_orig, obj).create()
 
                 cht2ply_ids.append([obj.cht2ply_id, obj.polygon_id, obj.cohort_id])
                 success_count += 1
@@ -152,9 +137,7 @@ def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
             except Exception as e:
                 error_count += 1
                 logger.error(f"Error processing cohort_id {row['cohort_id']}: {str(e)}")
-                #logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, op_id={row['op_id']}, status_current={row['status_current']}")
                 logger.error(f"Problematic row data: polygon_id={row['polygon_id']}, cohort_id={row['cohort_id']}, status_current={row['status_current']}")
-                # Log the full traceback for debugging
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 continue
@@ -163,11 +146,8 @@ def save_cht_new_to_db(gdf_cht_new, request_metrics, iter_seq):
         return cht2ply_ids
 
     except IntegrityError as e:
-        # Handle any database integrity errors (e.g., duplicate key despite check)
         logger.error(f"Database integrity error creating cohort record: {e}")
         return None
-
     except Exception as e2:
         logger.error(f"Error saving data to PostgreSQL: {str(e2)}")
         raise
-

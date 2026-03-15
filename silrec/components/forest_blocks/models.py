@@ -1079,7 +1079,16 @@ register(BaTransect, follow=['cell'])
 register(BaTransectTransfer, follow=[])
 register(Cell, follow=['op'])
 register(ClComp2024PolysClearedMga202050Pl, follow=[])
-register(Cohort, follow=['regen_method', 'vrp'])
+#register(Cohort, follow=['regen_method', 'vrp'])
+register(Cohort, follow=[
+    'regen_method',
+    'vrp',
+    'assignchttoply_set',    # Reverse relation to AssignChtToPly
+    'treatment_set',          # Treatments
+    'cohortresult_set',       # Results
+    'cohortxtra_set',         # Extra data
+    'silviculturistcomment_set'  # Comments
+])
 register(CohortResult, follow=['cohort', 'metric'])
 register(CohortXtra, follow=['cohort', 'category1', 'category2'])
 register(CombinedSilrec2023, follow=[])
@@ -1090,7 +1099,14 @@ register(FeaActiveFmp25Region, follow=[])
 register(ObjectiveCategory, follow=[])
 register(ObjectiveSubtype, follow=[])
 register(Operation, follow=[])
-register(Polygon, follow=['proposal', 'compartment', 'sp_code'])
+#register(Polygon, follow=['proposal', 'compartment', 'sp_code'])
+register(Polygon, follow=[
+    'proposal',
+    'compartment',
+    'sp_code',
+    'assignchttoply_set',    # Reverse relation to AssignChtToPly
+    'silviculturistcomment_set'  # Comments
+])
 register(PolygonDa, follow=[])
 register(PolygonMiningUnion, follow=[])
 register(PolygonPriorToAreaFix, follow=[])

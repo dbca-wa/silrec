@@ -182,16 +182,12 @@ class ShapefileSliversMerger():
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         # Process each polygon in the shapefile
+        #for index, row in self.gdf_shpfile[:2].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
             print('****************************************************************************************')
             print(f'                                 Polygon {idx_count}')
             print('****************************************************************************************')
-
-            # Create savepoint if callback provided
-            if savepoint_callback:
-                row_data = row.to_dict() if hasattr(row, 'to_dict') else {'index': index}
-                savepoint_callback('create', idx_count, row_data)
 
             try:
                 # Start a transaction with reversion
@@ -244,19 +240,9 @@ class ShapefileSliversMerger():
                         # Set reversion comment
                         reversion.set_comment(f'Shapefile processing iteration {idx_count} for proposal {self.proposal_id}')
 
-                # If we got here, the iteration succeeded - commit the savepoint
-                if savepoint_callback:
-                    savepoint_callback('commit', idx_count)
-
             except Exception as e:
                 # Something went wrong in this iteration
                 logger.error(f"Error in iteration {idx_count}: {str(e)}")
-
-                # Rollback the savepoint for this iteration
-                # Note: This must happen BEFORE any other database operations
-                if savepoint_callback:
-                    savepoint_callback('rollback', idx_count)
-
                 # Re-raise the exception to stop processing
                 raise
 

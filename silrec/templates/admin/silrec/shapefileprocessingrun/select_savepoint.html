@@ -1,0 +1,171 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .savepoint-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin: 30px 0;
+    }
+    .savepoint-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .savepoint-card:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .savepoint-card.selected {
+        background: #cce5ff;
+        border-color: #007bff;
+    }
+    .savepoint-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .savepoint-iteration {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+    }
+    .savepoint-time {
+        color: #6c757d;
+    }
+    .savepoint-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 15px 0;
+    }
+    .stat-item {
+        text-align: center;
+        padding: 10px;
+        background: white;
+        border-radius: 4px;
+    }
+    .stat-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #28a745;
+    }
+    .stat-label {
+        font-size: 12px;
+        color: #6c757d;
+    }
+    .action-buttons {
+        margin-top: 30px;
+        display: flex;
+        gap: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    
+    <div class="info-box" style="background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 4px; margin: 20px 0;">
+        <strong>Run Information:</strong>
+        <p>Proposal: {{ run.proposal.lodgement_number }}<br>
+        Started: {{ run.started_at }}<br>
+        Current Status: {{ run.get_status_display }}</p>
+    </div>
+
+    <h2>Select a Savepoint to Revert To</h2>
+    <p>Choose a savepoint from the list below. All changes made after this savepoint will be undone.</p>
+
+    <form method="post" action="{% url 'admin:revert-to-savepoint' run.id 0 %}" id="revert-form">
+        {% csrf_token %}
+        <input type="hidden" name="savepoint_id" id="selected-savepoint" value="">
+
+        <div class="savepoint-grid">
+            {% for sp in savepoints %}
+            <div class="savepoint-card" onclick="selectSavepoint({{ sp.id }}, this)">
+                <div class="savepoint-header">
+                    <span class="savepoint-iteration">#{{ sp.iteration }}</span>
+                    <span class="savepoint-time">{{ sp.created_at|date:"H:i:s" }}</span>
+                </div>
+                
+                <div class="savepoint-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ sp.affected_records_count }}</div>
+                        <div class="stat-label">Total Records</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ sp.affected_models|length }}</div>
+                        <div class="stat-label">Models Affected</div>
+                    </div>
+                </div>
+
+                <div>
+                    <strong>Records by Model:</strong>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        {% for model, count in sp.affected_models.items %}
+                        {% if count > 0 %}
+                        <li>{{ model }}: {{ count }}</li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                {% if forloop.first %}
+                <div style="margin-top: 15px; padding: 5px; background: #28a745; color: white; border-radius: 3px; text-align: center;">
+                    Initial State
+                </div>
+                {% endif %}
+                {% if forloop.last %}
+                <div style="margin-top: 15px; padding: 5px; background: #ffc107; color: black; border-radius: 3px; text-align: center;">
+                    Final State
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p>No committed savepoints found for this run.</p>
+            {% endfor %}
+        </div>
+
+        <div class="action-buttons">
+            <button type="submit" class="button" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;" disabled id="revert-button">
+                Revert to Selected Savepoint
+            </button>
+            <a href="{% url 'admin:silrec_shapefileprocessingrun_change' run.id %}" 
+               style="background: #6c757d; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;">Cancel</a>
+        </div>
+    </form>
+
+    <script>
+    let selectedCard = null;
+    let selectedId = null;
+
+    function selectSavepoint(id, card) {
+        // Deselect previous
+        if (selectedCard) {
+            selectedCard.classList.remove('selected');
+        }
+        
+        // Select new
+        card.classList.add('selected');
+        selectedCard = card;
+        selectedId = id;
+        
+        // Update form
+        document.getElementById('selected-savepoint').value = id;
+        document.getElementById('revert-button').disabled = false;
+        
+        // Update form action
+        const form = document.getElementById('revert-form');
+        form.action = "{% url 'admin:revert-to-savepoint' run.id 0 %}".replace('0', id);
+    }
+    </script>
+</div>
+{% endblock %}

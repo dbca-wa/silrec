@@ -3031,7 +3031,7 @@ class ProcessShapefileView(APIView):
     def process_shapefile_with_threshold(self, proposal, threshold, user_id):
         """
         Process shapefile with sliver removal based on threshold
-        Uses savepoints to allow rollback while maintaining visibility of changes
+        Uses a single savepoint #0 for the entire run
         """
         try:
             import reversion
@@ -3062,40 +3062,28 @@ class ProcessShapefileView(APIView):
                     status='running'
                 )
 
-                # Store savepoints - but don't update DB in the handler
-                savepoints = []
-                current_savepoint = None
+                # Create a SINGLE savepoint #0 for the entire run
+                pre_run_savepoint = transaction.savepoint()
+                logger.info("Created pre-run savepoint #0")
 
-                def savepoint_handler(action, idx, row_data=None):
-                    nonlocal current_savepoint
-                    try:
-                        if action == 'create':
-                            current_savepoint = transaction.savepoint()
-                            savepoints.append((idx, current_savepoint))
-
-                            # Store in memory, not DB - we'll create records after commit
-                            logger.info(f"Created savepoint for iteration {idx}")
-
-                        elif action == 'commit' and current_savepoint is not None:
-                            transaction.savepoint_commit(current_savepoint)
-
-                            # Don't query DB here - just log
-                            logger.info(f"Committed savepoint for iteration {idx}")
-                            current_savepoint = None
-
-                        elif action == 'rollback' and current_savepoint is not None:
-                            transaction.savepoint_rollback(current_savepoint)
-
-                            # Don't query DB here - just log
-                            logger.info(f"Rolled back savepoint for iteration {idx}")
-                            current_savepoint = None
-
-                    except Exception as e:
-                        logger.error(f"Error in savepoint handler: {str(e)}")
+                # Create the savepoint record
+                pre_run_savepoint_record = SavepointRecord.objects.create(
+                    processing_run=processing_run,
+                    iteration=0,
+                    polygon_index=0,
+                    action='create',  # Will be updated to 'commit' on success
+                    affected_models={},
+                    metadata={
+                        'description': 'Pre-run initial state',
+                        'row_data': {},
+                        'is_marker': False  # This is a real savepoint
+                    }
+                )
+                logger.info("Created savepoint record for pre-run state (iteration 0)")
 
                 try:
-                    # Process all polygons
-                    list_state = ssm.create_gdf(savepoint_handler)
+                    # Process all polygons - NO savepoint handler needed
+                    list_state = ssm.create_gdf(savepoint_callback=None)  # Remove callback
 
                     # Link the request metrics to the processing run
                     if ssm.request_metrics:
@@ -3115,60 +3103,58 @@ class ProcessShapefileView(APIView):
                     proposal.geojson_data_processed_iters = geom_data
                     proposal.save()
 
-                    # Now create savepoint records after successful processing
-                    for idx, _ in savepoints:
-                        # Get audit logs for this iteration
-                        audit_logs = AuditLog.objects.filter(
-                            request_metrics=ssm.request_metrics,
-                            iter_seq=idx
-                        )
+                    # Get audit logs for this run
+                    audit_logs = AuditLog.objects.filter(
+                        request_metrics=ssm.request_metrics
+                    )
 
-                        # Count affected records per model
-                        affected_models = {}
-                        for log in audit_logs:
-                            model_name = log.table_name
-                            affected_models[model_name] = affected_models.get(model_name, 0) + 1
+                    # Count affected records per model
+                    affected_models = {}
+                    for log in audit_logs:
+                        model_name = log.table_name
+                        affected_models[model_name] = affected_models.get(model_name, 0) + 1
 
-                        # Create savepoint record
-                        savepoint_record = SavepointRecord.objects.create(
-                            processing_run=processing_run,
-                            iteration=idx,
-                            polygon_index=idx,
-                            action='commit',
-                            affected_models=affected_models,
-                            metadata={'row_data': {}}
-                        )
+                    # Update savepoint record with affected models
+                    pre_run_savepoint_record.affected_models = affected_models
+                    pre_run_savepoint_record.action = 'commit'
+                    pre_run_savepoint_record.metadata['committed_at'] = timezone.now().isoformat()
+                    pre_run_savepoint_record.save()
 
-                        # Link audit logs
-                        if audit_logs.exists():
-                            savepoint_record.audit_logs.set(audit_logs)
+                    # Link audit logs to savepoint
+                    if audit_logs.exists():
+                        pre_run_savepoint_record.audit_logs.set(audit_logs)
 
                     # Update processing run progress
-                    processing_run.processed_polygons = len(savepoints)
+                    processing_run.processed_polygons = len(ssm.gdf_shpfile)  # All succeeded
                     processing_run.status = 'completed'
                     processing_run.completed_at = timezone.now()
                     processing_run.save()
+
+                    # Commit the pre-run savepoint
+                    transaction.savepoint_commit(pre_run_savepoint)
+
+                    logger.info(f"Processing completed: {affected_models}")
 
                 except Exception as e:
                     # Something went wrong in processing
                     logger.error(f"Error during shapefile processing: {str(e)}")
 
-                    # Rollback any pending savepoint
-                    if current_savepoint is not None:
-                        try:
-                            transaction.savepoint_rollback(current_savepoint)
-                        except:
-                            pass
+                    # Update savepoint record to 'rollback'
+                    pre_run_savepoint_record.action = 'rollback'
+                    pre_run_savepoint_record.metadata['rolled_back_at'] = timezone.now().isoformat()
+                    pre_run_savepoint_record.metadata['error'] = str(e)
+                    pre_run_savepoint_record.save()
 
-                    # Mark processing run as failed - but only if it still exists
-                    try:
-                        processing_run.status = 'failed'
-                        processing_run.error_message = str(e)
-                        processing_run.completed_at = timezone.now()
-                        processing_run.failed_polygons = processing_run.total_polygons - processing_run.processed_polygons
-                        processing_run.save()
-                    except:
-                        pass
+                    # Rollback the pre-run savepoint to revert all changes
+                    transaction.savepoint_rollback(pre_run_savepoint)
+                    logger.info("Rolled back pre-run savepoint - all changes reverted")
+
+                    # Mark processing run as failed
+                    processing_run.status = 'failed'
+                    processing_run.error_message = str(e)
+                    processing_run.completed_at = timezone.now()
+                    processing_run.failed_polygons = total_polygons
+                    processing_run.save()
 
                     # Re-raise to trigger transaction rollback
                     raise

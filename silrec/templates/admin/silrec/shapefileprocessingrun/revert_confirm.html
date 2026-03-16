@@ -42,6 +42,24 @@
         color: #6c757d;
         margin-top: 5px;
     }
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+    .records-table th {
+        background: #f2f2f2;
+        padding: 10px;
+        text-align: left;
+    }
+    .records-table td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+    .warning-text {
+        color: #dc3545;
+        font-weight: bold;
+    }
 </style>
 {% endblock %}
 
@@ -72,27 +90,48 @@
         </div>
         <div class="stat-card">
             <div class="stat-value">{{ savepoint.affected_records_count }}</div>
-            <div class="stat-label">Total Records Affected</div>
+            <div class="stat-label">Records in This Savepoint</div>
+        </div>
+    </div>
+
+    <h2>Records That Will Be Affected</h2>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ affected_records.polygons }}</div>
+            <div class="stat-label">Polygons</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ affected_records.cohorts }}</div>
+            <div class="stat-label">Cohorts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ affected_records.assignments }}</div>
+            <div class="stat-label">Assignments</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ affected_records.treatments }}</div>
+            <div class="stat-label">Treatments</div>
         </div>
     </div>
 
     <h2>Records Modified in This Savepoint</h2>
-    <table style="width: 100%; border-collapse: collapse;">
+    <table class="records-table">
         <thead>
-            <tr style="background: #f2f2f2;">
-                <th style="padding: 10px; text-align: left;">Model</th>
-                <th style="padding: 10px; text-align: left;">Count</th>
-                <th style="padding: 10px; text-align: left;">Details</th>
+            <tr>
+                <th>Model</th>
+                <th>Count</th>
+                <th>Details</th>
             </tr>
         </thead>
         <tbody>
             {% for model, count in savepoint.affected_models.items %}
             {% if count > 0 %}
-            <tr style="border-bottom: 1px solid #ddd;">
-                <td style="padding: 10px;">{{ model }}</td>
-                <td style="padding: 10px;">{{ count }}</td>
-                <td style="padding: 10px;">
-                    <a href="{% url 'admin:silrec_auditlog_changelist' %}?savepoints_records__id__exact={{ savepoint.id }}&table_name={{ model|lower }}" target="_blank">
+            <tr>
+                <td>{{ model }}</td>
+                <td>{{ count }}</td>
+                <td>
+                    <a href="{% url 'admin:silrec_auditlog_changelist' %}?savepoint_records__id__exact={{ savepoint.id }}&table_name={{ model|lower }}" target="_blank">
                         View Audit Logs
                     </a>
                 </td>
@@ -103,26 +142,36 @@
     </table>
 
     <h2>Later Savepoints That Will Be Reverted</h2>
-    <table style="width: 100%; border-collapse: collapse;">
+    <table class="records-table">
         <thead>
-            <tr style="background: #f2f2f2;">
-                <th style="padding: 10px; text-align: left;">Iteration</th>
-                <th style="padding: 10px; text-align: left;">Created At</th>
-                <th style="padding: 10px; text-align: left;">Records Affected</th>
+            <tr>
+                <th>Iteration</th>
+                <th>Created At</th>
+                <th>Records Affected</th>
+                <th>Models</th>
             </tr>
         </thead>
         <tbody>
-            {% for sp in run.savepoints.all %}
-            {% if sp.iteration > savepoint.iteration and sp.action == 'commit' %}
-            <tr style="border-bottom: 1px solid #ddd;">
-                <td style="padding: 10px;">{{ sp.iteration }}</td>
-                <td style="padding: 10px;">{{ sp.created_at|date:"H:i:s" }}</td>
-                <td style="padding: 10px;">{{ sp.affected_records_count }}</td>
+            {% for sp in later_savepoints %}
+            <tr>
+                <td><strong>#{{ sp.iteration }}</strong></td>
+                <td>{{ sp.created_at|date:"H:i:s" }}</td>
+                <td>{{ sp.affected_records_count }}</td>
+                <td>
+                    {% for model, count in sp.affected_models.items %}
+                    {% if count > 0 %}
+                    <span style="display: inline-block; background: #e9ecef; padding: 2px 5px; margin: 2px; border-radius: 3px;">
+                        {{ model }}: {{ count }}
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </td>
             </tr>
-            {% endif %}
             {% endfor %}
         </tbody>
     </table>
+
+    <p class="warning-text">Total records that will be affected: {{ affected_records.polygons|add:affected_records.cohorts|add:affected_records.assignments|add:affected_records.treatments }}</p>
 
     <form method="post" style="margin-top: 30px;">
         {% csrf_token %}
@@ -135,4 +184,3 @@
     </form>
 </div>
 {% endblock %}
-

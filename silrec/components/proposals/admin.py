@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.contrib import admin
+from django.db import transaction
 from django.db.models import TextField
 from django import forms
 from django.forms import Textarea
@@ -11,12 +12,11 @@ from django.utils.html import format_html
 from django.urls import reverse, path
 from django.contrib.gis.geos import GEOSGeometry
 from django.shortcuts import render, get_object_or_404
+from django.contrib import messages
+from django.contrib.admin import action
 
 from django.utils import timezone
 import json
-
-
-
 
 from silrec import helpers
 #from silrec.components.proposals.models import (
@@ -26,6 +26,13 @@ from silrec import helpers
 #)
 from silrec.components.proposals import models
 
+from silrec.components.forest_blocks.models import (
+    Polygon, Cohort, AssignChtToPly, Treatment, TreatmentXtra,
+    SilviculturistComment, Prescription, Operation, Compartments
+)
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 @admin.register(models.ProposalType)
@@ -820,61 +827,71 @@ class AuditLogAdmin(admin.ModelAdmin):
 #    AssignChtToPly,
 #)
 
-
 class SavepointInline(admin.TabularInline):
     """Inline display of savepoints within a processing run"""
     model = models.SavepointRecord
     extra = 0
     readonly_fields = [
         'iteration', 'polygon_index', 'polygon_id', 'action',
-        'created_at', 'affected_records_display', 'undo_action'
+        'created_at', 'affected_records_display', 'revert_action'
     ]
     fields = [
         'iteration', 'action', 'created_at', 'affected_records_display',
-        'undo_action'
+        'revert_action'
     ]
     can_delete = False
     ordering = ['iteration']
 
+    def revert_action(self, obj):
+        """Provide revert button for committed savepoints"""
+        if obj.action == 'commit' and obj.processing_run.status != 'rolled_back':
+            # Don't show revert button for marker savepoints
+            if obj.iteration == 0 and obj.metadata and obj.metadata.get('is_marker'):
+                return format_html(
+                    '<span style="color: #6c757d; font-style: italic;">Marker only - use API revert</span>'
+                )
+
+            button_text = "Revert to Initial State" if obj.iteration == 0 else f"Revert to Iteration {obj.iteration}"
+            return format_html(
+                '<a class="button" href="{}" style="background: #17a2b8; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px; margin-right: 5px;">{}</a>',
+                reverse('admin:revert-confirm', args=[obj.processing_run.id, obj.id]),
+                button_text
+            )
+        return "-"
+
     def affected_records_display(self, obj):
         """Display affected records with links to audit logs"""
+        if obj.iteration == 0:
+            # Check if this is a marker savepoint with no actual DB changes
+            if obj.metadata and obj.metadata.get('is_marker'):
+                return "<span style='color: #6c757d;'>Marker Savepoint - No actual database changes</span>"
+            return "<span style='color: green;'>Initial State - No changes yet</span>"
+
         if not obj.affected_models:
             return "-"
 
         lines = []
         for model, count in obj.affected_models.items():
             if count > 0:
-                # Link to audit logs for this savepoint
                 url = reverse('admin:silrec_auditlog_changelist') + f'?savepoints_records__id__exact={obj.id}'
                 lines.append(f'<a href="{url}" target="_blank">{count} {model}</a>')
 
         return format_html("<br>".join(lines)) if lines else "-"
-    affected_records_display.short_description = 'Affected Records'
-
-    def undo_action(self, obj):
-        """Provide undo button for committed savepoints"""
-        if obj.can_undo:
-            return format_html(
-                '<a class="button" href="{}" style="background: #dc3545; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;" onclick="return confirm(\'Are you sure you want to undo this savepoint? This will revert all changes made in this iteration.\');">Undo</a>',
-                reverse('admin:savepoint-undo', args=[obj.id])
-            )
-        return "-"
-    undo_action.short_description = 'Actions'
-
 
 @admin.register(models.ShapefileProcessingRun)
 class ShapefileProcessingRunAdmin(admin.ModelAdmin):
     list_display = [
         'id', 'proposal_link', 'user_link', 'threshold', 'status_colored',
-        'progress_bar', 'started_at', 'duration_display', 'savepoints_count'
+        'progress_bar', 'started_at', 'duration_display', 'savepoints_count', 'revert_notice'
     ]
     list_filter = ['status', 'started_at', 'user']
     search_fields = ['proposal__lodgement_number', 'user__username']
     readonly_fields = [
         'started_at', 'completed_at', 'metadata_display',
-        'request_metrics_link', 'audit_logs_link'
+        'request_metrics_link', 'audit_logs_link', 'progress_display', 'duration_display'
     ]
     inlines = [SavepointInline]
+    actions = ['revert_to_first_savepoint', 'revert_to_last_savepoint', 'revert_to_specific_savepoint']
 
     fieldsets = (
         ('Run Information', {
@@ -883,11 +900,11 @@ class ShapefileProcessingRunAdmin(admin.ModelAdmin):
         ('Progress', {
             'fields': (
                 'total_polygons', 'processed_polygons', 'failed_polygons',
-                'progress_display'
+                'progress_display'  # This is a method, not a field
             )
         }),
         ('Timing', {
-            'fields': ('started_at', 'completed_at', 'duration_display')
+            'fields': ('started_at', 'completed_at', 'duration_display')  # This is a method, not a field
         }),
         ('Error Information', {
             'fields': ('error_message',),
@@ -898,6 +915,105 @@ class ShapefileProcessingRunAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    # Make sure these methods are defined
+    def progress_display(self, obj):
+        """Display progress as formatted HTML"""
+        return format_html(
+            'Processed: {}<br>Failed: {}<br>Total: {}<br>Success Rate: {:.1f}%',
+            obj.processed_polygons,
+            obj.failed_polygons,
+            obj.total_polygons,
+            obj.success_rate
+        )
+    progress_display.short_description = 'Progress Details'
+    progress_display.allow_tags = True
+
+    def duration_display(self, obj):
+        """Display duration in human-readable format"""
+        duration = obj.duration
+        hours = duration.seconds // 3600
+        minutes = (duration.seconds % 3600) // 60
+        seconds = duration.seconds % 60
+        return f"{hours}h {minutes}m {seconds}s"
+    duration_display.short_description = 'Duration'
+
+    def revert_notice(self, obj):
+        """Add a notice about using the API for revert"""
+        if obj.savepoints.filter(iteration=0, action='create').exists():
+            return format_html(
+                '<span style="color: #856404;">⚠️ Use API endpoint for revert</span>'
+            )
+        return "-"
+    revert_notice.short_description = 'Revert Method'
+
+    @action(description='Revert to first savepoint (before any changes)')
+    def revert_to_first_savepoint(self, request, queryset):
+        """Revert the run to the state before any changes were made"""
+        return self._revert_runs(request, queryset, 'first')
+
+    @action(description='Revert to last savepoint (undo all changes)')
+    def revert_to_last_savepoint(self, request, queryset):
+        """Revert the run to the last committed savepoint"""
+        return self._revert_runs(request, queryset, 'last')
+
+    @action(description='Revert to specific savepoint (choose iteration)')
+    def revert_to_specific_savepoint(self, request, queryset):
+        """Revert the run to a user-selected savepoint"""
+        if queryset.count() != 1:
+            self.message_user(request, "Please select exactly one processing run to revert to a specific savepoint.", level='ERROR')
+            return
+
+        run = queryset.first()
+        return self._redirect_to_savepoint_selection(request, run)
+
+    def _revert_runs(self, request, queryset, revert_type):
+        """Common revert logic for multiple runs"""
+        success_count = 0
+        error_count = 0
+
+        for run in queryset:
+            try:
+                if revert_type == 'first':
+                    # Get the first committed savepoint
+                    savepoint = run.savepoints.filter(action='commit').order_by('iteration').first()
+                    message = f"reverted to initial state"
+                elif revert_type == 'last':
+                    # Get the last committed savepoint
+                    savepoint = run.savepoints.filter(action='commit').order_by('-iteration').first()
+                    message = f"reverted to final state"
+                else:
+                    continue
+
+                if not savepoint:
+                    self.message_user(request, f"Run {run.id} has no committed savepoints to revert to.", level='WARNING')
+                    continue
+
+                # Perform the revert
+                result = self._revert_to_savepoint(run, savepoint, request.user)
+
+                if result['success']:
+                    success_count += 1
+                    self.message_user(request, f"Run {run.id} {message} successfully. {result['records_affected']} records affected.", level='SUCCESS')
+                else:
+                    error_count += 1
+                    self.message_user(request, f"Error reverting run {run.id}: {result['error']}", level='ERROR')
+
+            except Exception as e:
+                error_count += 1
+                self.message_user(request, f"Error reverting run {run.id}: {str(e)}", level='ERROR')
+
+        if success_count > 0:
+            self.message_user(request, f"Successfully reverted {success_count} runs. {error_count} errors.", level='SUCCESS')
+
+    def _redirect_to_savepoint_selection(self, request, run):
+        """Redirect to a custom view for selecting a savepoint"""
+        from django.shortcuts import redirect
+        from django.urls import reverse
+
+        url = reverse('admin:select-savepoint', args=[run.id])
+        return redirect(url)
+
 
     def get_urls(self):
         urls = super().get_urls()
@@ -917,8 +1033,322 @@ class ShapefileProcessingRunAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.compare_view),
                 name='processing-run-compare'
             ),
+            path(
+                '<int:run_id>/select-savepoint/',
+                self.admin_site.admin_view(self.select_savepoint_view),
+                name='select-savepoint'
+            ),
+            path(
+                '<int:run_id>/revert-confirm/<int:savepoint_id>/',
+                self.admin_site.admin_view(self.revert_confirm_view),
+                name='revert-confirm'
+            ),
         ]
         return custom_urls + urls
+
+    def select_savepoint_view(self, request, run_id):
+        """View to let user select which savepoint to revert to"""
+        run = get_object_or_404(models.ShapefileProcessingRun, id=run_id)
+        savepoints = run.savepoints.filter(action='commit').order_by('iteration')
+
+        context = {
+            'title': f'Select Savepoint to Revert To - Run #{run.id}',
+            'run': run,
+            'savepoints': savepoints,
+            'opts': self.model._meta,
+            'media': self.media,
+        }
+        return render(request, 'admin/silrec/shapefileprocessingrun/select_savepoint.html', context)
+
+    def revert_confirm_view(self, request, run_id, savepoint_id):
+        """Confirmation view before reverting - also handles the actual revert on POST"""
+        run = get_object_or_404(models.ShapefileProcessingRun, id=run_id)
+        savepoint = get_object_or_404(models.SavepointRecord, id=savepoint_id, processing_run=run)
+
+        # Check if this is a marker savepoint (iteration 0 with is_marker flag)
+        is_marker = savepoint.iteration == 0 and savepoint.metadata and savepoint.metadata.get('is_marker')
+
+        if is_marker and request.method == 'POST':
+            self.message_user(
+                request,
+                'Marker savepoints cannot be reverted directly. Please use the API endpoint /api/proposals/{}/revert-shapefile/'.format(run.proposal.id),
+                level='ERROR'
+            )
+            return HttpResponseRedirect(
+                reverse('admin:silrec_shapefileprocessingrun_change', args=[run.id])
+            )
+
+        if request.method == 'POST':
+            # Perform the revert
+            result = self._revert_to_savepoint(run, savepoint, request.user)
+
+            if result['success']:
+                self.message_user(
+                    request,
+                    f'Successfully reverted to savepoint #{savepoint.iteration}. {result["records_affected"]} records affected.',
+                    level='SUCCESS'
+                )
+            else:
+                self.message_user(
+                    request,
+                    f'Error reverting to savepoint: {result["error"]}',
+                    level='ERROR'
+                )
+
+            # Redirect back to the run change page
+            return HttpResponseRedirect(
+                reverse('admin:silrec_shapefileprocessingrun_change', args=[run.id])
+            )
+
+        # GET request - show confirmation page
+        # Calculate statistics about what will be affected
+        later_savepoints = run.savepoints.filter(
+            action='commit',
+            iteration__gt=savepoint.iteration
+        ).order_by('iteration')
+
+        affected_records = {
+            'polygons': 0,
+            'cohorts': 0,
+            'assignments': 0,
+            'treatments': 0
+        }
+
+        # Estimate affected records from later savepoints
+        for sp in later_savepoints:
+            for model, count in sp.affected_models.items():
+                model_lower = model.lower()
+                if 'polygon' in model_lower:
+                    affected_records['polygons'] += count
+                elif 'cohort' in model_lower:
+                    affected_records['cohorts'] += count
+                elif 'assign' in model_lower:
+                    affected_records['assignments'] += count
+                elif 'treatment' in model_lower:
+                    affected_records['treatments'] += count
+
+        context = {
+            'title': f'Confirm Revert to Savepoint #{savepoint.iteration}',
+            'run': run,
+            'savepoint': savepoint,
+            'later_savepoints': later_savepoints,
+            'affected_records': affected_records,
+            'is_marker': is_marker,
+            'api_endpoint': f'/api/proposals/{run.proposal.id}/revert-shapefile/' if is_marker else None,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/silrec/shapefileprocessingrun/revert_confirm.html', context)
+
+    def _revert_to_savepoint(self, run, savepoint, user):
+        """
+        Core revert logic - simple revert to state before processing
+        """
+        try:
+            # Only handle savepoint #0
+            if savepoint.iteration == 0:
+                logger.info("=" * 80)
+                logger.info("REVERTING TO PRE-RUN STATE (ITERATION 0)")
+                logger.info("=" * 80)
+
+                # Import the necessary models
+                from silrec.components.forest_blocks.models import (
+                    Polygon, Cohort, AssignChtToPly, Treatment
+                )
+                from django.db import transaction
+                import reversion
+                from reversion.models import Version
+
+                records_deleted = 0
+                records_updated = 0
+
+                # Get the proposal
+                proposal = run.proposal
+
+                # Get the timestamp right before this run started
+                run_start_time = run.started_at
+                logger.info(f"This processing run started at: {run_start_time}")
+
+                # Get ALL polygons that existed before this run
+                # We can get this from the audit logs of this run
+                if run.request_metrics:
+                    # Get all audit logs for this run
+                    audit_logs = run.request_metrics.audit_logs.all()
+
+                    # Track original polygons that were updated
+                    updated_polygon_ids = set()
+                    new_polygon_ids = set()
+
+                    for log in audit_logs:
+                        if log.table_name == 'polygon':
+                            if log.operation == 'INSERT':
+                                new_polygon_ids.add(log.record_id)
+                            elif log.operation == 'UPDATE':
+                                updated_polygon_ids.add(log.record_id)
+                            # DELETEs are rare but would need special handling
+
+                    logger.info(f"New polygons created: {sorted(new_polygon_ids)}")
+                    logger.info(f"Updated polygons: {sorted(updated_polygon_ids)}")
+
+                    # Get current counts
+                    before_counts = {
+                        'polygon': Polygon.objects.filter(proposal_id=proposal.id).count(),
+                        'cohort': Cohort.objects.filter(assignchttoply__polygon__proposal_id=proposal.id).distinct().count(),
+                        'assign_cht_to_ply': AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id).count(),
+                    }
+                    logger.info(f"Before revert counts: {before_counts}")
+
+                    with transaction.atomic():
+                        with reversion.create_revision():
+                            # STEP 1: Delete new polygons and their related records
+                            if new_polygon_ids:
+                                logger.info(f"Deleting {len(new_polygon_ids)} new polygons")
+
+                                # Get assignments for new polygons
+                                new_assignments = AssignChtToPly.objects.filter(
+                                    polygon_id__in=new_polygon_ids
+                                )
+                                assignment_count = new_assignments.count()
+                                if assignment_count > 0:
+                                    new_assignments.delete()
+                                    records_deleted += assignment_count
+                                    logger.info(f"Deleted {assignment_count} assignments")
+
+                                # Get cohorts linked to new polygons
+                                # Only delete cohorts that are ONLY linked to these new polygons
+                                new_cohort_ids = set()
+                                for log in audit_logs.filter(table_name='cohort', operation='INSERT'):
+                                    new_cohort_ids.add(log.record_id)
+
+                                for cohort_id in new_cohort_ids:
+                                    # Check if this cohort is used elsewhere
+                                    other_assignments = AssignChtToPly.objects.filter(
+                                        cohort_id=cohort_id
+                                    ).exclude(polygon_id__in=new_polygon_ids)
+                                    if not other_assignments.exists():
+                                        try:
+                                            cohort = Cohort.objects.get(cohort_id=cohort_id)
+                                            cohort.delete()
+                                            records_deleted += 1
+                                            logger.info(f"Deleted cohort {cohort_id}")
+                                        except Cohort.DoesNotExist:
+                                            pass
+
+                                # Delete new polygons
+                                polygons_to_delete = Polygon.objects.filter(polygon_id__in=new_polygon_ids)
+                                polygon_count = polygons_to_delete.count()
+                                if polygon_count > 0:
+                                    polygons_to_delete.delete()
+                                    records_deleted += polygon_count
+                                    logger.info(f"Deleted {polygon_count} polygons")
+
+                            # STEP 2: For updated polygons, we need to revert them
+                            # This is complex - for simplicity, we'll rely on reversion
+                            # to restore the proposal and its related objects
+
+                            # Get the version of the proposal right before this run
+                            versions_before = Version.objects.get_for_object(proposal).filter(
+                                revision__date_created__lt=run_start_time
+                            ).order_by('-revision__date_created')
+
+                            if versions_before.exists():
+                                target_version = versions_before.first()
+                                target_version.revision.revert()
+                                records_updated += len(updated_polygon_ids)
+                                logger.info(f"Reverted proposal to pre-run state")
+
+                            # Clear processed fields
+                            proposal.refresh_from_db()
+                            proposal.geojson_data_processed = None
+                            proposal.geojson_data_processed_iters = None
+                            proposal.save()
+
+                            reversion.set_comment(f'Reverted to state before run {run.id}')
+
+                    # Get counts after revert
+                    after_counts = {
+                        'polygon': Polygon.objects.filter(proposal_id=proposal.id).count(),
+                        'cohort': Cohort.objects.filter(assignchttoply__polygon__proposal_id=proposal.id).distinct().count(),
+                        'assign_cht_to_ply': AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id).count(),
+                    }
+                    logger.info(f"After revert counts: {after_counts}")
+
+                    records_affected = records_deleted + records_updated
+                    logger.info(f"Revert completed: {records_deleted} records deleted, {records_updated} records updated")
+
+                    # Mark the savepoint as rolled back
+                    savepoint.action = 'rolled_back'
+                    savepoint.save()
+
+                    # Update run status
+                    run.status = 'rolled_back'
+                    run.completed_at = timezone.now()
+                    run.metadata = {
+                        'reverted_by': user.username if user else 'unknown',
+                        'reverted_at': timezone.now().isoformat(),
+                        'before_counts': before_counts,
+                        'after_counts': after_counts,
+                        'records_deleted': records_deleted,
+                        'records_updated': records_updated,
+                        'new_polygon_ids': list(new_polygon_ids)
+                    }
+                    run.save()
+
+                    return {
+                        'success': True,
+                        'records_affected': records_affected,
+                        'before_counts': before_counts,
+                        'after_counts': after_counts
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'No request metrics found for this run'
+                    }
+
+            # For other savepoints, just return an error
+            else:
+                return {
+                    'success': False,
+                    'error': 'Only savepoint #0 can be reverted'
+                }
+
+        except Exception as e:
+            logger.error(f"Error in revert_to_savepoint: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def revert_to_savepoint_view(self, request, run_id, savepoint_id):
+        """Handle the actual revert operation"""
+        run = get_object_or_404(models.ShapefileProcessingRun, id=run_id)
+        savepoint = get_object_or_404(models.SavepointRecord, id=savepoint_id, processing_run=run)
+
+        if request.method == 'POST':
+            result = self._revert_to_savepoint(run, savepoint, request.user)
+
+            if result['success']:
+                self.message_user(
+                    request,
+                    f'Successfully reverted to savepoint #{savepoint.iteration}. {result["records_affected"]} records affected.',
+                    level='SUCCESS'
+                )
+            else:
+                self.message_user(
+                    request,
+                    f'Error reverting to savepoint: {result["error"]}',
+                    level='ERROR'
+                )
+
+            # Redirect back to the run change page
+            return HttpResponseRedirect(
+                reverse('admin:silrec_shapefileprocessingrun_change', args=[run.id])
+            )
+
+        # If not POST, redirect to confirm view
+        return HttpResponseRedirect(
+            reverse('admin:revert-confirm', args=[run.id, savepoint.id])
+        )
 
     def proposal_link(self, obj):
         # Use the correct admin URL pattern with namespace
@@ -1000,7 +1430,7 @@ class ShapefileProcessingRunAdmin(admin.ModelAdmin):
     request_metrics_link.short_description = 'Request Metrics'
 
     def audit_logs_link(self, obj):
-        count = AuditLog.objects.filter(request_metrics=obj.request_metrics).count() if obj.request_metrics else 0
+        count = models.AuditLog.objects.filter(request_metrics=obj.request_metrics).count() if obj.request_metrics else 0
         if count > 0:
             url = reverse('admin:silrec_auditlog_changelist') + f'?request_metrics__id__exact={obj.request_metrics.id}'
             return format_html('<a href="{}" target="_blank">View {} Audit Logs</a>', url, count)
@@ -1017,48 +1447,7 @@ class ShapefileProcessingRunAdmin(admin.ModelAdmin):
         return "-"
     metadata_display.short_description = 'Metadata'
 
-    def revert_to_savepoint_view(self, request, run_id, savepoint_id):
-        """View to revert entire run to a specific savepoint"""
-        run = get_object_or_404(ShapefileProcessingRun, id=run_id)
-        savepoint = get_object_or_404(SavepointRecord, id=savepoint_id, processing_run=run)
 
-        if request.method == 'POST':
-            try:
-                with transaction.atomic():
-                    # Get all audit logs up to this savepoint
-                    audit_logs = AuditLog.objects.filter(
-                        request_metrics=run.request_metrics,
-                        id__in=savepoint.audit_logs.all().values_list('id', flat=True)
-                    )
-
-                    # Revert logic here - you'll need to implement this based on your data model
-                    # This is a placeholder for the actual revert logic
-
-                    messages.success(request, f'Successfully reverted to savepoint {savepoint.iteration}')
-
-                    # Mark later savepoints as rolled back
-                    later_savepoints = SavepointRecord.objects.filter(
-                        processing_run=run,
-                        iteration__gt=savepoint.iteration
-                    )
-                    for sp in later_savepoints:
-                        sp.action = 'rollback'
-                        sp.save()
-
-                    return HttpResponseRedirect(
-                        reverse('admin:silrec_shapefileprocessingrun_change', args=[run.id])
-                    )
-
-            except Exception as e:
-                messages.error(request, f'Error reverting to savepoint: {str(e)}')
-
-        context = {
-            'title': f'Revert to Savepoint #{savepoint.iteration}',
-            'run': run,
-            'savepoint': savepoint,
-            'opts': self.model._meta,
-        }
-        return render(request, 'admin/silrec/shapefileprocessingrun/revert_confirm.html', context)
 
     def undo_savepoint_view(self, request, savepoint_id):
         """View to undo a single savepoint"""
@@ -1120,6 +1509,7 @@ class SavepointRecordAdmin(admin.ModelAdmin):
         'action', 'created_at', 'affected_models_display',
         'audit_logs_link', 'metadata_display'
     ]
+    actions = ['revert_to_this_savepoint']
 
     fieldsets = (
         ('Savepoint Information', {
@@ -1133,6 +1523,22 @@ class SavepointRecordAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    @action(description='Revert processing run to this savepoint')
+    def revert_to_this_savepoint(self, request, queryset):
+        """Revert the processing run to the selected savepoint"""
+        if queryset.count() != 1:
+            self.message_user(request, "Please select exactly one savepoint to revert to.", level='ERROR')
+            return
+
+        savepoint = queryset.first()
+        run = savepoint.processing_run
+
+        # Redirect to the confirm view
+        from django.shortcuts import redirect
+        from django.urls import reverse
+
+        return redirect(reverse('admin:revert-confirm', args=[run.id, savepoint.id]))
 
     def processing_run_link(self, obj):
         url = reverse('admin:silrec_shapefileprocessingrun_change', args=[obj.processing_run.id])

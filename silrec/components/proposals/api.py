@@ -2337,12 +2337,12 @@ from django.core.files.base import ContentFile
 
 
 class ShapefileUploadView(APIView):
-    """API endpoint for uploading and processing shapefiles"""
+    """API endpoint for uploading and processing shapefiles - accepts zip OR individual components"""
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        """Handle shapefile upload and processing"""
+        """Handle shapefile upload and processing - accepts zip file OR individual components"""
         try:
             # Validate request data
             serializer = ShapefileUploadSerializer(data=request.data)
@@ -2352,16 +2352,8 @@ class ShapefileUploadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            shapefile = request.FILES['shapefile']
             proposal_id = request.data.get('proposal_id')
             confirm_replace = request.data.get('confirm_replace', 'false').lower() == 'true'
-
-            # Check if it's a zip file
-            if not shapefile.name.lower().endswith('.zip'):
-                return Response(
-                    {'error': 'File must be a .zip file'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
 
             # Get proposal instance
             try:
@@ -2388,8 +2380,19 @@ class ShapefileUploadView(APIView):
                     'existing_filename': existing_shapefile.input_name
                 }, status=status.HTTP_200_OK)
 
-            # Process the shapefile using GeoPandas' ZIP reader
-            result = self.process_shapefile_with_geopandas(shapefile)
+            # Determine if we're dealing with a zip file or individual components
+            if 'shapefile' in request.FILES:
+                # Legacy zip file upload
+                shapefile = request.FILES['shapefile']
+                if not shapefile.name.lower().endswith('.zip'):
+                    return Response(
+                        {'error': 'File must be a .zip file'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                result = self.process_shapefile_from_zip(shapefile)
+            else:
+                # Individual components upload
+                result = self.process_shapefile_components(request.FILES)
 
             if not result['success']:
                 return Response(
@@ -2401,17 +2404,8 @@ class ShapefileUploadView(APIView):
             if existing_shapefile:
                 self.delete_existing_shapefile(proposal)
 
-            # Save the new shapefile
-            shapefile.seek(0)  # Reset file pointer
-            shapefile_doc = ShapefileDocument.objects.create(
-                proposal=proposal,
-                _file=shapefile,
-                name=f"Shapefile Upload - {shapefile.name}",
-                input_name=shapefile.name,
-                can_delete=True,
-                can_hide=True,
-                hidden=False
-            )
+            # Save the new shapefile components
+            self.save_shapefile_components(proposal, request.FILES, result)
 
             # Save GeoJSON to proposal
             proposal.shapefile_json = result['geojson']
@@ -2426,7 +2420,8 @@ class ShapefileUploadView(APIView):
                 'success': True,
                 'message': f'Shapefile processed successfully. {result["feature_count"]} features loaded.',
                 'proposal': serializer.data,
-                'feature_count': result['feature_count']
+                'feature_count': result['feature_count'],
+                'warnings': result.get('warnings', [])
             })
 
         except Exception as e:
@@ -2436,183 +2431,313 @@ class ShapefileUploadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def process_shapefile_components(self, files):
+        """
+        Process shapefile from individual component files
+        """
+        try:
+            import tempfile
+            import os
+            import geopandas as gpd
+            import json
+            import shutil
+
+            # Extract component files
+            shp_file = None
+            shx_file = None
+            dbf_file = None
+            prj_file = None
+
+            for key, file_obj in files.items():
+                if key.endswith('.shp') or key == 'shp':
+                    shp_file = file_obj
+                elif key.endswith('.shx') or key == 'shx':
+                    shx_file = file_obj
+                elif key.endswith('.dbf') or key == 'dbf':
+                    dbf_file = file_obj
+                elif key.endswith('.prj') or key == 'prj':
+                    prj_file = file_obj
+
+            if not shp_file:
+                return {
+                    'success': False,
+                    'message': 'Missing .shp file',
+                    'errors': ['No shapefile (.shp) found in upload'],
+                    'feature_count': 0
+                }
+
+            # Create a temporary directory
+            temp_dir = tempfile.mkdtemp()
+
+            try:
+                # Base name from the shp file
+                base_name = os.path.splitext(shp_file.name)[0]
+
+                # Save all files
+                shp_path = os.path.join(temp_dir, f"{base_name}.shp")
+                with open(shp_path, 'wb') as f:
+                    for chunk in shp_file.chunks():
+                        f.write(chunk)
+
+                if shx_file:
+                    shx_path = os.path.join(temp_dir, f"{base_name}.shx")
+                    with open(shx_path, 'wb') as f:
+                        for chunk in shx_file.chunks():
+                            f.write(chunk)
+
+                if dbf_file:
+                    dbf_path = os.path.join(temp_dir, f"{base_name}.dbf")
+                    with open(dbf_path, 'wb') as f:
+                        for chunk in dbf_file.chunks():
+                            f.write(chunk)
+
+                if prj_file:
+                    prj_path = os.path.join(temp_dir, f"{base_name}.prj")
+                    with open(prj_path, 'wb') as f:
+                        for chunk in prj_file.chunks():
+                            f.write(chunk)
+
+                # Read the shapefile
+                gdf = gpd.read_file(shp_path)
+
+                # Process the GeoDataFrame
+                return self._process_geodataframe(gdf)
+
+            finally:
+                # Clean up
+                try:
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Error processing shapefile components: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': f'Error processing shapefile: {str(e)}',
+                'errors': [str(e)],
+                'feature_count': 0
+            }
+
+    def process_shapefile_from_zip(self, shapefile):
+        """
+        Process shapefile from a zip file (legacy support)
+        """
+        try:
+            import tempfile
+            import os
+            import geopandas as gpd
+            import json
+            import zipfile
+            import shutil
+
+            # Save zip to temp file
+            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
+                for chunk in shapefile.chunks():
+                    tmp_file.write(chunk)
+                zip_path = tmp_file.name
+
+            # Create temp directory for extraction
+            extract_dir = tempfile.mkdtemp()
+
+            try:
+                # Extract the zip
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+
+                # Find the .shp file
+                shp_files = []
+                for file in os.listdir(extract_dir):
+                    if file.lower().endswith('.shp'):
+                        shp_files.append(os.path.join(extract_dir, file))
+
+                if not shp_files:
+                    return {
+                        'success': False,
+                        'message': 'No .shp file found in zip',
+                        'errors': ['Zip file must contain a .shp file'],
+                        'feature_count': 0
+                    }
+
+                # Read the shapefile
+                gdf = gpd.read_file(shp_files[0])
+
+                # Process the GeoDataFrame
+                return self._process_geodataframe(gdf)
+
+            finally:
+                # Clean up
+                try:
+                    os.unlink(zip_path)
+                except:
+                    pass
+                try:
+                    shutil.rmtree(extract_dir)
+                except:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Error processing shapefile from zip: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': f'Error processing shapefile: {str(e)}',
+                'errors': [str(e)],
+                'feature_count': 0
+            }
+
+    def _process_geodataframe(self, gdf):
+        """
+        Common GeoDataFrame processing logic
+        """
+        import json
+        import numpy as np
+        from shapely.validation import make_valid
+
+        if gdf.empty:
+            return {
+                'success': False,
+                'message': 'Shapefile contains no features',
+                'errors': ['No valid features found in shapefile'],
+                'feature_count': 0
+            }
+
+        # Transform to system CRS if needed
+        if hasattr(settings, 'CRS') and settings.CRS:
+            try:
+                gdf.to_crs(settings.CRS, inplace=True)
+            except:
+                logger.warning("Could not transform CRS, keeping original")
+
+        # Store original CRS
+        original_crs = gdf.crs
+        logger.info(f"Original CRS: {original_crs}")
+
+        # Log geometry types
+        geom_types = gdf.geometry.type.value_counts()
+        logger.info(f"Geometry types: {dict(geom_types)}")
+
+        # Filter to polygon geometries
+        polygon_mask = gdf.geometry.type.isin(['Polygon', 'MultiPolygon'])
+        if not polygon_mask.any():
+            return {
+                'success': False,
+                'message': 'No Polygon or MultiPolygon geometries found',
+                'errors': ['Shapefile contains no polygon geometries'],
+                'feature_count': 0
+            }
+
+        gdf = gdf[polygon_mask].copy()
+
+        # Validate geometries (minimal fixing)
+        invalid_count = 0
+        fixed_count = 0
+        warnings = []
+
+        for idx, row in gdf.iterrows():
+            geom = row.geometry
+            if geom is None or geom.is_empty:
+                invalid_count += 1
+                continue
+
+            if not geom.is_valid:
+                try:
+                    geom = make_valid(geom)
+                    fixed_count += 1
+                    gdf.at[idx, 'geometry'] = geom
+                except:
+                    invalid_count += 1
+
+        # Remove any remaining invalid geometries
+        gdf = gdf[~gdf.geometry.is_empty & gdf.geometry.is_valid].copy()
+
+        if gdf.empty:
+            return {
+                'success': False,
+                'message': 'No valid geometries after processing',
+                'errors': ['All geometries were invalid'],
+                'feature_count': 0
+            }
+
+        # Add warnings
+        if invalid_count > 0:
+            warnings.append(f"Skipped {invalid_count} invalid geometries")
+        if fixed_count > 0:
+            warnings.append(f"Fixed {fixed_count} invalid geometries")
+
+        # Convert to GeoJSON
+        geojson_str = gdf.to_json()
+        geojson = json.loads(geojson_str)
+
+        # Add CRS info
+        if original_crs:
+            geojson['crs'] = {
+                'type': 'name',
+                'properties': {
+                    'name': original_crs.to_string()
+                }
+            }
+
+        return {
+            'success': True,
+            'message': 'Shapefile processed successfully',
+            'feature_count': len(gdf),
+            'geojson': geojson,
+            'warnings': warnings
+        }
+
+    def save_shapefile_components(self, proposal, files, result):
+        """
+        Save shapefile components to the database
+        """
+        # If it's a zip upload, we need to save the zip file
+        if 'shapefile' in files:
+            shapefile = files['shapefile']
+            shapefile.seek(0)
+            ShapefileDocument.objects.create(
+                proposal=proposal,
+                _file=shapefile,
+                name=f"Shapefile Upload - {shapefile.name}",
+                input_name=shapefile.name,
+                can_delete=True,
+                can_hide=True,
+                hidden=False
+            )
+        else:
+            # Save individual components
+            base_name = None
+            for key, file_obj in files.items():
+                if key.endswith('.shp') or key == 'shp':
+                    base_name = os.path.splitext(file_obj.name)[0]
+                    break
+
+            if base_name:
+                for key, file_obj in files.items():
+                    file_obj.seek(0)
+                    extension = os.path.splitext(file_obj.name)[1] or f".{key}"
+                    doc_name = f"{base_name}{extension}"
+
+                    ShapefileDocument.objects.create(
+                        proposal=proposal,
+                        _file=file_obj,
+                        name=f"Shapefile Component - {doc_name}",
+                        input_name=doc_name,
+                        can_delete=True,
+                        can_hide=True,
+                        hidden=False
+                    )
+
     def delete_existing_shapefile(self, proposal):
         """Delete existing shapefile documents and clear related fields"""
         try:
-            # Get all shapefile documents for this proposal
             existing_docs = ShapefileDocument.objects.filter(proposal=proposal)
-
             for doc in existing_docs:
-                # Delete the file from filesystem
                 if doc._file:
                     doc._file.delete(save=False)
-                # Delete the database record
                 doc.delete()
-
             logger.info(f"Deleted {existing_docs.count()} existing shapefile(s) for proposal {proposal.id}")
-
         except Exception as e:
             logger.error(f"Error deleting existing shapefile: {str(e)}")
 
-def process_shapefile_with_geopandas(self, shapefile):
-    """
-    Process uploaded shapefile using GeoPandas' built-in ZIP reader
-    Preserves original CRS and geometry types
-    """
-    try:
-        import tempfile
-        import os
-        import geopandas as gpd
-        import json
-        from shapely.geometry import mapping
-        import numpy as np
-        from django.contrib.gis.geos import GEOSGeometry
-
-        # Save the uploaded zip to a temporary file
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
-            for chunk in shapefile.chunks():
-                tmp_file.write(chunk)
-            tmp_path = tmp_file.name
-
-        try:
-            # Use GeoPandas to read directly from the zip file
-            gdf = gpd.read_file(f"zip://{tmp_path}")
-
-            # Check if GeoDataFrame is empty
-            if gdf.empty:
-                return {
-                    'success': False,
-                    'message': 'Shapefile contains no features',
-                    'errors': ['No valid features found in shapefile']
-                }
-
-            # Store the original CRS
-            original_crs = gdf.crs
-            logger.info(f"Original CRS: {original_crs}")
-
-            # Log the geometry types present
-            geom_types = gdf.geometry.type.value_counts()
-            logger.info(f"Original geometry types: {dict(geom_types)}")
-
-            # Validate geometries WITHOUT changing CRS
-            valid_geometries = []
-            invalid_count = 0
-
-            for idx, row in gdf.iterrows():
-                geom = row.geometry
-
-                if geom.is_valid:
-                    valid_geometries.append(row)
-                else:
-                    # Try to fix invalid geometry while preserving type
-                    try:
-                        fixed_geom = geom.buffer(0)
-                        if fixed_geom.is_valid:
-                            # Log if type changed
-                            if fixed_geom.geom_type != geom.geom_type:
-                                logger.debug(f"Geometry at index {idx} changed from {geom.geom_type} to {fixed_geom.geom_type}")
-                            row.geometry = fixed_geom
-                            valid_geometries.append(row)
-                            invalid_count += 1
-                        else:
-                            logger.warning(f"Could not fix geometry at index {idx}")
-                    except Exception as e:
-                        logger.warning(f"Error fixing geometry at index {idx}: {e}")
-
-            if not valid_geometries:
-                return {
-                    'success': False,
-                    'message': 'No valid geometries found',
-                    'errors': ['All geometries are invalid and could not be fixed']
-                }
-
-            # Create new GeoDataFrame with valid geometries, preserving original CRS
-            gdf_valid = gpd.GeoDataFrame(valid_geometries, crs=original_crs)
-
-            # Log final geometry types
-            final_geom_types = gdf_valid.geometry.type.value_counts()
-            logger.info(f"Final geometry types: {dict(final_geom_types)}")
-
-            # Convert to GeoJSON while preserving the original CRS information
-            # First, convert to WKT format with CRS info
-            geojson = {
-                'type': 'FeatureCollection',
-                'crs': {
-                    'type': 'name',
-                    'properties': {
-                        'name': original_crs.to_string() if original_crs else 'EPSG:4326'
-                    }
-                },
-                'features': []
-            }
-
-            # Manually build features to ensure geometry types are preserved
-            for idx, row in gdf_valid.iterrows():
-                geom = row.geometry
-
-                # Use mapping() which preserves the exact geometry type
-                geom_dict = mapping(geom)
-
-                # Create properties dict from all columns except geometry
-                properties = {}
-                for col in gdf_valid.columns:
-                    if col != 'geometry' and not pd.isna(row[col]):
-                        # Convert numpy types to Python native types for JSON serialization
-                        val = row[col]
-                        if hasattr(val, 'item'):  # numpy scalar
-                            val = val.item()
-                        properties[col] = val
-
-                feature = {
-                    'type': 'Feature',
-                    'geometry': geom_dict,
-                    'properties': properties,
-                    'id': idx
-                }
-                geojson['features'].append(feature)
-
-            # Count geometry types in the final GeoJSON
-            multi_polygon_count = 0
-            polygon_count = 0
-            for feature in geojson['features']:
-                geom_type = feature['geometry']['type']
-                if geom_type == 'MultiPolygon':
-                    multi_polygon_count += 1
-                elif geom_type == 'Polygon':
-                    polygon_count += 1
-
-            logger.info(f"Saved GeoJSON contains: {polygon_count} Polygons, {multi_polygon_count} MultiPolygons")
-            logger.info(f"Saved GeoJSON CRS: {geojson['crs']['properties']['name']}")
-
-            return {
-                'success': True,
-                'message': 'Shapefile processed successfully',
-                'feature_count': len(gdf_valid),
-                'geojson': geojson,
-                'warnings': [f"Fixed {invalid_count} invalid geometries"] if invalid_count else []
-            }
-
-        except Exception as e:
-            logger.error(f"Error reading shapefile with GeoPandas: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'message': 'Failed to read shapefile',
-                'errors': [str(e)]
-            }
-        finally:
-            # Clean up temporary file
-            try:
-                os.unlink(tmp_path)
-            except:
-                pass
-
-    except Exception as e:
-        logger.error(f"Unexpected error in process_shapefile_with_geopandas: {str(e)}", exc_info=True)
-        return {
-            'success': False,
-            'message': 'Unexpected error processing shapefile',
-            'errors': [str(e)]
-        }
 
 class DeleteShapefileView(APIView):
     """API endpoint for deleting shapefile"""
@@ -2919,8 +3044,10 @@ class ProcessShapefileView(APIView):
                     'errors': ['Shapefile contains no features']
                 }
 
+            #if True:
             with transaction.atomic():
-                with reversion.create_revision():
+                #with reversion.create_revision():
+                if True:
                     # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
                     ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
                     list_state = ssm.create_gdf()
@@ -2933,7 +3060,7 @@ class ProcessShapefileView(APIView):
                     proposal.save()
 
                     # Set a comment to easily identify this revision
-                    reversion.set_comment(f'Shapefile processing with threshold {threshold} by user {user_id}')
+                    #reversion.set_comment(f'Shapefile processing with threshold {threshold} by user {user_id}')
 
                     # IMPORTANT: You need to manually add the related objects to the revision
                     # if they're not automatically included via follow relationships
@@ -2941,22 +3068,22 @@ class ProcessShapefileView(APIView):
                     # Get all polygons created/updated for this proposal
                     from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
 
-                    # Add all polygons for this proposal to the revision
-                    polygons = Polygon.objects.filter(proposal_id=proposal.id)
-                    for polygon in polygons:
-                        reversion.add_to_revision(polygon)
-
-                    # Add all cohorts for this proposal to the revision
-                    cohorts = Cohort.objects.filter(
-                        assignchttoply__polygon__proposal_id=proposal.id
-                    ).distinct()
-                    for cohort in cohorts:
-                        reversion.add_to_revision(cohort)
+#                    # Add all polygons for this proposal to the revision
+#                    polygons = Polygon.objects.filter(proposal_id=proposal.id)
+#                    for polygon in polygons:
+#                        reversion.add_to_revision(polygon)
+#
+#                    # Add all cohorts for this proposal to the revision
+#                    cohorts = Cohort.objects.filter(
+#                        assignchttoply__polygon__proposal_id=proposal.id
+#                    ).distinct()
+#                    for cohort in cohorts:
+#                        reversion.add_to_revision(cohort)
 
                     # Add all assignments for this proposal to the revision
                     assignments = AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id)
-                    for assignment in assignments:
-                        reversion.add_to_revision(assignment)
+#                    for assignment in assignments:
+#                        reversion.add_to_revision(assignment)
 
             warnings = []
             feature_count = len(proposal.geojson_data_processed['features'])

@@ -159,6 +159,7 @@ class ShapefileSliversMerger():
     def create_gdf(self):
         '''
         Main processing method that creates the merged GeoDataFrames
+
         '''
         idx_count = 0
         gdf_shpfile = self.gdf_shpfile.copy()
@@ -183,6 +184,7 @@ class ShapefileSliversMerger():
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         # Process each polygon in the shapefile
+        #for index, row in self.gdf_shpfile.iloc[:2].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
             print('****************************************************************************************')

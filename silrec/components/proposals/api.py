@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
+from django.utils import timezone
 import copy
 
 
@@ -2939,8 +2940,6 @@ class SaveCutGeometryView(APIView):
             )
 
 
-# Add to api.py after ShapefileUploadView
-
 class ProcessShapefileView(APIView):
     """API endpoint for processing an uploaded shapefile with sliver removal"""
 
@@ -3032,10 +3031,12 @@ class ProcessShapefileView(APIView):
     def process_shapefile_with_threshold(self, proposal, threshold, user_id):
         """
         Process shapefile with sliver removal based on threshold
+        Uses savepoints to allow rollback while maintaining visibility of changes
         """
         try:
             import reversion
-            from django.db import transaction
+            from django.db import transaction, DatabaseError
+            from silrec.components.proposals.models import ShapefileProcessingRun, SavepointRecord, AuditLog
 
             if not proposal.shapefile_json or not proposal.shapefile_json.get('features'):
                 return {
@@ -3044,47 +3045,135 @@ class ProcessShapefileView(APIView):
                     'errors': ['Shapefile contains no features']
                 }
 
-            #if True:
+            # Start a transaction that will encompass everything
             with transaction.atomic():
-                #with reversion.create_revision():
-                if True:
-                    # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
-                    ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
-                    list_state = ssm.create_gdf()
+                # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
+                ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
+
+                # Get total number of polygons to process
+                total_polygons = len(ssm.gdf_shpfile)
+
+                # Create the processing run record
+                processing_run = ShapefileProcessingRun.objects.create(
+                    proposal=proposal,
+                    user_id=user_id,
+                    threshold=threshold,
+                    total_polygons=total_polygons,
+                    status='running'
+                )
+
+                # Store savepoints - but don't update DB in the handler
+                savepoints = []
+                current_savepoint = None
+
+                def savepoint_handler(action, idx, row_data=None):
+                    nonlocal current_savepoint
+                    try:
+                        if action == 'create':
+                            current_savepoint = transaction.savepoint()
+                            savepoints.append((idx, current_savepoint))
+
+                            # Store in memory, not DB - we'll create records after commit
+                            logger.info(f"Created savepoint for iteration {idx}")
+
+                        elif action == 'commit' and current_savepoint is not None:
+                            transaction.savepoint_commit(current_savepoint)
+
+                            # Don't query DB here - just log
+                            logger.info(f"Committed savepoint for iteration {idx}")
+                            current_savepoint = None
+
+                        elif action == 'rollback' and current_savepoint is not None:
+                            transaction.savepoint_rollback(current_savepoint)
+
+                            # Don't query DB here - just log
+                            logger.info(f"Rolled back savepoint for iteration {idx}")
+                            current_savepoint = None
+
+                    except Exception as e:
+                        logger.error(f"Error in savepoint handler: {str(e)}")
+
+                try:
+                    # Process all polygons
+                    list_state = ssm.create_gdf(savepoint_handler)
+
+                    # Link the request metrics to the processing run
+                    if ssm.request_metrics:
+                        processing_run.request_metrics = ssm.request_metrics
+                        processing_run.save()
+
+                    # If we get here, all iterations succeeded
                     geom_data = ssm.set_proposal_data(list_state)
 
-                    # Update proposal
-                    proposal.geojson_data_processed = json.loads(list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json())
-                    proposal.geojson_data_hist = json.loads(list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json())
+                    # Update proposal with results
+                    proposal.geojson_data_processed = json.loads(
+                        list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json()
+                    )
+                    proposal.geojson_data_hist = json.loads(
+                        list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json()
+                    )
                     proposal.geojson_data_processed_iters = geom_data
                     proposal.save()
 
-                    # Set a comment to easily identify this revision
-                    #reversion.set_comment(f'Shapefile processing with threshold {threshold} by user {user_id}')
+                    # Now create savepoint records after successful processing
+                    for idx, _ in savepoints:
+                        # Get audit logs for this iteration
+                        audit_logs = AuditLog.objects.filter(
+                            request_metrics=ssm.request_metrics,
+                            iter_seq=idx
+                        )
 
-                    # IMPORTANT: You need to manually add the related objects to the revision
-                    # if they're not automatically included via follow relationships
+                        # Count affected records per model
+                        affected_models = {}
+                        for log in audit_logs:
+                            model_name = log.table_name
+                            affected_models[model_name] = affected_models.get(model_name, 0) + 1
 
-                    # Get all polygons created/updated for this proposal
-                    from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
+                        # Create savepoint record
+                        savepoint_record = SavepointRecord.objects.create(
+                            processing_run=processing_run,
+                            iteration=idx,
+                            polygon_index=idx,
+                            action='commit',
+                            affected_models=affected_models,
+                            metadata={'row_data': {}}
+                        )
 
-#                    # Add all polygons for this proposal to the revision
-#                    polygons = Polygon.objects.filter(proposal_id=proposal.id)
-#                    for polygon in polygons:
-#                        reversion.add_to_revision(polygon)
-#
-#                    # Add all cohorts for this proposal to the revision
-#                    cohorts = Cohort.objects.filter(
-#                        assignchttoply__polygon__proposal_id=proposal.id
-#                    ).distinct()
-#                    for cohort in cohorts:
-#                        reversion.add_to_revision(cohort)
+                        # Link audit logs
+                        if audit_logs.exists():
+                            savepoint_record.audit_logs.set(audit_logs)
 
-                    # Add all assignments for this proposal to the revision
-                    assignments = AssignChtToPly.objects.filter(polygon__proposal_id=proposal.id)
-#                    for assignment in assignments:
-#                        reversion.add_to_revision(assignment)
+                    # Update processing run progress
+                    processing_run.processed_polygons = len(savepoints)
+                    processing_run.status = 'completed'
+                    processing_run.completed_at = timezone.now()
+                    processing_run.save()
 
+                except Exception as e:
+                    # Something went wrong in processing
+                    logger.error(f"Error during shapefile processing: {str(e)}")
+
+                    # Rollback any pending savepoint
+                    if current_savepoint is not None:
+                        try:
+                            transaction.savepoint_rollback(current_savepoint)
+                        except:
+                            pass
+
+                    # Mark processing run as failed - but only if it still exists
+                    try:
+                        processing_run.status = 'failed'
+                        processing_run.error_message = str(e)
+                        processing_run.completed_at = timezone.now()
+                        processing_run.failed_polygons = processing_run.total_polygons - processing_run.processed_polygons
+                        processing_run.save()
+                    except:
+                        pass
+
+                    # Re-raise to trigger transaction rollback
+                    raise
+
+            # If we get here, the transaction was committed
             warnings = []
             feature_count = len(proposal.geojson_data_processed['features'])
             feature_count_orig = len(proposal.shapefile_json['features'])
@@ -3096,9 +3185,17 @@ class ProcessShapefileView(APIView):
                 'message': 'Shapefile processed successfully',
                 'feature_count_orig': feature_count_orig,
                 'feature_count': feature_count,
-                'warnings': warnings
+                'warnings': warnings,
+                'processing_run_id': processing_run.id
             }
 
+        except DatabaseError as e:
+            logger.error(f"Database error in process_shapefile_with_threshold: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': 'Database error processing shapefile geometries',
+                'errors': [str(e)]
+            }
         except Exception as e:
             logger.error(f"Error in process_shapefile_with_threshold: {str(e)}", exc_info=True)
             return {

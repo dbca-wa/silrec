@@ -1565,6 +1565,13 @@ class RequestMetrics(models.Model):
         on_delete=models.SET_NULL,
         # related_name='request_metrics'  # optional
     )
+    processing_run = models.ForeignKey(
+        'ShapefileProcessingRun',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='metrics_for_run'
+    )
     timestamp = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -1664,6 +1671,11 @@ class AuditLog(models.Model):
         related_name="audit_logs",
         on_delete=models.CASCADE
     )
+    savepoints = models.ManyToManyField(
+        'SavepointRecord',
+        blank=True,
+        related_name='audit_logs_for_savepoint'
+    )
     operation = models.CharField(max_length=10, choices=OPERATION_CHOICES)
     iter_seq = models.PositiveIntegerField('Iteration')
     old_values = models.JSONField(null=True, blank=True)
@@ -1681,6 +1693,190 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.operation} on {self.table_name}#{self.record_id} at {self.start_time}"
+
+
+#from django.db import models
+#from django.contrib.auth import get_user_model
+#from django.utils import timezone
+#import json
+#
+#User = get_user_model()
+
+class ShapefileProcessingRun(models.Model):
+    """Tracks a complete shapefile processing run"""
+    STATUS_CHOICES = [
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('rolled_back', 'Rolled Back'),
+    ]
+
+    proposal = models.ForeignKey(
+        'Proposal',
+        on_delete=models.CASCADE,
+        related_name='processing_runs'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='processing_runs'
+    )
+    threshold = models.FloatField(
+        help_text="Sliver threshold used for this run"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='running'
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    total_polygons = models.IntegerField(
+        default=0,
+        help_text="Total number of polygons to process"
+    )
+    processed_polygons = models.IntegerField(
+        default=0,
+        help_text="Number of polygons successfully processed"
+    )
+    failed_polygons = models.IntegerField(
+        default=0,
+        help_text="Number of polygons that failed"
+    )
+    error_message = models.TextField(blank=True, null=True)
+
+    # Link to the request metrics for this run
+    request_metrics = models.ForeignKey(
+        'RequestMetrics',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processing_run_metrics'
+    )
+
+    # Store metadata about the run
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'shapefile_processing_run'
+        app_label = 'silrec'
+        ordering = ['-started_at']
+        verbose_name = 'Shapefile Processing Run'
+        verbose_name_plural = 'Shapefile Processing Runs'
+
+    def __str__(self):
+        return f"Run {self.id} - Proposal {self.proposal_id} - {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+
+    def update_progress(self, processed, failed=0):
+        """Update processing progress"""
+        self.processed_polygons = processed
+        self.failed_polygons = failed
+        if self.processed_polygons + self.failed_polygons >= self.total_polygons:
+            self.status = 'completed'
+            self.completed_at = timezone.now()
+        self.save()
+
+    def mark_failed(self, error_message):
+        """Mark the run as failed"""
+        self.status = 'failed'
+        self.error_message = error_message
+        self.completed_at = timezone.now()
+        self.save()
+
+    def mark_rolled_back(self):
+        """Mark the run as rolled back"""
+        self.status = 'rolled_back'
+        self.completed_at = timezone.now()
+        self.save()
+
+    @property
+    def duration(self):
+        """Calculate run duration"""
+        if self.completed_at:
+            return self.completed_at - self.started_at
+        return timezone.now() - self.started_at
+
+    @property
+    def success_rate(self):
+        """Calculate success rate percentage"""
+        if self.total_polygons == 0:
+            return 0
+        return (self.processed_polygons / self.total_polygons) * 100
+
+
+class SavepointRecord(models.Model):
+    """Tracks individual savepoints within a processing run"""
+    ACTION_CHOICES = [
+        ('create', 'Created'),
+        ('commit', 'Committed'),
+        ('rollback', 'Rolled Back'),
+    ]
+
+    processing_run = models.ForeignKey(
+        ShapefileProcessingRun,
+        on_delete=models.CASCADE,
+        related_name='savepoints'
+    )
+    iteration = models.IntegerField(
+        help_text="Iteration number in the processing run"
+    )
+    polygon_index = models.IntegerField(
+        help_text="Index of the polygon being processed"
+    )
+    polygon_id = models.IntegerField(
+        null=True, blank=True,
+        help_text="ID of the polygon (if known)"
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Store state information
+    affected_models = models.JSONField(
+        default=dict,
+        help_text="Counts of affected records per model"
+    )
+
+    # Link to audit logs for this savepoint
+    audit_logs = models.ManyToManyField(
+        'AuditLog',
+        blank=True,
+        related_name='savepoint_records'
+    )
+
+    # Additional metadata
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'savepoint_record'
+        app_label = 'silrec'
+        ordering = ['processing_run', 'iteration', 'created_at']
+        verbose_name = 'Savepoint Record'
+        verbose_name_plural = 'Savepoint Records'
+
+    def __str__(self):
+        return f"Savepoint {self.iteration} - {self.get_action_display()} at {self.created_at.strftime('%H:%M:%S')}"
+
+    @property
+    def can_undo(self):
+        """Check if this savepoint can be undone"""
+        return self.action == 'commit' and self.processing_run.status != 'rolled_back'
+
+    def affected_records_count(self):
+        """Calculate total affected records"""
+        return sum(self.affected_models.values())
+
+    @property
+    def affected_records_summary(self):
+        """Generate a summary of affected records"""
+        summary = []
+        for model, count in self.affected_models.items():
+            if count > 0:
+                summary.append(f"{count} {model}")
+        return ", ".join(summary) if summary else "No records affected"
 
 
 ## -------------------------------------------------------------------------------------

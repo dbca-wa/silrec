@@ -1,0 +1,138 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+    .info-box {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .stat-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+    }
+    .stat-label {
+        color: #6c757d;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    
+    <div class="warning-box">
+        <strong>⚠️ Warning:</strong> This action will revert all changes made after this savepoint.
+        This cannot be undone. Please review the information below carefully.
+    </div>
+
+    <div class="info-box">
+        <strong>Run Information:</strong>
+        <p>Proposal: {{ run.proposal.lodgement_number }}<br>
+        Started: {{ run.started_at }}<br>
+        Current Status: {{ run.get_status_display }}</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ savepoint.iteration }}</div>
+            <div class="stat-label">Savepoint Number</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ savepoint.created_at|date:"H:i:s" }}</div>
+            <div class="stat-label">Created At</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ savepoint.affected_records_count }}</div>
+            <div class="stat-label">Total Records Affected</div>
+        </div>
+    </div>
+
+    <h2>Records Modified in This Savepoint</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #f2f2f2;">
+                <th style="padding: 10px; text-align: left;">Model</th>
+                <th style="padding: 10px; text-align: left;">Count</th>
+                <th style="padding: 10px; text-align: left;">Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for model, count in savepoint.affected_models.items %}
+            {% if count > 0 %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 10px;">{{ model }}</td>
+                <td style="padding: 10px;">{{ count }}</td>
+                <td style="padding: 10px;">
+                    <a href="{% url 'admin:silrec_auditlog_changelist' %}?savepoints_records__id__exact={{ savepoint.id }}&table_name={{ model|lower }}" target="_blank">
+                        View Audit Logs
+                    </a>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Later Savepoints That Will Be Reverted</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #f2f2f2;">
+                <th style="padding: 10px; text-align: left;">Iteration</th>
+                <th style="padding: 10px; text-align: left;">Created At</th>
+                <th style="padding: 10px; text-align: left;">Records Affected</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sp in run.savepoints.all %}
+            {% if sp.iteration > savepoint.iteration and sp.action == 'commit' %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 10px;">{{ sp.iteration }}</td>
+                <td style="padding: 10px;">{{ sp.created_at|date:"H:i:s" }}</td>
+                <td style="padding: 10px;">{{ sp.affected_records_count }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <form method="post" style="margin-top: 30px;">
+        {% csrf_token %}
+        <div style="display: flex; gap: 10px;">
+            <input type="submit" value="Yes, I'm sure - Revert to this savepoint" 
+                   style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+            <a href="{% url 'admin:silrec_shapefileprocessingrun_change' run.id %}" 
+               style="background: #6c757d; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

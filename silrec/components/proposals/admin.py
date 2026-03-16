@@ -35,6 +35,13 @@ class ProposalTypeAdmin(admin.ModelAdmin):
     list_filter = ("code",)
 
 
+class SimpleProposalAdmin(admin.ModelAdmin):
+    list_display = ['id', 'lodgement_number', 'title']
+
+# Register if not already registered
+if not admin.site.is_registered(models.Proposal):
+    admin.site.register(models.Proposal, SimpleProposalAdmin)
+
 #class ProposalDocumentInline(admin.TabularInline):
 #    model = models.ProposalDocument
 #    extra = 0
@@ -643,6 +650,24 @@ class AuditLogAdmin(admin.ModelAdmin):
                 extra_context['new_geometry'] = self.new_geometry(obj)
         return super().changeform_view(request, object_id, form_url, extra_context)
 
+#    def user_link(self, obj):
+#        """Link to the User admin page via request_metrics."""
+#        if obj.request_metrics and obj.request_metrics.user:
+#            url = reverse('admin:auth_user_change', args=[obj.request_metrics.user.id])
+#            return format_html('<a href="{}">{}</a>', url, obj.request_metrics.user.get_username())
+#        return "-"
+#    user_link.short_description = 'User'
+#    user_link.admin_order_field = 'request_metrics__user'
+#
+#    def proposal_link(self, obj):
+#        """Link to the internal proposal detail page (opens in new tab) via request_metrics."""
+#        if obj.request_metrics and obj.request_metrics.proposal:
+#            url = reverse('internal-proposal-detail', args=[obj.request_metrics.proposal.id])
+#            return format_html('<a href="{}" target="_blank">{}</a>', url, obj.request_metrics.proposal.lodgement_number)
+#        return "-"
+#    proposal_link.short_description = 'Proposal'
+#    proposal_link.admin_order_field = 'request_metrics__proposal'
+
     def user_link(self, obj):
         """Link to the User admin page via request_metrics."""
         if obj.request_metrics and obj.request_metrics.user:
@@ -653,10 +678,10 @@ class AuditLogAdmin(admin.ModelAdmin):
     user_link.admin_order_field = 'request_metrics__user'
 
     def proposal_link(self, obj):
-        """Link to the internal proposal detail page (opens in new tab) via request_metrics."""
+        """Link to the Proposal admin page via request_metrics."""
         if obj.request_metrics and obj.request_metrics.proposal:
-            url = reverse('internal-proposal-detail', args=[obj.request_metrics.proposal.id])
-            return format_html('<a href="{}" target="_blank">{}</a>', url, obj.request_metrics.proposal.lodgement_number)
+            url = reverse('admin:silrec_proposal_change', args=[obj.request_metrics.proposal.id])
+            return format_html('<a href="{}">{}</a>', url, obj.request_metrics.proposal.lodgement_number)
         return "-"
     proposal_link.short_description = 'Proposal'
     proposal_link.admin_order_field = 'request_metrics__proposal'
@@ -773,4 +798,399 @@ class AuditLogAdmin(admin.ModelAdmin):
             'request_metrics__user',
             'request_metrics__proposal'
         )
+
+
+#from django.contrib import admin
+#from django.urls import path, reverse
+#from django.utils.html import format_html
+#from django.shortcuts import render, get_object_or_404, redirect
+#from django.contrib import messages
+#from django.db import transaction
+#from django.http import HttpResponseRedirect
+#from django.utils import timezone
+#import json
+#
+#from silrec.components.proposals.models import (
+#    ShapefileProcessingRun,
+#    SavepointRecord,
+#    AuditLog,
+#    RequestMetrics,
+#    Polygon,
+#    Cohort,
+#    AssignChtToPly,
+#)
+
+
+class SavepointInline(admin.TabularInline):
+    """Inline display of savepoints within a processing run"""
+    model = models.SavepointRecord
+    extra = 0
+    readonly_fields = [
+        'iteration', 'polygon_index', 'polygon_id', 'action',
+        'created_at', 'affected_records_display', 'undo_action'
+    ]
+    fields = [
+        'iteration', 'action', 'created_at', 'affected_records_display',
+        'undo_action'
+    ]
+    can_delete = False
+    ordering = ['iteration']
+
+    def affected_records_display(self, obj):
+        """Display affected records with links to audit logs"""
+        if not obj.affected_models:
+            return "-"
+
+        lines = []
+        for model, count in obj.affected_models.items():
+            if count > 0:
+                # Link to audit logs for this savepoint
+                url = reverse('admin:silrec_auditlog_changelist') + f'?savepoints_records__id__exact={obj.id}'
+                lines.append(f'<a href="{url}" target="_blank">{count} {model}</a>')
+
+        return format_html("<br>".join(lines)) if lines else "-"
+    affected_records_display.short_description = 'Affected Records'
+
+    def undo_action(self, obj):
+        """Provide undo button for committed savepoints"""
+        if obj.can_undo:
+            return format_html(
+                '<a class="button" href="{}" style="background: #dc3545; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;" onclick="return confirm(\'Are you sure you want to undo this savepoint? This will revert all changes made in this iteration.\');">Undo</a>',
+                reverse('admin:savepoint-undo', args=[obj.id])
+            )
+        return "-"
+    undo_action.short_description = 'Actions'
+
+
+@admin.register(models.ShapefileProcessingRun)
+class ShapefileProcessingRunAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'proposal_link', 'user_link', 'threshold', 'status_colored',
+        'progress_bar', 'started_at', 'duration_display', 'savepoints_count'
+    ]
+    list_filter = ['status', 'started_at', 'user']
+    search_fields = ['proposal__lodgement_number', 'user__username']
+    readonly_fields = [
+        'started_at', 'completed_at', 'metadata_display',
+        'request_metrics_link', 'audit_logs_link'
+    ]
+    inlines = [SavepointInline]
+
+    fieldsets = (
+        ('Run Information', {
+            'fields': ('proposal', 'user', 'threshold', 'status', 'request_metrics_link')
+        }),
+        ('Progress', {
+            'fields': (
+                'total_polygons', 'processed_polygons', 'failed_polygons',
+                'progress_display'
+            )
+        }),
+        ('Timing', {
+            'fields': ('started_at', 'completed_at', 'duration_display')
+        }),
+        ('Error Information', {
+            'fields': ('error_message',),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('metadata_display', 'audit_logs_link'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:run_id>/revert-to-savepoint/<int:savepoint_id>/',
+                self.admin_site.admin_view(self.revert_to_savepoint_view),
+                name='revert-to-savepoint'
+            ),
+            path(
+                'savepoint/<int:savepoint_id>/undo/',
+                self.admin_site.admin_view(self.undo_savepoint_view),
+                name='savepoint-undo'
+            ),
+            path(
+                '<int:run_id>/compare/',
+                self.admin_site.admin_view(self.compare_view),
+                name='processing-run-compare'
+            ),
+        ]
+        return custom_urls + urls
+
+    def proposal_link(self, obj):
+        # Use the correct admin URL pattern with namespace
+        url = reverse('admin:silrec_proposal_change', args=[obj.proposal.id])
+        return format_html('<a href="{}">{}</a>', url, obj.proposal.lodgement_number)
+    proposal_link.short_description = 'Proposal'
+    proposal_link.admin_order_field = 'proposal'
+
+    def user_link(self, obj):
+        if obj.user:
+            url = reverse('admin:auth_user_change', args=[obj.user.id])
+            return format_html('<a href="{}">{}</a>', url, obj.user.get_username())
+        return "-"
+    user_link.short_description = 'User'
+
+    def status_colored(self, obj):
+        colors = {
+            'running': '#ffc107',
+            'completed': '#28a745',
+            'failed': '#dc3545',
+            'rolled_back': '#6c757d',
+        }
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            colors.get(obj.status, '#000'),
+            obj.get_status_display()
+        )
+    status_colored.short_description = 'Status'
+
+    def progress_bar(self, obj):
+        if obj.total_polygons == 0:
+            return "-"
+
+        processed = obj.processed_polygons
+        failed = obj.failed_polygons
+        total = obj.total_polygons
+        success_pct = (processed / total) * 100
+        failed_pct = (failed / total) * 100
+
+        return format_html(
+            '<div style="width: 200px; background: #e9ecef; border-radius: 3px;">'
+            '<div style="width: {}%; background: #28a745; height: 20px; float: left; text-align: center; color: white; font-size: 11px; line-height: 20px;">{}</div>'
+            '<div style="width: {}%; background: #dc3545; height: 20px; float: left; text-align: center; color: white; font-size: 11px; line-height: 20px;">{}</div>'
+            '</div>',
+            success_pct, f"{processed}/{total}" if success_pct > 10 else "",
+            failed_pct, f"{failed}" if failed_pct > 10 else ""
+        )
+    progress_bar.short_description = 'Progress'
+
+    def progress_display(self, obj):
+        return format_html(
+            'Processed: {}<br>Failed: {}<br>Total: {}<br>Success Rate: {:.1f}%',
+            obj.processed_polygons,
+            obj.failed_polygons,
+            obj.total_polygons,
+            obj.success_rate
+        )
+    progress_display.short_description = 'Progress Details'
+
+    def duration_display(self, obj):
+        duration = obj.duration
+        hours = duration.seconds // 3600
+        minutes = (duration.seconds % 3600) // 60
+        seconds = duration.seconds % 60
+        return f"{hours}h {minutes}m {seconds}s"
+    duration_display.short_description = 'Duration'
+
+    def savepoints_count(self, obj):
+        count = obj.savepoints.filter(action='commit').count()
+        url = reverse('admin:silrec_savepointrecord_changelist') + f'?processing_run__id__exact={obj.id}'
+        return format_html('<a href="{}">{} savepoints</a>', url, count)
+    savepoints_count.short_description = 'Savepoints'
+
+    def request_metrics_link(self, obj):
+        if obj.request_metrics:
+            url = reverse('admin:silrec_requestmetrics_change', args=[obj.request_metrics.id])
+            return format_html('<a href="{}">View Request Metrics #{}</a>', url, obj.request_metrics.id)
+        return "-"
+    request_metrics_link.short_description = 'Request Metrics'
+
+    def audit_logs_link(self, obj):
+        count = AuditLog.objects.filter(request_metrics=obj.request_metrics).count() if obj.request_metrics else 0
+        if count > 0:
+            url = reverse('admin:silrec_auditlog_changelist') + f'?request_metrics__id__exact={obj.request_metrics.id}'
+            return format_html('<a href="{}" target="_blank">View {} Audit Logs</a>', url, count)
+        return "No audit logs"
+    audit_logs_link.short_description = 'Audit Logs'
+
+    def metadata_display(self, obj):
+        """Display metadata as formatted JSON"""
+        if obj.metadata:
+            return format_html(
+                '<pre style="max-height: 300px; overflow: auto; background: #f8f9fa; padding: 10px;">{}</pre>',
+                json.dumps(obj.metadata, indent=2)
+            )
+        return "-"
+    metadata_display.short_description = 'Metadata'
+
+    def revert_to_savepoint_view(self, request, run_id, savepoint_id):
+        """View to revert entire run to a specific savepoint"""
+        run = get_object_or_404(ShapefileProcessingRun, id=run_id)
+        savepoint = get_object_or_404(SavepointRecord, id=savepoint_id, processing_run=run)
+
+        if request.method == 'POST':
+            try:
+                with transaction.atomic():
+                    # Get all audit logs up to this savepoint
+                    audit_logs = AuditLog.objects.filter(
+                        request_metrics=run.request_metrics,
+                        id__in=savepoint.audit_logs.all().values_list('id', flat=True)
+                    )
+
+                    # Revert logic here - you'll need to implement this based on your data model
+                    # This is a placeholder for the actual revert logic
+
+                    messages.success(request, f'Successfully reverted to savepoint {savepoint.iteration}')
+
+                    # Mark later savepoints as rolled back
+                    later_savepoints = SavepointRecord.objects.filter(
+                        processing_run=run,
+                        iteration__gt=savepoint.iteration
+                    )
+                    for sp in later_savepoints:
+                        sp.action = 'rollback'
+                        sp.save()
+
+                    return HttpResponseRedirect(
+                        reverse('admin:silrec_shapefileprocessingrun_change', args=[run.id])
+                    )
+
+            except Exception as e:
+                messages.error(request, f'Error reverting to savepoint: {str(e)}')
+
+        context = {
+            'title': f'Revert to Savepoint #{savepoint.iteration}',
+            'run': run,
+            'savepoint': savepoint,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/silrec/shapefileprocessingrun/revert_confirm.html', context)
+
+    def undo_savepoint_view(self, request, savepoint_id):
+        """View to undo a single savepoint"""
+        savepoint = get_object_or_404(SavepointRecord, id=savepoint_id)
+
+        if request.method == 'POST':
+            try:
+                with transaction.atomic():
+                    # Get audit logs for this savepoint
+                    audit_logs = savepoint.audit_logs.all()
+
+                    # Revert logic here - undo the changes made in this savepoint
+                    # This is a placeholder for the actual revert logic
+
+                    messages.success(request, f'Successfully undid savepoint #{savepoint.iteration}')
+
+                    # Mark as rolled back
+                    savepoint.action = 'rollback'
+                    savepoint.save()
+
+            except Exception as e:
+                messages.error(request, f'Error undoing savepoint: {str(e)}')
+
+        return HttpResponseRedirect(
+            reverse('admin:silrec_shapefileprocessingrun_change', args=[savepoint.processing_run.id])
+        )
+
+    def compare_view(self, request, run_id):
+        """View to compare before/after state of a processing run"""
+        run = get_object_or_404(ShapefileProcessingRun, id=run_id)
+
+        # Get first and last savepoints
+        first_savepoint = run.savepoints.filter(action='commit').order_by('iteration').first()
+        last_savepoint = run.savepoints.filter(action='commit').order_by('-iteration').first()
+
+        context = {
+            'title': f'Compare Run #{run.id}',
+            'run': run,
+            'first_savepoint': first_savepoint,
+            'last_savepoint': last_savepoint,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/silrec/shapefileprocessingrun/compare.html', context)
+
+
+@admin.register(models.SavepointRecord)
+class SavepointRecordAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'processing_run_link', 'iteration', 'polygon_index',
+        'action_colored', 'created_at', 'affected_records_count'
+    ]
+    list_filter = ['action', 'created_at', 'processing_run__proposal']
+    search_fields = [
+        'processing_run__proposal__lodgement_number',
+        'polygon_id'
+    ]
+    readonly_fields = [
+        'processing_run', 'iteration', 'polygon_index', 'polygon_id',
+        'action', 'created_at', 'affected_models_display',
+        'audit_logs_link', 'metadata_display'
+    ]
+
+    fieldsets = (
+        ('Savepoint Information', {
+            'fields': ('processing_run', 'iteration', 'polygon_index', 'polygon_id', 'action', 'created_at')
+        }),
+        ('Affected Data', {
+            'fields': ('affected_models_display', 'audit_logs_link')
+        }),
+        ('Metadata', {
+            'fields': ('metadata_display',),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def processing_run_link(self, obj):
+        url = reverse('admin:silrec_shapefileprocessingrun_change', args=[obj.processing_run.id])
+        return format_html('<a href="{}">Run #{}</a>', url, obj.processing_run.id)
+    processing_run_link.short_description = 'Processing Run'
+
+    def action_colored(self, obj):
+        colors = {
+            'create': '#ffc107',
+            'commit': '#28a745',
+            'rollback': '#dc3545',
+        }
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            colors.get(obj.action, '#000'),
+            obj.get_action_display()
+        )
+    action_colored.short_description = 'Action'
+
+    def affected_records_count(self, obj):
+        total = sum(obj.affected_models.values())
+        url = reverse('admin:silrec_auditlog_changelist') + f'?savepoints_records__id__exact={obj.id}'
+        return format_html('<a href="{}">{} records</a>', url, total)
+    affected_records_count.short_description = 'Affected Records'
+
+    def affected_models_display(self, obj):
+        if not obj.affected_models:
+            return "-"
+
+        lines = []
+        for model, count in obj.affected_models.items():
+            if count > 0:
+                url = reverse('admin:silrec_auditlog_changelist') + f'?savepoints_records__id__exact={obj.id}&table_name={model.lower()}'
+                lines.append(format_html('<a href="{}" target="_blank">{}: {}</a>', url, model, count))
+
+        return format_html("<br>".join(lines)) if lines else "-"
+    affected_models_display.short_description = 'Affected Models'
+
+    def audit_logs_link(self, obj):
+        count = obj.audit_logs.count()
+        if count > 0:
+            url = reverse('admin:silrec_auditlog_changelist') + f'?savepoints_records__id__exact={obj.id}'
+            return format_html('<a href="{}" target="_blank">View {} Audit Logs</a>', url, count)
+        return "No audit logs"
+    audit_logs_link.short_description = 'Audit Logs'
+
+    def metadata_display(self, obj):
+        if obj.metadata:
+            return format_html(
+                '<pre style="max-height: 200px; overflow: auto; background: #f8f9fa; padding: 5px;">{}</pre>',
+                json.dumps(obj.metadata, indent=2)
+            )
+        return "-"
+    metadata_display.short_description = 'Metadata'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 

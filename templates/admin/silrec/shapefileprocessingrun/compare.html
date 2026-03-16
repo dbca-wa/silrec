@@ -1,0 +1,143 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin: 30px 0;
+    }
+    .before-section, .after-section {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 20px;
+    }
+    .before-section h2 {
+        color: #dc3545;
+        margin-top: 0;
+    }
+    .after-section h2 {
+        color: #28a745;
+        margin-top: 0;
+    }
+    .stat-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+    .stat-table td {
+        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .stat-table tr:last-child td {
+        border-bottom: none;
+    }
+    .diff-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .diff-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    
+    <div class="info-box" style="background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 4px; margin: 20px 0;">
+        Comparing the state before processing started and after completion.
+    </div>
+
+    <div class="comparison-grid">
+        <div class="before-section">
+            <h2>Before Processing</h2>
+            {% if first_savepoint %}
+            <p>Savepoint #{{ first_savepoint.iteration }} - {{ first_savepoint.created_at }}</p>
+            
+            <table class="stat-table">
+                <tr>
+                    <td><strong>Total Records:</strong></td>
+                    <td>{{ first_savepoint.affected_records_count }}</td>
+                </tr>
+                {% for model, count in first_savepoint.affected_models.items %}
+                {% if count > 0 %}
+                <tr>
+                    <td>{{ model }}:</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </table>
+            {% else %}
+            <p>No savepoints found.</p>
+            {% endif %}
+        </div>
+
+        <div class="after-section">
+            <h2>After Processing</h2>
+            {% if last_savepoint %}
+            <p>Savepoint #{{ last_savepoint.iteration }} - {{ last_savepoint.created_at }}</p>
+            
+            <table class="stat-table">
+                <tr>
+                    <td><strong>Total Records:</strong></td>
+                    <td>{{ last_savepoint.affected_records_count }}</td>
+                </tr>
+                {% for model, count in last_savepoint.affected_models.items %}
+                {% if count > 0 %}
+                <tr>
+                    <td>{{ model }}:</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </table>
+            {% else %}
+            <p>No savepoints found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if first_savepoint and last_savepoint %}
+    <h2>Changes Summary</h2>
+    <table class="stat-table" style="width: 100%;">
+        <thead>
+            <tr style="background: #f2f2f2;">
+                <th style="padding: 10px;">Model</th>
+                <th style="padding: 10px;">Before</th>
+                <th style="padding: 10px;">After</th>
+                <th style="padding: 10px;">Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for model in first_savepoint.affected_models.keys %}
+            {% with before=first_savepoint.affected_models|get_item:model after=last_savepoint.affected_models|get_item:model %}
+            {% if before != after %}
+            <tr>
+                <td style="padding: 10px;">{{ model }}</td>
+                <td style="padding: 10px;">{{ before|default:"0" }}</td>
+                <td style="padding: 10px;">{{ after|default:"0" }}</td>
+                <td style="padding: 10px;" class="{% if after > before %}diff-positive{% else %}diff-negative{% endif %}">
+                    {% if after > before %}+{% endif %}{{ after|add:before|stringformat:"+d" }}
+                </td>
+            </tr>
+            {% endif %}
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div style="margin-top: 30px;">
+        <a href="{% url 'admin:silrec_shapefileprocessingrun_change' run.id %}" 
+           style="background: #6c757d; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;">Back to Run</a>
+    </div>
+</div>
+{% endblock %}

@@ -156,14 +156,12 @@ class ShapefileSliversMerger():
 
         return gpd.GeoDataFrame([1], geometry=[merged_clean], crs=gdf.crs)
 
-    def create_gdf(self):
+    def create_gdf(self, savepoint_callback=None):
         '''
         Main processing method that creates the merged GeoDataFrames
-
         '''
         idx_count = 0
         gdf_shpfile = self.gdf_shpfile.copy()
-
         list_state = []
 
         # SET Init history and Shapefile to list_state
@@ -184,62 +182,83 @@ class ShapefileSliversMerger():
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         # Process each polygon in the shapefile
-        #for index, row in self.gdf_shpfile.iloc[:2].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
             print('****************************************************************************************')
             print(f'                                 Polygon {idx_count}')
             print('****************************************************************************************')
 
-            # Start a transaction with reversion
-            with transaction.atomic():
-                with reversion.create_revision() as revision:
-                    # Create a single polygon GeoDataFrame
-                    self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
-                    self.gdf_single = self.set_data(self.gdf_single, poly_type='BASE')
+            # Create savepoint if callback provided
+            if savepoint_callback:
+                row_data = row.to_dict() if hasattr(row, 'to_dict') else {'index': index}
+                savepoint_callback('create', idx_count, row_data)
 
-                    target_ba = float(self.gdf_single.iloc[0].target_ba_)
-                    obj_code = self.gdf_single.iloc[0].obj_code
-                    op_id = 1
-                    year = 2024
-                    regen_method = ' %'  # non-null FK req'd
+            try:
+                # Start a transaction with reversion
+                with transaction.atomic():
+                    with reversion.create_revision() as revision:
+                        # Create a single polygon GeoDataFrame
+                        self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
+                        self.gdf_single = self.set_data(self.gdf_single, poly_type='BASE')
 
-                    # Create cohort and pass revision
-                    cohort_id = write_cohort_to_db(
-                        obj_code, op_id, year, target_ba, regen_method,
-                        self.request_metrics, idx_count, revision
-                    )
+                        target_ba = float(self.gdf_single.iloc[0].target_ba_)
+                        obj_code = self.gdf_single.iloc[0].obj_code
+                        op_id = 1
+                        year = 2024
+                        regen_method = ' %'  # non-null FK req'd
 
-                    # Get intersecting historical polygons
-                    gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.conn_engine, self.proposal_id)
+                        # Create cohort and pass revision
+                        cohort_id = write_cohort_to_db(
+                            obj_code, op_id, year, target_ba, regen_method,
+                            self.request_metrics, idx_count, revision
+                        )
 
-                    # Rename columns for consistency
-                    gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
-                    gdf_hist.set_geometry('geometry', inplace=True)
-                    gdf_hist.set_crs(settings.CRS_GDA94, inplace=True)
+                        # Get intersecting historical polygons
+                        gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.conn_engine, self.proposal_id)
 
-                    # Process cookie cut
-                    gdf_result = self.process_cookie_cut(gdf_hist)
+                        # Rename columns for consistency
+                        gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
+                        gdf_hist.set_geometry('geometry', inplace=True)
+                        gdf_hist.set_crs(settings.CRS_GDA94, inplace=True)
 
-                    # Assemble result with cohort data
-                    gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id, idx_count, revision)
-                    gdf_result['poly_id_new'] = pd.to_numeric(gdf_result['poly_id_new'], errors='coerce').fillna(0).astype(int)
+                        # Process cookie cut
+                        gdf_result = self.process_cookie_cut(gdf_hist)
 
-                    # Get initial cohort data
-                    gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
-                    gdf_cht_init['polygon_id'] = pd.to_numeric(gdf_cht_init['polygon_id'], errors='coerce').fillna(0).astype(int)
+                        # Assemble result with cohort data
+                        gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id, idx_count, revision)
+                        gdf_result['poly_id_new'] = pd.to_numeric(gdf_result['poly_id_new'], errors='coerce').fillna(0).astype(int)
 
-                    # Get new cohort data
-                    gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
+                        # Get initial cohort data
+                        gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
+                        gdf_cht_init['polygon_id'] = pd.to_numeric(gdf_cht_init['polygon_id'], errors='coerce').fillna(0).astype(int)
 
-                    # Save new cohort assignments with revision
-                    save_cht_new_to_db(gdf_cht_new, self.request_metrics, idx_count, revision)
+                        # Get new cohort data
+                        gdf_cht_new = self.merge_cohort_data_new(gdf_result, gdf_hist, cohort_gdf_init, cohort_id, op_id)
 
-                    # Store state
-                    list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
+                        # Save new cohort assignments with revision
+                        save_cht_new_to_db(gdf_cht_new, self.request_metrics, idx_count, revision)
 
-                    # Set reversion comment
-                    reversion.set_comment(f'Shapefile processing iteration {idx_count} for proposal {self.proposal_id}')
+                        # Store state
+                        list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
+
+                        # Set reversion comment
+                        reversion.set_comment(f'Shapefile processing iteration {idx_count} for proposal {self.proposal_id}')
+
+                # If we got here, the iteration succeeded - commit the savepoint
+                if savepoint_callback:
+                    savepoint_callback('commit', idx_count)
+
+            except Exception as e:
+                # Something went wrong in this iteration
+                logger.error(f"Error in iteration {idx_count}: {str(e)}")
+
+                # Rollback the savepoint for this iteration
+                # Note: This must happen BEFORE any other database operations
+                if savepoint_callback:
+                    savepoint_callback('rollback', idx_count)
+
+                # Re-raise the exception to stop processing
+                raise
 
         # Add combined gdf_result's to list_state
         gdf_result_combined = self.get_gdf_result_combined(list_state)
@@ -483,48 +502,53 @@ class ShapefileSliversMerger():
         # Get polygon_ids
         polygon_ids = gdf_result['polygon_id'].tolist()
 
-        # Query using Django ORM
+        # Query using Django ORM with proper error handling
         try:
-            queryset = AssignChtToPly.objects.filter(
-                polygon_id__in=polygon_ids,
-                status_current=True
-            ).values('polygon_id', 'cohort_id')
+            # Check if we're in a transaction and it's valid
+            from django.db import connection
+            if connection.in_atomic_block and not connection.needs_rollback:
+                queryset = AssignChtToPly.objects.filter(
+                    polygon_id__in=polygon_ids,
+                    status_current=True
+                ).values('polygon_id', 'cohort_id')
 
-            # Create mapping dictionary
-            cohort_mapping = {item['polygon_id']: item['cohort_id'] for item in queryset}
+                # Create mapping dictionary
+                cohort_mapping = {item['polygon_id']: item['cohort_id'] for item in queryset}
 
-            # Apply to GeoDataFrame
-            gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping).fillna(1).astype(int)
+                # Apply to GeoDataFrame
+                gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping).fillna(1).astype(int)
+#            else:
+#                # Transaction is in a bad state, use SQLAlchemy as fallback
+#                logger.warning("Transaction in bad state, using SQLAlchemy fallback")
+#                return self.add_cht_id_to_gdf_sql_alc(gdf_result)
 
-        except IntegrityError as e:
-            logger.error(f"Database integrity error creating cohort record: {e}")
-            return None
-        except Exception as e2:
-            logger.error(f"Unexpected error creating cohort record: {e2}")
-            return None
-
-        return gdf_result
-
-    def add_cht_id_to_gdf_sql_alc(self, gdf_result):
-        ''' Uses SqlAlchemy - Query the DB table assign_cht_to_ply for ply_id's, cht_id's
-        '''
-
-        polygon_ids = gdf_result['polygon_id'].tolist()
-
-        # Using text() for safe parameterized queries
-        query = text("""
-            SELECT polygon_id, cohort_id
-            FROM assign_cht_to_ply
-            WHERE polygon_id = ANY(:polygon_ids) AND status_current = True
-        """)
-
-        with self.conn_engine.connect() as conn:
-            result = conn.execute(query, {'polygon_ids': polygon_ids})
-            cohort_mapping = {row[0]: row[1] for row in result}
-
-        gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping).fillna(1).astype(int)
+        except Exception as e:
+            logger.error(f"Unexpected error creating cohort record: {e}")
+            # Try SQLAlchemy as fallback
+            return self.add_cht_id_to_gdf_sql_alc(gdf_result)
 
         return gdf_result
+
+#    def add_cht_id_to_gdf_sql_alc(self, gdf_result):
+#        ''' Uses SqlAlchemy - Query the DB table assign_cht_to_ply for ply_id's, cht_id's
+#        '''
+#
+#        polygon_ids = gdf_result['polygon_id'].tolist()
+#
+#        # Using text() for safe parameterized queries
+#        query = text("""
+#            SELECT polygon_id, cohort_id
+#            FROM assign_cht_to_ply
+#            WHERE polygon_id = ANY(:polygon_ids) AND status_current = True
+#        """)
+#
+#        with self.conn_engine.connect() as conn:
+#            result = conn.execute(query, {'polygon_ids': polygon_ids})
+#            cohort_mapping = {row[0]: row[1] for row in result}
+#
+#        gdf_result['cht_id_cur'] = gdf_result['polygon_id'].map(cohort_mapping).fillna(1).astype(int)
+#
+#        return gdf_result
 
     def merge_cohort_data_init(self, gdf_result, gdf_hist):
         """

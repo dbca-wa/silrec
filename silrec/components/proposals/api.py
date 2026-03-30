@@ -346,6 +346,74 @@ class ProposalViewSet(UserActionLoggingViewset):
         )
         return Response(data)
 
+    @basic_exception_handler
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        """Create a new proposal with default values"""
+        try:
+            from silrec.components.main.models import ApplicationType
+            from silrec.components.proposals.models import ProposalType
+
+            # Get default objects
+            try:
+                # Try to get or create default application type
+                application_type, _ = ApplicationType.objects.get_or_create(
+                    id=1,
+                    defaults={'name': 'Default', 'visible': True}
+                )
+            except Exception as e:
+                logger.error(f"Error with application type: {e}")
+                # Try to get the first available application type
+                application_type = ApplicationType.objects.first()
+                if not application_type:
+                    return Response(
+                        {'error': 'No application type found in the system'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
+            try:
+                # Try to get or create default proposal type
+                proposal_type, _ = ProposalType.objects.get_or_create(
+                    id=1,
+                    defaults={'code': 'new', 'description': 'New Proposal'}
+                )
+            except Exception as e:
+                logger.error(f"Error with proposal type: {e}")
+                # Try to get the first available proposal type
+                proposal_type = ProposalType.objects.first()
+                if not proposal_type:
+                    return Response(
+                        {'error': 'No proposal type found in the system'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
+            # Create a new proposal with default values
+            proposal = Proposal.objects.create(
+                proposal_type=proposal_type,
+                application_type=application_type,
+                processing_status=Proposal.PROCESSING_STATUS_DRAFT,
+                submitter=request.user.id,
+                title=f"Proposal {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"  # Add a default title
+            )
+
+            # Ensure lodgement number is generated
+            if not proposal.lodgement_number:
+                proposal.lodgement_number = f'P{proposal.id:06d}'
+                proposal.save()
+
+            logger.info(f"New proposal created by user {request.user.id} with ID {proposal.id}")
+
+            # Return the created proposal data
+            serializer = self.get_serializer(proposal, context={"request": request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Error creating new proposal: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Error creating proposal: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 #    @detail_route(methods=["GET"], detail=True)
 #    def compare_list(self, request, *args, **kwargs):
 #        """Returns the reversion-compare urls --> list"""

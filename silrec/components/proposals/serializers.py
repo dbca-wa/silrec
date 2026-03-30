@@ -255,6 +255,14 @@ class ProposalSerializer(BaseProposalSerializer):
             "proposalgeometry_processed",
             "proposalgeometry_processed_iters",
         )
+        extra_kwargs = {
+            'application_type': {'required': False, 'allow_null': True},
+            'proposal_type': {'required': False, 'allow_null': True},
+            'title': {'required': False, 'allow_null': True},
+            'processing_status': {'required': False},
+            'submitter': {'required': False},
+        }
+
 
     def get_shapefile_name(self, obj):
         doc = obj.shapefile_documents.last()
@@ -301,9 +309,25 @@ class ProposalSerializer(BaseProposalSerializer):
                 )
 
 
-#    def get_proposalgeometry(self, obj):
-#        # TODO - JM
-#        return {}
+#class CreateProposalSerializer(serializers.ModelSerializer):
+#    """Serializer for creating new proposals with default values"""
+#
+#    class Meta:
+#        model = Proposal
+#        fields = [
+#            'id',
+#            'proposal_type',
+#            'application_type',
+#            'processing_status',
+#            'submitter',
+#            'lodgement_number',
+#        ]
+#
+#    def create(self, validated_data):
+#        """Create a new proposal with custom logic"""
+#        proposal = Proposal.objects.create(**validated_data)
+#        return proposal
+
 
 class ListProposalMinimalSerializer(serializers.ModelSerializer):
     #proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)

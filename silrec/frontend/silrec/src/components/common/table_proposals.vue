@@ -95,6 +95,7 @@
             </div>
         </CollapsibleFilters>
 
+<!--
         <div v-if="!email_user_id_assigned" class="row">
             <div class="col-md-12">
                 <div class="text-end">
@@ -105,6 +106,24 @@
                     >
                         <i class="fa-solid fa-circle-plus"></i>
                         {{ new_migrate_button_text }}
+                    </button>
+                </div>
+            </div>
+        </div>
+-->
+
+        <div v-if="!email_user_id_assigned" class="row">
+            <div class="col-md-12">
+                <div class="text-end">
+                    <button
+                        type="button"
+                        class="btn btn-primary mb-2"
+                        @click="new_application_button_clicked"
+                        :disabled="isCreating"
+                    >
+                        <i v-if="!isCreating" class="fa-solid fa-circle-plus"></i>
+                        <span v-if="isCreating" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        {{ isCreating ? 'Creating...' : new_migrate_button_text }}
                     </button>
                 </div>
             </div>
@@ -130,6 +149,7 @@ import { api_endpoints, constants } from '@/utils/hooks';
 import CollapsibleFilters from '@/components/forms/collapsible_component.vue';
 import { expandToggle } from '@/components/common/table_functions.js';
 import { discardProposal } from '@/components/common/workflow_functions.js';
+import Swal from 'sweetalert2';
 
 export default {
     name: 'TableApplications',
@@ -228,6 +248,7 @@ export default {
                 allowInputToggle: true,
             },
             filterPost2024Only: true,
+            isCreating: false,
         };
     },
     computed: {
@@ -668,7 +689,7 @@ export default {
                 this.filterApplied
             );
         },
-        new_application_button_clicked: async function () {
+        __new_application_button_clicked: async function () {
             var route = 'apply_proposal';
             if (this.level == 'internal') {
                 route = 'migrate_proposal';
@@ -677,6 +698,63 @@ export default {
                 name: route,
             });
         },
+
+        new_application_button_clicked: async function () {
+            this.isCreating = true;
+            
+            try {
+                // Call the API to create a new proposal
+                const response = await fetch(api_endpoints.proposal, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({}) // Empty object - defaults will be set on the backend
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create proposal');
+                }
+                
+                const newProposal = await response.json();
+                
+                // Navigate to the new proposal
+                await this.$router.push({
+                    name: 'internal-proposal',
+                    params: { proposal_id: newProposal.id }
+                });
+                
+            } catch (error) {
+                console.error('Error creating proposal:', error);
+                // Show error message to user
+                this.$swal({
+                    title: 'Error',
+                    text: error.message || 'Failed to create new proposal. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            } finally {
+                this.isCreating = false;
+            }
+        },
+
+        getCookie: function(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        },
+
         discardProposal: function (proposal_id, lodgement_number) {
             discardProposal(proposal_id, lodgement_number)
                 .then(() => {

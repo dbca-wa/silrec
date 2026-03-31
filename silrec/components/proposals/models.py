@@ -216,7 +216,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS = "with_assessor_treatments"
     PROCESSING_STATUS_WITH_ASSESSOR_TASKS = "with_assessor_tasks"
     PROCESSING_STATUS_WITH_REVIEWER = "with_reviewer"
-    PROCESSING_STATUS_REVIEW_COMPLETED = "review_Completed"
+    PROCESSING_STATUS_REVIEW_COMPLETED = "review_completed"
     PROCESSING_STATUS_DECLINED = "declined"
     PROCESSING_STATUS_DISCARDED = "discarded"
     PROCESSING_STATUS_TEMP = "temp"
@@ -318,6 +318,90 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     @property
     def can_user_view(self):
         return True
+
+    def can_transition_to(self, target_status, user):
+        """
+        Check if the proposal can transition to target_status by user
+        """
+        current_status = self.processing_status
+
+        # Define valid transitions and required groups
+        transitions = {
+            'draft': {
+                'to_assessor': {
+                    'target': 'with_assessor',
+                    'allowed_groups': ['Assessor'],  # Users who can send to assessor
+                }
+            },
+            'with_assessor': {
+                'to_reviewer': {
+                    'target': 'with_reviewer',
+                    #'allowed_groups': ['Silrec Admin', 'Assessor'],  # Users who can send to reviewer
+                    'allowed_groups': ['Assessor'],  # Users who can send to reviewer
+                },
+                'to_draft': {
+                    'target': 'draft',
+                    #'allowed_groups': ['Silrec Admin', 'Assessor'],  # Users who can return to draft
+                    'allowed_groups': ['Assessor'],  # Users who can return to draft
+                }
+            },
+            'with_reviewer': {
+                'to_review_completed': {
+                    'target': 'review_completed',
+                    'allowed_groups': ['Reviewer'],
+                },
+                'to_assessor': {
+                    'target': 'with_assessor',
+                    'allowed_groups': ['Reviewer'],
+                }
+            },
+            'review_completed': {
+                'to_reviewer': {
+                    'target': 'with_reviewer',
+                    'allowed_groups': ['Silrec Admin'],
+                }
+            }
+        }
+
+        # Check if transition exists for current status
+        if current_status not in transitions:
+            return False, f"Invalid current status: {current_status}"
+
+        # Find the transition that leads to target_status
+        transition = None
+        for key, trans in transitions[current_status].items():
+            if trans['target'] == target_status:
+                transition = trans
+                break
+
+        if not transition:
+            return False, f"Transition from {current_status} to {target_status} is not allowed"
+
+        # Check user group membership
+        #import ipdb; ipdb.set_trace()
+        if not (user.groups.filter(name__in=transition['allowed_groups']).exists() or user.is_superuser):
+            return False, f"User must be in one of these groups: {', '.join(transition['allowed_groups'])}"
+
+        return True, "Transition allowed"
+
+    def transition_to(self, target_status, user, comment=""):
+        """
+        Perform the status transition
+        """
+        allowed, message = self.can_transition_to(target_status, user)
+        if not allowed:
+            raise ValidationError(message)
+
+        # Store previous status
+        self.prev_processing_status = self.processing_status
+
+        # Update status
+        self.processing_status = target_status
+
+        # Save with version comment
+        self.save(version_comment=f"Status changed: {self.prev_processing_status} -> {target_status}. By: {user.username}. {comment}")
+
+        return True, f"Successfully transitioned to {target_status}"
 
 #    @property
 #    def shp_to_gdf(self):

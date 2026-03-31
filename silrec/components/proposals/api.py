@@ -414,6 +414,95 @@ class ProposalViewSet(UserActionLoggingViewset):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    #@action(detail=True, methods=['post'], url_path='transition_status')
+    #def transition_status(self, request, pk=None):
+    @action(detail=True, methods=['post'])
+    def transition_status(self, request, *args, **kwargs):
+        """
+        Transition proposal to a new status
+        """
+        import ipdb; ipdb.set_trace()
+        proposal = self.get_object()
+        target_status = request.data.get('target_status')
+        comment = request.data.get('comment', '')
+
+        if not target_status:
+            return Response(
+                {'error': 'target_status is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            allowed, message = proposal.can_transition_to(target_status, request.user)
+            if not allowed:
+                return Response(
+                    {'error': message},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            proposal.transition_to(target_status, request.user, comment)
+
+            # Return updated proposal
+            serializer = self.get_serializer(proposal, context={"request": request})
+            return Response({
+                'success': True,
+                'message': message,
+                'proposal': serializer.data
+            })
+
+        except ValidationError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error transitioning proposal {proposal.id}: {str(e)}")
+            return Response(
+                {'error': f'Error transitioning proposal: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['get'], url_path='workflow_options')
+    def workflow_options(self, request, id=None):
+        """
+        Get available workflow transitions for the current user
+        """
+        proposal = self.get_object()
+        current_status = proposal.processing_status
+
+        # Define all possible transitions
+        transition_options = {
+            'draft': [
+                {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'}
+            ],
+            'with_assessor': [
+                {'key': 'to_reviewer', 'label': 'Send to Reviewer', 'target': 'with_reviewer'},
+                {'key': 'to_draft', 'label': 'Return to Draft', 'target': 'draft'}
+            ],
+            'with_reviewer': [
+                {'key': 'to_review_completed', 'label': 'Send to Review Completed', 'target': 'review_completed'},
+                {'key': 'to_assessor', 'label': 'Return to Assessor', 'target': 'with_assessor'}
+            ],
+            'review_completed': [
+                {'key': 'to_reviewer', 'label': 'Return to Reviewer', 'target': 'with_reviewer'}
+            ]
+        }
+
+        # Get available transitions for current status
+        available = []
+        for option in transition_options.get(current_status, []):
+            allowed, message = proposal.can_transition_to(option['target'], request.user)
+            if allowed:
+                available.append({
+                    **option,
+                    'message': message
+                })
+
+        return Response({
+            'current_status': current_status,
+            'available_transitions': available
+        })
+
 #    @detail_route(methods=["GET"], detail=True)
 #    def compare_list(self, request, *args, **kwargs):
 #        """Returns the reversion-compare urls --> list"""

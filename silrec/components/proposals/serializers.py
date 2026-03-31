@@ -177,7 +177,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
 
     def get_processing_status(self, obj):
         #return obj.get_processing_status_display()
-        return obj.get_processing_status_display()
+        return obj.processing_status
 
 #    def get_accessing_user_roles(self, proposal):
 #        request = self.context.get("request")

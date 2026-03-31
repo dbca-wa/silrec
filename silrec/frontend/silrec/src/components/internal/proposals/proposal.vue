@@ -16,6 +16,9 @@
                         : null
                 }}
             </h3>
+            <h5>
+                Status: {{proposal.processing_status_id}}
+            </h5>
 
 <!--
             <div class="col-md-3">
@@ -59,38 +62,153 @@
 
         <div v-if="displaySaveBtns" class="navbar fixed-bottom bg-navbar">
             <div class="container">
-                <div class="col-md-12 text-end">
-                    <BootstrapButtonSpinner
-                        v-if="savingProposal"
-                        class="btn btn-primary me-2"
-                        :is-loading="true"
-                        :small="true"
-                        :center-of-screen="false"
-                    />
-                    <button
-                        v-else
-                        class="btn btn-primary me-2"
-                        :disabled="disableSaveAndExitBtn"
-                        @click.prevent="save_and_exit"
-                    >
-                        Save and Exit
-                    </button>
 
-                    <BootstrapButtonSpinner
-                        v-if="savingProposal"
-                        class="btn btn-primary me-1"
-                        :is-loading="true"
-                        :small="true"
-                        :center-of-screen="false"
-                    />
-                    <button
-                        v-else
-                        class="btn btn-primary"
-                        :disabled="disableSaveAndContinueBtn"
-                        @click.prevent="save_and_continue"
-                    >
-                        Save and Continue
-                    </button>
+                <div class="row w-100">
+                    <!-- Left side - Workflow buttons -->
+                    <div class="col-md-6 text-start">
+                        <div class="workflow-buttons">
+                            <!-- Draft status buttons -->
+                            <template v-if="proposal.processing_status === 'draft'">
+                                <BootstrapButtonSpinner
+                                    v-if="transitioning"
+                                    class="btn btn-primary me-2"
+                                    :is-loading="true"
+                                    :small="true"
+                                    :center-of-screen="false"
+                                />
+                                <button
+                                    v-else
+                                    class="btn btn-primary me-2"
+                                    @click="sendToAssessor"
+                                    :disabled="!canSendToAssessor"
+                                >
+                                    Send to Assessor
+                                </button>
+                            </template>
+                            
+                            <!-- With Assessor status buttons -->
+                            <template v-if="proposal.processing_status === 'with_assessor'">
+                                <BootstrapButtonSpinner
+                                    v-if="transitioning"
+                                    class="btn btn-primary me-2"
+                                    :is-loading="true"
+                                    :small="true"
+                                    :center-of-screen="false"
+                                />
+                                <button
+                                    v-else
+                                    class="btn btn-primary me-2"
+                                    @click="sendToReviewer"
+                                    :disabled="!canSendToReviewer"
+                                >
+                                    Send to Reviewer
+                                </button>
+                                <BootstrapButtonSpinner
+                                    v-if="transitioning"
+                                    class="btn btn-secondary me-2"
+                                    :is-loading="true"
+                                    :small="true"
+                                    :center-of-screen="false"
+                                />
+                                <button
+                                    v-else
+                                    class="btn btn-secondary me-2"
+                                    @click="returnToDraft"
+                                    :disabled="!canReturnToDraft"
+                                >
+                                    Return to Draft
+                                </button>
+                            </template>
+                            
+                            <!-- With Reviewer status buttons -->
+                            <template v-if="proposal.processing_status === 'with_reviewer'">
+                                <BootstrapButtonSpinner
+                                    v-if="transitioning"
+                                    class="btn btn-success me-2"
+                                    :is-loading="true"
+                                    :small="true"
+                                    :center-of-screen="false"
+                                />
+                                <button
+                                    v-else
+                                    class="btn btn-success me-2"
+                                    @click="sendToReviewCompleted"
+                                    :disabled="!canSendToReviewCompleted"
+                                >
+                                    Send to Review Completed
+                                </button>
+                                <BootstrapButtonSpinner
+                                    v-if="transitioning"
+                                    class="btn btn-secondary me-2"
+                                    :is-loading="true"
+                                    :small="true"
+                                    :center-of-screen="false"
+                                />
+                                <button
+                                    v-else
+                                    class="btn btn-secondary me-2"
+                                    @click="returnToAssessor"
+                                    :disabled="!canReturnToAssessor"
+                                >
+                                    Return to Assessor
+                                </button>
+                            </template>
+                            
+                            <!-- Review Completed status buttons -->
+                            <template v-if="proposal.processing_status === 'review_completed'">
+                                <BootstrapButtonSpinner
+                                    v-if="transitioning"
+                                    class="btn btn-warning me-2"
+                                    :is-loading="true"
+                                    :small="true"
+                                    :center-of-screen="false"
+                                />
+                                <button
+                                    v-else
+                                    class="btn btn-warning me-2"
+                                    @click="returnToReviewer"
+                                    :disabled="!canReturnToReviewer"
+                                >
+                                    Return to Reviewer
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Right side - Save buttons -->
+                    <div class="col-md-6 text-end">
+                        <BootstrapButtonSpinner
+                            v-if="savingProposal"
+                            class="btn btn-primary me-2"
+                            :is-loading="true"
+                            :small="true"
+                            :center-of-screen="false"
+                        />
+                        <button
+                            v-else
+                            class="btn btn-primary me-2"
+                            :disabled="disableSaveAndExitBtn"
+                            @click.prevent="save_and_exit"
+                        >
+                            Save and Exit
+                        </button>
+
+                        <BootstrapButtonSpinner
+                            v-if="savingProposal"
+                            class="btn btn-primary me-1"
+                            :is-loading="true"
+                            :small="true"
+                            :center-of-screen="false"
+                        />
+                        <button
+                            v-else
+                            class="btn btn-primary"
+                            :disabled="disableSaveAndContinueBtn"
+                            @click.prevent="save_and_continue"
+                        >
+                            Save and Continue
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -111,6 +229,7 @@ import ApplicationForm from '@/components/form.vue';
 import FormSection from '@/components/forms/section_toggle.vue';
 import AssessmentComments from '@/components/forms/collapsible_component.vue';
 import { declineProposal } from '@/components/common/workflow_functions.js';
+import Swal from 'sweetalert2';
 
 export default {
     name: 'InternalProposal',
@@ -201,6 +320,12 @@ export default {
             additionalDocumentTypesSelected: [],
             select2AppliedToAdditionalDocumentTypes: false,
             proposedApprovalState: '',
+
+            transitioning: false,
+            workflowOptions: {
+                current_status: null,
+                available_transitions: []
+            },
         };
     },
     computed: {
@@ -521,6 +646,57 @@ export default {
                 this.profile &&
                 (this.profile.is_assessor || this.profile.is_approver)
             );
+        },
+
+        // Check if user can send to assessor (draft -> with_assessor)
+        canSendToAssessor() {
+            const transition = this.workflowOptions.available_transitions.find(
+                t => t.target === 'with_assessor'
+            );
+            return !this.savingProposal && !this.transitioning && !!transition;
+        },
+        
+        // Check if user can send to reviewer (with_assessor -> with_reviewer)
+        canSendToReviewer() {
+            const transition = this.workflowOptions.available_transitions.find(
+                t => t.target === 'with_reviewer'
+            );
+            console.log(!this.savingProposal)
+            console.log(!this.transitioning)
+            console.log(!!transition)
+            return !this.savingProposal && !this.transitioning && !!transition;
+        },
+        
+        // Check if user can return to draft (with_assessor -> draft)
+        canReturnToDraft() {
+            const transition = this.workflowOptions.available_transitions.find(
+                t => t.target === 'draft'
+            );
+            return !this.savingProposal && !this.transitioning && !!transition;
+        },
+        
+        // Check if user can send to review completed (with_reviewer -> review_completed)
+        canSendToReviewCompleted() {
+            const transition = this.workflowOptions.available_transitions.find(
+                t => t.target === 'review_completed'
+            );
+            return !this.savingProposal && !this.transitioning && !!transition;
+        },
+        
+        // Check if user can return to assessor (with_reviewer -> with_assessor)
+        canReturnToAssessor() {
+            const transition = this.workflowOptions.available_transitions.find(
+                t => t.target === 'with_assessor'
+            );
+            return !this.savingProposal && !this.transitioning && !!transition;
+        },
+        
+        // Check if user can return to reviewer (review_completed -> with_reviewer)
+        canReturnToReviewer() {
+            const transition = this.workflowOptions.available_transitions.find(
+                t => t.target === 'with_reviewer'
+            );
+            return !this.savingProposal && !this.transitioning && !!transition;
         },
     },
     watch: {},
@@ -1748,6 +1924,235 @@ export default {
         refreshFromResponse: function (data) {
             this.proposal = Object.assign({}, data);
         },
+
+        // Fetch workflow options for current user
+        async fetchWorkflowOptions() {
+            try {
+                const response = await fetch(
+                    `/api/proposal/${this.proposal.id}/workflow_options/`
+                );
+                const data = await response.json();
+                this.workflowOptions = data;
+            } catch (error) {
+                console.error('Error fetching workflow options:', error);
+            }
+        },
+        
+        // Generic transition method
+        async transitionStatus(targetStatus, confirmMessage, successMessage) {
+            // Ask for confirmation
+            const result = await Swal.fire({
+                title: 'Confirm Status Change',
+                html: `
+                    <div style="text-align: left;">
+                        <p>${confirmMessage}</p>
+                        <div class="form-group mt-3">
+                            <label for="comment">Optional Comment:</label>
+                            <textarea id="comment" class="swal2-textarea" rows="3" 
+                                placeholder="Add any notes about this status change..."></textarea>
+                        </div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Confirm',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#dc3545',
+                preConfirm: () => {
+                    const comment = document.getElementById('comment').value;
+                    return { comment };
+                }
+            });
+            
+            if (!result.isConfirmed) return;
+            
+            this.transitioning = true;
+            
+            try {
+                const response = await fetch(
+                    `/api/proposal/${this.proposal.id}/transition_status/`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': helpers.getCookie('csrftoken')
+                        },
+//                        body: JSON.stringify({})
+                        body: JSON.stringify({
+                            target_status: targetStatus,
+                            comment: result.value.comment
+                        })
+                    }
+                );
+
+//                const response = await fetch(api_endpoints.proposal, {
+//                    method: 'POST',
+//                    headers: {
+//                        'Content-Type': 'application/json',
+//                        'X-CSRFToken': this.getCookie('csrftoken')
+//                    },
+//                    body: JSON.stringify({}) // Empty object - defaults will be set on the backend
+//                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Transition failed');
+                }
+                
+                if (data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: successMessage || data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Update proposal data
+                    this.proposal = data.proposal;
+                    
+                    // Refresh workflow options
+                    await this.fetchWorkflowOptions();
+                    
+                    // Reload the form to reflect changes
+                    this.uuid++;
+                    
+                    // Trigger refresh of parent components
+                    this.$emit('refreshFromResponse', this.proposal);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                console.error('Error transitioning status:', error);
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Transition Failed',
+                    text: error.message || 'Failed to change status. Please try again.',
+                    confirmButtonColor: '#dc3545'
+                });
+            } finally {
+                this.transitioning = false;
+            }
+        },
+        
+        // Specific transition methods
+        async sendToAssessor() {
+            await this.transitionStatus(
+                'with_assessor',
+                'Are you sure you want to send this proposal to the Assessor?',
+                'Proposal sent to Assessor successfully!'
+            );
+        },
+        
+        async sendToReviewer() {
+            await this.transitionStatus(
+                'with_reviewer',
+                'Are you sure you want to send this proposal to the Reviewer?',
+                'Proposal sent to Reviewer successfully!'
+            );
+        },
+        
+        async returnToDraft() {
+            await this.transitionStatus(
+                'draft',
+                'Are you sure you want to return this proposal to Draft?',
+                'Proposal returned to Draft successfully!'
+            );
+        },
+        
+        async sendToReviewCompleted() {
+            await this.transitionStatus(
+                'review_completed',
+                'Are you sure you want to mark this proposal as Review Completed?',
+                'Proposal marked as Review Completed successfully!'
+            );
+        },
+        
+        async returnToAssessor() {
+            await this.transitionStatus(
+                'with_assessor',
+                'Are you sure you want to return this proposal to Assessor?',
+                'Proposal returned to Assessor successfully!'
+            );
+        },
+        
+        async returnToReviewer() {
+            await this.transitionStatus(
+                'with_reviewer',
+                'Are you sure you want to return this proposal to Reviewer?',
+                'Proposal returned to Reviewer successfully!'
+            );
+        },
+        
+        // Override the existing fetchProposal to also load workflow options
+        async fetchProposal() {
+            let vm = this;
+            vm.loading = true;
+            let payload = {
+                debug: this.debug,
+            };
+            fetch(
+                `/api/proposal/${
+                    this.$route.params.proposal_id
+                }?${new URLSearchParams(payload)}`
+            )
+                .then(async (response) => {
+                    if (!response.ok) {
+                        const text = await response.json();
+                        throw new Error(text);
+                    } else {
+                        return await response.json();
+                    }
+                })
+                .then(async (data) => {
+                    vm.proposal = Object.assign({}, data);
+                    console.log('proposal.vue ' + vm.proposal.id);
+                    
+                    // Fetch workflow options after loading proposal
+                    await vm.fetchWorkflowOptions();
+                })
+                .catch((error) => {
+                    console.error(error);
+                })
+                .finally(() => {
+                    vm.loading = false;
+                });
+        },
     },
 };
 </script>
+
+<style scoped>
+/* Workflow buttons section */
+.workflow-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.workflow-buttons .btn {
+    min-width: 140px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar.fixed-bottom .container .row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .col-md-6.text-start,
+    .col-md-6.text-end {
+        text-align: center !important;
+        width: 100%;
+    }
+    
+    .workflow-buttons {
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+}
+</style>

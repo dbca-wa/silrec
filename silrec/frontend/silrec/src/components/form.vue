@@ -340,6 +340,9 @@ export default {
 
             // Pending upload for confirmation flow
             pendingUpload: null,
+
+            // to force map re-render
+            componentMapKey: 0, 
         };
     },
     computed: {
@@ -368,6 +371,8 @@ export default {
             if (vm.proposal && vm.proposal.shapefile_json) {
                 // If shapefile_json exists, use it directly
                 if (vm.proposal.shapefile_json.type === 'FeatureCollection') {
+                    // Log for debugging
+                    console.log('Returning shapefile_json with', vm.proposal.shapefile_json.features?.length, 'features');
                     return vm.proposal.shapefile_json;
                 }
             }
@@ -398,6 +403,17 @@ export default {
             }
             return featureCollection;
         },
+        
+        // to force map refresh when key changes
+        mapKey: function() {
+            // Combine relevant data that should trigger a map refresh
+            return JSON.stringify({
+                shapefile: this.proposal?.shapefile_json,
+                processed: this.proposal?.proposalgeometry_processed,
+                hist: this.proposal?.proposalgeometry_hist
+            });
+        },
+
         geometriesToFeatureCollection2: function () {
             let vm = this;
             let featureCollection = {
@@ -547,7 +563,11 @@ export default {
         // Get current user
         getCurrentUser: async function () {
             try {
-                const response = await fetch('/api/user/');
+                // Try the correct user endpoint
+                const response = await fetch('/api/users/current/');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user');
+                }
                 const data = await response.json();
                 this.currentUserId = data.id;
             } catch (error) {
@@ -556,6 +576,18 @@ export default {
                 // Fallback: try to get from the proposal submitter
                 if (this.proposal && this.proposal.submitter_obj) {
                     this.currentUserId = this.proposal.submitter_obj.id;
+                    console.log('Using submitter from proposal:', this.currentUserId);
+                } else {
+                    // Try to get from localStorage or session if available
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        try {
+                            const user = JSON.parse(userStr);
+                            this.currentUserId = user.id;
+                        } catch (e) {
+                            console.error('Error parsing user from localStorage:', e);
+                        }
+                    }
                 }
             }
         },
@@ -748,7 +780,6 @@ export default {
             formData.append('proposal_id', this.proposalId);
             formData.append('confirm_replace', confirmed ? 'true' : 'false');
             
-            // Simulated progress interval
             let progressInterval = null;
             
             try {
@@ -779,7 +810,6 @@ export default {
                 
                 const data = await response.json();
                 
-                // Check if confirmation is required (shouldn't happen now since we handle it client-side)
                 if (data.requires_confirmation) {
                     this.uploadingShapefile = false;
                     this.clearFileInput();
@@ -819,7 +849,19 @@ export default {
                     this.uploadSuccess = true;
                     this.uploadStatus = 'Shapefile processed successfully!';
                     
-                    // Show success message with feature count
+                    // CRITICAL: Update the proposal data first
+                    this.$emit('refreshFromResponse', data.proposal);
+                    
+                    // Wait for the data to propagate
+                    await this.$nextTick();
+                    
+                    // Force map to refresh by incrementing the key
+                    this.componentMapKey++;
+                    
+                    // Then trigger map refresh with multiple approaches
+                    this.refreshMapAfterUpload();
+                    
+                    // Show success message
                     Swal.fire({
                         icon: 'success',
                         title: 'Upload Successful',
@@ -831,17 +873,6 @@ export default {
                         timer: 2000,
                         showConfirmButton: false
                     });
-                    
-                    // Emit refresh event to update parent component
-                    this.$emit('refreshFromResponse', data.proposal);
-                    
-                    // Force map resize after data update
-                    await this.$nextTick();
-                    if (this.$refs.component_map && this.$refs.component_map.forceToRefreshMap) {
-                        setTimeout(() => {
-                            this.$refs.component_map.forceToRefreshMap();
-                        }, 500);
-                    }
                     
                     // Clear success message after 5 seconds
                     setTimeout(() => {
@@ -868,6 +899,67 @@ export default {
                 this.uploadProgress = 0;
                 this.uploadStatus = '';
                 this.clearFileInput();
+            }
+        },
+
+        refreshMapAfterUpload: function () {
+            console.log('Refreshing map after upload...');
+            
+            // Wait for Vue to update the DOM
+            this.$nextTick(() => {
+                // Approach 1: Direct map refresh method
+                if (this.$refs.component_map) {
+                    console.log('Calling forceToRefreshMap on component_map');
+                    if (this.$refs.component_map.forceToRefreshMap) {
+                        this.$refs.component_map.forceToRefreshMap();
+                    }
+                    
+                    // Approach 2: If forceToRefreshMap doesn't exist, try to update layers directly
+                    if (this.$refs.component_map.map) {
+                        console.log('Direct map update - updating size');
+                        this.$refs.component_map.map.updateSize();
+                    }
+                    
+                    // Approach 3: Force map layer updates if available
+                    if (this.$refs.component_map.layer1 && this.proposal.shapefile_json) {
+                        console.log('Updating layer1 with new geometry');
+                        this.$refs.component_map.updateLayer1(this.proposal.shapefile_json);
+                    }
+                    
+                    // Approach 4: Emit event to map component
+                    this.$refs.component_map.$emit('refresh-geometries');
+                } else {
+                    console.warn('component_map ref not available');
+                }
+                
+                // Approach 5: Also try to refresh polygon cohort table
+                this.refreshPolygonCohortTable();
+            });
+            
+            // Additional refresh after a short delay to ensure everything is loaded
+            setTimeout(() => {
+                if (this.$refs.component_map && this.$refs.component_map.map) {
+                    console.log('Delayed map update');
+                    this.$refs.component_map.map.updateSize();
+                    if (this.$refs.component_map.layer1 && this.proposal.shapefile_json) {
+                        this.$refs.component_map.updateLayer1(this.proposal.shapefile_json);
+                    }
+                }
+            }, 500);
+        },
+
+        refreshPolygonCohortTable: function () {
+            console.log('Refreshing polygon cohort table from parent');
+            if (this.$refs.component_map && this.$refs.component_map.$refs.polygonCohortTable) {
+                this.$refs.component_map.$refs.polygonCohortTable.refreshData();
+            } else {
+                console.warn('PolygonCohortTable ref not found');
+                setTimeout(() => {
+                    const tableComponent = document.querySelector('[data-table="polygon-cohort"]');
+                    if (tableComponent && tableComponent.__vue__) {
+                        tableComponent.__vue__.refreshData();
+                    }
+                }, 500);
             }
         },
 
@@ -1285,13 +1377,32 @@ export default {
     },
     
     watch: {
+        'proposal.shapefile_json': {
+            handler: function(newVal, oldVal) {
+                if (newVal && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+                    console.log('Shapefile JSON changed, refreshing map');
+                    this.refreshMapAfterUpload();
+                }
+            },
+            deep: true
+        },
+        
+        // Watch for changes in processed geometries
         'proposal.proposalgeometry_processed': {
             handler: function (newVal, oldVal) {
                 if (newVal && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+                    console.log('Processed geometry changed, refreshing map');
                     this.refreshMapAfterProcessing();
                 }
             },
             deep: true
+        },
+        
+        // Watch map key to force re-render if needed
+        mapKey: function() {
+            console.log('Map key changed, refreshing map');
+            this.componentMapKey++;
+            this.refreshMapAfterUpload();
         }
     }
 };

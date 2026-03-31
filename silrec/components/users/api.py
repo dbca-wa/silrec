@@ -43,6 +43,19 @@ class GetProfile(views.APIView):
         return Response(serializer.data)
 
 
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        })
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.none()
     serializer_class = UserSerializerSimple
@@ -62,6 +75,20 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         qs = User.objects.filter().order_by('id')[:5]
         return Response(qs.values('id', 'first_name', 'last_name', 'email'))
+
+    @action(detail=False, methods=['GET'])
+    def current(self, request, *args, **kwargs):
+        '''
+        http://localhost:8001/api/users/current/
+        '''
+        user = request.user
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        })
 
     @action(detail=True, methods=['GET'])
     def custom(self, request, *args, **kwargs):

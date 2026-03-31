@@ -452,6 +452,10 @@ export default {
                     this.map.updateSize();
                 }, 100);
             }
+            // Force refresh the map
+            this.$nextTick(() => {
+                this.forceToRefreshMap();
+            });
         },
         deep: true,
         immediate: true
@@ -518,6 +522,7 @@ export default {
   },
   mounted() {
     console.log('MapComponent mounted, container exists:', !!this.$refs.mapContainer);
+
     this.$nextTick(() => {
       this.initializeMapWithRetry();
     });
@@ -554,15 +559,6 @@ export default {
         console.warn('Map container still has zero dimensions after retries, initializing anyway.');
         this.initializeMap();
       }
-    },
-
-    forceToRefreshMap: function() {
-        if (this.map) {
-            this.map.updateSize();
-            if (this.featureCollection) {
-                this.updateLayer1(this.featureCollection);
-            }
-        }
     },
 
     // Method to refresh the datatable
@@ -837,69 +833,112 @@ export default {
       }
     },
 
-    updateLayer1(geoJSON) {
-      if (!this.layer1 || !geoJSON) return;
-      
-      const format = new GeoJSON();
-      const features = format.readFeatures(geoJSON, {
-        featureProjection: 'EPSG:4326',
-        dataProjection: 'EPSG:4326'
-      });
-      
-      this.layer1.getSource().clear();
-      this.layer1.getSource().addFeatures(features);
-      this.layer1FeatureCount = features.length;
-      console.log('Layer1 updated, features added:', features.length);
-      
-      if (features.length > 0 && !this.hasLayer2) {
-        this.zoomToLayer('layer1');
-      }
+    forceToRefreshMap: function() {
+        console.log('forceToRefreshMap called');
+        if (this.map) {
+            // Update map size
+            this.map.updateSize();
+            
+            // Force layer source updates
+            if (this.layer1 && this.layer1.getSource()) {
+                this.layer1.getSource().changed();
+            }
+            if (this.layer2 && this.layer2.getSource()) {
+                this.layer2.getSource().changed();
+            }
+            if (this.layer3 && this.layer3.getSource()) {
+                this.layer3.getSource().changed();
+            }
+            if (this.layer4 && this.layer4.getSource()) {
+                this.layer4.getSource().changed();
+            }
+            
+            // Force render
+            this.map.render();
+            
+            // Re-zoom to fit if we have features
+            this.zoomToActiveLayer();
+            
+            console.log('Map refresh completed');
+        } else {
+            console.warn('Map not initialized');
+        }
     },
-
-    updateLayer2(geoJSON) {
-      if (!this.layer2 || !geoJSON) return;
-      
-      this.hasLayer2 = true;
-      this.layer2Visible = true;
-      this.layer2.setVisible(true);
-      
-      const format = new GeoJSON();
-      const features = format.readFeatures(geoJSON, {
-        featureProjection: 'EPSG:4326',
-        dataProjection: 'EPSG:4326'
-      });
-      
-      this.layer2.getSource().clear();
-      this.layer2.getSource().addFeatures(features);
-      this.layer2FeatureCount = features.length;
-      console.log('Layer2 updated, features added:', features.length);
-      
-      if (features.length > 0) {
-        this.zoomToLayer('layer2');
-      }
+    
+    // Add method to update layer1 externally
+    updateLayer1: function(geoJSON) {
+        console.log('External updateLayer1 called');
+        if (!this.layer1 || !geoJSON) return;
+        
+        const format = new GeoJSON();
+        const features = format.readFeatures(geoJSON, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+        });
+        
+        this.layer1.getSource().clear();
+        this.layer1.getSource().addFeatures(features);
+        this.layer1FeatureCount = features.length;
+        console.log('Layer1 updated, features added:', features.length);
+        
+        // Make layer visible
+        this.layer1.setVisible(true);
+        this.layer1Visible = true;
+        
+        // Zoom to fit if needed
+        if (features.length > 0 && !this.hasLayer2) {
+            this.zoomToLayer('layer1');
+        }
     },
-
-    updateLayer3(geoJSON) {
-      if (!this.layer3 || !geoJSON) return;
-      
-      this.hasLayer3 = true;
-      this.layer3Visible = true;
-      this.layer3.setVisible(true);
-      
-      const format = new GeoJSON();
-      const features = format.readFeatures(geoJSON, {
-        featureProjection: 'EPSG:4326',
-        dataProjection: 'EPSG:4326'
-      });
-      
-      this.layer3.getSource().clear();
-      this.layer3.getSource().addFeatures(features);
-      this.layer3FeatureCount = features.length;
-      console.log('Layer3 updated, features added:', features.length);
-      
-      if (features.length > 0) {
-        this.zoomToLayer('layer3');
-      }
+    
+    // Add method to update layer2 externally
+    updateLayer2: function(geoJSON) {
+        console.log('External updateLayer2 called');
+        if (!this.layer2 || !geoJSON) return;
+        
+        this.hasLayer2 = true;
+        this.layer2Visible = true;
+        this.layer2.setVisible(true);
+        
+        const format = new GeoJSON();
+        const features = format.readFeatures(geoJSON, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+        });
+        
+        this.layer2.getSource().clear();
+        this.layer2.getSource().addFeatures(features);
+        this.layer2FeatureCount = features.length;
+        console.log('Layer2 updated, features added:', features.length);
+        
+        if (features.length > 0) {
+            this.zoomToLayer('layer2');
+        }
+    },
+    
+    // Add method to update layer3 externally
+    updateLayer3: function(geoJSON) {
+        console.log('External updateLayer3 called');
+        if (!this.layer3 || !geoJSON) return;
+        
+        this.hasLayer3 = true;
+        this.layer3Visible = true;
+        this.layer3.setVisible(true);
+        
+        const format = new GeoJSON();
+        const features = format.readFeatures(geoJSON, {
+            featureProjection: 'EPSG:4326',
+            dataProjection: 'EPSG:4326'
+        });
+        
+        this.layer3.getSource().clear();
+        this.layer3.getSource().addFeatures(features);
+        this.layer3FeatureCount = features.length;
+        console.log('Layer3 updated, features added:', features.length);
+        
+        if (features.length > 0) {
+            this.zoomToLayer('layer3');
+        }
     },
 
     updateLayer4(geometryList) {

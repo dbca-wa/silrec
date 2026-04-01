@@ -17,6 +17,7 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG', False)
 CSRF_COOKIE_SECURE = env('CSRF_COOKIE_SECURE', False)
 SESSION_COOKIE_SECURE = env('SESSION_COOKIE_SECURE', False)
+CORS_ALLOW_ALL_ORIGINS = env('CORS_ALLOW_ALL_ORIGINS', False)
 
 if DEBUG:
     ALLOWED_HOSTS = ['*']
@@ -64,13 +65,13 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = False
 
-SHELL_PLUS_POST_IMPORTS = [
-    'import pandas as pd',
-    'import geopandas as gpd',
-    'import matplotlib.pyplot as plt',
-    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
-    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
-]
+#SHELL_PLUS_POST_IMPORTS = [
+#    'import pandas as pd',
+#    'import geopandas as gpd',
+#    'import matplotlib.pyplot as plt',
+#    'from silrec.utils.plot_utils import plot_gdf, plot_overlay',
+#    'from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger',
+#]
 
 # For Auto Reloading
 #~/.ipython/profile_default/ipython_config.py
@@ -108,6 +109,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
+    'corsheaders',
     #'django_cron',
 
     #'reversion_compare',
@@ -158,6 +160,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

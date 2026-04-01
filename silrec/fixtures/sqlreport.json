@@ -9,10 +9,10 @@
         "where_clauses": [
             {
                 "field": "cht.op_date",
-                "label": "Select Year",
+                "label": "Select Year(s)",
                 "operator": "YEAR",
                 "required": true,
-                "field_type": "year",
+                "field_type": "year_enhanced",
                 "default_value": "2024",
                 "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM op_date) FROM silrec.cohort WHERE op_date IS NOT NULL ORDER BY 1 DESC",
                 "parameter_name": "year"

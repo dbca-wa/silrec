@@ -149,7 +149,7 @@ class SQLReportAdminForm(forms.ModelForm):
                         raise forms.ValidationError(f"Clause {i+1} missing '{field}' field")
 
                 # Validate field_type
-                valid_field_types = [choice[0] for choice in SQLReport.FIELD_TYPE_CHOICES]
+                valid_field_types = [choice[0] for choice in models.SQLReport.FIELD_TYPE_CHOICES]
                 if clause['field_type'] not in valid_field_types:
                     raise forms.ValidationError(
                         f"Clause {i+1}: Invalid field_type '{clause['field_type']}'. "

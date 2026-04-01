@@ -10,3 +10,6 @@
 **/*.dump
 **/*.pgdump
 **/node_modules
+**/notebooks
+**/scripts
+**/silrec/utils/plot_utils.py

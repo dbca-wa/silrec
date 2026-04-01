@@ -7,7 +7,6 @@ from sqlalchemy import create_engine, text
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from shapely.ops import unary_union, polygonize
 
 import json
@@ -17,9 +16,9 @@ from copy import deepcopy
 
 import reversion
 
-from silrec.utils.plot_utils import plot_gdf as plot
-from silrec.utils.plot_utils import plot_overlay, plot_multi
-from silrec.utils.plot_canvas import create_tabbed_charts
+#from silrec.utils.plot_utils import plot_gdf as plot
+#from silrec.utils.plot_utils import plot_overlay, plot_multi
+#from silrec.utils.plot_canvas import create_tabbed_charts
 from silrec.utils.sliver_merge import find_and_merge
 from silrec.utils.sliver_test1 import identify_slivers
 
@@ -377,48 +376,48 @@ class ShapefileSliversMerger():
         iters = [int(item) for item in self.gdf_merge_store.iter_seq.unique() if not (isinstance(item, float) and np.isnan(item))]
         return self.gdf_merge_store[(self.gdf_merge_store.state=='GDF_RESULT_FILTERED') & (self.gdf_merge_store.iter_seq==max(iters))]
 
-    def plot_canvas(self):
-        '''
-        import geopandas as gpd
-        from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
-
-        gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
-        gdf_shp.to_crs('EPSG:28350', inplace=True)
-        ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
-
-        gdf_merge_store = ssm.create_gdf()
-        ssm.plot_canvas()
-
-        '''
-        iters = [int(item) for item in self.gdf_merge_store.iter_seq.unique() if not (isinstance(item, float) and np.isnan(item))]
-        iters.insert(0, 0)
-        states = [item for item in self.gdf_merge_store.state.unique() if not (isinstance(item, float) and np.isnan(item))]
-
-        gdf_iter_list = []
-        chart_titles_list = []
-        for it in iters[:3]:
-            gdf_state_list = []
-            chart_titles = []
-            if it == 0:
-                # Plot Summary on first Tab
-                gdf_state_list.append(self.gdf_shpfile)
-                gdf_state_list.append(self.gdf_hist_polygons_total)
-                gdf_state_list.append(self.gdf_result_filtered)
-                chart_titles.append(f'Shpfile: Polys {len(self.gdf_shpfile)}, Area_HA {round(self.gdf_shpfile.area.sum()/10000, 2)}')
-                chart_titles.append(f'Hist: Polys {len(self.gdf_hist_polygons_total)}, Area_HA {round(self.gdf_hist_polygons_total.area.sum()/10000, 2)}')
-                chart_titles.append(f'Result: Polys {len(self.gdf_result_filtered)}, Area_HA {round(self.gdf_result_filtered.area.sum()/10000, 2)}')
-
-            else:
-                for state in states:
-                    gdf = self.gdf_merge_store[(self.gdf_merge_store.state==state) & (self.gdf_merge_store.iter_seq==it)]
-                    gdf['colour'] = gdf['poly_type'].apply(lambda x: 'grey' if x=='BASE' else ('green' if x=='CUT' else ('yellow' if x=='SLVR' else 'BLUE')))
-                    gdf_state_list.append(gdf)
-                    chart_titles.append(f'{state} - Polygons {len(gdf)}, Area_HA {round(gdf.area.sum()/10000, 2)}')
-
-            gdf_iter_list.append(gdf_state_list)
-            chart_titles_list.append(chart_titles)
-
-        create_tabbed_charts(*gdf_iter_list, chart_titles=chart_titles_list)
+#    def plot_canvas(self):
+#        '''
+#        import geopandas as gpd
+#        from silrec.utils.shapefile_silvers_merger3 import ShapefileSliversMerger
+#
+#        gdf_shp = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+#        gdf_shp.to_crs('EPSG:28350', inplace=True)
+#        ssm = ShapefileSliversMerger(gdf_shp, proposal_id=1)
+#
+#        gdf_merge_store = ssm.create_gdf()
+#        ssm.plot_canvas()
+#
+#        '''
+#        iters = [int(item) for item in self.gdf_merge_store.iter_seq.unique() if not (isinstance(item, float) and np.isnan(item))]
+#        iters.insert(0, 0)
+#        states = [item for item in self.gdf_merge_store.state.unique() if not (isinstance(item, float) and np.isnan(item))]
+#
+#        gdf_iter_list = []
+#        chart_titles_list = []
+#        for it in iters[:3]:
+#            gdf_state_list = []
+#            chart_titles = []
+#            if it == 0:
+#                # Plot Summary on first Tab
+#                gdf_state_list.append(self.gdf_shpfile)
+#                gdf_state_list.append(self.gdf_hist_polygons_total)
+#                gdf_state_list.append(self.gdf_result_filtered)
+#                chart_titles.append(f'Shpfile: Polys {len(self.gdf_shpfile)}, Area_HA {round(self.gdf_shpfile.area.sum()/10000, 2)}')
+#                chart_titles.append(f'Hist: Polys {len(self.gdf_hist_polygons_total)}, Area_HA {round(self.gdf_hist_polygons_total.area.sum()/10000, 2)}')
+#                chart_titles.append(f'Result: Polys {len(self.gdf_result_filtered)}, Area_HA {round(self.gdf_result_filtered.area.sum()/10000, 2)}')
+#
+#            else:
+#                for state in states:
+#                    gdf = self.gdf_merge_store[(self.gdf_merge_store.state==state) & (self.gdf_merge_store.iter_seq==it)]
+#                    gdf['colour'] = gdf['poly_type'].apply(lambda x: 'grey' if x=='BASE' else ('green' if x=='CUT' else ('yellow' if x=='SLVR' else 'BLUE')))
+#                    gdf_state_list.append(gdf)
+#                    chart_titles.append(f'{state} - Polygons {len(gdf)}, Area_HA {round(gdf.area.sum()/10000, 2)}')
+#
+#            gdf_iter_list.append(gdf_state_list)
+#            chart_titles_list.append(chart_titles)
+#
+#        create_tabbed_charts(*gdf_iter_list, chart_titles=chart_titles_list)
 
     def classify_polygons(self, gdf_result, gdf_single, tolerance=0.95):
         """

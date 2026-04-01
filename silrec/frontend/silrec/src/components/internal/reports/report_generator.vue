@@ -59,156 +59,185 @@
         <!-- Step 2: Set Parameters -->
         <div v-if="selectedReport" class="mb-4">
           <h6>Step 2: Set Parameters</h6>
-          <div class="row">
-            <div 
-              v-for="param in selectedReport.parameters" 
-              :key="param.name"
-              class="col-md-6 mb-3"
-            >
-              <div class="form-group">
-                <label :for="param.name" class="form-label">
-                  {{ param.label }}
-                  <span v-if="param.required" class="text-danger">*</span>
-                  <span v-if="param.field_type === 'multiselect'" class="badge bg-info ms-1">
-                    <i class="bi bi-list-check"></i> Multi-select
-                  </span>
-                </label>
-                
-                <!-- Single Select -->
-                <select 
-                  v-if="param.field_type === 'select'"
-                  :id="param.name"
-                  v-model="parameters[param.name]"
-                  class="form-select"
-                  :required="param.required"
+            <div class="row">
+                <div 
+                v-for="param in selectedReport.parameters" 
+                :key="param.name"
+                class="col-md-6 mb-3"
                 >
-                  <option value="">-- Select --</option>
-                  <option 
-                    v-for="option in param.options" 
-                    :key="option"
-                    :value="option"
-                  >
-                    {{ option }}
-                  </option>
-                </select>
-                
-                <!-- Multi-select with Select2 (Tag mode) -->
-                <select 
-                  v-else-if="param.field_type === 'multiselect'"
-                  :id="'multiselect-' + param.name"
-                  :ref="'multiselect-' + param.name"
-                  class="form-select select2-multiple-tags"
-                  :multiple="true"
-                  :required="param.required"
-                  style="width: 100%;"
-                >
-                  <option 
-                    v-for="option in param.options" 
-                    :key="option"
-                    :value="option"
-                    :selected="isOptionSelected(param.name, option)"
-                  >
-                    {{ option }}
-                  </option>
-                </select>
-                
-                <!-- Text Input -->
-                <input 
-                  v-else-if="param.field_type === 'text'"
-                  :id="param.name"
-                  v-model="parameters[param.name]"
-                  type="text"
-                  class="form-control"
-                  :required="param.required"
-                  :placeholder="`Enter ${param.label.toLowerCase()}`"
-                />
-                
-                <!-- Number Input -->
-                <input 
-                  v-else-if="param.field_type === 'number'"
-                  :id="param.name"
-                  v-model="parameters[param.name]"
-                  type="number"
-                  class="form-control"
-                  :required="param.required"
-                  :placeholder="`Enter ${param.label.toLowerCase()}`"
-                />
-                
-                <!-- Date Input -->
-                <input 
-                  v-else-if="param.field_type === 'date'"
-                  :id="param.name"
-                  v-model="parameters[param.name]"
-                  type="date"
-                  class="form-control"
-                  :required="param.required"
-                />
-                
-                <!-- Year Input -->
-                <input 
-                  v-else-if="param.field_type === 'year'"
-                  :id="param.name"
-                  v-model="parameters[param.name]"
-                  type="number"
-                  min="2000"
-                  :max="new Date().getFullYear()"
-                  class="form-control"
-                  :required="param.required"
-                  placeholder="YYYY"
-                />
-                
-                <!-- Month Input -->
-                <select 
-                  v-else-if="param.field_type === 'month'"
-                  :id="param.name"
-                  v-model="parameters[param.name]"
-                  class="form-select"
-                  :required="param.required"
-                >
-                  <option value="">-- Select Month --</option>
-                  <option value="1">January</option>
-                  <option value="2">February</option>
-                  <option value="3">March</option>
-                  <option value="4">April</option>
-                  <option value="5">May</option>
-                  <option value="6">June</option>
-                  <option value="7">July</option>
-                  <option value="8">August</option>
-                  <option value="9">September</option>
-                  <option value="10">October</option>
-                  <option value="11">November</option>
-                  <option value="12">December</option>
-                </select>
-                
-                <!-- Range Input (Two values) -->
-                <div v-else-if="param.field_type === 'range'" class="row g-2">
-                  <div class="col">
-                    <label class="form-label small">From</label>
+                <div class="form-group">
+                    <label :for="param.name" class="form-label">
+                    {{ param.label }}
+                    <span v-if="param.required" class="text-danger">*</span>
+                    <span v-if="param.field_type === 'multiselect'" class="badge bg-info ms-1">
+                        <i class="bi bi-list-check"></i> Multi-select
+                    </span>
+                    <span v-if="param.field_type === 'year_enhanced'" class="badge bg-secondary ms-1">
+                        <i class="bi bi-calendar-range"></i> Supports: 2024, 2024,2023,2022, 2020-2024
+                    </span>
+                    </label>
+
+                    <!-- Single Select -->
+                    <select 
+                    v-if="param.field_type === 'select'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    class="form-select"
+                    :required="param.required"
+                    >
+                    <option value="">-- Select --</option>
+                    <option 
+                        v-for="option in param.options" 
+                        :key="option"
+                        :value="option"
+                    >
+                        {{ option }}
+                    </option>
+                    </select>
+                    
+                    <!-- Multi-select with Select2 (Tag mode) -->
+                    <select 
+                    v-else-if="param.field_type === 'multiselect'"
+                    :id="'multiselect-' + param.name"
+                    :ref="'multiselect-' + param.name"
+                    class="form-select select2-multiple-tags"
+                    :multiple="true"
+                    :required="param.required"
+                    style="width: 100%;"
+                    >
+                    <option 
+                        v-for="option in param.options" 
+                        :key="option"
+                        :value="option"
+                        :selected="isOptionSelected(param.name, option)"
+                    >
+                        {{ option }}
+                    </option>
+                    </select>
+                    
+                    <!-- Year Enhanced Input -->
                     <input 
-                      :id="param.name + '_from'"
-                      v-model="parameters[param.name][0]"
-                      type="number"
-                      class="form-control"
-                      :required="param.required"
-                      placeholder="Min"
+                    v-else-if="param.field_type === 'year_enhanced'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    type="text"
+                    class="form-control"
+                    :required="param.required"
+                    :placeholder="'Examples: 2024 | 2024,2023,2022 | 2020-2024'"
                     />
-                  </div>
-                  <div class="col">
-                    <label class="form-label small">To</label>
+                    
+                    <!-- Text Input -->
                     <input 
-                      :id="param.name + '_to'"
-                      v-model="parameters[param.name][1]"
-                      type="number"
-                      class="form-control"
-                      :required="param.required"
-                      placeholder="Max"
+                    v-else-if="param.field_type === 'text'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    type="text"
+                    class="form-control"
+                    :required="param.required"
+                    :placeholder="`Enter ${param.label.toLowerCase()}`"
                     />
-                  </div>
+                    
+                    <!-- Number Input -->
+                    <input 
+                    v-else-if="param.field_type === 'number'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    type="number"
+                    class="form-control"
+                    :required="param.required"
+                    :placeholder="`Enter ${param.label.toLowerCase()}`"
+                    />
+                    
+                    <!-- Date Input -->
+                    <input 
+                    v-else-if="param.field_type === 'date'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    type="date"
+                    class="form-control"
+                    :required="param.required"
+                    />
+                    
+                    <!-- Year Input (legacy) -->
+                    <input 
+                    v-else-if="param.field_type === 'year'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    type="number"
+                    min="2000"
+                    :max="new Date().getFullYear()"
+                    class="form-control"
+                    :required="param.required"
+                    placeholder="YYYY"
+                    />
+                    
+                    <!-- Month Input -->
+                    <select 
+                    v-else-if="param.field_type === 'month'"
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    class="form-select"
+                    :required="param.required"
+                    >
+                    <option value="">-- Select Month --</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                    </select>
+                    
+                    <!-- Range Input (Two values) -->
+                    <div v-else-if="param.field_type === 'range'" class="row g-2">
+                    <div class="col">
+                        <label class="form-label small">From</label>
+                        <input 
+                        :id="param.name + '_from'"
+                        v-model="parameters[param.name][0]"
+                        type="number"
+                        class="form-control"
+                        :required="param.required"
+                        placeholder="Min"
+                        />
+                    </div>
+                    <div class="col">
+                        <label class="form-label small">To</label>
+                        <input 
+                        :id="param.name + '_to'"
+                        v-model="parameters[param.name][1]"
+                        type="number"
+                        class="form-control"
+                        :required="param.required"
+                        placeholder="Max"
+                        />
+                    </div>
+                    </div>
+                    
+                    <!-- Fallback for unknown field types -->
+                    <input 
+                    v-else
+                    :id="param.name"
+                    v-model="parameters[param.name]"
+                    type="text"
+                    class="form-control"
+                    :required="param.required"
+                    :placeholder="`Enter ${param.label.toLowerCase()}`"
+                    />
+                    
+                    <div v-if="param.field_type === 'year_enhanced'" class="form-text text-muted">
+                    Enter a single year, comma-separated years, or a year range (e.g., 2020-2024). You can also combine formats like: 2024,2022-2023
+                    </div>
                 </div>
-              </div>
+                </div>
             </div>
-          </div>
-          
+
           <!-- Add Custom WHERE Clause Button -->
           <!--
           <div class="mb-3">
@@ -604,6 +633,11 @@ export default {
                   !value[0] || !value[1]) {
                 return false;
               }
+            } else if (param.field_type === 'year_enhanced') {
+                // Validate enhanced year format
+                if (!this.validateEnhancedYear(value)) {
+                return false;
+                }
             } else {
               if (!value && value !== 0) { // Allow 0 as valid number
                 return false;
@@ -661,6 +695,50 @@ export default {
     }
   },
   methods: {
+
+    validateEnhancedYear(value) {
+        if (!value) return false;
+        
+        const valueStr = String(value).trim();
+        if (valueStr === '') return false;
+        
+        // Split by comma to handle multiple inputs
+        const parts = valueStr.split(',').map(p => p.trim());
+        
+        for (const part of parts) {
+        // Check if it's a range (contains '-')
+        if (part.includes('-')) {
+            const rangeParts = part.split('-');
+            if (rangeParts.length !== 2) return false;
+            
+            const start = rangeParts[0].trim();
+            const end = rangeParts[1].trim();
+            
+            // Both must be non-empty
+            if (!start || !end) return false;
+            
+            // Both should be valid years
+            if (!this.isValidYear(start) || !this.isValidYear(end)) return false;
+            
+            // Start should be <= end
+            if (parseInt(start) > parseInt(end)) return false;
+        } else {
+            // Single year
+            if (!this.isValidYear(part)) return false;
+        }
+        }
+        
+        return true;
+    },
+    
+    isValidYear(value) {
+        if (!value) return false;
+        const year = parseInt(value);
+        if (isNaN(year)) return false;
+        const currentYear = new Date().getFullYear();
+        return year >= 1900 && year <= currentYear + 10; // Allow up to 10 years in future
+    },
+
     isOptionSelected(paramName, option) {
       return this.parameters[paramName] && this.parameters[paramName].includes(option);
     },

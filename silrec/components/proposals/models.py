@@ -973,7 +973,8 @@ class SQLReport(models.Model):
         ('text', 'Text Input'),
         ('number', 'Number Input'),
         ('date', 'Date Picker'),
-        ('year', 'Year Select'),
+        ('year', 'Year Select (Enhanced)'),
+        ('year_enhanced', 'Year Input (Supports comma-separated & ranges)'),
         ('month', 'Month Select'),
         ('range', 'Range (Two Values)'),
     ]
@@ -1173,6 +1174,15 @@ class SQLReport(models.Model):
                             where_clauses.append(f"{field} BETWEEN %s AND %s")
                             query_params.extend(value)
 
+                    elif field_type == 'year_enhanced':
+                        # Enhanced year handling with comma-separated and range support
+                        where_clause, params = self._handle_enhanced_year(
+                            field, operator, value
+                        )
+                        if where_clause:
+                            where_clauses.append(where_clause)
+                            query_params.extend(params)
+
                     elif operator == 'YEAR':
                         where_clauses.append(f"EXTRACT(YEAR FROM {field}) = %s")
                         query_params.append(value)
@@ -1233,6 +1243,61 @@ class SQLReport(models.Model):
             full_sql += " " + order_by_clause
 
         return full_sql, query_params
+
+    def _handle_enhanced_year(self, field, operator, value):
+        """
+        Handle enhanced year input that can be:
+        - Single year: '2024'
+        - Comma-separated list: '2024,2023,2022'
+        - Range: '2020-2024'
+        - Combination of comma-separated and ranges
+        """
+        import re
+
+        if not value or not str(value).strip():
+            return None, []
+
+        value_str = str(value).strip()
+        conditions = []
+        params = []
+
+        # Split by comma to handle multiple inputs
+        parts = [p.strip() for p in value_str.split(',') if p.strip()]
+
+        for part in parts:
+            # Check if it's a range (contains '-')
+            if '-' in part and not part.startswith('-') and not part.endswith('-'):
+                range_parts = part.split('-')
+                if len(range_parts) == 2:
+                    start_year = range_parts[0].strip()
+                    end_year = range_parts[1].strip()
+
+                    if start_year and end_year:
+                        # Validate years are numbers
+                        if start_year.isdigit() and end_year.isdigit():
+                            conditions.append(f"EXTRACT(YEAR FROM {field}) BETWEEN %s AND %s")
+                            params.extend([int(start_year), int(end_year)])
+                        else:
+                            # If not numeric, treat as string range (less common)
+                            conditions.append(f"EXTRACT(YEAR FROM {field}) BETWEEN %s AND %s")
+                            params.extend([start_year, end_year])
+            else:
+                # Single year
+                if part.isdigit():
+                    conditions.append(f"EXTRACT(YEAR FROM {field}) = %s")
+                    params.append(int(part))
+                elif part:
+                    conditions.append(f"EXTRACT(YEAR FROM {field}) = %s")
+                    params.append(part)
+
+        if not conditions:
+            return None, []
+
+        # Combine with OR if multiple conditions
+        if len(conditions) == 1:
+            return conditions[0], params
+        else:
+            return f"({' OR '.join(conditions)})", params
 
     def get_parameter_options(self, parameter_name):
         """Get dynamic options for a parameter from its options_query"""

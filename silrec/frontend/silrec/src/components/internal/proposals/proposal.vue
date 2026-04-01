@@ -1,6 +1,18 @@
 <template lang="html">
     <div v-if="proposal" id="internalProposal" class="container">
         <div v-if="debug">internal/proposals/proposal.vue</div>
+
+        <!-- Status Transition Comment Alert -->
+        <div v-if="proposal.latest_transition_comment && isBackwardStatus" class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.2rem;"></i>
+                <div>
+                    <strong>Processing Status Reverted:</strong><br>
+                    {{ proposal.latest_transition_comment }}
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <h3>
                 {{ proposal.lodgement_number }} -
@@ -329,6 +341,20 @@ export default {
         };
     },
     computed: {
+        // Watch for status changes to clear the comment from UI when moving forward
+        'proposal.processing_status': {
+            handler(newStatus, oldStatus) {
+                // If moving to a forward status (with_assessor, with_reviewer, review_completed)
+                // and not from a backward transition, we can clear the UI comment
+                const forwardStatuses = ['with_assessor', 'with_reviewer', 'review_completed'];
+                if (forwardStatuses.includes(newStatus) && oldStatus) {
+                    // The comment is stored on the proposal, but we don't need to clear it
+                    // as it will be overwritten by the next backward transition
+                    console.log('Moving to forward status:', newStatus);
+                }
+            },
+            deep: true
+        },
         withReferral: function () {
             return (
                 this.proposal &&
@@ -698,6 +724,12 @@ export default {
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
+
+        // Check if current status is a "backward" status (one that should show the comment)
+        isBackwardStatus() {
+            return this.proposal && ['draft', 'with_assessor', 'with_reviewer'].includes(this.proposal.processing_status);
+        },
+
     },
     watch: {},
     updated: function () {
@@ -730,6 +762,18 @@ export default {
         this.fetchProposal();
     },
     methods: {
+        // Check if the current transition is a backward transition (requires mandatory comment)
+        isBackwardTransition(targetStatus) {
+            const current = this.proposal.processing_status;
+            // Return to Draft
+            if (current === 'with_assessor' && targetStatus === 'draft') return true;
+            // Return to Assessor
+            if (current === 'with_reviewer' && targetStatus === 'with_assessor') return true;
+            // Return to Reviewer
+            if (current === 'review_completed' && targetStatus === 'with_reviewer') return true;
+            return false;
+        },
+
         validateInvoicingForm: function () {
             let vm = this;
             var form = document.getElementById('invoicing-form');
@@ -1937,104 +1981,203 @@ export default {
                 console.error('Error fetching workflow options:', error);
             }
         },
-        
+
         // Generic transition method
         async transitionStatus(targetStatus, confirmMessage, successMessage) {
-            // Ask for confirmation
-            const result = await Swal.fire({
-                title: 'Confirm Status Change',
-                html: `
-                    <div style="text-align: left;">
-                        <p>${confirmMessage}</p>
-                        <div class="form-group mt-3">
-                            <label for="comment">Optional Comment:</label>
-                            <textarea id="comment" class="swal2-textarea" rows="3" 
-                                placeholder="Add any notes about this status change..."></textarea>
+            // Check if this is a backward transition
+            const isBackward = this.isBackwardTransition(targetStatus);
+            
+            // For backward transitions, we need to ask for a comment
+            // For forward transitions, we just confirm without comment
+            if (isBackward) {
+                // Ask for confirmation with mandatory comment for backward transitions
+                const result = await Swal.fire({
+                    title: 'Confirm Status Change',
+                    html: `
+                        <div style="text-align: left;">
+                            <p>${confirmMessage}</p>
+                            <div class="form-group mt-3">
+                                <label for="comment" style="font-weight: bold;">
+                                    Comment <span style="color: red;">*</span>:
+                                </label>
+                                <textarea id="comment" class="swal2-textarea" rows="3" 
+                                    placeholder="Please provide a reason for this status change..."
+                                    required></textarea>
+                                <small class="text-muted" style="color: #dc3545;">This field is required</small>
+                            </div>
                         </div>
-                    </div>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Confirm',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#dc3545',
-                preConfirm: () => {
-                    const comment = document.getElementById('comment').value;
-                    return { comment };
-                }
-            });
-            
-            if (!result.isConfirmed) return;
-            
-            this.transitioning = true;
-            
-            try {
-                const response = await fetch(
-                    `/api/proposal/${this.proposal.id}/transition_status/`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': helpers.getCookie('csrftoken')
-                        },
-//                        body: JSON.stringify({})
-                        body: JSON.stringify({
-                            target_status: targetStatus,
-                            comment: result.value.comment
-                        })
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Confirm',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#dc3545',
+                    didOpen: () => {
+                        // Add validation for required field
+                        const commentField = document.getElementById('comment');
+                        const confirmButton = Swal.getConfirmButton();
+                        
+                        const validateComment = () => {
+                            if (commentField && commentField.value.trim() === '') {
+                                confirmButton.disabled = true;
+                                commentField.style.borderColor = '#dc3545';
+                            } else {
+                                confirmButton.disabled = false;
+                                commentField.style.borderColor = '';
+                            }
+                        };
+                        
+                        commentField.addEventListener('input', validateComment);
+                        validateComment(); // Initial validation
+                    },
+                    preConfirm: () => {
+                        const comment = document.getElementById('comment').value;
+                        
+                        if (!comment || comment.trim() === '') {
+                            Swal.showValidationMessage('Please provide a comment for this status change');
+                            return false;
+                        }
+                        
+                        return { comment: comment.trim() };
                     }
-                );
-
-//                const response = await fetch(api_endpoints.proposal, {
-//                    method: 'POST',
-//                    headers: {
-//                        'Content-Type': 'application/json',
-//                        'X-CSRFToken': this.getCookie('csrftoken')
-//                    },
-//                    body: JSON.stringify({}) // Empty object - defaults will be set on the backend
-//                });
-
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'Transition failed');
-                }
-                
-                if (data.success) {
-                    await Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: successMessage || data.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    
-                    // Update proposal data
-                    this.proposal = data.proposal;
-                    
-                    // Refresh workflow options
-                    await this.fetchWorkflowOptions();
-                    
-                    // Reload the form to reflect changes
-                    this.uuid++;
-                    
-                    // Trigger refresh of parent components
-                    this.$emit('refreshFromResponse', this.proposal);
-                } else {
-                    throw new Error(data.error || 'Unknown error');
-                }
-                
-            } catch (error) {
-                console.error('Error transitioning status:', error);
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Transition Failed',
-                    text: error.message || 'Failed to change status. Please try again.',
-                    confirmButtonColor: '#dc3545'
                 });
-            } finally {
-                this.transitioning = false;
+                
+                if (!result.isConfirmed) return;
+                
+                this.transitioning = true;
+                
+                try {
+                    const response = await fetch(
+                        `/api/proposal/${this.proposal.id}/transition_status/`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': helpers.getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({
+                                target_status: targetStatus,
+                                comment: result.value.comment
+                            })
+                        }
+                    );
+
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Transition failed');
+                    }
+                    
+                    if (data.success) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: successMessage || data.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        
+                        // Update proposal data
+                        this.proposal = data.proposal;
+                        
+                        // Refresh workflow options
+                        await this.fetchWorkflowOptions();
+                        
+                        // Reload the form to reflect changes
+                        this.uuid++;
+                        
+                        // Trigger refresh of parent components
+                        this.$emit('refreshFromResponse', this.proposal);
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error transitioning status:', error);
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Transition Failed',
+                        text: error.message || 'Failed to change status. Please try again.',
+                        confirmButtonColor: '#dc3545'
+                    });
+                } finally {
+                    this.transitioning = false;
+                }
+            } else {
+                // FORWARD TRANSITION - Just confirm without comment
+                const result = await Swal.fire({
+                    title: 'Confirm Status Change',
+                    html: `<p>${confirmMessage}</p>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Confirm',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#dc3545'
+                });
+                
+                if (!result.isConfirmed) return;
+                
+                this.transitioning = true;
+                
+                try {
+                    const response = await fetch(
+                        `/api/proposal/${this.proposal.id}/transition_status/`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': helpers.getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({
+                                target_status: targetStatus,
+                                comment: '' // Empty comment for forward transitions
+                            })
+                        }
+                    );
+
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Transition failed');
+                    }
+                    
+                    if (data.success) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: successMessage || data.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        
+                        // Update proposal data
+                        this.proposal = data.proposal;
+                        
+                        // Refresh workflow options
+                        await this.fetchWorkflowOptions();
+                        
+                        // Reload the form to reflect changes
+                        this.uuid++;
+                        
+                        // Trigger refresh of parent components
+                        this.$emit('refreshFromResponse', this.proposal);
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error transitioning status:', error);
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Transition Failed',
+                        text: error.message || 'Failed to change status. Please try again.',
+                        confirmButtonColor: '#dc3545'
+                    });
+                } finally {
+                    this.transitioning = false;
+                }
             }
         },
         
@@ -2155,4 +2298,27 @@ export default {
         margin-bottom: 10px;
     }
 }
+
+/* Status Transition Comment Alert */
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+    margin-bottom: 1rem;
+}
+
+.alert-danger i {
+    color: #dc3545;
+}
+
+/* SweetAlert2 custom styles */
+.swal2-textarea:required {
+    border-color: #dc3545;
+}
+
+.swal2-textarea:required:valid {
+    border-color: #28a745;
+}
+
 </style>

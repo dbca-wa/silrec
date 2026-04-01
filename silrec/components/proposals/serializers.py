@@ -218,6 +218,7 @@ class ProposalSerializer(BaseProposalSerializer):
     assessor_mode = serializers.SerializerMethodField(read_only=True)
     details_url = serializers.SerializerMethodField(read_only=True)
     shapefile_name = serializers.SerializerMethodField(read_only=True)
+    latest_transition_comment = serializers.CharField(read_only=True)
     #lodgement_versions = serializers.SerializerMethodField(read_only=True)
     #referrals = ProposalReferralSerializer(many=True)
     #additional_document_types = ProposalAdditionalDocumentTypeSerializer(
@@ -250,6 +251,7 @@ class ProposalSerializer(BaseProposalSerializer):
             "assessor_mode",
             "processing_status_id",
             "shapefile_name",
+            "latest_transition_comment",
             "proposalgeometry",
             "proposalgeometry_hist",
             "proposalgeometry_processed",

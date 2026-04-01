@@ -278,6 +278,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     title = models.CharField(max_length=255, null=True, blank=True)
     #title = models.CharField(max_length=255, db_index=True) for frequently searched fields
     application_type = models.ForeignKey(ApplicationType, on_delete=models.PROTECT)
+    latest_transition_comment = models.TextField(help_text='Change status comment', blank=True, null=True)
 
     shapefile_json = models.JSONField('Source/Submitter (multi) polygon geometry', blank=True, null=True)
     geojson_data_hist = models.JSONField('History Polygons that intersect Source Polygons', blank=True, null=True)
@@ -398,8 +399,16 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         # Update status
         self.processing_status = target_status
 
+        # Only update the comment if it's provided (for backward transitions)
+        if comment:
+            self.latest_transition_comment = comment
+
         # Save with version comment
-        self.save(version_comment=f"Status changed: {self.prev_processing_status} -> {target_status}. By: {user.username}. {comment}")
+        comment_msg = f"Status changed: {self.prev_processing_status} -> {target_status}. By: {user.username}."
+        if comment:
+            comment_msg += f" Comment: {comment}"
+
+        self.save(version_comment=comment_msg)
 
         return True, f"Successfully transitioned to {target_status}"
 

@@ -414,14 +414,11 @@ class ProposalViewSet(UserActionLoggingViewset):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    #@action(detail=True, methods=['post'], url_path='transition_status')
-    #def transition_status(self, request, pk=None):
     @action(detail=True, methods=['post'])
     def transition_status(self, request, *args, **kwargs):
         """
         Transition proposal to a new status
         """
-        import ipdb; ipdb.set_trace()
         proposal = self.get_object()
         target_status = request.data.get('target_status')
         comment = request.data.get('comment', '')
@@ -440,7 +437,38 @@ class ProposalViewSet(UserActionLoggingViewset):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            proposal.transition_to(target_status, request.user, comment)
+            # Define forward and backward transitions
+            forward_transitions = {
+                'with_assessor': ['draft'],  # from draft to with_assessor
+                'with_reviewer': ['with_assessor'],  # from with_assessor to with_reviewer
+                'review_completed': ['with_reviewer']  # from with_reviewer to review_completed
+            }
+
+            backward_transitions = {
+                'draft': ['with_assessor'],  # from with_assessor to draft
+                'with_assessor': ['with_reviewer', 'review_completed'],  # from with_reviewer or review_completed to with_assessor
+                'with_reviewer': ['review_completed']  # from review_completed to with_reviewer
+            }
+
+            current_status = proposal.processing_status
+            is_forward = False
+
+            # Check if this is a forward transition
+            if target_status in forward_transitions:
+                if current_status in forward_transitions[target_status]:
+                    is_forward = True
+
+            # Clear the comment if moving forward
+            if is_forward:
+                proposal.latest_transition_comment = ''
+                logger.info(f"Clearing comment for forward transition: {current_status} -> {target_status}")
+
+            # Save the comment if provided (only for backward transitions)
+            if comment and not is_forward:
+                proposal.latest_transition_comment = comment
+
+            # Perform the transition
+            proposal.transition_to(target_status, request.user, comment if not is_forward else '')
 
             # Return updated proposal
             serializer = self.get_serializer(proposal, context={"request": request})

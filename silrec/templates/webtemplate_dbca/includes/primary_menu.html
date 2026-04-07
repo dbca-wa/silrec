@@ -10,29 +10,29 @@
 {% is_assessor as is_assessor %}
 {% is_approver as is_approver %}
 {% build_tag as build_tag %}
+{% show_menus as show_menus %}
 
 <ul class="nav navbar-expand-lg navbar-light align-items-center">
 {% if is_internal_login %}
-    {% if is_assessor %}
+    {% if is_assessor  and show_menus %}
     <li class="nav-item"><a class="nav-link" href="/internal/treatments">Treatments</a></li>
     <li class="nav-item"><a class="nav-link" href="/internal/map">Map</a></li>
     <li class="nav-item"><a class="nav-link" href="/internal/reports">Reports</a></li>
+    <li class="nav-item"><a class="nav-link" href="/internal/search">Search</a></li>
     <!-- <li class="nav-item"><a class="nav-link" href="/internal/compliances">Compliances</a></li> -->
     {% endif %}
-    {% if is_assessor %}
-    <!-- <li class="nav-item"><a class="nav-link" href="/internal/organisations/access">Organisation Access</a></li> -->
-    {% endif %}
-    {% if is_assessor %}
-    <!-- <li class="nav-item"><a class="nav-link" href="/internal/invoices">Invoices</a></li> -->
-    {% endif %}
     {% if is_assessor or is_approver %}
+    <!--
     <li class="nav-item"><a class="nav-link" href="/internal/search">Search</a></li>
+    -->
     {% endif %}
 {% else %}
     {% if request.user.is_authenticated %}
+    <!--
     <li class="nav-item"><a class="nav-link" href="/external/proposal"><button type="button" class="btn btn-sm" style="color:#fff; background-color:#226fbb; width:140px;" @click="new_application_button_clicked"><i
         class="fa-solid fa-circle-plus"></i> New Proposal</button></a></li>
     <li class="nav-item"><a class="nav-link" href="/external/invoices">Invoices</a></li>
+    -->
     {% endif %}
 {% endif %}
 </ul>

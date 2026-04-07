@@ -44,6 +44,10 @@ def is_assessor():
 def is_approver():
     return True
 
+@register.simple_tag()
+def show_menus():
+    return settings.SHOW_MENUS
+
 '''
 @register.simple_tag()
 def can_show_tests():

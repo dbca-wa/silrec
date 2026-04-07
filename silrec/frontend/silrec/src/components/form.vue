@@ -149,7 +149,6 @@
                 :additionalFieldsConfig="additionalFieldsConfig"
                 @update-processed-geometry="handleProcessedGeometryUpdate"
                 @refresh-datatable="refreshPolygonCohortTable"
-                :ows-query="owsQuery"
                 style-by="assessor"
                 :filterable="false"
                 :drawable="is_internal || !leaseLicence"
@@ -191,10 +190,10 @@ import Swal from 'sweetalert2';
 import moment from 'moment';
 
 import { api_endpoints, helpers } from '@/utils/hooks';
-import {
-    owsQuery,
-    validateFeature,
-} from '@/components/common/map_functions.js';
+//import {
+//    owsQuery,
+//    validateFeature,
+//} from '@/components/common/map_functions.js';
 
 export default {
     name: 'ProposalForm',
@@ -300,8 +299,8 @@ export default {
             api_endpoints: api_endpoints,
 
             loadingGroups: false,
-            owsQuery: owsQuery,
-            validateFeature: validateFeature,
+            //owsQuery: owsQuery,
+            //validateFeature: validateFeature,
             displayFieldsConfig: [
                 { key: 'name', label: 'Name' },
                 { key: 'Block', label: 'Block' },

@@ -1,4 +1,4 @@
-Django~=5.2.8
+Django~=5.2.12
 djangorestframework==3.16.0
 djangorestframework-datatables==0.7.2
 django-filter==25.1

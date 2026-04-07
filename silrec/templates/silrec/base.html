@@ -16,6 +16,7 @@
 <!DOCTYPE html>
 <html lang="en">
     {% block extra_hidden_inputs %}
+        <meta name="referrer" content="strict-origin-when-cross-origin">
         <link rel="icon" href="{% static 'favicon.ico' %}">
     {% endblock %}
 
@@ -30,13 +31,14 @@
         {% endblock %}
 
         {% block custom_js %}
+            <!--
             <script language="javascript">
             var env = {
                 "kmi_server_url": "{{ KMI_SERVER_URL }}",
                 "gis_server_url": "{{ GIS_SERVER_URL }}"
             }
-
             </script>
+            -->
             <script type="module" src="{% vite_asset_url vue3_entry_script %}?v={{ build_tag }}"></script>
         {% endblock %}
 

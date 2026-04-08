@@ -9,7 +9,8 @@ import { Control } from 'ol/control';
 import { utils } from '@/utils/hooks';
 
 // Tile server url
-var url = `${env['gis_server_url']}/geoserver/ows/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`; // KB
+//var url = `${env['gis_server_url']}/geoserver/ows/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`; // KB
+var url = ''
 // Layer to use as map base layer
 // TODO: Update to kb once baselayers are available
 export var baselayer_name = 'mapbox-streets'; // KMI
@@ -63,7 +64,8 @@ export async function addOptionalLayers(map_component) {
                 let layer = layers[j];
 
                 let l = new TileWMS({
-                    url: `${env['gis_server_url']}/geoserver/ows`, // KB
+                    //url: `${env['gis_server_url']}/geoserver/ows`, // KB
+                    url: '', // KB
                     crossOrigin: 'anonymous', // Data for a image tiles can only be retrieved if the source's crossOrigin property is set (https://openlayers.org/en/latest/apidoc/module-ol_layer_Tile-TileLayer.html#getData)
                     params: {
                         FORMAT: 'image/png',
@@ -452,7 +454,8 @@ const _helper = {
         }
         // The geoserver url
 
-        let owsUrl = `${env['gis_server_url']}/geoserver/ows/?`;
+        //let owsUrl = `${env['gis_server_url']}/geoserver/ows/?`;
+        let owsUrl = '';
         // Create a params dict for the WFS request to the land-water layer
         let paramsDict = map_component.queryParamsDict('landwater');
         let geometry_name = map_component.owsQuery.landwater.geometry;

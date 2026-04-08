@@ -1,6 +1,6 @@
 from django.urls import reverse
 from django.shortcuts import redirect
-from django.utils.http import urlquote_plus
+#from django.utils.http import urlquote_plus
 
 import re
 import datetime
@@ -11,7 +11,6 @@ from reversion.middleware  import RevisionMiddleware
 from reversion.views import _request_creates_revision
 
 
-CHECKOUT_PATH = re.compile('^/ledger/checkout/checkout')
 
 class FirstTimeNagScreenMiddleware(object):
     def __init__(self, get_response):
@@ -39,8 +38,23 @@ class FirstTimeNagScreenMiddleware(object):
 #    def request_creates_revision(self, request):
 #        return _request_creates_revision(request) and 'checkout' not in request.get_full_path()
 
+#class CacheControlMiddleware(object):
+#    def process_response(self, request, response):
+#        if request.path[:5] == '/api/' or request.path == '/':
+#            response['Cache-Control'] = 'private, no-store'
+#        elif request.path[:8] == '/static/':
+#            response['Cache-Control'] = 'public, max-age=86400'
+#        else:
+#            response['Cache-Control'] = 'private, no-store'
+#        return response
+
 class CacheControlMiddleware(object):
-    def process_response(self, request, response):
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
         if request.path[:5] == '/api/' or request.path == '/':
             response['Cache-Control'] = 'private, no-store'
         elif request.path[:8] == '/static/':
@@ -48,3 +62,4 @@ class CacheControlMiddleware(object):
         else:
             response['Cache-Control'] = 'private, no-store'
         return response
+

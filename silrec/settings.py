@@ -16,6 +16,7 @@ os.environ.setdefault("BASE_DIR", BASE_DIR)
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG', False)
 CSRF_COOKIE_SECURE = env('CSRF_COOKIE_SECURE', False)
+CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS', [])
 SESSION_COOKIE_SECURE = env('SESSION_COOKIE_SECURE', False)
 CORS_ALLOW_ALL_ORIGINS = env('CORS_ALLOW_ALL_ORIGINS', False)
 SHOW_MENUS = env('SHOW_MENUS', True)
@@ -110,7 +111,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
-    'corsheaders',
+    #'corsheaders',
     #'django_cron',
 
     #'reversion_compare',
@@ -161,26 +162,29 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    #'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'dbca_utils.middleware.SSOLoginMiddleware',
-    #'silrec.middleware.CacheControlMiddleware',
+    'silrec.middleware.CacheControlMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
-#SHOW_DEBUG_TOOLBAR = env('SHOW_DEBUG_TOOLBAR', False)
-#if SHOW_DEBUG_TOOLBAR:
-#    INTERNAL_IPS = [
-#        "127.0.0.1",
-#    ]
-#
-#    MIDDLEWARE = [
-#        "debug_toolbar.middleware.DebugToolbarMiddleware",
-#        *MIDDLEWARE,
-#    ]
+SHOW_DEBUG_TOOLBAR = env('SHOW_DEBUG_TOOLBAR', False)
+if SHOW_DEBUG_TOOLBAR:
+    INTERNAL_IPS = [
+        "127.0.0.1",
+    ]
+    INSTALLED_APPS = [
+        *INSTALLED_APPS,
+        "debug_toolbar",
+    ]
+    MIDDLEWARE = [
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+        *MIDDLEWARE,
+    ]
 
 TEMPLATES = [
     {
@@ -275,8 +279,10 @@ DATABASES = {
     # Defined in the DATABASE_URL env variable.
     'default': database.config()
 }
-#DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec'})
-DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec,public'})
+# DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec'})
+# DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec,public'})
+PGSQL_OPTIONS = env('PGSQL_OPTIONS', {'options': '-c search_path=silrec'})
+DATABASES['default'].update(OPTIONS=PGSQL_OPTIONS)
 
 #DATABASES = {
 #    'default': {

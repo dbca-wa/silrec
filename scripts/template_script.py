@@ -1,13 +1,13 @@
 import os
 import sys
 import django
-proj_path='/var/www/sqs'
+proj_path='/var/www/silrec'
 sys.path.append(proj_path)
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "sqs.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "silrec.settings")
 django.setup()
 
 
-from sqs.components.proposals.models import Proposal
+from silrec.components.proposals.models import Proposal
 
 p=Proposal.objects.last()
 

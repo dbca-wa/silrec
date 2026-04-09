@@ -26,19 +26,6 @@ from silrec.settings import OGR2OGR, CRS_GDA94
 
 from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
 
-#from leaseslicensing.components.tenure.models import (
-#    LGA,
-#    Act,
-#    Category,
-#    District,
-#    Identifier,
-#    Name,
-#    Region,
-#    SiteName,
-#    Tenure,
-#    Vesting,
-#)
-
 logger = logging.getLogger(__name__)
 
 def save_geometry(
@@ -63,7 +50,7 @@ def save_geometry(
         foreign_key_field = instance_name.lower()
 
     geometry = json.loads(geometry_data)
-    InstanceGeometry = apps.get_model("leaseslicensing", f"{instance_name}Geometry")
+    InstanceGeometry = apps.get_model("silrec", f"{instance_name}Geometry")
     if (
         0 == len(geometry["features"])
         and 0
@@ -113,7 +100,7 @@ def save_geometry(
             "intersects": True,  # probably redunant now that we are not allowing non-intersecting geometries
         }
         InstanceGeometrySaveSerializer = getattr(
-            sys.modules[f"leaseslicensing.components.{component}.serializers"],
+            sys.modules[f"silrec.components.{component}.serializers"],
             f"{instance_name}GeometrySaveSerializer",
         )
         geometry_data["source_type"] = source_type

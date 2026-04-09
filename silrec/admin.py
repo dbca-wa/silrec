@@ -1,5 +1,4 @@
 from django.contrib.gis import admin
-#from sqs.components.main import models
 
 from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin

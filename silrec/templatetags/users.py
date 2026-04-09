@@ -12,8 +12,7 @@ register = Library()
 def is_silrec_admin(context):
     # checks if user is an AdminUser
     request = context['request']
-    return silrec_helpers.is_sqs_admin(request)
-    #return True
+    return silrec_helpers.is_silrec_admin(request)
 
 @register.simple_tag(takes_context=True)
 def _is_internal(context):

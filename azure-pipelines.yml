@@ -32,14 +32,14 @@ stages:
               latest
               $(tagDate)
         containerRegistry: DockerHub
-        repository: dbcawa/sqs
+        repository: dbcawa/silrec
     - task: Docker@2
       displayName: Dev Build image and Push
       inputs:
         command: buildAndPush
         dockerfile: '$(Build.SourcesDirectory)/dockerdev/Dockerfile'
         tags: | 
-              sqs_dev_latest
-              sqs_dev_$(tagDate)              
+              silrec_dev_latest
+              silrec_dev_$(tagDate)              
         containerRegistry: DockerHub
         repository: dbcawa/docker_app_dev   

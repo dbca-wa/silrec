@@ -10,7 +10,7 @@ from silrec.components.main.models import SystemMaintenance
 #from silrec.components.proposals.models import HelpPage, SectionChecklist
 
 
-#class LeasesLicensingHelpPageAdminForm(forms.ModelForm):
+#class SilrecHelpPageAdminForm(forms.ModelForm):
 #    content = forms.CharField(widget=CKEditorWidget())
 #
 #    class Meta:

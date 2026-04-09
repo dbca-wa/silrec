@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.mail.message import sanitize_address
 from django.core.mail.backends.smtp import EmailBackend
 
-class SqsEmailBackend(EmailBackend):
+class SilrecEmailBackend(EmailBackend):
 
     def _send(self, email_message):
         """A helper method that does the actual sending"""

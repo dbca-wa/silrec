@@ -14,7 +14,7 @@ def get_instance_identifier(instance):
             return getattr(instance, field)
     raise AttributeError(
         f"Model instance has no valid identifier to use for logging. Tried: {settings.ACTION_LOGGING_IDENTIFIER_FIELDS}"
-    )   
+    )
 
 def belongs_to(user, group_name):
     """
@@ -41,7 +41,7 @@ def belongs_to(user, group_name):
 #    # Return True if user logged in via social_auth (i.e. an external user signing in with a login-token)
 #    return 'EmailAuth' in request.session.get('_auth_user_backend')
 
-def is_sqs_admin(request):
+def is_silrec_admin(request):
     #logger.info('settings.ADMIN_GROUP: {}'.format(settings.ADMIN_GROUP))
     return request.user.is_authenticated and (belongs_to(request.user, settings.ADMIN_GROUP) or request.user.is_superuser)
 

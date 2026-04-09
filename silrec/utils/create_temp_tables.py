@@ -63,6 +63,10 @@ def drop_prod_tables_django():
     """
     Drop tables, then run:
         pg_restore -h localhost -p 5432 -U dev -d silrec_test_n silrec_test4_3tables.dump -v
+
+    Eg.
+        ./manage.py shell_plus -c "from silrec.utils.create_temp_tables import drop_prod_tables_django; drop_prod_tables_django()"
+        pg_restore -h localhost -p 5432 -U dev -d silrec_test4 silrec_3tables_07Apr2026.dump
     """
     with connection.cursor() as cursor:
         cursor.execute("""
@@ -72,5 +76,5 @@ def drop_prod_tables_django():
         """)
 
     print('DONE. Next ...')
-    print('pg_restore -h localhost -p 5432 -U dev -d silrec_test3 silrec_3tables_27Feb2026.dump')
+    print('pg_restore -h localhost -p 5432 -U dev -d silrec_test4 silrec_3tables_07Apr2026.dump')
 

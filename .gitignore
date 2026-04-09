@@ -111,5 +111,5 @@ npm locks
 *-lock.json
 
 # npm build files
-sqs/static/sqs_vue/static/*
+#silrec/static/silrec_vue/static/*
 

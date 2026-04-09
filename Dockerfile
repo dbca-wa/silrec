@@ -1,3 +1,10 @@
+#
+# docker build --no-cache -t silrec-test .
+# docker run --rm -it -p 8080:8080 -e ENABLE_WEB=True silrec-test /bin/bash
+# Inside container:
+# time python -c "import django"
+# python -X importtime manage.py shell -c ""
+#
 # Prepare the base environment.
 FROM ubuntu:24.04 AS builder_base_silrec
 
@@ -18,96 +25,80 @@ ENV SITE_PREFIX='silrec-dev'
 ENV SITE_DOMAIN='dbca.wa.gov.au'
 ENV OSCAR_SHOP_NAME='Forest Management Branch'
 ENV BPAY_ALLOWED=False
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
 
-RUN apt-get clean
-RUN apt-get update
-RUN apt-get upgrade -y
-#RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev build-essential python3 python3-setuptools python3-dev python3-pip tzdata libreoffice cron rsyslog gunicorn 
-RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev build-essential python3 python3-setuptools python3-dev python3-pip tzdata libreoffice cron rsyslog
-RUN apt-get install --no-install-recommends -y libpq-dev patch
-RUN apt-get install --no-install-recommends -y postgresql-client mtr
-RUN apt-get install --no-install-recommends -y sqlite3 vim postgresql-client ssh htop
-RUN apt-get install --no-install-recommends -y graphviz libgraphviz-dev pkg-config run-one virtualenv software-properties-common
-RUN apt-get install --no-install-recommends -y npm python3-tk
+RUN apt-get clean && \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install --no-install-recommends -y \
+        wget git libmagic-dev gcc binutils libproj-dev \
+        build-essential python3 python3-setuptools python3-dev \
+        python3-pip tzdata libreoffice cron rsyslog \
+        libpq-dev patch postgresql-client mtr sqlite3 vim \
+        ssh htop graphviz libgraphviz-dev pkg-config \
+        run-one virtualenv software-properties-common \
+        npm python3-tk && \
+    # Install GDAL
+    add-apt-repository ppa:ubuntugis/ubuntugis-unstable && \
+    apt update && \
+    apt-get install --no-install-recommends -y gdal-bin libgdal-dev python3-gdal && \
+    # Clean up
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install GDAL
-RUN add-apt-repository ppa:ubuntugis/ubuntugis-unstable
-RUN apt update
-RUN apt-get install --no-install-recommends -y gdal-bin libgdal-dev python3-gdal
+# Create user and directories
+RUN groupadd -g 5000 oim && \
+    useradd -g 5000 -u 5000 oim -s /bin/bash -d /app && \
+    mkdir /app && \
+    chown -R oim.oim /app
 
-RUN groupadd -g 5000 oim
-RUN useradd -g 5000 -u 5000 oim -s /bin/bash -d /app
-RUN usermod -a -G sudo oim
-RUN mkdir /app
-RUN chown -R oim.oim /app
-
+# Timezone setup
 COPY timezone /etc/timezone
 ENV TZ=Australia/Perth
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+# Copy and setup scripts
 COPY startup.sh /
 RUN chmod 755 /startup.sh
-RUN chmod +s /startup.sh
-#RUN echo "oim  ALL=(ALL)  NOPASSWD: /startup.sh" > /etc/sudoers.d/oim
 
-# kubernetes health checks script
-RUN wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/bin/health_check.sh -O /bin/health_check.sh
-RUN chmod 755 /bin/health_check.sh
+# Download utility scripts
+RUN wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/bin/health_check.sh -O /bin/health_check.sh && \
+    wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/bin-python/scheduler/scheduler.py -O /bin/scheduler.py && \
+    chmod 755 /bin/health_check.sh /bin/scheduler.py
 
-# add python cron
-RUN wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/bin-python/scheduler/scheduler.py -O /bin/scheduler.py
-RUN chmod 755 /bin/scheduler.py
-
-
-
-
-# Install Python libs from requirements.txt.
 FROM builder_base_silrec AS python_libs_silrec
 
 WORKDIR /app
 USER oim
-#RUN virtualenv -p python3.11 /app/venv
+
+# Create virtualenv and install requirements
 RUN virtualenv /app/venv
 ENV PATH=/app/venv/bin:$PATH
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=0
+
+# Copy only requirements first for better caching
 COPY --chown=oim:oim requirements.txt ./
-
-#COPY requirements.txt ./
 RUN pip3 install --upgrade pip && \
-    pip3 install --no-cache-dir -r requirements.txt 
-# Update the Django <1.11 bug in django/contrib/gis/geos/libgeos.py
-# Reference: https://stackoverflow.com/questions/18643998/geodjango-geosexception-error
-#&& sed -i -e "s/ver = geos_version().decode()/ver = geos_version().decode().split(' ')[0]/" /usr/local/lib/python3.6/dist-packages/django/contrib/gis/geos/libgeos.py \
-#  && rm -rf /var/lib/{apt,dpkg,cache,log}/ /tmp/* /var/tmp/*
+    pip3 install --no-cache-dir -r requirements.txt
 
-# Install the project (ensure that frontend projects have been built prior to this step).
-FROM python_libs_silrec
-
-#COPY libgeos.py.patch /app/
-#RUN patch /usr/local/lib/python3.8/dist-packages/django/contrib/gis/geos/libgeos.py /app/libgeos.py.patch
-#RUN rm /app/libgeos.py.patch
-
-#COPY cron /etc/cron.d/dockercron
+# Copy application code
 COPY --chown=oim:oim gunicorn.ini manage.py ./
-RUN touch /app/.env
-COPY --chown=oim:oim .git ./.git
 COPY --chown=oim:oim python-cron python-cron
 COPY --chown=oim:oim silrec ./silrec
 
-RUN cd /app/silrec/frontend/silrec ; npm ci --omit=dev && \
-    cd /app/silrec/frontend/silrec ; npm run build
+# Build frontend
+RUN cd /app/silrec/frontend/silrec && \
+    npm ci --omit=dev && \
+    npm run build
 
-RUN touch /app/.env
-RUN python manage.py collectstatic --noinput
+# Collect static files
+RUN touch /app/.env && \
+    python manage.py collectstatic --noinput
 
-#RUN mkdir /app/sqs/cache/
-#RUN chmod 777 /app/sqs/cache/
-RUN whereis pip
-RUN whereis python
-RUN ls -al /app/venv/
-#RUN python manage.py collectstatic --noinput
-#RUN apt-get install --no-install-recommends -y python-pil
 EXPOSE 8080
 HEALTHCHECK --interval=1m --timeout=5s --start-period=10s --retries=3 CMD ["wget", "-q", "-O", "-", "http://localhost:8080/"]
 CMD ["/startup.sh"]
-#CMD ["gunicorn", "parkstay.wsgi", "--bind", ":8080", "--config", "gunicorn.ini"]
 

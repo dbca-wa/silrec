@@ -1,6 +1,6 @@
 #!/bin/bash
 ## sole parameter is an integer indicating incremental daily version
-## git branch --set-upstream-to=origin/sqs_dev sqs_dev
+## git branch --set-upstream-to=origin/silrec_dev silrec_dev
 
 if [[ ( $@ == "--help") ||  $@ == "-h" ]]; then
     echo "$0 <optional: --no-cache>"
@@ -16,7 +16,7 @@ date_var=$(date +%Y.%m.%d.%H.%M%S)
 BUILD_TAG=dbcawa/silrec:$date_var
 #git checkout $GIT_BRANCH &&
 #git pull &&
-#cd commercialoperator/frontend/commercialoperator/ &&
+#cd silrec/frontend/silrec/ &&
 #npm run build &&
 #cd ../../../ &&
 #source venv/bin/activate &&

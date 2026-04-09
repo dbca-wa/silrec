@@ -11,13 +11,13 @@ from django.utils import timezone
 from django.utils.encoding import smart_str
 from ledger_api_client.ledger_models import EmailUserRO as EmailUser
 
-from leaseslicensing.components.emails.emails import TemplateEmailBase
-from leaseslicensing.helpers import (
+from silrec.components.emails.emails import TemplateEmailBase
+from silrec.helpers import (
     convert_external_url_to_internal_url,
     convert_internal_url_to_external_url,
     emails_list_for_group,
 )
-from leaseslicensing.ledger_api_utils import (
+from silrec.ledger_api_utils import (
     retrieve_default_from_email_user,
     retrieve_email_user,
 )
@@ -31,8 +31,8 @@ def send_referral_email_notification(referral, recipients, request, reminder=Fal
     application_type = referral.proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"Referral Request for DBCA {application_type} Application: {referral.proposal.lodgement_number}",
-        html_template="leaseslicensing/emails/proposals/send_referral_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_referral_notification.txt",
+        html_template="silrec/emails/proposals/send_referral_notification.html",
+        txt_template="silrec/emails/proposals/send_referral_notification.txt",
     )
     url = request.build_absolute_uri(
         reverse(
@@ -73,8 +73,8 @@ def send_referral_complete_email_notification(referral, request):
             f"{email_user.get_full_name()} has Completed Referral for "
             f"{application_type} Application {referral.proposal.lodgement_number}"
         ),
-        html_template="leaseslicensing/emails/proposals/send_referral_complete_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_referral_complete_notification.txt",
+        html_template="silrec/emails/proposals/send_referral_complete_notification.html",
+        txt_template="silrec/emails/proposals/send_referral_complete_notification.txt",
     )
 
     email.subject = sent_by.email + ": " + email.subject
@@ -118,8 +118,8 @@ def send_pending_referrals_complete_email_notification(referral, request):
             f"All pending referrals for {application_type} Application: "
             f"{proposal.lodgement_number} have been completed."
         ),
-        html_template="leaseslicensing/emails/proposals/send_pending_referrals_complete_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_pending_referrals_complete_notification.txt",
+        html_template="silrec/emails/proposals/send_pending_referrals_complete_notification.html",
+        txt_template="silrec/emails/proposals/send_pending_referrals_complete_notification.txt",
     )
 
     url = request.build_absolute_uri(
@@ -144,8 +144,8 @@ def send_amendment_email_notification(amendment_request, request, proposal):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"{settings.DEP_NAME} - Incomplete {application_type}.",
-        html_template="leaseslicensing/emails/proposals/send_amendment_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_amendment_notification.txt",
+        html_template="silrec/emails/proposals/send_amendment_notification.html",
+        txt_template="silrec/emails/proposals/send_amendment_notification.txt",
     )
     reason = amendment_request.reason.reason
     url = request.build_absolute_uri(
@@ -180,8 +180,8 @@ def send_submit_email_notification(request, proposal):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"A new {application_type} has been submitted.",
-        html_template="leaseslicensing/emails/proposals/send_submit_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_submit_notification.txt",
+        html_template="silrec/emails/proposals/send_submit_notification.html",
+        txt_template="silrec/emails/proposals/send_submit_notification.txt",
     )
     # email = SubmitSendNotificationEmail()
     url = request.build_absolute_uri(
@@ -207,8 +207,8 @@ def send_external_submit_email_notification(request, proposal):
         subject="{} - Confirmation - {} submitted.".format(
             settings.DEP_NAME, application_type
         ),
-        html_template="leaseslicensing/emails/proposals/send_external_submit_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_external_submit_notification.txt",
+        html_template="silrec/emails/proposals/send_external_submit_notification.html",
+        txt_template="silrec/emails/proposals/send_external_submit_notification.txt",
     )
     # email = ExternalSubmitSendNotificationEmail()
     url = request.build_absolute_uri(
@@ -246,8 +246,8 @@ def send_approver_decline_email_notification(reason, request, proposal):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"A {application_type} has been recommended for decline.",
-        html_template="leaseslicensing/emails/proposals/send_approver_decline_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_approver_decline_notification.txt",
+        html_template="silrec/emails/proposals/send_approver_decline_notification.html",
+        txt_template="silrec/emails/proposals/send_approver_decline_notification.txt",
     )
     # email = ApproverDeclineSendNotificationEmail()
     url = request.build_absolute_uri(
@@ -271,8 +271,8 @@ def send_approver_approve_email_notification(request, proposal):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"A {application_type} has been recommended for approval.",
-        html_template="leaseslicensing/emails/proposals/send_approver_approve_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_approver_approve_notification.txt",
+        html_template="silrec/emails/proposals/send_approver_approve_notification.html",
+        txt_template="silrec/emails/proposals/send_approver_approve_notification.txt",
     )
     # email = ApproverApproveSendNotificationEmail()
     url = request.build_absolute_uri(
@@ -302,8 +302,8 @@ def send_proposal_decline_email_notification(proposal, request, proposal_decline
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"Your {application_type} has been declined.",
-        html_template="leaseslicensing/emails/proposals/send_decline_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_decline_notification.txt",
+        html_template="silrec/emails/proposals/send_decline_notification.html",
+        txt_template="silrec/emails/proposals/send_decline_notification.txt",
     )
 
     context = {"proposal": proposal, "reason": proposal_decline.reason}
@@ -333,8 +333,8 @@ def send_proposal_approver_sendback_email_notification(request, proposal):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"An {application_type} has been sent back by approver.",
-        html_template="leaseslicensing/emails/proposals/send_approver_sendback_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_approver_sendback_notification.txt",
+        html_template="silrec/emails/proposals/send_approver_sendback_notification.html",
+        txt_template="silrec/emails/proposals/send_approver_sendback_notification.txt",
     )
     # email = ApproverSendBackNotificationEmail()
     url = request.build_absolute_uri(
@@ -361,8 +361,8 @@ def send_proposal_approval_email_notification(proposal, request):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"{settings.DEP_NAME} - {application_type} Approved.",
-        html_template="leaseslicensing/emails/proposals/send_approval_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_approval_notification.txt",
+        html_template="silrec/emails/proposals/send_approval_notification.html",
+        txt_template="silrec/emails/proposals/send_approval_notification.txt",
     )
     # email = ProposalApprovalSendNotificationEmail()
 
@@ -421,8 +421,8 @@ def send_proposal_roi_approval_email_notification(roi_proposal, lease_license_pr
     application_type = roi_proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"{settings.DEP_NAME} - {application_type} Approved.",
-        html_template="leaseslicensing/emails/proposals/send_roi_approval_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_roi_approval_notification.txt",
+        html_template="silrec/emails/proposals/send_roi_approval_notification.html",
+        txt_template="silrec/emails/proposals/send_roi_approval_notification.txt",
     )
 
     url = f"{settings.SITE_URL}{reverse('external-proposal-detail', kwargs={'proposal_pk': lease_license_proposal.pk})}"
@@ -454,8 +454,8 @@ def send_license_ready_for_invoicing_notification(proposal, request):
     application_type = proposal.application_type.name_display
     email = TemplateEmailBase(
         subject=f"{application_type} proposal ready for invoicing data.",
-        html_template="leaseslicensing/emails/proposals/send_license_ready_for_invoicing_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_license_ready_for_invoicing_notification.txt",
+        html_template="silrec/emails/proposals/send_license_ready_for_invoicing_notification.html",
+        txt_template="silrec/emails/proposals/send_license_ready_for_invoicing_notification.txt",
     )
 
     url = request.build_absolute_uri(
@@ -484,8 +484,8 @@ def send_proposal_awaiting_payment_approval_email_notification(proposal, request
         subject="{} - {} - Pending Payment.".format(
             settings.DEP_NAME, application_type
         ),
-        html_template="leaseslicensing/emails/proposals/send_awaiting_payment_approval_notification.html",
-        txt_template="leaseslicensing/emails/proposals/send_awaiting_payment_approval_notification.txt",
+        html_template="silrec/emails/proposals/send_awaiting_payment_approval_notification.html",
+        txt_template="silrec/emails/proposals/send_awaiting_payment_approval_notification.txt",
     )
     # email = ProposalAwaitingPaymentApprovalSendNotificationEmail()
 
@@ -539,8 +539,8 @@ def send_external_referee_invite_email(
         subject = f"Reminder: {subject}"
     email = TemplateEmailBase(
         subject=subject,
-        html_template="leaseslicensing/emails/proposals/send_external_referee_invite.html",
-        txt_template="leaseslicensing/emails/proposals/send_external_referee_invite.txt",
+        html_template="silrec/emails/proposals/send_external_referee_invite.html",
+        txt_template="silrec/emails/proposals/send_external_referee_invite.txt",
     )
 
     url = request.build_absolute_uri(reverse("external"))
@@ -565,7 +565,7 @@ def send_external_referee_invite_email(
 def _log_proposal_email(
     email_message, proposal, sender=None, file_bytes=None, filename=None
 ):
-    from leaseslicensing.components.proposals.models import ProposalLogEntry
+    from silrec.components.proposals.models import ProposalLogEntry
 
     if isinstance(
         email_message,
@@ -627,7 +627,7 @@ def _log_proposal_email(
 
 
 def _log_org_email(email_message, organisation, customer, sender=None):
-    from leaseslicensing.components.organisations.models import OrganisationLogEntry
+    from silrec.components.organisations.models import OrganisationLogEntry
 
     if isinstance(
         email_message,
@@ -679,7 +679,7 @@ def _log_org_email(email_message, organisation, customer, sender=None):
 
 
 def _log_user_email(email_message, emailuser, customer, sender=None):
-    from leaseslicensing.components.users.models import EmailUserLogEntry
+    from silrec.components.users.models import EmailUserLogEntry
 
     if isinstance(
         email_message,

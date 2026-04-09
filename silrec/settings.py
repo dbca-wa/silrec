@@ -81,7 +81,7 @@ USE_TZ = False
 #c.InteractiveShellApp.exec_lines = ['%autoreload 2']
 
 # Custom Email Settings
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if env('CONSOLE_EMAIL_BACKEND', False) else 'silrec.backend_email.SqsEmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if env('CONSOLE_EMAIL_BACKEND', False) else 'silrec.backend_email.SilrecEmailBackend'
 PRODUCTION_EMAIL = env('PRODUCTION_EMAIL', False)
 # Intercept and forward email recipient for non-production instances
 # Send to list of NON_PROD_EMAIL users instead
@@ -105,7 +105,7 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.gis',
+    #'django.contrib.gis',
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
@@ -114,17 +114,16 @@ INSTALLED_APPS = [
     #'corsheaders',
     #'django_cron',
 
+    'reversion',
     #'reversion_compare',
     'bootstrap3',
     'webtemplate_dbca',
-    'django_vite',
     'silrec',
     'silrec.components.users',
     'silrec.components.forest_blocks',
     'silrec.components.lookups',
     'silrec.components.proposals',
     'silrec.components.main',
-    'reversion',
     'rest_framework',
     #'rest_framework.authtoken',
     'rest_framework_gis',
@@ -133,6 +132,7 @@ INSTALLED_APPS = [
     #'pympler',
 
     #'appmonitor_client',
+    'django_vite',
 ]
 
 ADD_REVERSION_ADMIN=True
@@ -174,9 +174,19 @@ MIDDLEWARE = [
 
 SHOW_DEBUG_TOOLBAR = env('SHOW_DEBUG_TOOLBAR', False)
 if SHOW_DEBUG_TOOLBAR:
-    INTERNAL_IPS = [
-        "127.0.0.1",
-    ]
+#    INTERNAL_IPS = [
+#        "127.0.0.1",
+#    ]
+
+#    import socket
+#    # Dynamically add the Docker gateway IP
+#    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+#    INTERNAL_IPS = [ip[:-1] + "1" for ip in ips] + ["127.0.0.1"]
+
+    DEBUG_TOOLBAR_CONFIG = {
+        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+    }
+
     INSTALLED_APPS = [
         *INSTALLED_APPS,
         "debug_toolbar",
@@ -323,7 +333,7 @@ VUE3_ENTRY_SCRIPT = env(
     default="src/main.js",  # This path will be auto prefixed with the       static_url_prefix from DJANGO_VITE above
 )  # Path of the vue3 entry point script served by vite
 
-print(f'{VUE3_ENTRY_SCRIPT}')
+#print(f'{VUE3_ENTRY_SCRIPT}')
 
 
 if not os.path.exists(os.path.join(BASE_DIR, 'logs')):

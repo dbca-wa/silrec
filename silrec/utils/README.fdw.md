@@ -13,7 +13,7 @@ OPTIONS (host 'localhost', port '5432', dbname 'silrec_test1');
 3. Create a user mapping:
 CREATE USER MAPPING FOR dev
 SERVER localhost
-OPTIONS (user 'dev', password 'dev123');
+OPTIONS (user 'my_username', password 'my_passwd');
 
 DROP USER MAPPING FOR dev SERVER localhost;
 

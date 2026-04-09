@@ -76,5 +76,6 @@ def drop_prod_tables_django():
         """)
 
     print('DONE. Next ...')
+    print('pg_restore -h localhost -p 5432 -U dev -d silrec_test3 silrec_3tables_14Mar2026.dump')
     print('pg_restore -h localhost -p 5432 -U dev -d silrec_test4 silrec_3tables_07Apr2026.dump')
 

@@ -291,7 +291,7 @@ DATABASES = {
 }
 # DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec'})
 # DATABASES['default'].update(OPTIONS={'options': '-c search_path=silrec,public'})
-PGSQL_OPTIONS = env('PGSQL_OPTIONS', {'options': '-c search_path=silrec'})
+PGSQL_OPTIONS = env('PGSQL_OPTIONS', {'options': '-c search_path=public,silrec'})
 DATABASES['default'].update(OPTIONS=PGSQL_OPTIONS)
 
 #DATABASES = {

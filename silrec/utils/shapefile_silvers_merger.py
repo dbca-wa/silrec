@@ -66,7 +66,7 @@ class ShapefileSliversMerger():
 
         alter role user1 set search_path = "$user", public
 
-        'postgresql://dev:dev123@localhost:5432/silrec_dev1',
+        'postgresql://user:passwd@localhost:5432/db_name',
         '''
         dbschema='silrec,public' # Searches left-to-right
         engine = create_engine(

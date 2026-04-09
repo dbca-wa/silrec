@@ -258,7 +258,7 @@ def get_conn_engine():
     '''
     dbschema='silrec,public' # Searches left-to-right
     engine = create_engine(
-        'postgresql://dev:dev123@localhost:5432/silrec_test1',
+        'postgresql://user:passwd@localhost:5432/db_name',
         connect_args={'options': '-c search_path={}'.format(dbschema)}
     )
     return engine

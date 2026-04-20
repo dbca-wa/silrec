@@ -3231,51 +3231,53 @@ class ProcessShapefileView(APIView):
                 }
 
             # Start a transaction that will encompass everything
-            with transaction.atomic():
+#            with transaction.atomic():
+            if True:
                 # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
                 ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
 
-                # Get total number of polygons to process
-                total_polygons = len(ssm.gdf_shpfile)
-
-                # Create the processing run record
-                processing_run = ShapefileProcessingRun.objects.create(
-                    proposal=proposal,
-                    user_id=user_id,
-                    threshold=threshold,
-                    total_polygons=total_polygons,
-                    status='running'
-                )
-
-                # Create a SINGLE savepoint #0 for the entire run
-                pre_run_savepoint = transaction.savepoint()
-                logger.info("Created pre-run savepoint #0")
-
-                # Create the savepoint record
-                pre_run_savepoint_record = SavepointRecord.objects.create(
-                    processing_run=processing_run,
-                    iteration=0,
-                    polygon_index=0,
-                    action='create',  # Will be updated to 'commit' on success
-                    affected_models={},
-                    metadata={
-                        'description': 'Pre-run initial state',
-                        'row_data': {},
-                        'is_marker': False  # This is a real savepoint
-                    }
-                )
-                logger.info("Created savepoint record for pre-run state (iteration 0)")
+#                # Get total number of polygons to process
+#                total_polygons = len(ssm.gdf_shpfile)
+#
+#                # Create the processing run record
+#                processing_run = ShapefileProcessingRun.objects.create(
+#                    proposal=proposal,
+#                    user_id=user_id,
+#                    threshold=threshold,
+#                    total_polygons=total_polygons,
+#                    status='running'
+#                )
+#
+#                # Create a SINGLE savepoint #0 for the entire run
+#                pre_run_savepoint = transaction.savepoint()
+#                logger.info("Created pre-run savepoint #0")
+#
+#                # Create the savepoint record
+#                pre_run_savepoint_record = SavepointRecord.objects.create(
+#                    processing_run=processing_run,
+#                    iteration=0,
+#                    polygon_index=0,
+#                    action='create',  # Will be updated to 'commit' on success
+#                    affected_models={},
+#                    metadata={
+#                        'description': 'Pre-run initial state',
+#                        'row_data': {},
+#                        'is_marker': False  # This is a real savepoint
+#                    }
+#                )
+#                logger.info("Created savepoint record for pre-run state (iteration 0)")
 
                 try:
                     # Process all polygons - NO savepoint handler needed
                     list_state = ssm.create_gdf(savepoint_callback=None)  # Remove callback
 
                     # Link the request metrics to the processing run
-                    if ssm.request_metrics:
-                        processing_run.request_metrics = ssm.request_metrics
-                        processing_run.save()
+#                    if ssm.request_metrics:
+#                        processing_run.request_metrics = ssm.request_metrics
+#                        processing_run.save()
 
                     # If we get here, all iterations succeeded
+                    #import ipdb; ipdb.set_trace()
                     geom_data = ssm.set_proposal_data(list_state)
 
                     # Update proposal with results
@@ -3288,58 +3290,58 @@ class ProcessShapefileView(APIView):
                     proposal.geojson_data_processed_iters = geom_data
                     proposal.save()
 
-                    # Get audit logs for this run
-                    audit_logs = AuditLog.objects.filter(
-                        request_metrics=ssm.request_metrics
-                    )
+#                    # Get audit logs for this run
+#                    audit_logs = AuditLog.objects.filter(
+#                        request_metrics=ssm.request_metrics
+#                    )
 
-                    # Count affected records per model
-                    affected_models = {}
-                    for log in audit_logs:
-                        model_name = log.table_name
-                        affected_models[model_name] = affected_models.get(model_name, 0) + 1
+#                    # Count affected records per model
+#                    affected_models = {}
+#                    for log in audit_logs:
+#                        model_name = log.table_name
+#                        affected_models[model_name] = affected_models.get(model_name, 0) + 1
+#
+#                    # Update savepoint record with affected models
+#                    pre_run_savepoint_record.affected_models = affected_models
+#                    pre_run_savepoint_record.action = 'commit'
+#                    pre_run_savepoint_record.metadata['committed_at'] = timezone.now().isoformat()
+#                    pre_run_savepoint_record.save()
+#
+#                    # Link audit logs to savepoint
+#                    if audit_logs.exists():
+#                        pre_run_savepoint_record.audit_logs.set(audit_logs)
 
-                    # Update savepoint record with affected models
-                    pre_run_savepoint_record.affected_models = affected_models
-                    pre_run_savepoint_record.action = 'commit'
-                    pre_run_savepoint_record.metadata['committed_at'] = timezone.now().isoformat()
-                    pre_run_savepoint_record.save()
+#                    # Update processing run progress
+#                    processing_run.processed_polygons = len(ssm.gdf_shpfile)  # All succeeded
+#                    processing_run.status = 'completed'
+#                    processing_run.completed_at = timezone.now()
+#                    processing_run.save()
 
-                    # Link audit logs to savepoint
-                    if audit_logs.exists():
-                        pre_run_savepoint_record.audit_logs.set(audit_logs)
+#                    # Commit the pre-run savepoint
+#                    transaction.savepoint_commit(pre_run_savepoint)
 
-                    # Update processing run progress
-                    processing_run.processed_polygons = len(ssm.gdf_shpfile)  # All succeeded
-                    processing_run.status = 'completed'
-                    processing_run.completed_at = timezone.now()
-                    processing_run.save()
-
-                    # Commit the pre-run savepoint
-                    transaction.savepoint_commit(pre_run_savepoint)
-
-                    logger.info(f"Processing completed: {affected_models}")
+#                    logger.info(f"Processing completed: {affected_models}")
 
                 except Exception as e:
                     # Something went wrong in processing
                     logger.error(f"Error during shapefile processing: {str(e)}")
 
-                    # Update savepoint record to 'rollback'
-                    pre_run_savepoint_record.action = 'rollback'
-                    pre_run_savepoint_record.metadata['rolled_back_at'] = timezone.now().isoformat()
-                    pre_run_savepoint_record.metadata['error'] = str(e)
-                    pre_run_savepoint_record.save()
-
-                    # Rollback the pre-run savepoint to revert all changes
-                    transaction.savepoint_rollback(pre_run_savepoint)
-                    logger.info("Rolled back pre-run savepoint - all changes reverted")
-
-                    # Mark processing run as failed
-                    processing_run.status = 'failed'
-                    processing_run.error_message = str(e)
-                    processing_run.completed_at = timezone.now()
-                    processing_run.failed_polygons = total_polygons
-                    processing_run.save()
+#                    # Update savepoint record to 'rollback'
+#                    pre_run_savepoint_record.action = 'rollback'
+#                    pre_run_savepoint_record.metadata['rolled_back_at'] = timezone.now().isoformat()
+#                    pre_run_savepoint_record.metadata['error'] = str(e)
+#                    pre_run_savepoint_record.save()
+#
+#                    # Rollback the pre-run savepoint to revert all changes
+#                    transaction.savepoint_rollback(pre_run_savepoint)
+#                    logger.info("Rolled back pre-run savepoint - all changes reverted")
+#
+#                    # Mark processing run as failed
+#                    processing_run.status = 'failed'
+#                    processing_run.error_message = str(e)
+#                    processing_run.completed_at = timezone.now()
+#                    processing_run.failed_polygons = total_polygons
+#                    processing_run.save()
 
                     # Re-raise to trigger transaction rollback
                     raise
@@ -3357,7 +3359,8 @@ class ProcessShapefileView(APIView):
                 'feature_count_orig': feature_count_orig,
                 'feature_count': feature_count,
                 'warnings': warnings,
-                'processing_run_id': processing_run.id
+#                'processing_run_id': #processing_run.id
+                'processing_run_id': 0
             }
 
         except DatabaseError as e:

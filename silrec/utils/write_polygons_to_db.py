@@ -245,6 +245,7 @@ def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
         poly.area_ha = row['area_ha']
         poly.sp_code = row['sp_code']
 
+        #import ipdb; ipdb.set_trace()
         if hasattr(row['geometry'], 'wkt'):
             geom = GEOSGeometry(row['geometry'].wkt)
             poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom

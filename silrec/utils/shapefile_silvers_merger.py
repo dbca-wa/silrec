@@ -36,8 +36,23 @@ User = get_user_model()
 
 class ShapefileSliversMerger():
     '''
+    import geopandas as gpd
+    from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
+    from silrec.utils.create_temp_tables import drop_prod_tables_django
+
+    gdf_shp_16 = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+
+
+    drop_prod_tables_django()
+    !PGPASSWORD='dev123' pg_restore -h localhost -p 5432 -U dev -d silrec_test3 silrec_3tables_14Mar2026.dump
+    ssm = ShapefileSliversMerger(proposal_id=1, gdf_shpfile=gdf_shp_16, threshold=5, user_id=1)
+    list_state = ssm.create_gdf()
+
+    print(len(list_state[0]['GDF_RESULT_COMBINED']))
+    plot_multi([list_state[0]['GDF_SHP'], list_state[0]['GDF_HIST'], list_state[0]['GDF_RESULT_COMBINED']])
+
     '''
-    def __init__(self, proposal_id, gdf_shpfile=None, threshold=None, sql_polygons=None, user_id=None):
+    def __init__(self, proposal_id, gdf_shpfile=None, threshold=None, user_id=None):
         self.proposal_id = proposal_id
         self.gdf_shpfile = self.get_shapefile(gdf_shpfile)
         self.threshold = threshold
@@ -159,6 +174,8 @@ class ShapefileSliversMerger():
         '''
         Main processing method that creates the merged GeoDataFrames
         '''
+
+        #logger.info(self.proposal_id, self.gdf_shpfile, self.threshold, self.user_id)
         idx_count = 0
         gdf_shpfile = self.gdf_shpfile.copy()
         list_state = []
@@ -184,9 +201,9 @@ class ShapefileSliversMerger():
         #for index, row in self.gdf_shpfile[:2].iterrows():
         for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
-            print('****************************************************************************************')
-            print(f'                                 Polygon {idx_count}')
-            print('****************************************************************************************')
+            logger.info('****************************************************************************************')
+            logger.info(f'                                 Polygon {idx_count}')
+            logger.info('****************************************************************************************')
 
             try:
                 # Start a transaction with reversion
@@ -249,6 +266,7 @@ class ShapefileSliversMerger():
         gdf_result_combined = self.get_gdf_result_combined(list_state)
         list_state[0].update({'GDF_RESULT_COMBINED': gdf_result_combined})
 
+        #import ipdb; ipdb.set_trace()
         return list_state
 
     def set_gdf_store(self, idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new):
@@ -471,7 +489,7 @@ class ShapefileSliversMerger():
 
             except Exception as e:
                 # Handle any geometric operation errors
-                print(f"Error processing geometry: {e}")
+                logger.error(f"Error processing geometry: {e}")
                 poly_types.append('CUT')
 
         gdf_result['poly_type'] = poly_types

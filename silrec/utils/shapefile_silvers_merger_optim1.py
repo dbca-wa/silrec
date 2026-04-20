@@ -1,16 +1,17 @@
 from django.conf import settings
-from django.db import models, transaction, IntegrityError, connection
+from django.db import models, transaction, IntegrityError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from sqlalchemy import create_engine, text
 import geopandas as gpd
 import pandas as pd
 import numpy as np
 from shapely.ops import unary_union, polygonize
-from shapely import from_wkb
 
 import json
 import os
+from confy import database
 from copy import deepcopy
 
 import reversion
@@ -38,6 +39,7 @@ class ShapefileSliversMerger():
     import geopandas as gpd
     from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
     from silrec.utils.create_temp_tables import drop_prod_tables_django
+    from silrec.utils.plot_utils import plot_gdf, plot_multi, plot_overlay
 
     gdf_shp_16 = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
 
@@ -48,6 +50,7 @@ class ShapefileSliversMerger():
     list_state = ssm.create_gdf()
 
     print(len(list_state[0]['GDF_RESULT_COMBINED']))
+
     plot_multi([list_state[0]['GDF_SHP'], list_state[0]['GDF_HIST'], list_state[0]['GDF_RESULT_COMBINED']])
 
     '''
@@ -56,6 +59,7 @@ class ShapefileSliversMerger():
         self.gdf_shpfile = self.get_shapefile(gdf_shpfile)
         self.threshold = threshold
         self.user_id = user_id
+        self.conn_engine = self.get_conn_engine()
 
     def get_shapefile(self, gdf_shpfile):
         if gdf_shpfile is None:
@@ -71,16 +75,35 @@ class ShapefileSliversMerger():
 
         return gdf_shpfile
 
-    def get_polygons_gdf(self, gdf, table_name, proposal_id, sql=None):
+    @staticmethod
+    def get_conn_engine():
+        '''
+        an alternative solution for a multi-client (multi-tenant) application is to configure a different db user
+        for each client, and configure the relevant search_path for each user:
+
+        alter role user1 set search_path = "$user", public
+
+        'postgresql://user:passwd@localhost:5432/db_name',
+        '''
+        dbschema='silrec,public' # Searches left-to-right
+        engine = create_engine(
+            database.env('DATABASE_URL').replace('postgis','postgresql'),
+            connect_args={'options': '-c search_path={}'.format(dbschema)}
+        )
+        return engine
+
+    @staticmethod
+    def get_polygons_gdf(gdf, table_name, conn_engine, proposal_id, sql=None):
         ''' Get intersecting polygons from forest_blocks.polygon - intersecting with the given base polygon
 
             Returns --> SQL query result as gdf
         '''
 
         if not sql:
-            srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; '
+            srid = 'SRID=' + settings.CRS_GDA94.split(':')[1] + '; ' # SRID=28350;
             combined_geometry = unary_union(gdf['geometry'])
             base_polygon_wkt = srid + combined_geometry.wkt
+            min_area_tolerance = 10
 
             sql = f'''SELECT
                     ph.polygon_id,
@@ -99,26 +122,15 @@ class ShapefileSliversMerger():
                 )
                 ;'''
 
-        with connection.cursor() as cursor:
-            cursor.execute(sql)
-            rows = cursor.fetchall()
-            columns = [desc[0] for desc in cursor.description]
-
-        geom_col = 'geom'
-        data_dict = {col: [] for col in columns}
-        for row in rows:
-            for i, col in enumerate(columns):
-                data_dict[col].append(row[i])
-
-        data_dict[geom_col] = [from_wkb(g) if g is not None else None for g in data_dict[geom_col]]
-
-        gdf = gpd.GeoDataFrame(data_dict, geometry=geom_col, crs=settings.CRS_GDA94)
-
+        gdf = gpd.read_postgis(sql, con=conn_engine, geom_col='geom')
         gdf['polygon_id'] = pd.to_numeric(gdf['polygon_id'], errors='coerce').astype(int)
 
         gdf['poly_type'] = 'HIST'
         gdf['iter_seq'] = 1
         gdf['proposal_id'] = proposal_id
+        gdf.rename(columns={'geom': 'geometry'}, inplace=True)
+        gdf.set_geometry('geometry', inplace=True)
+        gdf.set_crs(settings.CRS_GDA94)
 
         return gdf.explode()
 
@@ -171,7 +183,7 @@ class ShapefileSliversMerger():
         list_state = []
 
         # SET Init history and Shapefile to list_state
-        gdf_hist = self.get_polygons_gdf(self.gdf_shpfile, 'polygon', self.proposal_id)
+        gdf_hist = self.get_polygons_gdf(self.gdf_shpfile, 'polygon', self.conn_engine, self.proposal_id)
         polygon_ids_hist = gdf_hist.polygon_id.to_list()
         assignments = AssignChtToPly.objects.filter(polygon_id__in=polygon_ids_hist).values('cohort_id', 'cht2ply_id')
         cohort_ids_hist = [a['cohort_id'] for a in assignments]
@@ -216,7 +228,7 @@ class ShapefileSliversMerger():
                         )
 
                         # Get intersecting historical polygons
-                        gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.proposal_id)
+                        gdf_hist = self.get_polygons_gdf(self.gdf_single, 'polygon', self.conn_engine, self.proposal_id)
 
                         # Rename columns for consistency
                         gdf_hist.rename(columns={'geom': 'geometry'}, inplace=True)
@@ -295,7 +307,7 @@ class ShapefileSliversMerger():
         intersects_mask_single = gdf_hist.geometry.intersects(self.gdf_shpfile.unary_union)
         gdf_polygons_intersecting_single = gdf_hist[intersects_mask_single]
 
-# non overlapping overlayed geometries (creates independent partitioned geometries)
+        # non overlapping overlayed geometries (creates independent partitioned geometries)
         self.gdf_polygons_partitioned = gpd.overlay(self.gdf_single[['geometry']], gdf_polygons_intersecting_single, how='union', keep_geom_type=True)
         self.gdf_polygons_partitioned = self.gdf_polygons_partitioned[self.gdf_polygons_partitioned.area>1] # drop tiny areas (> 1 sqm)
         self.gdf_polygons_partitioned = self.gdf_polygons_partitioned.explode(index_parts=False).explode(index_parts=False)
@@ -564,7 +576,7 @@ class ShapefileSliversMerger():
             return None
 
         try:
-            query = f"""
+            query = text("""
                 SELECT
                     tp.polygon_id,
                     tp.name,
@@ -583,14 +595,11 @@ class ShapefileSliversMerger():
                 FROM polygon tp
                 LEFT JOIN assign_cht_to_ply tactp ON tp.polygon_id = tactp.polygon_id
                 LEFT JOIN cohort tc ON tactp.cohort_id = tc.cohort_id
-                WHERE tactp.cohort_id=ANY(ARRAY[{','.join(map(str, cohort_ids))}]) AND tactp.status_current=True;
-            """
+                WHERE tactp.cohort_id=ANY(:cohort_ids) AND tactp.status_current=True;
+            """)
 
-            with connection.cursor() as cursor:
-                cursor.execute(query)
-                rows = cursor.fetchall()
-                columns = [desc[0] for desc in cursor.description]
-                cohort_gdf_init = pd.DataFrame(rows, columns=columns)
+            with self.conn_engine.connect() as conn:
+                cohort_gdf_init = pd.read_sql(query, conn, params={'cohort_ids': cohort_ids})
 
         except Exception as e:
             logger.error(f'{e}')
@@ -703,18 +712,22 @@ class ShapefileSliversMerger():
         '''
 
         # OPTIMIZED: Bulk spatial join instead of row-by-row apply()
+        # Compute centroids for all geometries at once
         centroids_gdf = gpd.GeoDataFrame(
             geometry=gdf_result.geometry.representative_point().copy(),
             crs=gdf_result.crs
         )
         centroids_gdf['idx'] = range(len(centroids_gdf))
 
+        # Prepare gdf_hist for join (drop index_right if exists)
         gdf_hist_join = gdf_hist.copy()
         if 'index_right' in gdf_hist_join.columns:
             gdf_hist_join.drop('index_right', axis=1, inplace=True)
 
+        # Single bulk spatial join for all centroids
         joined = gpd.sjoin(centroids_gdf, gdf_hist_join, how="left", predicate="intersects")
 
+        # Map results back to gdf_result using positional assignment (reset index first)
         joined_reset = joined.reset_index(drop=True)
         gdf_result = gdf_result.reset_index(drop=True)
         gdf_result['polygon_id'] = joined_reset['polygon_id'].values

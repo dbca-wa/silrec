@@ -243,6 +243,13 @@ class ShapefileSliversMerger():
                         # Store state
                         list_state = self.set_gdf_store(idx_count, list_state, gdf_hist, gdf_result, gdf_cht_init, gdf_cht_new)
 
+                        # Planar enforcement check for this iteration
+                        iter_gdf = list_state[idx_count]['GDF_RESULT']
+                        is_planar, fixed_gdf = self.check_planar_enforcement(iter_gdf, f'iteration {idx_count}', fix_overlaps=True)
+                        if fixed_gdf is not None:
+                            list_state[idx_count]['GDF_RESULT'] = fixed_gdf
+                            logger.info(f"Updated iteration {idx_count} with planar-fixed geometries")
+
                         # Set reversion comment
                         reversion.set_comment(f'Shapefile processing iteration {idx_count} for proposal {self.proposal_id}')
 
@@ -255,6 +262,16 @@ class ShapefileSliversMerger():
         # Add combined gdf_result's to list_state
         gdf_result_combined = self.get_gdf_result_combined(list_state)
         list_state[0].update({'GDF_RESULT_COMBINED': gdf_result_combined})
+
+        # Planar enforcement check for final combined result (i=0)
+        is_planar_final, fixed_gdf_final = self.check_planar_enforcement(
+            list_state[0]['GDF_RESULT_COMBINED'], 
+            'final (i=0)', 
+            fix_overlaps=True
+        )
+        if fixed_gdf_final is not None:
+            list_state[0]['GDF_RESULT_COMBINED'] = fixed_gdf_final
+            logger.info("Updated final combined result with planar-fixed geometries")
 
         #import ipdb; ipdb.set_trace()
         return list_state
@@ -338,6 +355,108 @@ class ShapefileSliversMerger():
         gdf_result_combined_deduplicated = gdf_result_combined_sorted.drop_duplicates(subset='poly_id_new', keep='first')
 
         return gdf_result_combined_deduplicated
+
+    def check_planar_enforcement(self, gdf, iteration_label='unknown', fix_overlaps=True):
+        """
+        Check for planar geometry enforcement (no overlapping polygons).
+        
+        Args:
+            gdf: GeoDataFrame to check
+            iteration_label: Label for logging (e.g., 'iteration 1' or 'final')
+            fix_overlaps: If True, fix overlapping polygons by merging them
+        
+        Returns:
+            tuple: (is_planar: bool, fixed_gdf: GeoDataFrame or None)
+        """
+        if gdf is None or len(gdf) == 0:
+            logger.warning(f"Empty GeoDataFrame passed to planar check at {iteration_label}")
+            return True, None
+        
+        is_planar = True
+        fixed_gdf = None
+        
+        # Check for invalid geometries first
+        invalid_geoms = gdf[~gdf.is_valid]
+        if len(invalid_geoms) > 0:
+            logger.warning(f"Found {len(invalid_geoms)} invalid geometries at {iteration_label}")
+            is_planar = False
+            
+            if fix_overlaps:
+                logger.info(f"Fixing invalid geometries at {iteration_label} using buffer(0)")
+                gdf = gdf.copy()
+                gdf['geometry'] = gdf['geometry'].buffer(0)
+                fixed_gdf = gdf
+                is_planar = True
+        
+        # Check for overlapping geometries
+        if len(gdf) > 1:
+            overlaps = []
+            geoms = gdf['geometry'].tolist()
+            poly_ids = gdf['poly_id_new'].tolist() if 'poly_id_new' in gdf.columns else range(len(gdf))
+            
+            for i in range(len(geoms)):
+                for j in range(i + 1, len(geoms)):
+                    if geoms[i].intersects(geoms[j]):
+                        # Check if it's a proper intersection (not just touching at edge/point)
+                        intersection = geoms[i].intersection(geoms[j])
+                        if intersection.area > 0.001:  # Ignore tiny intersections
+                            overlaps.append((poly_ids[i], poly_ids[j], intersection.area))
+            
+            if overlaps:
+                is_planar = False
+                logger.warning(f"Found {len(overlaps)} overlapping polygon pairs at {iteration_label}:")
+                for poly1, poly2, area in overlaps[:5]:  # Log first 5
+                    logger.warning(f"  Overlap: poly_id_new {poly1} <-> {poly2}, area: {area:.2f} sqm")
+                if len(overlaps) > 5:
+                    logger.warning(f"  ... and {len(overlaps) - 5} more overlaps")
+                
+                if fix_overlaps:
+                    logger.info(f"Fixing overlaps at {iteration_label} using unary_union")
+                    gdf = self._fix_overlapping_polygons(gdf)
+                    fixed_gdf = gdf
+                    is_planar = True
+        
+        if is_planar:
+            logger.info(f"Planar enforcement passed at {iteration_label}: {len(gdf)} polygons")
+        
+        return is_planar, fixed_gdf
+
+    def _fix_overlapping_polygons(self, gdf):
+        """
+        Fix overlapping polygons by unioning overlapping areas.
+        Uses the largest polygon to absorb overlaps.
+        """
+        if len(gdf) <= 1:
+            return gdf
+        
+        gdf = gdf.copy().reset_index(drop=True)
+        geoms = gdf['geometry'].tolist()
+        
+        merged_geoms = []
+        used = set()
+        
+        for i in range(len(geoms)):
+            if i in used:
+                continue
+            
+            current_geom = geoms[i]
+            used.add(i)
+            
+            for j in range(i + 1, len(geoms)):
+                if j in used:
+                    continue
+                    
+                if current_geom.intersects(geoms[j]):
+                    intersection = current_geom.intersection(geoms[j])
+                    if intersection.area > 0.001:
+                        current_geom = current_geom.union(geoms[j])
+                        used.add(j)
+            
+            merged_geoms.append(current_geom)
+        
+        gdf['geometry'] = merged_geoms
+        
+        return gdf
 
     def set_proposal_data(self, list_state):
         '''

@@ -284,6 +284,8 @@ API_EXCEPTION_MESSAGE = (
     f"please try again and if the problem persists contact {SUPPORT_EMAIL}"
 )
 
+AFFECTED_TABLES = ['polygon', 'cohort', 'assign_cht_to_ply', 'treatment', 'treatment_xtra']
+
 # Database
 DATABASES = {
     # Defined in the DATABASE_URL env variable.

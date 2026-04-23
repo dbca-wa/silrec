@@ -816,7 +816,17 @@ class ShapefileProcessingSerializer(serializers.ModelSerializer):
             'id', 'proposal', 'user', 'threshold',
             'dump_file', 'dump_filename', 'dump_size_bytes',
             'status', 'started_at', 'completed_at',
-            'error_message', 'metadata'
+            'error_message', 'metadata', 'restored_at',
         ]
-        read_only_fields = ['id', 'started_at', 'completed_at']
+        read_only_fields = ['id', 'started_at', 'completed_at', 'restored_at']
+
+
+class ShapefileRestoreRequestSerializer(serializers.Serializer):
+    proposal_id = serializers.IntegerField(required=True)
+    user_id = serializers.IntegerField(required=False, allow_null=True,
+        help_text="Required for actual restore; not needed for check_only mode")
+    dump_file = serializers.CharField(required=False, allow_null=True, allow_blank=True,
+        help_text="Optional explicit dump file path; defaults to most recent for this proposal")
+    check_only = serializers.BooleanField(required=False, default=False,
+        help_text="If true, only check whether the dump file exists without running restore")
 

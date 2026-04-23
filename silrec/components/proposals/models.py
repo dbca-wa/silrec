@@ -2077,6 +2077,10 @@ class ShapefileProcessing(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, null=True)
     metadata = models.JSONField(default=dict, blank=True)
+    restored_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When this dump was last restored via pg_restore"
+    )
 
     class Meta:
         db_table = 'shapefile_processing'
@@ -2097,6 +2101,10 @@ class ShapefileProcessing(models.Model):
         self.status = 'failed'
         self.error_message = error_message
         self.completed_at = timezone.now()
+        self.save()
+
+    def mark_restored(self):
+        self.restored_at = timezone.now()
         self.save()
 
 

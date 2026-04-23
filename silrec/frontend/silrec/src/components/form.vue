@@ -46,10 +46,11 @@
                         <!-- Process and Revert buttons -->
                         <div class="ms-auto d-flex gap-2">
                             <button 
-                                class="btn btn-warning revert-btn"
+                                class="btn revert-btn"
+                                :class="!hasDumpFile ? 'btn-secondary' : 'btn-warning'"
                                 @click="openRevertDialog"
-                                :disabled="!hasProcessedData || revertingShapefile"
-                                :title="!hasProcessedData ? 'No processed data to revert' : ''"
+                                :disabled="!hasProcessedData || revertingShapefile || !hasDumpFile"
+                                :title="!hasDumpFile ? 'No pg_dump backup available for this proposal' : (!hasProcessedData ? 'No processed data to revert' : '')"
                             >
                                 <i class="bi bi-arrow-counterclockwise me-2"></i>
                                 <span v-if="revertingShapefile">
@@ -342,6 +343,9 @@ export default {
 
             // to force map re-render
             componentMapKey: 0, 
+
+            // Whether a pg_dump file exists for this proposal on the server
+            dumpFileExists: false,
         };
     },
     computed: {
@@ -534,7 +538,10 @@ export default {
                     this.proposal.proposalgeometry_processed_iters ||
                     this.proposal.geojson_data_processed ||
                     this.proposal.geojson_data_processed_iters));
-        }
+        },
+        hasDumpFile: function () {
+            return this.dumpFileExists;
+        },
     },
     created: function () {
         this.uuid = uuid();
@@ -544,6 +551,7 @@ export default {
     },
     mounted: function () {
         this.$emit('formMounted');
+        this.checkDumpFileExists();
     },
     beforeDestroy: function () {
         // Cleanup if needed
@@ -1207,6 +1215,8 @@ export default {
                     // Refresh the map
                     this.refreshMapAfterProcessing();
                     
+                    // Re-check dump file existence so Revert button updates immediately
+                    this.dumpFileExists = true;
                 } else {
                     throw new Error(data.message || 'Unknown error occurred');
                 }
@@ -1261,21 +1271,22 @@ export default {
         openRevertDialog: function () {
             Swal.fire({
                 title: 'Revert Changes',
-                html: `
-                    <div style="text-align: left;">
-                        <p>Are you sure you want to revert all changes made by the last shapefile processing operation?</p>
-                        <p style="font-weight: bold; color: #dc3545;">This action cannot be undone!</p>
-                        <p>This will:</p>
-                        <ul style="margin-top: 5px;">
-                            <li>Restore the proposal to its state before processing</li>
-                            <li>Remove any new polygons and cohorts created</li>
-                            <li>Restore original geometry data</li>
-                        </ul>
-                    </div>
-                `,
+                html: '<div style="text-align: left;">'
+                    + '<p style="font-size: 0.9em; color: #6c757d; margin-bottom: 10px;">'
+                    + 'This will restore the database from the most recent pg_dump backup for this proposal.'
+                    + '</p>'
+                    + '<p>Are you sure you want to revert all changes made by the last shapefile processing operation?</p>'
+                    + '<p style="font-weight: bold; color: #dc3545;">This action cannot be undone!</p>'
+                    + '<p>This will:</p>'
+                    + '<ul style="margin-top: 5px;">'
+                    + '<li>Restore the database to its state before processing via pg_restore</li>'
+                    + '<li>Remove any new polygons and cohorts created</li>'
+                    + '<li>Restore original geometry data</li>'
+                    + '</ul>'
+                    + '</div>',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Yes, Revert Changes',
+                confirmButtonText: 'Yes, Restore Database',
                 cancelButtonText: 'Cancel',
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
@@ -1294,9 +1305,10 @@ export default {
             this.revertingShapefile = true;
             this.revertError = null;
             
+            // Show processing dialog during the restore
             Swal.fire({
-                title: 'Reverting Changes',
-                html: 'Please wait while reverting to previous state...',
+                title: 'Restoring Database',
+                html: 'Running pg_restore from the pg_dump backup. This may take a moment...',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
@@ -1336,18 +1348,45 @@ export default {
                 }
                 
                 if (data.success) {
-                    await Swal.fire({
-                        icon: 'success',
-                        title: 'Revert Successful',
-                        html: `
-                            <div style="text-align: center;">
-                                <p>${data.message || 'Successfully reverted to previous state'}</p>
-                                ${data.records_removed ? `<p style="font-size: 0.9em; color: #6c757d;">Records removed: ${data.records_removed}</p>` : ''}
-                            </div>
-                        `,
-                        confirmButtonColor: '#28a745',
-                        timer: 3000
-                    });
+                    // Show warnings if present
+                    if (data.warnings && data.warnings.length > 0) {
+                        await Swal.fire({
+                            icon: 'warning',
+                            title: 'Restore Completed with Warnings',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p>${data.message || 'Database restored with warnings'}</p>
+                                    <div style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                                        <ul style="margin: 0; padding-left: 20px;">
+                                            ${data.warnings.map(w => `<li style="font-size: 0.9em;">${w}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonColor: '#ffc107'
+                        });
+                    } else {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Restore Successful',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p>${data.message || 'Data restored successfully'}</p>
+                                    ${data.dump_info && data.dump_info.dump_filename ? `
+                                        <hr style="margin: 10px 0;">
+                                        <div style="font-size: 0.85em; color: #495057; text-align: left;">
+                                            <p><strong>Restored from dump:</strong></p>
+                                            <p>File: <code>${data.dump_info.dump_filename}</code></p>
+                                            ${data.dump_info.restored_at ? `<p>Restored at: ${new Date(data.dump_info.restored_at).toLocaleString()}</p>` : ''}
+                                            ${data.dump_info.dump_size_bytes ? `<p>Size: ${(data.dump_info.dump_size_bytes / 1024 / 1024).toFixed(2)} MB</p>` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `,
+                            confirmButtonColor: '#28a745',
+                            //timer: 6000
+                        });
+                    }
                     
                     if (data.proposal) {
                         this.$emit('refreshFromResponse', data.proposal);
@@ -1367,10 +1406,10 @@ export default {
                 
                 await Swal.fire({
                     icon: 'error',
-                    title: 'Revert Failed',
+                    title: 'Restore Failed',
                     html: `
                         <div style="text-align: center;">
-                            <p style="color: #dc3545;">${error.message || 'An error occurred while reverting changes'}</p>
+                            <p style="color: #dc3545;">${error.message || 'An error occurred while restoring the database'}</p>
                         </div>
                     `,
                     confirmButtonColor: '#dc3545'
@@ -1380,7 +1419,36 @@ export default {
             } finally {
                 this.revertingShapefile = false;
             }
-        }
+        },
+
+        checkDumpFileExists: async function () {
+            if (!this.proposalId) return;
+            try {
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/revert_shapefile_processing/'
+                );
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': helpers.getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({
+                        proposal_id: this.proposalId,
+                        check_only: true,
+                    }),
+                });
+                if (!response.ok) {
+                    this.dumpFileExists = false;
+                    return;
+                }
+                const data = await response.json();
+                this.dumpFileExists = data.has_dump === true;
+            } catch (e) {
+                this.dumpFileExists = false;
+            }
+        },
     },
     
     watch: {

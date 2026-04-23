@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Remove old pg_dump files from the shapefile processing store, keeping only the most recent SHAPEFILE_EXPORT_KEEP files'
+    help = 'Remove old pg_dump files from the archive folder, keeping only the most recent SHAPEFILE_EXPORT_KEEP files'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -19,6 +19,11 @@ class Command(BaseCommand):
             help='Override SHAPEFILE_EXPORT_KEEP setting',
         )
         parser.add_argument(
+            '--archive',
+            action='store_true',
+            help='Operate on the archive/ subdirectory instead of the main store',
+        )
+        parser.add_argument(
             '--dry-run',
             action='store_true',
             help='Print what would be deleted without actually removing files',
@@ -26,17 +31,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         dry_run = options['dry_run']
+        use_archive = options['archive']
         keep = options['keep'] if options['keep'] is not None else int(settings.SHAPEFILE_EXPORT_KEEP)
-        store_path = os.path.join(settings.SHAPEFILE_PROCESSING_STORE)
 
-        if not os.path.isdir(store_path):
-            self.stdout.write(f"Store directory does not exist: {store_path}")
+        base_path = os.path.join(settings.BASE_DIR, settings.SHAPEFILE_PROCESSING_STORE)
+        if use_archive:
+            base_path = os.path.join(base_path, 'archive')
+
+        if not os.path.isdir(base_path):
+            self.stdout.write(f"Directory does not exist: {base_path}")
             return
 
-        pattern = os.path.join(store_path, 'silrec_db_*.dump')
+        pattern = os.path.join(base_path, 'silrec_db_pid_*.dump')
         dump_files = sorted(glob.glob(pattern), key=os.path.getmtime)
 
-        self.stdout.write(f"Found {len(dump_files)} dump files, keeping {keep}")
+        self.stdout.write(f"Found {len(dump_files)} dump files in {base_path}, keeping {keep}")
 
         if len(dump_files) <= keep:
             self.stdout.write("No files to clean up")

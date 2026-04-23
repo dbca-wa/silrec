@@ -3217,10 +3217,20 @@ class ProcessShapefileView(APIView):
             )
 
     def _cleanup_old_dumps(self):
-        from django.core.management import call_command
-
+        import os, glob
         try:
-            call_command('cleanup_shapefile_dumps')
+            base_path = os.path.join(settings.BASE_DIR, settings.SHAPEFILE_PROCESSING_STORE, 'archive')
+            if not os.path.isdir(base_path):
+                return
+            keep = int(settings.SHAPEFILE_EXPORT_KEEP)
+            pattern = os.path.join(base_path, 'silrec_db_pid_*.dump')
+            files = sorted(glob.glob(pattern), key=os.path.getmtime)
+            if len(files) > keep:
+                for fpath in files[:-keep]:
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
         except Exception as e:
             logger.error(f"Error cleaning up old dump files: {e}", exc_info=True)
 
@@ -3228,6 +3238,7 @@ class ProcessShapefileView(APIView):
         import subprocess
         import uuid
         import os
+        import shutil
         from urllib.parse import urlparse
         from silrec.components.proposals.models import ShapefileProcessing
 
@@ -3241,13 +3252,39 @@ class ProcessShapefileView(APIView):
         db_user = parsed.username or 'dev'
         db_name = parsed.path.lstrip('/') if parsed.path else 'silrec_db'
 
-        unique_id = uuid.uuid4().hex[:12]
-        dump_filename = f"silrec_db_{unique_id}.dump"
-
-        store_path = os.path.join(settings.SHAPEFILE_PROCESSING_STORE)
+        dump_filename = f"silrec_db_pid_{proposal.id}.dump"
+        store_path = os.path.join(settings.BASE_DIR, settings.SHAPEFILE_PROCESSING_STORE)
+        archive_path = os.path.join(store_path, 'archive')
         os.makedirs(store_path, exist_ok=True)
+        os.makedirs(archive_path, exist_ok=True)
         dump_filepath = os.path.join(store_path, dump_filename)
 
+        # Archive ALL existing dump files so only the new one remains in the store
+        import glob, datetime as dt
+        existing_dumps = sorted(glob.glob(os.path.join(store_path, 'silrec_db_pid_*.dump')))
+        for old_filepath in existing_dumps:
+            old_pid = old_filepath.split('_pid_')[1].split('.')[0] if '_pid_' in old_filepath else 'unknown'
+            if old_filepath == dump_filepath:
+                ts = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
+                archived_name = f"silrec_db_pid_{proposal.id}_{ts}.dump"
+                archived_path = os.path.join(archive_path, archived_name)
+                shutil.move(old_filepath, archived_path)
+                if not os.path.isfile(archived_path):
+                    msg = f"Failed to archive previous dump to {archived_path}"
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+                logger.info(f"Archived previous dump for proposal {proposal.id} to {archived_path}")
+            else:
+                ts = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
+                archived_name = f"silrec_db_pid_{old_pid}_{ts}.dump"
+                archived_path = os.path.join(archive_path, archived_name)
+                shutil.move(old_filepath, archived_path)
+                if not os.path.isfile(archived_path):
+                    msg = f"Failed to archive dump {old_filepath} to {archived_path}"
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+                logger.info(f"Archived stale dump for proposal {old_pid} to {archived_path}")
+ 
         cmd = [
             'pg_dump',
             '-h', host,
@@ -3283,7 +3320,6 @@ class ProcessShapefileView(APIView):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        # Validate the dump file is a valid PostgreSQL custom-format dump
         import subprocess as sp_validate
         pg_restore_result = sp_validate.run(
             ['pg_restore', '--list', dump_filepath],
@@ -3298,7 +3334,7 @@ class ProcessShapefileView(APIView):
             proposal=proposal,
             user_id=user_id,
             threshold=threshold,
-            dump_file=dump_filepath,
+            dump_file=os.path.join(settings.BASE_DIR, settings.SHAPEFILE_PROCESSING_STORE, dump_filename),
             dump_filename=dump_filename,
             dump_size_bytes=dump_size,
         )
@@ -3385,64 +3421,113 @@ class ProcessShapefileView(APIView):
             }
 
 class RevertShapefileProcessingView(APIView):
-    """API endpoint for reverting shapefile processing changes using only django-reversion"""
+    """API endpoint for reverting shapefile processing by restoring a pg_dump"""
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         """Handle shapefile processing revert request"""
         try:
-            # Validate request data
-            user_id = request.data.get('user_id')
-            proposal_id = request.data.get('proposal_id')
+            from silrec.components.proposals.serializers import ShapefileRestoreRequestSerializer
 
-            if not user_id or not proposal_id:
+            serializer = ShapefileRestoreRequestSerializer(data=request.data)
+            if not serializer.is_valid():
+                logger.warning(
+                    f"Revert request validation failed: {serializer.errors}"
+                )
                 return Response(
-                    {'error': 'Missing required parameters: user_id and proposal_id'},
+                    {'error': 'Invalid request', 'details': serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Verify user matches authenticated user
+            user_id = serializer.validated_data.get('user_id')
+            proposal_id = serializer.validated_data['proposal_id']
+
+            # Check-only mode: frontend uses this to determine if Revert button is active.
+            # No auth checks needed — just returns whether the dump file exists on disk.
+            check_only = serializer.validated_data.get('check_only', False)
+            store_path = os.path.join(settings.BASE_DIR, settings.SHAPEFILE_PROCESSING_STORE)
+            expected_dump = f"silrec_db_pid_{proposal_id}.dump"
+            expected_path = os.path.join(store_path, expected_dump)
+            has_dump = os.path.exists(expected_path)
+
+            if check_only:
+                return Response({
+                    'success': True,
+                    'has_dump': has_dump,
+                    'dump_filename': expected_dump if has_dump else None,
+                })
+
+            logger.info(
+                f"Revert requested for proposal {proposal_id} by user {user_id}"
+            )
+
             if request.user.id != user_id and not request.user.is_superuser:
+                logger.warning(
+                    f"Revert denied: user {request.user.id} attempted to revert "
+                    f"proposal {proposal_id} on behalf of user {user_id}"
+                )
                 return Response(
                     {'error': 'User ID mismatch'},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            # Get proposal instance
             try:
                 proposal = Proposal.objects.get(id=proposal_id)
             except Proposal.DoesNotExist:
+                logger.error(
+                    f"Revert failed: proposal {proposal_id} not found"
+                )
                 return Response(
                     {'error': f'Proposal with ID {proposal_id} not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            # Check permissions
             if not request.user.is_superuser and proposal.submitter != request.user.id:
+                logger.warning(
+                    f"Revert denied: user {request.user.id} does not own proposal {proposal_id}"
+                )
                 return Response(
                     {'error': 'You do not have permission to modify this proposal'},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            # Perform revert operation
-            result = self.revert_shapefile_processing(proposal, user_id)
+            if not has_dump:
+                msg = (
+                    f"Critical: dump file {expected_path} for proposal {proposal_id} "
+                    f"does not exist. Aborting restore."
+                )
+                logger.critical(msg)
+                return Response(
+                    {'error': msg},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            dump_file = serializer.validated_data.get('dump_file')
+            result = self.revert_shapefile_processing(proposal, user_id, dump_file)
 
             if not result['success']:
+                logger.error(
+                    f"Revert failed for proposal {proposal_id}: {result['message']}"
+                )
                 return Response(
                     {'error': result['message'], 'details': result.get('errors', [])},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Serialize and return the updated proposal
+            logger.info(
+                f"Revert succeeded for proposal {proposal_id} "
+                f"(restored from: {result.get('dump_info', {}).get('dump_filename', 'unknown')})"
+            )
+
             proposal_serializer = ProposalSerializer(proposal, context={'request': request})
 
             response_data = {
                 'success': True,
                 'message': result['message'],
                 'proposal': proposal_serializer.data,
-                'records_removed': result.get('records_removed', 0),
-                'warnings': result.get('warnings', [])
+                'dump_info': result.get('dump_info', {}),
+                'warnings': result.get('warnings', []),
             }
 
             return Response(response_data)
@@ -3454,11 +3539,67 @@ class RevertShapefileProcessingView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    def revert_shapefile_processing(self, proposal, user_id):
-        """
-        Revert shapefile processing changes
-        """
-        pass #TODO
+    def revert_shapefile_processing(self, proposal, user_id, dump_file=None):
+        try:
+            from django.core.management import call_command
+            from io import StringIO
+
+            logger.info(
+                f"Starting pg_restore for proposal {proposal.id} "
+                f"(dump_file={'auto' if not dump_file else dump_file})"
+            )
+
+            out = StringIO()
+
+            kwargs = {'proposal_id': proposal.id, 'stdout': out, 'stderr': out}
+            if dump_file:
+                kwargs['dump_file'] = dump_file
+
+            call_command('restore_shapefile_dump', **kwargs)
+
+            output = out.getvalue()
+            logger.info(
+                f"pg_restore command output for proposal {proposal.id}: {output}"
+            )
+
+            proposal.refresh_from_db()
+
+            processing = (
+                ShapefileProcessing.objects
+                .filter(proposal_id=proposal.id, status='completed')
+                .order_by('-started_at')
+                .first()
+            )
+            dump_info = {}
+            if processing:
+                dump_info = {
+                    'dump_filename': processing.dump_filename,
+                    'dump_size_bytes': processing.dump_size_bytes,
+                    'restored_at': processing.restored_at.isoformat() if processing.restored_at else None,
+                }
+                logger.info(
+                    f"Revert complete for proposal {proposal.id}: "
+                    f"restored from {processing.dump_filename} "
+                    f"({processing.dump_size_bytes} bytes)"
+                )
+
+            return {
+                'success': True,
+                'message': f'Data restored successfully for proposal {proposal.id}',
+                'dump_info': dump_info,
+                'warnings': [],
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Error in revert_shapefile_processing for proposal {proposal.id}: "
+                f"{str(e)}", exc_info=True
+            )
+            return {
+                'success': False,
+                'message': f'Restore failed: {str(e)}',
+                'errors': [str(e)],
+            }
 
 class SnapshotDebugView(APIView):
     """API endpoint for snapshot debugging and testing"""

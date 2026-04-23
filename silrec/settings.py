@@ -419,4 +419,6 @@ DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
 TEMPLATE_HEADER_LOGO = "/static/silrec/img/logo-park-stay-trunc.gif"
 
+SHAPEFILE_PROCESSING_STORE = env('SHAPEFILE_PROCESSING_STORE', 'protected_media/shapefile_processing')
+
 

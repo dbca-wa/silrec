@@ -188,8 +188,8 @@ class ShapefileSliversMerger():
         self.request_metrics = RequestMetrics.objects.create(proposal=proposal, user=user)
 
         # Process each polygon in the shapefile
-        #for index, row in self.gdf_shpfile[:2].iterrows():
-        for index, row in self.gdf_shpfile.iterrows():
+        for index, row in self.gdf_shpfile[:2].iterrows():
+        #for index, row in self.gdf_shpfile.iterrows():
             idx_count += 1
             logger.info('****************************************************************************************')
             logger.info(f'                                 Polygon {idx_count}')

@@ -284,7 +284,8 @@ API_EXCEPTION_MESSAGE = (
     f"please try again and if the problem persists contact {SUPPORT_EMAIL}"
 )
 
-AFFECTED_TABLES = ['polygon', 'cohort', 'assign_cht_to_ply', 'treatment', 'treatment_xtra']
+#AFFECTED_TABLES = ['polygon', 'cohort', 'assign_cht_to_ply', 'treatment', 'treatment_xtra']
+AFFECTED_TABLES = ['silrec.polygon', 'silrec.cohort', 'silrec.assign_cht_to_ply']
 
 # Database
 DATABASES = {

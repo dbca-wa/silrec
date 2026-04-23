@@ -184,6 +184,17 @@ urlpatterns = [
     re_path('api/proposal/<int:pk>/save_cut_geometry/', proposal_api.SaveCutGeometryView.as_view(), name='save_cut_geometry'),
 
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
+
+    re_path(
+        r"^api/shapefile-processings/$",
+        proposal_api.ShapefileProcessingListView.as_view(),
+        name="shapefile-processings",
+    ),
+    re_path(
+        r"^api/shapefile-processings/(?P<proposal_id>\d+)/$",
+        proposal_api.ShapefileProcessingListView.as_view(),
+        name="shapefile-processings-by-proposal",
+    ),
 ]
 
 if settings.ENABLE_DJANGO_LOGIN:

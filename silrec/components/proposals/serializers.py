@@ -806,3 +806,17 @@ class ShapefileProcessResponseSerializer(serializers.Serializer):
     processed_geometries = serializers.DictField(required=False)
     warnings = serializers.ListField(child=serializers.CharField(), required=False)
 
+
+from silrec.components.proposals.models import ShapefileProcessing
+
+class ShapefileProcessingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShapefileProcessing
+        fields = [
+            'id', 'proposal', 'user', 'threshold',
+            'dump_file', 'dump_filename', 'dump_size_bytes',
+            'status', 'started_at', 'completed_at',
+            'error_message', 'metadata'
+        ]
+        read_only_fields = ['id', 'started_at', 'completed_at']
+

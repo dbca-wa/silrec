@@ -2037,6 +2037,69 @@ class SavepointRecord(models.Model):
         return ", ".join(summary) if summary else "No records affected"
 
 
+class ShapefileProcessing(models.Model):
+    proposal = models.ForeignKey(
+        'Proposal',
+        on_delete=models.CASCADE,
+        related_name='shapefile_processings'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='shapefile_processings'
+    )
+    threshold = models.FloatField(
+        help_text="Sliver threshold used for this processing run"
+    )
+    dump_file = models.FileField(
+        upload_to='shapefile_processing/dumps/',
+        max_length=512,
+        null=True,
+        blank=True,
+        help_text="Path to the pg_dump file"
+    )
+    dump_filename = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Original filename of the pg_dump"
+    )
+    dump_size_bytes = models.BigIntegerField(
+        null=True, blank=True,
+        help_text="Size of the pg_dump file in bytes"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ShapefileProcessingRun.STATUS_CHOICES,
+        default='running'
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'shapefile_processing'
+        app_label = 'silrec'
+        ordering = ['-started_at']
+        verbose_name = 'Shapefile Processing (pg_dump)'
+        verbose_name_plural = 'Shapefile Processings (pg_dump)'
+
+    def __str__(self):
+        return f"Processing {self.id} - Proposal {self.proposal_id} - {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+
+    def mark_completed(self):
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        self.save()
+
+    def mark_failed(self, error_message):
+        self.status = 'failed'
+        self.error_message = error_message
+        self.completed_at = timezone.now()
+        self.save()
+
+
 ## -------------------------------------------------------------------------------------
 #
 ## Helper to collect all relation names (forward + reverse) for reversion.follow
@@ -2084,4 +2147,5 @@ register(SQLReport, follow=['created_by', 'allowed_groups'])
 register(TextSearchModelConfig, follow=['created_by'])
 register(TextSearchFieldDisplay, follow=['created_by'])
 register(ShapefileAttributeConfig, follow=['application_type'])
+register(ShapefileProcessing, follow=['proposal', 'user'])
 

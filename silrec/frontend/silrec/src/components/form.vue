@@ -1184,6 +1184,14 @@ export default {
                                 <div style="text-align: center;">
                                     <p>${data.message || 'Shapefile processed successfully!'}</p>
                                     ${data.feature_count ? `<p style="font-size: 0.9em; color: #6c757d;">Features processed: ${data.feature_count}</p>` : ''}
+                                    ${data.dump_info && data.dump_info.dump_filename ? `
+                                        <hr style="margin: 10px 0;">
+                                        <div style="font-size: 0.85em; color: #495057; text-align: left;">
+                                            <p><strong>Database Export:</strong></p>
+                                            <p>File: <code>${data.dump_info.dump_filename}</code></p>
+                                            <p>Size: ${(data.dump_info.dump_size_bytes / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             `,
                             confirmButtonColor: '#28a745',

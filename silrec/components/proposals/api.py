@@ -51,6 +51,7 @@ from silrec.components.proposals.models import (
     TextSearchFieldDisplay,
     TextSearchModelConfig,
     ShapefileDocument,
+    ShapefileProcessing,
 )
 
 from silrec.components.main.models import (
@@ -79,6 +80,7 @@ from silrec.components.proposals.serializers import (
     ShapefileUploadSerializer,
     ShapefileProcessResultSerializer,
     ShapefileProcessRequestSerializer,
+    ShapefileProcessingSerializer,
 )
 from silrec.components.main.api import (
     UserActionLoggingViewset,
@@ -3200,8 +3202,9 @@ class ProcessShapefileView(APIView):
                 'proposal': proposal_serializer.data,
                 'feature_count_orig': result['feature_count_orig'],
                 'feature_count': result['feature_count'],
-                #'processed_geometries': result['processed_geometries'],
-                'warnings': result.get('warnings', [])
+                'warnings': result.get('warnings', []),
+                'dump_info': result.get('dump_info', {}),
+                'processing_run_id': result.get('processing_run_id', 0),
             }
 
             return Response(response_data)
@@ -3213,15 +3216,102 @@ class ProcessShapefileView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def _run_pg_dump(self, proposal, user_id, threshold):
+        import subprocess
+        import uuid
+        import os
+        from urllib.parse import urlparse
+        from silrec.components.proposals.models import ShapefileProcessing
+
+        db_url = settings.DATABASES['default'].get('DATABASE_URL') or os.environ.get('DATABASE_URL', '')
+        parsed = urlparse(db_url)
+
+        host = parsed.hostname or 'localhost'
+        port = str(parsed.port or 5432)
+        db_user = parsed.username or 'dev'
+        db_name = parsed.path.lstrip('/') if parsed.path else 'silrec_db'
+
+        unique_id = uuid.uuid4().hex[:12]
+        dump_filename = f"silrec_db_{unique_id}.dump"
+
+        store_path = os.path.join(settings.SHAPEFILE_PROCESSING_STORE)
+        os.makedirs(store_path, exist_ok=True)
+        dump_filepath = os.path.join(store_path, dump_filename)
+
+        cmd = [
+            'pg_dump',
+            '-h', host,
+            '-p', port,
+            '-U', db_user,
+            '-d', db_name,
+            '-Fc',
+            '-f', dump_filepath,
+        ]
+        for table in settings.AFFECTED_TABLES:
+            cmd.extend(['-t', table])
+
+        sub_env = os.environ.copy()
+        if parsed.password:
+            sub_env['PGPASSWORD'] = parsed.password
+
+        logger.info(' '.join(cmd))
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=sub_env)
+
+        if result.returncode != 0:
+            msg = f"pg_dump failed (return code {result.returncode}): {result.stderr}"
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        if not os.path.exists(dump_filepath):
+            msg = f"pg_dump file not found at {dump_filepath}"
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        dump_size = os.path.getsize(dump_filepath)
+        if dump_size == 0:
+            msg = f"pg_dump file is empty at {dump_filepath}"
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        # Validate the dump file is a valid PostgreSQL custom-format dump
+        import subprocess as sp_validate
+        pg_restore_result = sp_validate.run(
+            ['pg_restore', '--list', dump_filepath],
+            capture_output=True, text=True, timeout=60,
+        )
+        if pg_restore_result.returncode != 0:
+            msg = f"pg_dump file validation failed (pg_restore --list returned {pg_restore_result.returncode}): {pg_restore_result.stderr}"
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        processing_run = ShapefileProcessing.objects.create(
+            proposal=proposal,
+            user_id=user_id,
+            threshold=threshold,
+            dump_file=dump_filepath,
+            dump_filename=dump_filename,
+            dump_size_bytes=dump_size,
+        )
+        processing_run.mark_completed()
+
+        dump_info = {
+            'dump_filename': dump_filename,
+            'dump_size_bytes': dump_size,
+            'dump_file': dump_filepath,
+        }
+        logger.info(f'pg_dump file export - successful: {dump_filename}')
+
+        return processing_run, dump_info
+
     def process_shapefile_with_threshold(self, proposal, threshold, user_id):
         """
-        Process shapefile with sliver removal based on threshold
-        Uses a single savepoint #0 for the entire run
+        Process shapefile with sliver removal based on threshold.
+        Runs pg_dump before processing to capture a pre-processing snapshot.
         """
         try:
             import reversion
             from django.db import transaction, DatabaseError
-            from silrec.components.proposals.models import ShapefileProcessingRun, SavepointRecord, AuditLog
+            from silrec.components.proposals.models import ShapefileProcessingRun, SavepointRecord, AuditLog, ShapefileProcessing
 
             if not proposal.shapefile_json or not proposal.shapefile_json.get('features'):
                 return {
@@ -3230,25 +3320,17 @@ class ProcessShapefileView(APIView):
                     'errors': ['Shapefile contains no features']
                 }
 
-            # Start a transaction that will encompass everything
-#            with transaction.atomic():
+            # pg_dump export before processing (best-effort snapshot)
+            processing_run, dump_info = self._run_pg_dump(proposal, user_id, threshold)
+
+            # Process shapefile
             if True:
-                # Main logic to cookie-cut User provided shapefile geometries with silrec historical polygon
                 ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
                 try:
-                    # Process all polygons - NO savepoint handler needed
-                    list_state = ssm.create_gdf(savepoint_callback=None)  # Remove callback
+                    list_state = ssm.create_gdf(savepoint_callback=None)
 
-                    # Link the request metrics to the processing run
-#                    if ssm.request_metrics:
-#                        processing_run.request_metrics = ssm.request_metrics
-#                        processing_run.save()
-
-                    # If we get here, all iterations succeeded
-                    #import ipdb; ipdb.set_trace()
                     geom_data = ssm.prep_proposal_data(list_state)
 
-                    # Update proposal with results
                     proposal.geojson_data_processed = json.loads(
                         list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json()
                     )
@@ -3258,25 +3340,13 @@ class ProcessShapefileView(APIView):
                     proposal.geojson_data_processed_iters = geom_data
                     proposal.save()
 
-#                    # Get audit logs for this run
-#                    audit_logs = AuditLog.objects.filter(
-#                        request_metrics=ssm.request_metrics
-#                    )
-
-#                    logger.info(f"Processing completed: {affected_models}")
-
                 except Exception as e:
-                    # Something went wrong in processing
                     logger.error(f"Error during shapefile processing: {str(e)}")
-
-                    # Re-raise to trigger transaction rollback
                     raise
 
-            # If we get here, the transaction was committed
             warnings = []
             feature_count = len(proposal.geojson_data_processed['features'])
             feature_count_orig = len(proposal.shapefile_json['features'])
-
             warnings.append(f"Processed {feature_count} features with threshold {threshold}")
 
             return {
@@ -3285,8 +3355,8 @@ class ProcessShapefileView(APIView):
                 'feature_count_orig': feature_count_orig,
                 'feature_count': feature_count,
                 'warnings': warnings,
-#                'processing_run_id': #processing_run.id
-                'processing_run_id': 0
+                'processing_run_id': processing_run.id if processing_run else 0,
+                'dump_info': dump_info,
             }
 
         except DatabaseError as e:
@@ -3483,4 +3553,28 @@ class SnapshotDebugView(APIView):
                 'success': False,
                 'error': f'Error creating snapshot: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ShapefileProcessingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proposal_id=None, *args, **kwargs):
+        try:
+            qs = ShapefileProcessing.objects.all()
+            if proposal_id:
+                qs = qs.filter(proposal_id=proposal_id)
+
+            if not request.user.is_superuser:
+                qs = qs.filter(user=request.user)
+
+            qs = qs.order_by('-started_at')[:20]
+            serializer = ShapefileProcessingSerializer(qs, many=True)
+            return Response({'success': True, 'results': serializer.data})
+
+        except Exception as e:
+            logger.error(f"Error listing shapefile processings: {str(e)}")
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 

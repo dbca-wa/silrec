@@ -3216,12 +3216,22 @@ class ProcessShapefileView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def _cleanup_old_dumps(self):
+        from django.core.management import call_command
+
+        try:
+            call_command('cleanup_shapefile_dumps')
+        except Exception as e:
+            logger.error(f"Error cleaning up old dump files: {e}", exc_info=True)
+
     def _run_pg_dump(self, proposal, user_id, threshold):
         import subprocess
         import uuid
         import os
         from urllib.parse import urlparse
         from silrec.components.proposals.models import ShapefileProcessing
+
+        self._cleanup_old_dumps()
 
         db_url = settings.DATABASES['default'].get('DATABASE_URL') or os.environ.get('DATABASE_URL', '')
         parsed = urlparse(db_url)

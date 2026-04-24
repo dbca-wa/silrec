@@ -1369,8 +1369,7 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
             elif export_format == 'pdf':
                 return self.export_pdf(df, report.name, processed_parameters)
             elif export_format == 'shapefile':
-                # Shapefile export would go here
-                return self.export_csv(df, report.name)  # Fallback to CSV
+                return self.export_shapefile(df, report.name)
             else:
                 # Return JSON as fallback
                 data = df.to_dict('records')
@@ -1566,7 +1565,23 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
         return response
 
     def export_pdf(self, df, report_name, parameters):
-        """Export DataFrame to PDF"""
+        """Export DataFrame to PDF using docx template or fallback reportlab"""
+        from silrec.components.proposals.doctopdf import render_report_pdf
+
+        # Look up the report by name to find its template
+        from silrec.components.proposals.models import SQLReport
+        report = SQLReport.objects.filter(name=report_name).first()
+
+        pdf_bytes = None
+        if report:
+            pdf_bytes = render_report_pdf(report, df, parameters)
+
+        if pdf_bytes:
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{report_name}.pdf"'
+            return response
+
+        # Fallback to reportlab-based PDF
         buffer = io.BytesIO()
         p = canvas.Canvas(buffer, pagesize=letter)
         width, height = letter
@@ -1619,6 +1634,93 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{report_name}.pdf"'
         return response
+
+    def export_shapefile(self, df, report_name):
+        """Export DataFrame to a zipped shapefile (.shz).
+
+        Requires a 'geom' or 'geometry' column with EWKB hex or WKT geometry strings.
+        """
+        import zipfile
+        import tempfile
+        import geopandas as gpd
+        from shapely import wkb, wkt
+        from shapely.errors import GEOSException
+
+        # Validate geospatial data presence
+        geom_col = None
+        for col_lower in ('geom', 'geometry'):
+            matches = [c for c in df.columns if c.lower() == col_lower]
+            if matches:
+                geom_col = matches[0]
+                break
+
+        if not geom_col:
+            raise serializers.ValidationError(
+                f"The report '{report_name}' does not contain a geometry column "
+                f"(expected 'geom' or 'geometry') and cannot be exported as shapefile."
+            )
+
+        def _parse_geom(val):
+            if val is None or (isinstance(val, str) and not val.strip()):
+                return None
+            val_str = str(val).strip()
+            try:
+                return wkb.loads(val_str, hex=True)
+            except (GEOSException, ValueError, TypeError):
+                pass
+            try:
+                return wkt.loads(val_str)
+            except (GEOSException, ValueError, TypeError):
+                pass
+            raise ValueError(f"Cannot parse geometry value: {val_str[:80]}...")
+
+        try:
+            df_geom = df.copy()
+            # Drop rows with null geometry before processing
+            orig_len = len(df_geom)
+            df_geom = df_geom.dropna(subset=[geom_col])
+            if df_geom.empty:
+                raise serializers.ValidationError(
+                    f"No rows with non-null geometry found in column '{geom_col}'."
+                )
+            df_geom['geometry'] = df_geom[geom_col].apply(_parse_geom)
+            # Drop any rows where geometry parsing returned None
+            df_geom = df_geom.dropna(subset=['geometry'])
+            if df_geom.empty:
+                raise serializers.ValidationError(
+                    "No valid geometries could be parsed from the data."
+                )
+            gdf = gpd.GeoDataFrame(df_geom, geometry='geometry', crs=settings.CRS_GDA94)
+            gdf = gdf.drop(columns=[geom_col], errors='ignore')
+
+            buffer = io.BytesIO()
+            safe_name = report_name.replace(' ', '_')
+            with tempfile.TemporaryDirectory() as tmpdir:
+                shp_stem = os.path.join(tmpdir, safe_name[:50])
+                gdf.to_file(shp_stem, driver='ESRI Shapefile')
+
+                with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    if os.path.isdir(shp_stem):
+                        for fname in os.listdir(shp_stem):
+                            fpath = os.path.join(shp_stem, fname)
+                            zf.write(fpath, fname)
+                    else:
+                        for ext in ('.shp', '.shx', '.dbf', '.prj'):
+                            fpath = shp_stem + ext
+                            if os.path.isfile(fpath):
+                                zf.write(fpath, os.path.basename(fpath))
+
+            buffer.seek(0)
+            response = HttpResponse(buffer, content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{safe_name}.shz"'
+            return response
+
+        except Exception as e:
+            logger.error(f"Shapefile export failed for {report_name}: {e}", exc_info=True)
+            raise serializers.ValidationError(
+                f"Shapefile export failed: {str(e)}. Ensure the geometry column "
+                f"contains valid EWKB hex or WKT geometry strings."
+            )
 
     @action(detail=True, methods=['get'])
     def preview(self, request, pk=None):
@@ -3284,7 +3386,7 @@ class ProcessShapefileView(APIView):
                     logger.error(msg)
                     raise RuntimeError(msg)
                 logger.info(f"Archived stale dump for proposal {old_pid} to {archived_path}")
- 
+
         cmd = [
             'pg_dump',
             '-h', host,

@@ -2108,6 +2108,53 @@ class ShapefileProcessing(models.Model):
         self.save()
 
 
+class ReportTemplate(models.Model):
+    report = models.ForeignKey(
+        'SQLReport', on_delete=models.CASCADE, related_name='templates'
+    )
+    version = models.PositiveIntegerField(
+        help_text="Auto-incremented version number for this template"
+    )
+    template_file = models.FileField(
+        upload_to='report_templates/',
+        max_length=512,
+        help_text="Upload a .docx file with Jinja2/docxtpl tags (e.g. {{ column_name }})"
+    )
+    is_current = models.BooleanField(
+        default=True,
+        help_text="Only one template per report can be current at a time"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        db_table = 'report_template'
+        app_label = 'silrec'
+        unique_together = ('report', 'version')
+        ordering = ['-version']
+        verbose_name = 'Report Template'
+        verbose_name_plural = 'Report Templates'
+
+    def __str__(self):
+        return f"{self.report.name} v{self.version}"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            max_ver = ReportTemplate.objects.filter(report=self.report).aggregate(
+                models.Max('version')
+            )['version__max'] or 0
+            self.version = max_ver + 1
+        # Auto-unset other current templates so only this one remains current
+        if self.is_current and self.report_id:
+            qs = ReportTemplate.objects.filter(report=self.report, is_current=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            qs.update(is_current=False)
+        super().save(*args, **kwargs)
+
+
 ## -------------------------------------------------------------------------------------
 #
 ## Helper to collect all relation names (forward + reverse) for reversion.follow
@@ -2151,7 +2198,8 @@ register(Proposal, follow=[
 #register(AmendmentReason, follow=[])
 #register(ProposalRequest, follow=[])
 #register(AmendmentRequest, follow=[])
-register(SQLReport, follow=['created_by', 'allowed_groups'])
+register(SQLReport, follow=['created_by', 'allowed_groups', 'templates'])
+register(ReportTemplate, follow=['report', 'created_by'])
 register(TextSearchModelConfig, follow=['created_by'])
 register(TextSearchFieldDisplay, follow=['created_by'])
 register(ShapefileAttributeConfig, follow=['application_type'])

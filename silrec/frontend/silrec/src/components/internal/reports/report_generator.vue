@@ -1023,8 +1023,9 @@ export default {
           // Create filename with timestamp
           const timestamp = new Date().toISOString().slice(0,10).replace(/-/g, '');
           const extension = this.exportFormat === 'excel' ? 'xlsx' : 
-                          this.exportFormat === 'csv' ? 'csv' : 'pdf';
-          a.download = `${this.selectedReport.name}_${timestamp}.${extension}`;
+                          this.exportFormat === 'csv' ? 'csv' : 
+                          this.exportFormat === 'shapefile' ? 'shz' : 'pdf';
+          a.download = `${this.selectedReport.name.replace(/\s+/g, '_')}_${timestamp}.${extension}`;
           
           document.body.appendChild(a);
           a.click();

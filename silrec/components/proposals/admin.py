@@ -198,6 +198,10 @@ class SQLReportAdminForm(forms.ModelForm):
                     raise forms.ValidationError(f"Invalid JSON: {str(e)}")
         return data or []
 
+    def clean(self):
+        cleaned_data = super().clean()
+        return cleaned_data
+
     def save(self, commit=True):
         """Save the form, converting where_clauses_display to where_clauses"""
         # Get the cleaned where_clauses from the display field
@@ -222,10 +226,11 @@ class SQLReportAdminForm(forms.ModelForm):
 @admin.register(models.SQLReport)
 class SQLReportAdmin(admin.ModelAdmin):
     form = SQLReportAdminForm
-    list_display = ['name', 'report_type', 'is_active', 'created_on', 'preview_sql']
+    list_display = ['name', 'report_type', 'is_active', 'current_template_version', 'created_on', 'preview_sql']
     list_filter = ['report_type', 'is_active', 'created_on']
     search_fields = ['name', 'description', 'base_sql']
     filter_horizontal = ['allowed_groups']
+    inlines = []  # templates added via get_inlines
 
     # Customize the fields to use our display field instead of the actual field
     fieldsets = (
@@ -273,6 +278,54 @@ class SQLReportAdmin(admin.ModelAdmin):
         if not obj.pk:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        """Save inlines first, then validate PDF template requirement."""
+        super().save_related(request, form, formsets, change)
+        instance = form.instance
+        export_formats = instance.export_formats or []
+        if 'pdf' in export_formats:
+            if not instance.templates.filter(is_current=True).exists():
+                from django.contrib import messages
+                messages.error(
+                    request,
+                    "PDF export requires at least one Report Template marked as current "
+                    "in the Report Templates section below."
+                )
+
+
+
+class ReportTemplateForm(forms.ModelForm):
+    class Meta:
+        model = models.ReportTemplate
+        fields = '__all__'
+
+
+class ReportTemplateInline(admin.TabularInline):
+    model = models.ReportTemplate
+    form = ReportTemplateForm
+    extra = 0
+    fields = ['template_file', 'version', 'is_current', 'created_at', 'created_by']
+    readonly_fields = ['version', 'created_at', 'created_by']
+    ordering = ['-version']
+    can_delete = True
+
+    def has_change_permission(self, request, obj=None):
+        return True
+
+    def has_add_permission(self, request, obj=None):
+        return True
+
+
+# Dynamically add inline to SQLReportAdmin
+SQLReportAdmin.inlines = [ReportTemplateInline]
+
+# Add a column to show current template version
+def current_template_version(self, obj):
+    current = obj.templates.filter(is_current=True).first()
+    return f"v{current.version}" if current else "-"
+current_template_version.short_description = 'Template'
+SQLReportAdmin.current_template_version = current_template_version
 
 
 

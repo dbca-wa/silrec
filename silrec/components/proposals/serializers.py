@@ -428,6 +428,7 @@ class SQLReportSerializer(serializers.ModelSerializer):
 
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     allowed_groups_display = serializers.SerializerMethodField()
+    current_template_version = serializers.SerializerMethodField()
 
     class Meta:
         model = SQLReport
@@ -435,13 +436,18 @@ class SQLReportSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'report_type', 'base_sql',
             'where_clauses', 'order_by', 'export_formats', 'columns',
             'allowed_groups', 'allowed_groups_display', 'is_active',
-            'created_by', 'created_by_name', 'created_on', 'updated_on'
+            'created_by', 'created_by_name', 'created_on', 'updated_on',
+            'current_template_version',
         ]
         read_only_fields = ['created_by', 'created_on', 'updated_on']
 
     def get_allowed_groups_display(self, obj):
         """Get display names for allowed groups"""
         return [group.name for group in obj.allowed_groups.all()]
+
+    def get_current_template_version(self, obj):
+        current = obj.templates.filter(is_current=True).first()
+        return current.version if current else None
 
     def validate_where_clauses(self, value):
         """Validate WHERE clauses JSON"""
@@ -819,6 +825,18 @@ class ShapefileProcessingSerializer(serializers.ModelSerializer):
             'error_message', 'metadata', 'restored_at',
         ]
         read_only_fields = ['id', 'started_at', 'completed_at', 'restored_at']
+
+
+from silrec.components.proposals.models import ReportTemplate
+
+class ReportTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReportTemplate
+        fields = [
+            'id', 'report', 'version', 'template_file',
+            'is_current', 'created_at', 'created_by',
+        ]
+        read_only_fields = ['version', 'created_at']
 
 
 class ShapefileRestoreRequestSerializer(serializers.Serializer):

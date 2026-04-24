@@ -37,6 +37,8 @@ gunicorn==23.0.0
 tabulate==0.10.0
 django-cors-headers==4.9.0
 django-debug-toolbar==6.0.0
+docxtpl==0.20.2
+openpyxl==3.1.5
 
 # sudo apt-get install graphviz libgraphviz-dev
 # pip install pydotplus

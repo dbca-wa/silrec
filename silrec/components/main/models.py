@@ -1,11 +1,14 @@
 from django.db import models
 from django.core.files.storage import FileSystemStorage
+from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from silrec import settings
 import reversion
 #from django.contrib.gis.db.models import GeometryField
-
 import os
 
+User = get_user_model()
 
 class RevisionedMixin(models.Model):
     """
@@ -142,6 +145,36 @@ class Document(models.Model):
 
     def __str__(self):
         return self.name or self.filename
+
+
+class CommunicationsLogEntry(models.Model):
+    TYPE_CHOICES = [
+        ('email', 'Email'),
+        ('phone', 'Phone Call'),
+        ('mail', 'Mail'),
+        ('person', 'In Person'),
+        ('referral_complete', 'Referral Completed'),
+    ]
+    DEFAULT_TYPE = TYPE_CHOICES[0][0]
+
+    # to = models.CharField(max_length=200, blank=True, verbose_name="To")
+    to = models.TextField(blank=True, verbose_name="To")
+    fromm = models.CharField(max_length=200, blank=True, verbose_name="From")
+    # cc = models.CharField(max_length=200, blank=True, verbose_name="cc")
+    cc = models.TextField(blank=True, verbose_name="cc")
+
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=DEFAULT_TYPE)
+    reference = models.CharField(max_length=100, blank=True)
+    subject = models.CharField(max_length=200, blank=True, verbose_name="Subject / Description")
+    text = models.TextField(blank=True)
+
+    customer = models.ForeignKey(User, null=True, related_name='+', on_delete=models.SET_NULL)
+    staff = models.ForeignKey(User, null=True, related_name='+', on_delete=models.SET_NULL)
+
+    created = models.DateTimeField(auto_now_add=True, null=False, blank=False)
+
+    class Meta:
+        app_label = 'silrec'
 
 
 class ApplicationType(models.Model):

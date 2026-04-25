@@ -15,6 +15,7 @@ csv
 data_store/
 archive/
 protected_media/
+_proposals/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

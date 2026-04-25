@@ -82,6 +82,7 @@ USE_TZ = False
 
 # Custom Email Settings
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if env('CONSOLE_EMAIL_BACKEND', False) else 'silrec.backend_email.SilrecEmailBackend'
+DISABLE_EMAIL = env('DISABLE_EMAIL', False)
 PRODUCTION_EMAIL = env('PRODUCTION_EMAIL', False)
 # Intercept and forward email recipient for non-production instances
 # Send to list of NON_PROD_EMAIL users instead

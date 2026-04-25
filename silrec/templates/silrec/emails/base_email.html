@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        {% block greetings %}
+            <p>
+                {% if greeting %}
+                    Dear {{ greeting }},   
+                {% else %}
+                    Dear Proponent,
+                {% endif %}
+            </p>
+        {% endblock %}
+        {% block content %}
+        {% endblock %}
+        {% block signature %}
+            <p>
+                Yours sincerely,
+            </p>
+            <p></p>
+            <p>
+            Forest Management Branch
+            </p>
+        {% endblock %}
+        {% block reply_statement %}
+            <p></p>
+            <p></p>
+            <p>
+                <!--
+                <strong><em>Please do not reply directly to this email. Should you need to contact the Forest Management Branch of the Department of 
+                Biodiversity, Conservation and Attractions, please send emails to <a href="mailto:silrec@dbca.wa.gov.au">silrec@dbca.wa.gov.au</a> 
+                or call (08) 9219 0000.</em></strong>
+                -->
+                {% if assessor_footer %}
+                <strong><em>
+                    Please do not reply directly to this email. <br>If you require further assistance refer to the <a href="{{ FMB_sharepoint_page }}">FMB Sharepoint Page</a>, or contact  the respective district or regional manager, or the FMB administrator on <a href="mailto:{{ settings.SUPPORT_EMAIL }}">{{ settings.SUPPORT_EMAIL }}</a>. 
+                    <br>The FMB inbox ({{ settings.SUPPORT_EMAIL }}) is monitored from 0800 – 1600 Monday to Friday (except Public Holidays).
+                </em></strong>
+                {% else %}
+                <strong><em>
+                    Please do not reply directly to this email. For FMB enquiries, 
+                    please contact the relevant {{settings.DEP_NAME}} (DBCA) district or region or the FMB administrator on <a href="mailto:{{ settings.SUPPORT_EMAIL }}">{{ settings.SUPPORT_EMAIL }}</a>.
+                    <br>The FMB inbox ({{ settings.SUPPORT_EMAIL }}) is monitored from 0800 – 1600 Monday to Friday (except Public Holidays).
+                </em></strong> 
+                {% endif %}
+            </p> 
+        {% endblock %}
+    </body> 
+</html>

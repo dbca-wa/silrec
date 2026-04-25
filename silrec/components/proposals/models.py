@@ -26,6 +26,7 @@ from dirtyfields import DirtyFieldsMixin
 
 from silrec.components.main.models import (
     Document,
+    CommunicationsLogEntry,
     ApplicationType,
     SecureFileField,
     RevisionedMixin,
@@ -944,6 +945,27 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
                         return False
 
         return True
+
+
+#class ProposalLogDocument(Document):
+#    log_entry = models.ForeignKey('ProposalLogEntry',related_name='documents')
+#    _file = models.FileField(upload_to=update_proposal_comms_log_filename, storage=private_storage)
+#
+#    class Meta:
+#        app_label = 'silrec'
+
+
+class ProposalLogEntry(CommunicationsLogEntry):
+    proposal = models.ForeignKey(Proposal, related_name='comms_logs', on_delete=models.CASCADE)
+
+    class Meta:
+        app_label = 'silrec'
+
+    def save(self, **kwargs):
+        # save the application reference if the reference not provided
+        if not self.reference:
+            self.reference = self.proposal.lodgement_number
+        super(ProposalLogEntry, self).save(**kwargs)
 
 
 class SQLReport(models.Model):

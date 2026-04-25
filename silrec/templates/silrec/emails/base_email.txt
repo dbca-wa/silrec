@@ -1,0 +1,32 @@
+{% block greetings %}
+{% if greeting %}
+    Dear {{ greeting }},   
+{% else %}
+    Dear Sir/Madam,
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% endblock %}
+
+{% block signature %}
+Yours sincerely,
+
+Forest Management Branch
+{% endblock %}
+
+
+
+{% block reply_statement %}
+{% if assessor_footer %}
+                
+                    Please do not reply directly to this email. Should you require further assistance refer to the {{ FMB_sharepoint_page }} FMB Sharepoint Page</a>, or contact  the respective district or regional manager, or the FMB administrator on {{ settings.SUPPORT_EMAIL }}. 
+                    <br>  The FMB inbox ({{ settings.SUPPORT_EMAIL }}) is monitored from 0800 – 1600 Monday to Friday (except Public Holidays).
+                
+{% else %}
+    Please do not reply directly to this email.  For FMB enquiries, please contact the relevant  
+    {{ settings.DEP_NAME }}(DBCA) district or region or the FMB administrator on {{ settings.SUPPORT_EMAIL }}. 
+    The FMB inbox ({{ settings.SUPPORT_EMAIL }}) is monitored from 0800 – 1600 Monday to Friday (except Public Holidays).
+{% endif %}
+{% endblock %}
+

@@ -61,7 +61,8 @@ def get_fmb_sharepoint_url():
 class SubmitSendNotificationEmail(TemplateEmailBase):
     subject = 'A new Proposal has been submitted.'
     html_template = 'silrec/emails/proposals/send_submit_notification.html'
-    txt_template = 'silrec/emails/proposals/send_submit_notification.txt'
+    #txt_template = 'silrec/emails/proposals/send_submit_notification.txt'
+    txt_template = None
 
 
 def send_submit_email_notification(request, proposal):
@@ -83,7 +84,7 @@ def send_submit_email_notification(request, proposal):
     }
 
     #msg = email.send(proposal.assessor_recipients, context=context)
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
     msg = email.send(get_assessor_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)

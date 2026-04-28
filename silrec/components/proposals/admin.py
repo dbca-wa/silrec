@@ -5,15 +5,16 @@ from django.db import transaction
 from django.db.models import TextField
 from django import forms
 from django.forms import Textarea
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.http.request import HttpRequest
 from django.urls import re_path
 from django.utils.html import format_html
 from django.urls import reverse, path
 from django.contrib.gis.geos import GEOSGeometry
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.admin import action
+from django.template.response import TemplateResponse
 
 from django.utils import timezone
 import json
@@ -223,6 +224,20 @@ class SQLReportAdminForm(forms.ModelForm):
 
         return super().save(commit)
 
+class CloneReportForm(forms.Form):
+    new_name = forms.CharField(
+        max_length=255,
+        label='New report name',
+        widget=forms.TextInput(attrs={'style': 'width: 400px;'})
+    )
+    new_description = forms.CharField(
+        max_length=500,
+        label='New description',
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 3, 'cols': 60})
+    )
+
+
 @admin.register(models.SQLReport)
 class SQLReportAdmin(admin.ModelAdmin):
     form = SQLReportAdminForm
@@ -231,6 +246,7 @@ class SQLReportAdmin(admin.ModelAdmin):
     search_fields = ['name', 'description', 'base_sql']
     filter_horizontal = ['allowed_groups']
     inlines = []  # templates added via get_inlines
+    actions = ['clone_report']
 
     # Customize the fields to use our display field instead of the actual field
     fieldsets = (
@@ -292,6 +308,95 @@ class SQLReportAdmin(admin.ModelAdmin):
                     "PDF export requires at least one Report Template marked as current "
                     "in the Report Templates section below."
                 )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'clone-report/',
+                self.admin_site.admin_view(self.clone_report_view),
+                name='sqlreport-clone',
+            ),
+        ]
+        return custom_urls + urls
+
+    def clone_report(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(request, 'Please select exactly one report to clone.', level='ERROR')
+            return
+
+        report = queryset.first()
+        return redirect(
+            reverse('admin:sqlreport-clone') + f'?report_id={report.id}'
+        )
+    clone_report.short_description = 'Clone selected report'
+
+    def clone_report_view(self, request):
+        report_id = request.GET.get('report_id') or request.POST.get('report_id')
+        report = get_object_or_404(models.SQLReport, pk=report_id)
+
+        if request.method == 'POST':
+            form = CloneReportForm(request.POST)
+            if form.is_valid():
+                new_name = form.cleaned_data['new_name']
+                new_description = form.cleaned_data.get('new_description', '')
+
+                if models.SQLReport.objects.filter(name=new_name).exists():
+                    self.message_user(
+                        request,
+                        f'A report named "{new_name}" already exists.',
+                        level='ERROR',
+                    )
+                else:
+                    with transaction.atomic():
+                        clone = models.SQLReport()
+                        for field in report._meta.fields:
+                            if field.name in ('id', 'created_on', 'updated_on', 'created_by'):
+                                continue
+                            if field.name == 'name':
+                                setattr(clone, field.name, new_name)
+                            elif field.name == 'description':
+                                setattr(clone, field.name, new_description)
+                            elif field.primary_key:
+                                continue
+                            else:
+                                setattr(clone, field.name, getattr(report, field.name))
+                        clone.created_by = request.user
+                        clone.save()
+
+                        clone.allowed_groups.set(report.allowed_groups.all())
+
+                        for tmpl in report.templates.all():
+                            models.ReportTemplate.objects.create(
+                                report=clone,
+                                version=tmpl.version,
+                                template_file=tmpl.template_file,
+                                is_current=tmpl.is_current,
+                                created_by=request.user,
+                            )
+
+                        self.message_user(
+                            request,
+                            f'Report "{report.name}" cloned as "{new_name}".',
+                            level='SUCCESS',
+                        )
+                    return redirect(reverse('admin:silrec_sqlreport_changelist'))
+
+        else:
+            initial = {
+                'new_name': f'{report.name} (copy)',
+                'new_description': report.description,
+            }
+            form = CloneReportForm(initial=initial)
+
+        context = {
+            'title': f'Clone Report: {report.name}',
+            'form': form,
+            'report': report,
+            'opts': models.SQLReport._meta,
+            'media': self.media,
+        }
+        return TemplateResponse(request, 'admin/silrec/sqlreport/clone_report.html', context)
 
 
 

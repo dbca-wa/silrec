@@ -492,21 +492,56 @@ class ProposalViewSet(UserActionLoggingViewset):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['get'], url_path='workflow_options')
+    @action(detail=True, methods=['get', 'post'], url_path='workflow_options')
     def workflow_options(self, request, id=None):
         """
-        Get available workflow transitions for the current user
+        Get available workflow actions for the current user (GET),
+        or perform a transition (POST).
+        POST expects: {'transition': 'to_assessor'}
         """
         proposal = self.get_object()
         current_status = proposal.processing_status
+        has_shapefile = bool(proposal.shapefile_json)
+        has_processed = bool(
+            proposal.geojson_data_processed or
+            proposal.geojson_data_processed_iters
+        )
+        has_dump = hasattr(self, '_dump_file_exists') or self._check_dump_exists(proposal)
+
+        # Define all possible actions with their enable/disable rules
+        action_defs = {
+            'upload_shapefile': {
+                'label': 'Upload Shapefile',
+                'enabled': current_status == 'draft',
+                'reason': '' if current_status == 'draft' else 'Upload only allowed in Draft status',
+            },
+            'process_shapefile': {
+                'label': 'Process Shapefile',
+                'enabled': has_shapefile and current_status == 'draft',
+                'reason': '' if has_shapefile and current_status == 'draft'
+                    else ('' if has_shapefile else 'Upload a shapefile first'
+                    if current_status != 'draft' else ''),
+            },
+            'revert': {
+                'label': 'Revert',
+                'enabled': current_status == 'processing_shapefile',
+                'reason': '' if current_status == 'processing_shapefile' else 'Only available after processing',
+            },
+            'keep': {
+                'label': 'Keep',
+                'enabled': current_status == 'processing_shapefile',
+                'reason': '' if current_status == 'processing_shapefile' else 'Only available after processing',
+            },
+        }
 
         # Define all possible transitions
         transition_options = {
-#            'draft': [
-#                {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'}
-#            ],
+            'draft': [
+                {'key': 'to_processing_shapefile', 'label': 'Process Shapefile', 'target': 'processing_shapefile'},
+            ],
             'processing_shapefile': [
-                {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'}
+                {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'},
+                {'key': 'keep', 'label': 'Keep', 'target': 'with_assessor'},
             ],
             'with_assessor': [
                 {'key': 'to_reviewer', 'label': 'Send to Reviewer', 'target': 'with_reviewer'},
@@ -521,7 +556,38 @@ class ProposalViewSet(UserActionLoggingViewset):
             ]
         }
 
-        # Get available transitions for current status
+        if request.method == 'POST':
+            transition_key = request.data.get('transition')
+            if not transition_key:
+                return Response({'error': 'Transition key is required'}, status=400)
+
+            target_status = None
+            for opt in transition_options.get(current_status, []):
+                if opt['key'] == transition_key:
+                    target_status = opt['target']
+                    break
+
+            if not target_status:
+                return Response(
+                    {'error': f'Invalid transition "{transition_key}" from status "{current_status}"'},
+                    status=400
+                )
+
+            allowed, message = proposal.can_transition_to(target_status, request.user)
+            if not allowed:
+                return Response({'error': message}, status=403)
+
+            proposal.transition_to(target_status, request.user)
+            proposal.save()
+
+            serializer = self.get_serializer(proposal)
+            return Response({
+                'success': True,
+                'message': message,
+                'proposal': serializer.data,
+            })
+
+        # GET: build available transitions
         available = []
         for option in transition_options.get(current_status, []):
             allowed, message = proposal.can_transition_to(option['target'], request.user)
@@ -533,8 +599,25 @@ class ProposalViewSet(UserActionLoggingViewset):
 
         return Response({
             'current_status': current_status,
-            'available_transitions': available
+            'has_shapefile': has_shapefile,
+            'has_processed': has_processed,
+            'has_dump': has_dump,
+            'actions': action_defs,
+            'available_transitions': available,
         })
+
+    def _check_dump_exists(self, proposal):
+        """Check if a pg_dump file exists for this proposal."""
+        import os
+        from django.conf import settings
+        processing_store = getattr(settings, 'SHAPEFILE_PROCESSING_STORE', 'protected_media/shapefile_processing')
+        dump_dir = os.path.join(settings.BASE_DIR, processing_store)
+        if not os.path.isdir(dump_dir):
+            return False
+        for f in os.listdir(dump_dir):
+            if f.startswith(f'silrec_proposal_{proposal.id}_') and f.endswith('.dump'):
+                return True
+        return False
 
 #    @detail_route(methods=["GET"], detail=True)
 #    def compare_list(self, request, *args, **kwargs):
@@ -3619,6 +3702,9 @@ class RevertShapefileProcessingView(APIView):
             if result['success']:
                 proposal.refresh_from_db()
                 proposal.processing_status = Proposal.PROCESSING_STATUS_DRAFT
+                proposal.geojson_data_hist = None
+                proposal.geojson_data_processed = None
+                proposal.geojson_data_processed_iters = None
                 proposal.save()
 
             if not result['success']:

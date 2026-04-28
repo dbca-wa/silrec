@@ -1967,6 +1967,7 @@ export default {
         },
         refreshFromResponse: function (data) {
             this.proposal = Object.assign({}, data);
+            this.fetchWorkflowOptions();
         },
 
         // Fetch workflow options for current user
@@ -2278,6 +2279,13 @@ export default {
 
 .workflow-buttons .btn {
     min-width: 140px;
+}
+
+.workflow-buttons .btn:disabled {
+    background-color: #d3d3d3 !important;
+    border-color: #d3d3d3 !important;
+    color: #888 !important;
+    opacity: 1 !important;
 }
 
 /* Responsive adjustments */

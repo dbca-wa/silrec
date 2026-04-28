@@ -337,16 +337,21 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
                     'allowed_groups': ['Operator', 'Assessor'],  # Users who can send to processing_shapefile
                 }
             },
+            'draft': {
+                'to_processing_shapefile': {
+                    'target': 'processing_shapefile',
+                    'allowed_groups': ['Operator', 'Assessor'],
+                }
+            },
             'processing_shapefile': {
                 'to_assessor': {
                     'target': 'with_assessor',
-                    'allowed_groups': ['Assessor'],  # Users who can send to assessor
+                    'allowed_groups': ['Assessor'],
                 },
-#                'to_draft': {
-#                    'target': 'draft',
-#                    #'allowed_groups': ['Silrec Admin', 'Assessor'],  # Users who can return to draft
-#                    'allowed_groups': ['Operator', 'Assessor'],  # Users who can return to draft
-#                }
+                'keep': {
+                    'target': 'with_assessor',
+                    'allowed_groups': ['Assessor'],
+                },
             },
             'with_assessor': {
                 'to_reviewer': {

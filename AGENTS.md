@@ -53,3 +53,21 @@ Most `tests.py` files are empty stubs. The only real test is `tests/test_snapsho
 - **All list endpoints use DRF datatables pagination** — requests must include `draw`, `start`, `length` params.
 - `silrec/settings.py:CRS_CARTESIAN` defaults to `epsg:3043`, `CRS_GDA94` to `epsg:28350`.
 - Docker build: Azure Pipelines pushes to `dbcawa/silrec` on Docker Hub (main branch only).
+
+## Shapefile workflow buttons (form.vue + workflow_options API)
+
+Button states driven by `GET /api/proposal/<id>/workflow_options/` — returns `actions` object with `enabled`/`reason` for each button, plus `current_status`, `has_shapefile`, `has_processed`, `has_dump`.
+
+| condition | Upload | Process | Revert | Keep |
+|---|---|---|---|---|
+| no shapefile, status=draft | enabled | disabled | hidden | hidden |
+| shapefile exists, status=draft | enabled | enabled | hidden | hidden |
+| status=processing_shapefile | disabled | disabled | enabled | enabled |
+| user uploads new shapefile | — | sets status=draft, Process re-enabled | — | — |
+
+- **Keep** button sends `POST {transition: 'keep'}` to `workflow_options/` → sets status `with_assessor`, nulls geojson fields
+- **Revert** nulls `geojson_data_hist`/`geojson_data_processed`/`geojson_data_processed_iters`, sets status `draft`
+- Shapefile buttons only visible in `draft` or `processing_shapefile` status
+- Uploaded filename shown read-only in all statuses; delete button only in draft/processing_shapefile
+- `POST /api/proposal/<id>/workflow_options/` also handles `transition` field for status changes (to_assessor, to_reviewer, etc.)
+- Disabled workflow buttons render light grey via CSS `.workflow-buttons .btn:disabled { background: #d3d3d3 }`

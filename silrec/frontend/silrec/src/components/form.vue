@@ -15,7 +15,14 @@
             index="shapefile_upload"
         >
             <div class="shapefile-upload-container">
-                <div class="upload-controls">
+                <!-- Filename display when shapefile actions hidden (read-only, no delete) -->
+                <div v-if="fileNameToDisplay && !showShapefileActions" class="uploaded-filename d-flex align-items-center">
+                    <i class="bi bi-file-earmark-zip me-1"></i>
+                    <span class="text-muted">Uploaded:</span>
+                    <strong class="ms-1">{{ fileNameToDisplay }}</strong>
+                </div>
+
+                <div v-if="showShapefileActions" class="upload-controls">
                     <div class="d-flex align-items-center flex-wrap">
                         <button 
                             class="btn btn-primary me-2"
@@ -26,8 +33,8 @@
                             Upload Shapefile
                         </button>
 
-                        <!-- Display uploaded filename with delete button -->
-                        <div v-if="fileNameToDisplay" class="ms-2 uploaded-filename">
+                        <!-- Display uploaded filename with delete button (inline right of Upload button) -->
+                        <div v-if="fileNameToDisplay" class="uploaded-filename d-flex align-items-center">
                             <i class="bi bi-file-earmark-zip me-1"></i>
                             <span class="text-muted">Uploaded:</span>
                             <strong class="ms-1">{{ fileNameToDisplay }}</strong>
@@ -43,14 +50,14 @@
                             </button>
                         </div>
                         
-                        <!-- Process and Revert buttons -->
+                        <!-- Shapefile action buttons -->
                         <div class="ms-auto d-flex gap-2">
                             <button 
                                 class="btn revert-btn"
-                                :class="!hasDumpFile ? 'btn-secondary' : 'btn-warning'"
+                                :class="revertBtnClass"
                                 @click="openRevertDialog"
-                                :disabled="!hasProcessedData || revertingShapefile || !hasDumpFile"
-                                :title="!hasDumpFile ? 'No pg_dump backup available for this proposal' : (!hasProcessedData ? 'No processed data to revert' : '')"
+                                :disabled="revertBtnDisabled"
+                                :title="revertBtnTitle"
                             >
                                 <i class="bi bi-arrow-counterclockwise me-2"></i>
                                 <span v-if="revertingShapefile">
@@ -59,12 +66,28 @@
                                 </span>
                                 <span v-else>Revert</span>
                             </button>
+
+                            <button 
+                                class="btn keep-btn"
+                                :class="keepBtnClass"
+                                @click="keepProcessing"
+                                :disabled="keepBtnDisabled"
+                                :title="keepBtnTitle"
+                            >
+                                <i class="bi bi-check-lg me-2"></i>
+                                <span v-if="keepingShapefile">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    Keeping...
+                                </span>
+                                <span v-else>Keep</span>
+                            </button>
                             
                             <button 
-                                class="btn btn-success process-btn"
+                                class="btn process-btn"
+                                :class="processBtnClass"
                                 @click="openProcessDialog"
-                                :disabled="!hasShapefile || processingShapefile"
-                                :title="!hasShapefile ? 'Upload a shapefile first' : ''"
+                                :disabled="processBtnDisabled"
+                                :title="processBtnTitle"
                             >
                                 <i class="bi bi-gear me-2"></i>
                                 <span v-if="processingShapefile">
@@ -117,7 +140,7 @@
                     </div>
                 </div>
                 
-                <div class="upload-info mt-2">
+                <div v-if="showShapefileActions" class="upload-info mt-2">
                     <small class="text-muted">
                         <i class="bi bi-info-circle me-1"></i>
                         Upload either:
@@ -338,6 +361,9 @@ export default {
             revertingShapefile: false,
             revertError: null,
 
+            // Keep states
+            keepingShapefile: false,
+
             // Pending upload for confirmation flow
             pendingUpload: null,
 
@@ -346,6 +372,10 @@ export default {
 
             // Whether a pg_dump file exists for this proposal on the server
             dumpFileExists: false,
+
+            // Workflow options from API
+            workflowOptions: null,
+            workflowOptionsLoaded: false,
         };
     },
     computed: {
@@ -542,6 +572,57 @@ export default {
         hasDumpFile: function () {
             return this.dumpFileExists;
         },
+        // Only show shapefile actions in draft or processing_shapefile status
+        showShapefileActions: function () {
+            if (!this.workflowOptions || !this.workflowOptions.current_status) return false;
+            const s = this.workflowOptions.current_status;
+            return s === 'draft' || s === 'processing_shapefile';
+        },
+
+        // Button state computed properties from workflowOptions API
+        wf: function () {
+            return this.workflowOptions && this.workflowOptions.actions
+                ? this.workflowOptions.actions : {};
+        },
+        processBtnEnabled: function () {
+            return this.wf.process_shapefile && this.wf.process_shapefile.enabled;
+        },
+        processBtnDisabled: function () {
+            return !this.processBtnEnabled || this.processingShapefile;
+        },
+        processBtnClass: function () {
+            return this.processBtnEnabled ? 'btn-success' : 'btn-secondary';
+        },
+        processBtnTitle: function () {
+            if (this.processingShapefile) return '';
+            return this.wf.process_shapefile ? this.wf.process_shapefile.reason : '';
+        },
+        revertBtnEnabled: function () {
+            return this.wf.revert && this.wf.revert.enabled;
+        },
+        revertBtnDisabled: function () {
+            return !this.revertBtnEnabled || this.revertingShapefile;
+        },
+        revertBtnClass: function () {
+            return this.revertBtnEnabled ? 'btn-warning' : 'btn-secondary';
+        },
+        revertBtnTitle: function () {
+            if (this.revertingShapefile) return '';
+            return this.wf.revert ? this.wf.revert.reason : '';
+        },
+        keepBtnEnabled: function () {
+            return this.wf.keep && this.wf.keep.enabled;
+        },
+        keepBtnDisabled: function () {
+            return !this.keepBtnEnabled || this.keepingShapefile;
+        },
+        keepBtnClass: function () {
+            return this.keepBtnEnabled ? 'btn-primary' : 'btn-secondary';
+        },
+        keepBtnTitle: function () {
+            if (this.keepingShapefile) return '';
+            return this.wf.keep ? this.wf.keep.reason : '';
+        },
     },
     created: function () {
         this.uuid = uuid();
@@ -552,6 +633,15 @@ export default {
     mounted: function () {
         this.$emit('formMounted');
         this.checkDumpFileExists();
+        this.fetchWorkflowOptions();
+    },
+    watch: {
+        proposal: {
+            handler: function () {
+                this.fetchWorkflowOptions();
+            },
+            deep: true,
+        },
     },
     beforeDestroy: function () {
         // Cleanup if needed
@@ -855,7 +945,11 @@ export default {
                 if (data.success && data.proposal) {
                     this.uploadSuccess = true;
                     this.uploadStatus = 'Shapefile processed successfully!';
-                    
+
+                    // CRITICAL: Reset processing status to draft when new shapefile uploaded
+                    data.proposal.processing_status = 'draft';
+                    data.proposal.processing_status_id = 'Draft';
+
                     // CRITICAL: Update the proposal data first
                     this.$emit('refreshFromResponse', data.proposal);
                     
@@ -865,6 +959,9 @@ export default {
                     // Force map to refresh by incrementing the key
                     this.componentMapKey++;
                     
+                    // Refresh workflow options to update button states
+                    this.fetchWorkflowOptions();
+
                     // Then trigger map refresh with multiple approaches
                     this.refreshMapAfterUpload();
                     
@@ -1217,8 +1314,8 @@ export default {
                     // Refresh the map
                     this.refreshMapAfterProcessing();
                     
-                    // Re-check dump file existence so Revert button updates immediately
-                    this.dumpFileExists = true;
+                    // Refresh workflow options to update button states
+                    this.fetchWorkflowOptions();
                 } else {
                     throw new Error(data.message || 'Unknown error occurred');
                 }
@@ -1267,6 +1364,51 @@ export default {
                         tableComponent.__vue__.refreshData();
                     }
                 }, 500);
+            }
+        },
+
+        keepProcessing: async function () {
+            this.keepingShapefile = true;
+            try {
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/workflow_options/'
+                );
+                const csrfToken = helpers.getCookie('csrftoken');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({ transition: 'keep' }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Keep action failed');
+                }
+                if (data.success && data.proposal) {
+                    data.proposal.processing_status = 'with_assessor';
+                    data.proposal.processing_status_id = 'With Assessor';
+                    this.$emit('refreshFromResponse', data.proposal);
+                    this.fetchWorkflowOptions();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Changes Kept',
+                        text: 'Proposal moved to With Assessor status.',
+                        timer: 2000,
+                        showConfirmButton: false,
+                    });
+                }
+            } catch (error) {
+                console.error('Error in keep action:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Keep Failed',
+                    text: error.message || 'An error occurred',
+                });
+            } finally {
+                this.keepingShapefile = false;
             }
         },
 
@@ -1398,6 +1540,7 @@ export default {
                     
                     this.refreshMapAfterProcessing();
                     this.refreshPolygonCohortTable();
+                    this.fetchWorkflowOptions();
                     
                 } else {
                     throw new Error(data.message || 'Unknown error occurred');
@@ -1422,6 +1565,29 @@ export default {
                 this.revertError = error.message;
             } finally {
                 this.revertingShapefile = false;
+            }
+        },
+
+        fetchWorkflowOptions: async function () {
+            if (!this.proposalId) {
+                this.workflowOptions = null;
+                this.workflowOptionsLoaded = false;
+                return;
+            }
+            try {
+                const url = helpers.add_endpoint_join(
+                    this.api_endpoints.proposal,
+                    this.proposalId + '/workflow_options/'
+                );
+                const response = await fetch(url);
+                if (!response.ok) return;
+                const data = await response.json();
+                this.workflowOptions = data;
+                this.workflowOptionsLoaded = true;
+                this.dumpFileExists = data.has_dump === true;
+            } catch (e) {
+                this.workflowOptions = null;
+                this.workflowOptionsLoaded = false;
             }
         },
 

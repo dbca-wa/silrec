@@ -1,0 +1,276 @@
+[
+{
+    "model": "silrec.sqlreport",
+    "pk": 1,
+    "fields": {
+        "name": "Annual harvest summary for a specific year by supply",
+        "description": "Annual harvest summary for a specific year by supply",
+        "base_sql": "-- summary table for annual harvest for a specific year by objectives\r\nSELECT\r\n  allOP.supplyarea\r\n, allOP.block\r\n, allOP.compartment\r\n, allOP.opyear\r\n, allOP.objective\r\n, allOP.target_ba_m2ha\r\n, allOP.resid_ba_m2ha\r\n, ROUND(SUM(allOP.netarea)::numeric, 0) AS \"NetArea(ha)\"\r\n--, allOP.geom\r\n\tFROM\r\n(\r\n  SELECT \r\n    cmpt.region\r\n  , cmpt.district\r\n  , cmpt.supply AS \"supplyarea\"\r\n  , cmpt.block\r\n  , cmpt.compartment\r\n  , ply.name AS \"feaid\"\r\n  , ROUND(ply.area_ha::numeric, 1) AS AREA_HA\r\n  , cht.obj_code AS \"objective\"\r\n  , DATE_PART('year', cht.op_date) AS \"opyear\"\r\n  , DATE_PART('year', cht.regen_date) AS \"regyear\"\r\n  --, EXTRACT(YEAR FROM cht.op_date) AS \"opyear\"\r\n  --, EXTRACT(YEAR FROM cht.regen_date) AS regyear\r\n  , cht.species AS \"apispecies\"\r\n  , cht.resid_ba_m2ha\r\n  , cht.target_ba_m2ha\r\n  , cht.resid_spha\r\n  , cht.target_spha\r\n  , cht.pct_area\r\n  , ROUND((ply.area_ha::numeric * cht.pct_area / 100), 1) AS \"netarea\"\r\n  , obj.description\r\n  --, ply.geom\r\n  FROM silrec.compartments cmpt\r\n  INNER JOIN silrec.polygon ply ON cmpt.compartment = ply.compartment\r\n  INNER JOIN silrec.assign_cht_to_ply asgply ON ply.polygon_id = asgply.polygon_id\r\n  INNER JOIN silrec.cohort cht ON asgply.cohort_id = cht.cohort_id\r\n  INNER JOIN silrec.objective_lkp obj ON cht.obj_code = obj.obj_code\r\n  {where_clause}\r\n) AS allOP\r\n\r\n--WHERE allOP.supplyarea IN ('GREENBUSHES', 'MORNINGTON')\r\n--  AND allOP.opyear IN (2002,2003)\r\nGROUP BY\r\n  allOP.supplyarea\r\n, allOP.block\r\n, allOP.compartment\r\n, allOP.opyear\r\n, allOP.objective\r\n, allOP.target_ba_m2ha\r\n, allOP.resid_ba_m2ha\r\n--, allOP.geom\r\nORDER BY allOP.block, allOP.compartment, allOP.opyear, allOP.objective",
+        "where_clauses": [
+            {
+                "field": "cht.op_date",
+                "label": "Select Year(s)",
+                "operator": "YEAR",
+                "required": true,
+                "field_type": "year_enhanced",
+                "default_value": "2024",
+                "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM op_date) FROM silrec.cohort WHERE op_date IS NOT NULL ORDER BY 1 DESC",
+                "parameter_name": "year"
+            },
+            {
+                "field": "cmpt.supply",
+                "label": "Select Supply(s)",
+                "operator": "IN",
+                "required": true,
+                "field_type": "multiselect",
+                "options_query": "SELECT DISTINCT supply FROM silrec.compartments WHERE supply is NOT NULL AND supply != '' ORDER BY supply",
+                "parameter_name": "supply"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "pdf"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2025-12-05T14:39:09.872",
+        "updated_on": "2026-04-28T10:40:40.421",
+        "allowed_groups": []
+    }
+},
+{
+    "model": "silrec.sqlreport",
+    "pk": 2,
+    "fields": {
+        "name": "Annual harvest summary for a specific year by block & objectives",
+        "description": "Annual harvest summary for a specific year by block & objectives",
+        "base_sql": "-- summary table for a specific year by objectives\r\nSELECT\r\n-- allop.region,\r\n-- allop.district,\r\n-- \r\nallop.supplyarea,\r\nallop.block,\r\n-- allop.compartment,\r\nallop.opyear,\r\nallop.objective,\r\n-- allop.apispecies,\r\n-- allop.target_ba_m2ha,\r\nROUND(sum(allop.netarea)::numeric,0) as \"netarea(ha)\"\r\n-- allop.*\r\nFROM\r\n(\r\n  SELECT cmpt.region,\r\n  cmpt.district,\r\n  cmpt.supply as \"supplyarea\",\r\n  cmpt.block,\r\n  cmpt.compartment,\r\n  ply.name AS \"feaid\",\r\n  ROUND(ply.area_ha::numeric,1) AS area_ha,\r\n  cht.obj_code AS \"objective\",\r\n  date_part('year', cht.op_date) AS \"opyear\",\r\n  date_part('year', cht.regen_date) AS \"regyear\",\r\n  cht.species AS \"apispecies\",\r\n  cht.resid_ba_m2ha,\r\n  cht.target_ba_m2ha,\r\n  cht.resid_spha,\r\n  cht.target_spha,\r\n  cht.pct_area,\r\n  ROUND((ply.area_ha * cht.pct_area/100)::numeric,1) AS \"netarea\",\r\n  obj.description\r\n  FROM silrec.compartments cmpt\r\n  INNER JOIN silrec.polygon ply ON cmpt.compartment = ply.compartment\r\n  INNER JOIN silrec.assign_cht_to_ply asgply ON ply.polygon_id = asgply.polygon_id\r\n  INNER JOIN silrec.cohort cht ON asgply.cohort_id = cht.cohort_id\r\n  INNER JOIN silrec.objective_lkp obj ON cht.obj_code = obj.obj_code\r\n) as allop\r\n{where_clause}\r\n--WHERE\r\n--allOP.supplyarea = 'GREENBUSHES'\r\n--AND\r\n--allOP.opyear = 2022\r\ngroup by\r\n-- allop.region, allop.district,\r\nallop.supplyarea, allop.block\r\n-- , allop.compartment\r\n, allop.opyear, allop.objective\r\n-- order by allop.region, allop.district, allOop.block, allop.compartment, allop.opyear, allop.objective",
+        "where_clauses": [
+            {
+                "field": "allop.opyear",
+                "label": "Select Year",
+                "operator": "=",
+                "required": true,
+                "field_type": "year",
+                "default_value": "2024",
+                "options_query": "",
+                "parameter_name": "year"
+            },
+            {
+                "field": "allop.supplyarea",
+                "label": "Select Supply(s)",
+                "operator": "IN",
+                "required": true,
+                "field_type": "select",
+                "options_query": "SELECT DISTINCT supply FROM silrec.compartments where supply is not NULL AND supply != '' ORDER BY supply",
+                "parameter_name": "supply"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "pdf"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2025-12-08T11:20:54.028",
+        "updated_on": "2026-04-24T10:21:15.869",
+        "allowed_groups": []
+    }
+},
+{
+    "model": "silrec.sqlreport",
+    "pk": 3,
+    "fields": {
+        "name": "Annual harvest summary for a specific year",
+        "description": "Annual harvest summary for a specific year",
+        "base_sql": "-- summary table for annual harvest for a specific year by objectives\r\nSELECT\r\n-- allOP.region\r\n-- , allOP.district\r\n-- ,\r\nallOP.supplyarea\r\n, allOP.block\r\n, allOP.compartment\r\n, allOP.opyear\r\n, allOP.objective\r\n-- , allOP.apispecies\r\n, allOP.target_ba_m2ha\r\n, allOP.resid_ba_m2ha\r\n, ROUND(sum(allOP.netarea)::numeric,0) as \"NetArea(ha)\"\r\n-- allOP.*\r\nFROM\r\n(\r\n  SELECT cmpt.region\r\n  , cmpt.district\r\n  , cmpt.supply as \"supplyarea\"\r\n  , cmpt.block\r\n  , cmpt.compartment\r\n  , ply.name AS \"feaid\"\r\n  , ROUND(ply.area_ha::numeric,1) AS AREA_HA\r\n  , cht.obj_code AS \"objective\"\r\n  , date_part('year', cht.op_date) AS \"opyear\"\r\n  , date_part('year', cht.regen_date) AS \"regyear\"\r\n  , cht.species AS \"apispecies\"\r\n  , cht.resid_ba_m2ha\r\n  , cht.target_ba_m2ha\r\n  , cht.resid_spha\r\n  , cht.target_spha\r\n  , cht.pct_area\r\n  , ROUND((ply.area_ha * cht.pct_area/100)::numeric,1) AS \"netarea\"\r\n  , obj.description\r\n  \r\n  FROM silrec.compartments cmpt\r\n  INNER JOIN silrec.polygon ply ON cmpt.compartment = ply.compartment\r\n  INNER JOIN silrec.assign_cht_to_ply asgply ON ply.polygon_id = asgply.polygon_id\r\n  INNER JOIN silrec.cohort cht ON asgply.cohort_id = cht.cohort_id\r\n  INNER JOIN silrec.objective_lkp obj ON cht.obj_code = obj.obj_code\r\n) as allOP\r\n{where_clause}\r\n--WHERE\r\n--allOP.opyear = 2022\r\ngroup by\r\n-- allOP.region, allOP.district,\r\nallOP.supplyarea, allOP.block, allOP.compartment, allOP.opyear, allOP.objective , allOP.target_ba_m2ha, allOP.resid_ba_m2ha\r\norder by allOP.block, allOP.compartment, allOP.opyear, allOP.objective",
+        "where_clauses": [
+            {
+                "field": "allOP.opyear",
+                "label": "Select Year",
+                "operator": "=",
+                "required": true,
+                "field_type": "year",
+                "default_value": "2024",
+                "options_query": "",
+                "parameter_name": "year"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "pdf"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2025-12-08T13:09:31.375",
+        "updated_on": "2025-12-08T13:10:03.449",
+        "allowed_groups": []
+    }
+},
+{
+    "model": "silrec.sqlreport",
+    "pk": 4,
+    "fields": {
+        "name": "Report for all coupes with treatment",
+        "description": "Report for all coupes with treatment",
+        "base_sql": "-- list all tasks/treatments for cohorts \r\nSELECT  cmpt.region \r\n, cmpt.district \r\n, cmpt.supply as \"supplyarea\" \r\n, cmpt.block \r\n, cmpt.compartment  \r\n, ply.name AS \"feaid\" \r\n, ROUND(ply.area_ha::numeric,1) AS AREA_HA\t\t \r\n, cht.obj_code AS \"objective\" \r\n, date_part('year', cht.op_date) AS \"opyear\" \r\n, date_part('year', cht.regen_date) AS \"regyear\" \r\n, cht.species AS \"apispecies\" \r\n, cht.resid_ba_m2ha \r\n, cht.target_ba_m2ha \r\n, cht.resid_spha \r\n, cht.target_spha \r\n, cht.pct_area \r\n, ROUND((ply.area_ha * cht.pct_area/100)::numeric,1) AS \"netobjarea\" \r\n, obj.description \r\n, tr.task \r\n, tr.pct_area as \"treatments_pct_area\" \r\n, ROUND((ply.area_ha * cht.pct_area/100 * tr.pct_area/100)::numeric,1) AS \"nettreatarea\" \r\n, tr.plan_yr \r\n, tr.complete_date \r\n, tr.status \r\n, tlk.task_name \r\nFROM silrec.compartments cmpt \r\nINNER JOIN silrec.polygon  ply ON cmpt.compartment = ply.compartment \r\nINNER JOIN silrec.assign_cht_to_ply asgply ON ply.polygon_id = asgply.polygon_id \r\nINNER JOIN silrec.cohort cht ON  asgply.cohort_id = cht.cohort_id \r\nINNER JOIN silrec.objective_lkp obj ON cht.obj_code = obj.obj_code \r\nINNER JOIN silrec.treatment tr on cht.cohort_id = tr.cohort_id \r\nINNER JOIN silrec.task_lkp tlk on tlk.task = tr.task\r\n{where_clause} \r\n--WHERE \r\n-- cmpt.supply = 'GREENBUSHES' \r\n-- AND  \r\n-- date_part('year', cht.op_date) = 2022 \r\nORDER BY cmpt.compartment, ply.name",
+        "where_clauses": [
+            {
+                "field": "cht.op_date",
+                "label": "Select Year",
+                "operator": "YEAR",
+                "required": true,
+                "field_type": "year",
+                "default_value": "2024",
+                "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM op_date) FROM silrec.cohort WHERE op_date IS NOT NULL ORDER BY 1 DESC",
+                "parameter_name": "year"
+            },
+            {
+                "field": "cmpt.supply",
+                "label": "Select Supply(s)",
+                "operator": "IN",
+                "required": true,
+                "field_type": "multiselect",
+                "options_query": "SELECT DISTINCT supply FROM silrec.compartments WHERE supply is NOT NULL AND supply != '' ORDER BY supply",
+                "parameter_name": "supply"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "pdf"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2025-12-08T13:15:20.443",
+        "updated_on": "2025-12-08T13:15:20.443",
+        "allowed_groups": []
+    }
+},
+{
+    "model": "silrec.sqlreport",
+    "pk": 5,
+    "fields": {
+        "name": "Report completed tasks summary for a specific year",
+        "description": "Report completed tasks summary for a specific year",
+        "base_sql": "SELECT \r\n  allOP.task_name AS \"Task\",\r\n  allOP.task AS \"Task code\",\r\n  ROUND(SUM(allOP.nettreatarea)::numeric, 0) AS \"Net_Task_Area(ha)\",\r\n  DATE_PART('year', allOP.complete_date) AS \"Year\"\r\nFROM (\r\n  SELECT \r\n    cmpt.region,\r\n    cmpt.district,\r\n    cmpt.supply AS \"supplyarea\",\r\n    cmpt.block,\r\n    cmpt.compartment,\r\n    ply.name AS \"feaid\",\r\n    ROUND(ply.area_ha::numeric, 1) AS AREA_HA,\r\n    cht.obj_code AS \"objective\",\r\n    DATE_PART('year', cht.op_date) AS \"opyear\",\r\n    DATE_PART('year', cht.regen_date) AS \"regyear\",\r\n    cht.species AS \"apispecies\",\r\n    cht.resid_ba_m2ha,\r\n    cht.target_ba_m2ha,\r\n    cht.resid_spha,\r\n    cht.target_spha,\r\n    cht.pct_area,\r\n    ROUND((ply.area_ha::numeric * cht.pct_area / 100), 1) AS \"netobjarea\",\r\n    obj.description,\r\n    tr.task,\r\n    tr.pct_area AS \"treatments_pct_area\",\r\n    ROUND((ply.area_ha::numeric * cht.pct_area / 100 * tr.pct_area / 100), 1) AS \"nettreatarea\",\r\n    tr.plan_yr,\r\n    tr.complete_date,\r\n    tr.status,\r\n    tlk.task_name\r\n  FROM silrec.compartments cmpt\r\n  INNER JOIN silrec.polygon ply ON cmpt.compartment = ply.compartment\r\n  INNER JOIN silrec.assign_cht_to_ply asgply ON ply.polygon_id = asgply.polygon_id\r\n  INNER JOIN silrec.cohort cht ON asgply.cohort_id = cht.cohort_id\r\n  INNER JOIN silrec.objective_lkp obj ON cht.obj_code = obj.obj_code\r\n  INNER JOIN silrec.treatment tr ON cht.cohort_id = tr.cohort_id\r\n  INNER JOIN silrec.task_lkp tlk ON tlk.task = tr.task\r\n) AS allOP\r\n{where_clause}\r\n--WHERE DATE_PART('year', allOP.complete_date) IN (2002)\r\nGROUP BY\r\n  allOP.task,\r\n  allOP.task_name,\r\n  DATE_PART('year', allOP.complete_date)\r\nORDER BY allOP.task",
+        "where_clauses": [
+            {
+                "field": "allOP.complete_date",
+                "label": "Select Year",
+                "operator": "YEAR",
+                "required": true,
+                "field_type": "year",
+                "default_value": "2024",
+                "options_query": "",
+                "parameter_name": "year"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "pdf"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2025-12-08T13:18:40.500",
+        "updated_on": "2026-04-28T12:45:59.550",
+        "allowed_groups": []
+    }
+},
+{
+    "model": "silrec.sqlreport",
+    "pk": 6,
+    "fields": {
+        "name": "Report for Compartment/Objective by Net Area",
+        "description": "Report for Compartment/Objective by Net Area",
+        "base_sql": "SELECT pinfo.region, pinfo.district, pinfo.compartment \r\n, pinfo.opyear \r\n, pinfo.objective \r\n, pinfo.netarea\r\n--, sum(pinfo.netarea) \r\nFROM  \r\n( \r\n  SELECT silrec.compartments.region \r\n  , silrec.compartments.district \r\n  , silrec.compartments.block \r\n  , silrec.compartments.compartment  \r\n  , silrec.polygon.name AS \"FEAID\" \r\n  , silrec.cohort.obj_code AS \"objective\" \r\n  , date_part('year', silrec.cohort.op_date) AS \"opyear\" \r\n  , silrec.cohort.species AS \"APISpecies\" \r\n  , silrec.polygon.area_ha * silrec.cohort.pct_area/100 AS \"netarea\" \r\n  , silrec.cohort.regen_date \r\n  , silrec.objective_lkp.description \r\n  , silrec.objective_category.category_value \r\n  FROM silrec.compartments \r\n  INNER JOIN silrec.polygon  ON \r\n   silrec.compartments.compartment = silrec.polygon.compartment \r\n  INNER JOIN silrec.assign_cht_to_ply ON \r\n  silrec.polygon.polygon_id = silrec.assign_cht_to_ply.polygon_id \r\n  INNER JOIN silrec.cohort ON \r\n  silrec.assign_cht_to_ply.cohort_id = silrec.cohort.cohort_id \r\n  INNER JOIN silrec.objective_lkp ON \r\n  silrec.cohort.obj_code = silrec.objective_lkp.obj_code \r\n  INNER JOIN silrec.objective_category ON \r\n  Silrec.objective_lkp.obj_code = silrec.objective_category.objective \r\n ) AS pinfo \r\n{where_clause}\r\n--WHERE pinfo.opyear = 2020 \r\n-- GROUP BY  \r\n-- pinfo.region, pinfo.district, pinfo.compartment, pinfo.opyear, pinfo.objective",
+        "where_clauses": [
+            {
+                "field": "pinfo.opyear",
+                "label": "Select Year",
+                "operator": "=",
+                "required": true,
+                "field_type": "year",
+                "default_value": "2024",
+                "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM op_date) FROM silrec.cohort WHERE op_date IS NOT NULL ORDER BY 1 DESC",
+                "parameter_name": "year"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "pdf"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2025-12-08T13:22:29.487",
+        "updated_on": "2025-12-08T13:23:08.801",
+        "allowed_groups": []
+    }
+},
+{
+    "model": "silrec.sqlreport",
+    "pk": 7,
+    "fields": {
+        "name": "Shapefile by year and  by supply",
+        "description": "Shapefile by year and  by supply",
+        "base_sql": "SELECT \r\n    cmpt.region, \r\n    cmpt.district,\r\n    cmpt.compartment,\r\n    cmpt.supply,\r\n    COUNT(DISTINCT ply.polygon_id) as polygon_count,\r\n    COUNT(DISTINCT cht.cohort_id) as cohort_count,\r\n    EXTRACT(YEAR FROM cht.op_date) as operation_year,\r\n    ply.geom\r\nFROM silrec.compartments cmpt\r\nINNER JOIN silrec.polygon ply ON cmpt.compartment = ply.compartment\r\nINNER JOIN silrec.assign_cht_to_ply asgply ON ply.polygon_id = asgply.polygon_id\r\nINNER JOIN silrec.cohort cht ON asgply.cohort_id = cht.cohort_id\r\n{where_clause}\r\n--WHERE\r\n--cmpt.supply = 'GREENBUSHES'\r\n--AND\r\n--date_part('year', cht.op_date) = 2022;\r\nGROUP BY cmpt.region, cmpt.district, cmpt.compartment, cmpt.supply, EXTRACT(YEAR FROM cht.op_date), ply.geom",
+        "where_clauses": [
+            {
+                "field": "cht.op_date",
+                "label": "Select Year(s)",
+                "operator": "YEAR",
+                "required": true,
+                "field_type": "year_enhanced",
+                "default_value": "2024",
+                "options_query": "SELECT DISTINCT EXTRACT(YEAR FROM op_date) FROM silrec.cohort WHERE op_date IS NOT NULL ORDER BY 1 DESC",
+                "parameter_name": "year"
+            },
+            {
+                "field": "cmpt.supply",
+                "label": "Select Supply(s)",
+                "operator": "IN",
+                "required": true,
+                "field_type": "multiselect",
+                "options_query": "SELECT DISTINCT supply FROM silrec.compartments WHERE supply is NOT NULL AND supply != '' ORDER BY supply",
+                "parameter_name": "supply"
+            }
+        ],
+        "order_by": "",
+        "report_type": "custom",
+        "export_formats": [
+            "excel",
+            "csv",
+            "shapefile"
+        ],
+        "columns": [],
+        "is_active": true,
+        "created_by": 1,
+        "created_on": "2026-04-28T10:37:05.964",
+        "updated_on": "2026-04-28T10:39:00.149",
+        "allowed_groups": []
+    }
+}
+]

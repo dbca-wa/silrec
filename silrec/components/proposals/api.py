@@ -1360,6 +1360,7 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
 
             # Convert to DataFrame for easier export
             df = pd.DataFrame(rows, columns=columns)
+            print(df.iloc[0])
 
             # Export based on format
             if export_format == 'excel':

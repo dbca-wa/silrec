@@ -1209,6 +1209,8 @@ export default {
                     
                     // Update the proposal data with the processed version
                     if (data.proposal) {
+                        data.proposal.processing_status = 'processing_shapefile';
+                        data.proposal.processing_status_id = 'Processing Shapefile';
                         this.$emit('refreshFromResponse', data.proposal);
                     }
                     
@@ -1389,6 +1391,8 @@ export default {
                     }
                     
                     if (data.proposal) {
+                        data.proposal.processing_status = 'draft';
+                        data.proposal.processing_status_id = 'Draft';
                         this.$emit('refreshFromResponse', data.proposal);
                     }
                     

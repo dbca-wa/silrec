@@ -212,6 +212,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     MODEL_PREFIX = "P"
 
     PROCESSING_STATUS_DRAFT = "draft"
+    PROCESSING_STATUS_PROCESSING_SHAPEFILE = "processing_shapefile"
     PROCESSING_STATUS_AMENDMENT_REQUIRED = "amendment_required"
     PROCESSING_STATUS_WITH_ASSESSOR = "with_assessor"
     PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS = "with_assessor_treatments"
@@ -223,6 +224,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     PROCESSING_STATUS_TEMP = "temp"
     PROCESSING_STATUS_CHOICES = (
         (PROCESSING_STATUS_DRAFT, "Draft"),
+        (PROCESSING_STATUS_PROCESSING_SHAPEFILE, "Processing Shapefile"),
         (PROCESSING_STATUS_AMENDMENT_REQUIRED, "Amendment Required"),
         (PROCESSING_STATUS_WITH_ASSESSOR, "With Assessor"),
         (PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS, "With Assessor (Treatments)"),
@@ -330,10 +332,21 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         # Define valid transitions and required groups
         transitions = {
             'draft': {
+                'to_processing_shapefile': {
+                    'target': 'processing_shapefile',
+                    'allowed_groups': ['Operator', 'Assessor'],  # Users who can send to processing_shapefile
+                }
+            },
+            'processing_shapefile': {
                 'to_assessor': {
                     'target': 'with_assessor',
                     'allowed_groups': ['Assessor'],  # Users who can send to assessor
-                }
+                },
+#                'to_draft': {
+#                    'target': 'draft',
+#                    #'allowed_groups': ['Silrec Admin', 'Assessor'],  # Users who can return to draft
+#                    'allowed_groups': ['Operator', 'Assessor'],  # Users who can return to draft
+#                }
             },
             'with_assessor': {
                 'to_reviewer': {

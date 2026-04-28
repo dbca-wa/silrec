@@ -502,7 +502,10 @@ class ProposalViewSet(UserActionLoggingViewset):
 
         # Define all possible transitions
         transition_options = {
-            'draft': [
+#            'draft': [
+#                {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'}
+#            ],
+            'processing_shapefile': [
                 {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'}
             ],
             'with_assessor': [
@@ -3280,6 +3283,10 @@ class ProcessShapefileView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Update processing status to indicate shapefile processing
+            proposal.processing_status = Proposal.PROCESSING_STATUS_PROCESSING_SHAPEFILE
+            proposal.save()
+
             # Process the shapefile with the given threshold
             result = self.process_shapefile_with_threshold(proposal, threshold, user_id)
 
@@ -3608,6 +3615,11 @@ class RevertShapefileProcessingView(APIView):
 
             dump_file = serializer.validated_data.get('dump_file')
             result = self.revert_shapefile_processing(proposal, user_id, dump_file)
+
+            if result['success']:
+                proposal.refresh_from_db()
+                proposal.processing_status = Proposal.PROCESSING_STATUS_DRAFT
+                proposal.save()
 
             if not result['success']:
                 logger.error(

@@ -80,7 +80,7 @@
                     <div class="col-md-6 text-start">
                         <div class="workflow-buttons">
                             <!-- Draft status buttons -->
-                            <template v-if="proposal.processing_status === 'draft'">
+                            <template v-if="proposal.processing_status === 'processing_shapefile'">
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-primary me-2"

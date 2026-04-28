@@ -472,6 +472,28 @@ class ProposalViewSet(UserActionLoggingViewset):
             # Perform the transition
             proposal.transition_to(target_status, request.user, comment if not is_forward else '')
 
+            # Send email notification based on transition direction
+            try:
+                from silrec.components.proposals.email import (
+                    send_submit_email_notification,
+                    send_reviewer_email_notification,
+                    send_review_completed_email_notification,
+                    send_returned_email_notification,
+                )
+                prev_status = proposal.prev_processing_status
+                new_status = proposal.processing_status
+
+                if prev_status == 'processing_shapefile' and new_status == 'with_assessor':
+                    send_submit_email_notification(request, proposal)
+                elif prev_status == 'with_assessor' and new_status == 'with_reviewer':
+                    send_reviewer_email_notification(request, proposal)
+                elif prev_status == 'with_reviewer' and new_status == 'review_completed':
+                    send_review_completed_email_notification(request, proposal)
+                elif not is_forward:
+                    send_returned_email_notification(request, proposal)
+            except Exception as e:
+                logger.error(f"Error sending transition email for proposal {proposal.id}: {str(e)}")
+
             # Return updated proposal
             serializer = self.get_serializer(proposal, context={"request": request})
             return Response({
@@ -579,6 +601,14 @@ class ProposalViewSet(UserActionLoggingViewset):
 
             proposal.transition_to(target_status, request.user)
             proposal.save()
+
+            # Send email for keep transition (processing_shapefile -> with_assessor)
+            try:
+                from silrec.components.proposals.email import send_submit_email_notification
+                if current_status == 'processing_shapefile' and target_status == 'with_assessor':
+                    send_submit_email_notification(request, proposal)
+            except Exception as e:
+                logger.error(f"Error sending keep/transition email for proposal {proposal.id}: {str(e)}")
 
             serializer = self.get_serializer(proposal)
             return Response({

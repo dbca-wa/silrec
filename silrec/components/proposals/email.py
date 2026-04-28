@@ -65,6 +65,24 @@ class SubmitSendNotificationEmail(TemplateEmailBase):
     txt_template = None
 
 
+class ReviewerSendNotificationEmail(TemplateEmailBase):
+    subject = 'Proposal has been updated for review.'
+    html_template = 'silrec/emails/proposals/send_review_notification.html'
+    txt_template = None
+
+
+class ReviewCompletedSendNotificationEmail(TemplateEmailBase):
+    subject = 'Proposal review have been completed.'
+    html_template = 'silrec/emails/proposals/send_review_completed_notification.html'
+    txt_template = None
+
+
+class ReturnedSendNotificationEmail(TemplateEmailBase):
+    subject = 'Proposal has been returned for further details.'
+    html_template = 'silrec/emails/proposals/send_returned_notification.html'
+    txt_template = None
+
+
 def send_submit_email_notification(request, proposal):
     email = SubmitSendNotificationEmail()
     try:
@@ -80,7 +98,8 @@ def send_submit_email_notification(request, proposal):
         'url': url,
         'greeting': 'Assessor',
         'assessor_footer': True,
-        'FMB': get_fmb_sharepoint_url()
+        'FMB': get_fmb_sharepoint_url(),
+        'comment': proposal.latest_transition_comment or '',
     }
 
     #msg = email.send(proposal.assessor_recipients, context=context)
@@ -90,6 +109,75 @@ def send_submit_email_notification(request, proposal):
     _log_proposal_email(msg, proposal, sender=sender)
     return msg
 
+def send_reviewer_email_notification(request, proposal):
+    email = ReviewerSendNotificationEmail()
+    try:
+        url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
+        if "-internal" not in url:
+            # add it. This email is for internal staff (assessors)
+            url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
+    except Exception as e:
+            # for testing, eg. send_submit_email_notification(request=None, proposal=p)
+            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+    context = {
+        'proposal': proposal,
+        'url': url,
+        'greeting': 'Reviewer',
+        'reviewer_footer': True,
+        'FMB': get_fmb_sharepoint_url(),
+    }
+
+    msg = email.send(get_assessor_recipients(), context=context)
+    sender = get_sender_user()
+    _log_proposal_email(msg, proposal, sender=sender)
+    return msg
+
+def send_review_completed_email_notification(request, proposal):
+    email = ReviewCompletedSendNotificationEmail()
+    try:
+        url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
+        if "-internal" not in url:
+            # add it. This email is for internal staff (assessors)
+            url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
+    except Exception as e:
+            # for testing, eg. send_submit_email_notification(request=None, proposal=p)
+            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+    context = {
+        'proposal': proposal,
+        'url': url,
+        'greeting': 'Review Completed',
+        'review_completed_footer': True,
+        'FMB': get_fmb_sharepoint_url(),
+    }
+
+    msg = email.send(get_assessor_recipients(), context=context)
+    sender = get_sender_user()
+    _log_proposal_email(msg, proposal, sender=sender)
+    return msg
+
+def send_returned_email_notification(request, proposal):
+    email = ReturnedSendNotificationEmail()
+    try:
+        url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
+        if "-internal" not in url:
+            # add it. This email is for internal staff (assessors)
+            url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
+    except Exception as e:
+            # for testing, eg. send_submit_email_notification(request=None, proposal=p)
+            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+    context = {
+        'proposal': proposal,
+        'url': url,
+        'greeting': 'Assessor',
+        'assessor_footer': True,
+        'FMB': get_fmb_sharepoint_url(),
+        'comment': proposal.latest_transition_comment or '',
+    }
+
+    msg = email.send(get_assessor_recipients(), context=context)
+    sender = get_sender_user()
+    _log_proposal_email(msg, proposal, sender=sender)
+    return msg
 
 def _log_proposal_email(email_message, proposal, sender=None):
     if isinstance(email_message, (EmailMultiAlternatives, EmailMessage,)):

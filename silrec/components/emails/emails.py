@@ -83,7 +83,6 @@ class TemplateEmailBase(object):
                 _attachments.append((filename, content, mime))
             else:
                 _attachments.append(attachment)
-        import ipdb; ipdb.set_trace()
         msg = EmailMultiAlternatives(self.subject, txt_body, from_email=from_address, to=to_addresses,
                 attachments=_attachments, cc=cc, bcc=bcc, headers={'System-Environment': email_instance})
         msg.attach_alternative(html_body, 'text/html')

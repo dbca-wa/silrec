@@ -1,0 +1,19 @@
+{%  extends 'silrec/emails/base_email.html' %}
+
+{%  block content %}
+	The Proposal {{ proposal.lodgement_number }} has been returned for further assessment.
+
+    {% if comment %}
+    <p>
+        <strong>Reason:</strong><br>
+        {{ comment }}
+    </p>
+    {% endif %}
+
+    <p>
+    You can access this proposal using the following link:
+    </p>
+    <a href="{{url}}">Access Proposal</a>
+
+
+{%  endblock %}

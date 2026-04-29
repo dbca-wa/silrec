@@ -265,9 +265,11 @@ import FormSection from '@/components/forms/section_toggle.vue';
 import AssessmentComments from '@/components/forms/collapsible_component.vue';
 import { declineProposal } from '@/components/common/workflow_functions.js';
 import Swal from 'sweetalert2';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'InternalProposal',
+    mixins: [permissionsMixin],
     components: {
         //CommsLogs,
         ApplicationForm,
@@ -424,6 +426,9 @@ export default {
             return canEdit;
         },
         displaySaveBtns: function () {
+            if (this.isReadOnlyUser) {
+                return false;
+            }
             return true;
             let display = false;
 
@@ -595,6 +600,9 @@ export default {
             return ret_val;
         },
         readonly: function () {
+            if (this.isReadOnlyUser) {
+                return true;
+            }
             return !(
                 this.proposal.added_internally && this.proposal.assigned_officer
             );
@@ -790,6 +798,7 @@ export default {
         //        {},
         //        await helpers.fetchWrapper(api_endpoints.profile)
         //    );
+        this.fetchCurrentUser();
         this.fetchProposal();
     },
     methods: {

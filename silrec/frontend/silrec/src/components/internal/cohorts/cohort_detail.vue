@@ -228,150 +228,18 @@
                     <span class="ms-2">Loading operation...</span>
                 </div>
                 <div v-else>
-                    <!-- Inline Operation Form -->
-                    <div v-if="!readOnly" class="operation-inline-form">
+                    <!-- Inline Operation Form (read-only or editable) -->
+                    <div class="operation-inline-form">
                         <OperationForm
                             :key="operationFormKey"
                             ref="operationForm"
                             :operation-id="cohortData.op_id || null"
                             :cohort-id="cohortData.cohort_id"
                             :fea-id="feaId"
-                            :read-only="readOnly"
+                            :read-only="!canEdit"
                             @operation-saved="handleOperationSaved"
                             @cancel="cancelOperationEdit"
                         />
-                    </div>
-
-                    <!-- Read-only view when not editable -->
-                    <div
-                        v-else-if="cohortData.op_id && operationDetails"
-                        class="operation-view"
-                    >
-                        <div class="row">
-                            <div class="col-md-6">
-                                <dl class="row">
-                                    <dt class="col-sm-4">Operation ID:</dt>
-                                    <dd class="col-sm-8">
-                                        {{ operationDetails.op_id }}
-                                    </dd>
-
-                                    <dt class="col-sm-4">FEA ID:</dt>
-                                    <dd class="col-sm-8">
-                                        {{
-                                            operationDetails.fea_id || 'Not set'
-                                        }}
-                                    </dd>
-
-                                    <dt class="col-sm-4">DAS ID:</dt>
-                                    <dd class="col-sm-8">
-                                        {{
-                                            operationDetails.das_id || 'Not set'
-                                        }}
-                                    </dd>
-
-                                    <dt class="col-sm-4">Plan Release:</dt>
-                                    <dd class="col-sm-8">
-                                        {{
-                                            operationDetails.plan_release ||
-                                            'Not set'
-                                        }}
-                                    </dd>
-                                </dl>
-                            </div>
-                            <div class="col-md-6">
-                                <dl class="row">
-                                    <dt class="col-sm-4">Silvic Plan Map:</dt>
-                                    <dd class="col-sm-8">
-                                        <a
-                                            v-if="
-                                                operationDetails.silvic_plan_map
-                                            "
-                                            :href="
-                                                operationDetails.silvic_plan_map
-                                            "
-                                            target="_blank"
-                                            class="btn btn-sm btn-outline-info"
-                                        >
-                                            <i class="bi bi-eye"></i> View Map
-                                        </a>
-                                        <span v-else>No map attached</span>
-                                    </dd>
-
-                                    <dt class="col-sm-4">Silvic Plan Doc:</dt>
-                                    <dd class="col-sm-8">
-                                        <a
-                                            v-if="
-                                                operationDetails.silvic_plan_doc
-                                            "
-                                            :href="
-                                                operationDetails.silvic_plan_doc
-                                            "
-                                            target="_blank"
-                                            class="btn btn-sm btn-outline-info"
-                                        >
-                                            <i class="bi bi-eye"></i> View
-                                            Document
-                                        </a>
-                                        <span v-else>No document attached</span>
-                                    </dd>
-
-                                    <dt class="col-sm-4">Created:</dt>
-                                    <dd class="col-sm-8">
-                                        {{
-                                            formatDate(
-                                                operationDetails.created_on
-                                            )
-                                        }}
-                                        by {{ operationDetails.created_by }}
-                                    </dd>
-
-                                    <dt class="col-sm-4">Updated:</dt>
-                                    <dd class="col-sm-8">
-                                        {{
-                                            formatDate(
-                                                operationDetails.updated_on
-                                            )
-                                        }}
-                                        by {{ operationDetails.updated_by }}
-                                    </dd>
-                                </dl>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- No operation linked message -->
-                    <div v-else-if="!cohortData.op_id" class="alert alert-info">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <div>
-                                <h6 class="mb-1">
-                                    No operation linked to this cohort
-                                </h6>
-                                <p class="mb-0">
-                                    This cohort is not linked to an operation.
-                                    Operations help track planning documents and
-                                    approvals. Use the form above to create or
-                                    link an operation.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Operation ID exists but operation not found -->
-                    <div v-else class="alert alert-warning">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            <div>
-                                <h6 class="mb-1">Operation not found</h6>
-                                <p class="mb-0">
-                                    This cohort has an operation ID ({{
-                                        cohortData.op_id
-                                    }}) but the operation record was not found.
-                                    You can create a new operation using the
-                                    form above.
-                                </p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -517,9 +385,11 @@ import SystemInformation from '@/components/internal/cohorts/system_info_cohort.
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
 import OperationForm from '@/components/internal/operations/operations_form.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'CohortDetail',
+    mixins: [permissionsMixin],
     components: {
         CohortForm,
         AdditionalCohortFields,
@@ -558,7 +428,6 @@ export default {
             showCancelConfirm: false,
             additionalFieldsKey: 0,
             saving: false,
-            readOnly: false,
             hasUnsavedChanges: false,
             treatmentsLoading: false,
             treatmentsCount: 0,
@@ -571,7 +440,9 @@ export default {
     },
     computed: {
         canEdit() {
-            return true;
+            if (this.isReadOnlyUser) {
+                return false;
+            }
             const editRoles = ['Assessors', 'Reviewers', 'Silrec Admin'];
             return this.userPermissions.some((perm) =>
                 editRoles.includes(perm)
@@ -992,7 +863,11 @@ export default {
         },
 
         loadUserPermissions() {
-            this.userPermissions = helpers.getUserPermissions();
+            this.fetchCurrentUser().then((user) => {
+                if (user) {
+                    this.userPermissions = user.groups || [];
+                }
+            });
         },
 
         getCSRFToken() {
@@ -1019,6 +894,7 @@ export default {
     },
     mounted() {
         this.loadCohortData();
+        this.loadUserPermissions();
 
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
     },

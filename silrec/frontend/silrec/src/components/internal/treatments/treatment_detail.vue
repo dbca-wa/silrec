@@ -42,9 +42,11 @@
 <script>
 import TreatmentForm from './treatments_form.vue';
 import { api_endpoints } from '@/utils/hooks';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'TreatmentDetail',
+    mixins: [permissionsMixin],
     components: {
         TreatmentForm,
     },
@@ -63,12 +65,14 @@ export default {
             loading: false,
             error: null,
             treatmentData: {},
-            readOnly: false,
         };
     },
     computed: {
         isNew() {
             return !this.treatmentId;
+        },
+        readOnly() {
+            return this.isReadOnlyUser;
         },
     },
     methods: {
@@ -118,6 +122,7 @@ export default {
         },
     },
     mounted() {
+        this.fetchCurrentUser();
         this.loadTreatmentData();
     },
 };

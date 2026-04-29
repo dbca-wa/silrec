@@ -2,7 +2,7 @@
     <div id="TreatmentsDash" class="container">
         <TreatmentsTable
             ref="treatmentsTable"
-            :read-only="false"
+            :read-only="isReadOnlyUser"
             @treatment-updated="refreshTreatments"
         />
     </div>
@@ -10,9 +10,11 @@
 
 <script>
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'InternalTreatmentsDashboard',
+    mixins: [permissionsMixin],
     components: {
         TreatmentsTable,
     },
@@ -33,6 +35,7 @@ export default {
         },
     },
     mounted() {
+        this.fetchCurrentUser();
         // You can add any initialization logic here
         console.log('Treatments dashboard mounted');
     },

@@ -456,7 +456,7 @@
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="d-flex gap-2">
+                <div v-if="!isReadOnlyUser" class="d-flex gap-2">
                     <button
                         type="button"
                         class="btn btn-primary"
@@ -828,9 +828,11 @@ import { api_endpoints } from '@/utils/hooks';
 import $ from 'jquery';
 import 'select2/dist/css/select2.min.css';
 import 'select2/dist/js/select2.min.js';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'ReportGenerator',
+    mixins: [permissionsMixin],
     data() {
         return {
             // Available reports from API
@@ -1514,6 +1516,7 @@ export default {
         },
     },
     mounted() {
+        this.fetchCurrentUser();
         this.loadAvailableReports();
     },
 

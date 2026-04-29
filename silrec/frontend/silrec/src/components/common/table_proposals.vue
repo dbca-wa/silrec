@@ -113,7 +113,7 @@
         </div>
 -->
 
-        <div v-if="!email_user_id_assigned" class="row">
+        <div v-if="!email_user_id_assigned && !isReadOnlyUser" class="row">
             <div class="col-md-12">
                 <div class="text-end">
                     <button
@@ -161,9 +161,11 @@ import CollapsibleFilters from '@/components/forms/collapsible_component.vue';
 import { expandToggle } from '@/components/common/table_functions.js';
 import { discardProposal } from '@/components/common/workflow_functions.js';
 import Swal from 'sweetalert2';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'TableApplications',
+    mixins: [permissionsMixin],
     components: {
         datatable,
         CollapsibleFilters,
@@ -649,6 +651,7 @@ export default {
         },
     },
     created: function () {
+        this.fetchCurrentUser();
         this.fetchFilterLists();
     },
     mounted: function () {

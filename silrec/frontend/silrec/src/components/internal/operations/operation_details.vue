@@ -35,9 +35,11 @@
 
 <script>
 import OperationForm from './operations_form.vue';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'OperationDetails',
+    mixins: [permissionsMixin],
     components: {
         OperationForm,
     },
@@ -54,10 +56,12 @@ export default {
     data() {
         return {
             feaId: '',
-            readOnly: false,
         };
     },
     computed: {
+        readOnly() {
+            return this.isReadOnlyUser || this.isViewMode;
+        },
         isEditMode() {
             return this.$route.name === 'edit-operation';
         },
@@ -80,8 +84,8 @@ export default {
         },
     },
     mounted() {
-        // Set read-only based on route
-        this.readOnly = this.isViewMode;
+        this.fetchCurrentUser();
+        // Set read-only based on route — computed now handles it
 
         // If in new mode and cohortId is provided, try to get FEA ID
         if (this.isNewMode && this.cohortId) {

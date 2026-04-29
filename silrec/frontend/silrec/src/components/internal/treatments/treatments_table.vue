@@ -524,7 +524,7 @@ export default {
                   <i class="bi bi-trash"></i>
                 </button>`;
                             } else {
-                                actions += `<a href="#/internal/treatment/${data}" class="btn btn-sm btn-outline-info" title="View Treatment">
+                                actions += `<a href="/internal/treatment/${data}" class="btn btn-sm btn-outline-info" title="View Treatment">
                   <i class="bi bi-eye"></i>
                 </a>`;
                             }

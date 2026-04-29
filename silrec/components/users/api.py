@@ -57,6 +57,9 @@ class CurrentUserView(APIView):
             'last_name': user.last_name,
             'is_staff': user.is_staff,
             'groups': groups,
+            'is_readonly_user': ('User' in groups or 'Reviewer' in groups) and not any(
+                g in groups for g in ['Operator', 'Assessor', 'Silrec Admin']
+            ),
         })
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -94,6 +97,9 @@ class UserViewSet(viewsets.ModelViewSet):
             'last_name': user.last_name,
             'is_staff': user.is_staff,
             'groups': groups,
+            'is_readonly_user': ('User' in groups or 'Reviewer' in groups) and not any(
+                g in groups for g in ['Operator', 'Assessor', 'Silrec Admin']
+            ),
         })
 
     @action(detail=True, methods=['GET'])

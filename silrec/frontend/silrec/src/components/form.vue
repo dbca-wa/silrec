@@ -621,8 +621,9 @@ export default {
         hasDumpFile: function () {
             return this.dumpFileExists;
         },
-        // Only show shapefile actions in draft or processing_shapefile status
+        // Only show shapefile actions in draft or processing_shapefile status, and not for read-only users
         showShapefileActions: function () {
+            if (this.readonly) return false;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return false;
             const s = this.workflowOptions.current_status;

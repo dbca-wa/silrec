@@ -700,9 +700,11 @@ import { click } from 'ol/events/condition';
 import datatable from '@/utils/vue/datatable.vue';
 import { api_endpoints } from '@/utils/hooks';
 import { v4 as uuid } from 'uuid';
+import permissionsMixin from '@/mixins/permissions';
 
 export default {
     name: 'MapComponent',
+    mixins: [permissionsMixin],
     components: {
         datatable,
     },
@@ -733,6 +735,10 @@ export default {
         context: {
             type: Object,
             default: null,
+        },
+        readOnly: {
+            type: Boolean,
+            default: false,
         },
     },
     emits: ['refresh-from-response'],
@@ -1016,21 +1022,28 @@ export default {
                         searchable: false,
                         className: 'action-column',
                         render: function (data, type, row) {
-                            // Get cohort_id from the row data - assuming it's available in primary_cohort
                             const cohortId = row.primary_cohort
                                 ? row.primary_cohort.cohort_id
                                 : null;
+                            const isReadOnly = vm.readOnly || vm.isReadOnlyUser;
 
                             return `
                 ${
-                    cohortId
+                    cohortId && !isReadOnly
                         ? `
                 <a href="proposal/-1/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">
                      <i class="bi bi-pencil"></i>
                      Edit
                 </a>
                 `
-                        : ''
+                        : cohortId
+                          ? `
+                <a href="/internal/cohorts/${cohortId}" class="btn btn-sm btn-outline-info me-1" title="View Cohort">
+                     <i class="bi bi-eye"></i>
+                     View
+                </a>
+                `
+                          : ''
                 }
                 <button class="btn btn-sm btn-outline-primary me-1 view-polygon-btn" data-polygon-id="${data}" title="View Details">
                 <i class="bi bi-eye"></i>
@@ -1090,6 +1103,8 @@ export default {
         },
     },
     async mounted() {
+        this.fetchCurrentUser();
+
         this.$nextTick(() => {
             this.initializeMap();
         });

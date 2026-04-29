@@ -167,7 +167,7 @@ export default {
                   <i class="bi bi-trash"></i>
                 </button>`;
                             } else {
-                                actions += `<a href="#/internal/operation/${data}" class="btn btn-sm btn-outline-info" title="View Operation">
+                                actions += `<a href="/internal/operation/${data}" class="btn btn-sm btn-outline-info" title="View Operation">
                   <i class="bi bi-eye"></i>
                 </a>`;
                             }

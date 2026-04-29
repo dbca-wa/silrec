@@ -3,11 +3,18 @@
         <div v-if="debug">internal/proposals/proposal.vue</div>
 
         <!-- Status Transition Comment Alert -->
-        <div v-if="proposal.latest_transition_comment && isBackwardStatus" class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+        <div
+            v-if="proposal.latest_transition_comment && isBackwardStatus"
+            class="alert alert-danger alert-dismissible fade show mb-3"
+            role="alert"
+        >
             <div class="d-flex align-items-start">
-                <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.2rem;"></i>
+                <i
+                    class="bi bi-exclamation-triangle-fill me-2"
+                    style="font-size: 1.2rem"
+                ></i>
                 <div>
-                    <strong>Processing Status Reverted:</strong><br>
+                    <strong>Processing Status Reverted:</strong><br />
                     {{ proposal.latest_transition_comment }}
                 </div>
             </div>
@@ -28,11 +35,9 @@
                         : null
                 }}
             </h3>
-            <h5>
-                Status: {{proposal.processing_status_id}}
-            </h5>
+            <h5>Status: {{ proposal.processing_status_id }}</h5>
 
-<!--
+            <!--
             <div class="col-md-3">
                 <CommsLogs
                     :comms_url="comms_url"
@@ -45,42 +50,45 @@
 
             <div class="col-md-12">
                 <!-- Main contents -->
-                        <ApplicationForm
-                            v-if="proposal"
-                            ref="application_form"
-                            :key="computedProposalId"
-                            :proposal="proposal"
-                            :show_application_title="false"
-                            :is_external="false"
-                            :is_internal="true"
-                            :can_assess="canAssess"
-                            :is_referee="isReferee"
-                            :readonly="readonly"
-                            :submitter-id="submitter_id"
-                            :show_related_items_tab="true"
-                            :registration-of-interest="isRegistrationOfInterest"
-                            :lease-licence="isLeaseLicence"
-                            :navbar-buttons-disabled="navbarButtonsDisabled"
-                            :saving-in-progress="savingProposal"
-                            @refresh-from-response="refreshFromResponse"
-                            @form-mounted="applicationFormMounted"
-                            @update:gis-data="updateGisData"
-                            @finished-drawing="onFinishedDrawing"
-                            @deleted-features="onFinishedDrawing"
-                        />
-
+                <ApplicationForm
+                    v-if="proposal"
+                    ref="application_form"
+                    :key="computedProposalId"
+                    :proposal="proposal"
+                    :show_application_title="false"
+                    :is_external="false"
+                    :is_internal="true"
+                    :can_assess="canAssess"
+                    :is_referee="isReferee"
+                    :readonly="readonly"
+                    :submitter-id="submitter_id"
+                    :show_related_items_tab="true"
+                    :registration-of-interest="isRegistrationOfInterest"
+                    :lease-licence="isLeaseLicence"
+                    :navbar-buttons-disabled="navbarButtonsDisabled"
+                    :saving-in-progress="savingProposal"
+                    @refresh-from-response="refreshFromResponse"
+                    @form-mounted="applicationFormMounted"
+                    @update:gis-data="updateGisData"
+                    @finished-drawing="onFinishedDrawing"
+                    @deleted-features="onFinishedDrawing"
+                />
             </div>
         </div>
 
         <div v-if="displaySaveBtns" class="navbar fixed-bottom bg-navbar">
             <div class="container">
-
                 <div class="row w-100">
                     <!-- Left side - Workflow buttons -->
                     <div class="col-md-6 text-start">
                         <div class="workflow-buttons">
                             <!-- Draft status buttons -->
-                            <template v-if="proposal.processing_status === 'processing_shapefile'">
+                            <template
+                                v-if="
+                                    proposal.processing_status ===
+                                    'processing_shapefile'
+                                "
+                            >
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-primary me-2"
@@ -97,9 +105,14 @@
                                     Send to Assessor
                                 </button>
                             </template>
-                            
+
                             <!-- With Assessor status buttons -->
-                            <template v-if="proposal.processing_status === 'with_assessor'">
+                            <template
+                                v-if="
+                                    proposal.processing_status ===
+                                    'with_assessor'
+                                "
+                            >
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-primary me-2"
@@ -131,9 +144,14 @@
                                     Return to Draft
                                 </button>
                             </template>
-                            
+
                             <!-- With Reviewer status buttons -->
-                            <template v-if="proposal.processing_status === 'with_reviewer'">
+                            <template
+                                v-if="
+                                    proposal.processing_status ===
+                                    'with_reviewer'
+                                "
+                            >
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-success me-2"
@@ -165,9 +183,14 @@
                                     Return to Assessor
                                 </button>
                             </template>
-                            
+
                             <!-- Review Completed status buttons -->
-                            <template v-if="proposal.processing_status === 'review_completed'">
+                            <template
+                                v-if="
+                                    proposal.processing_status ===
+                                    'review_completed'
+                                "
+                            >
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-warning me-2"
@@ -336,7 +359,7 @@ export default {
             transitioning: false,
             workflowOptions: {
                 current_status: null,
-                available_transitions: []
+                available_transitions: [],
             },
         };
     },
@@ -346,14 +369,18 @@ export default {
             handler(newStatus, oldStatus) {
                 // If moving to a forward status (with_assessor, with_reviewer, review_completed)
                 // and not from a backward transition, we can clear the UI comment
-                const forwardStatuses = ['with_assessor', 'with_reviewer', 'review_completed'];
+                const forwardStatuses = [
+                    'with_assessor',
+                    'with_reviewer',
+                    'review_completed',
+                ];
                 if (forwardStatuses.includes(newStatus) && oldStatus) {
                     // The comment is stored on the proposal, but we don't need to clear it
                     // as it will be overwritten by the next backward transition
                     console.log('Moving to forward status:', newStatus);
                 }
             },
-            deep: true
+            deep: true,
         },
         withReferral: function () {
             return (
@@ -457,35 +484,35 @@ export default {
         },
         submitter_first_name: function () {
             return this.proposal.submitter_obj.first_name;
-//            if (this.proposal.submitter) {
-//                return this.proposal.submitter.first_name;
-//            } else {
-//                return '';
-//            }
+            //            if (this.proposal.submitter) {
+            //                return this.proposal.submitter.first_name;
+            //            } else {
+            //                return '';
+            //            }
         },
         submitter_last_name: function () {
             return this.proposal.submitter_obj.last_name;
-//            if (this.proposal.submitter) {
-//                return this.proposal.submitter.last_name;
-//            } else {
-//                return '';
-//            }
+            //            if (this.proposal.submitter) {
+            //                return this.proposal.submitter.last_name;
+            //            } else {
+            //                return '';
+            //            }
         },
         submitter_id: function () {
             return this.proposal.submitter_obj.id;
-//            if (this.proposal.submitter_obj) {
-//                return this.proposal.submitter.id;
-//            } else {
-//                return this.proposal.applicant_obj.id;
-//            }
+            //            if (this.proposal.submitter_obj) {
+            //                return this.proposal.submitter.id;
+            //            } else {
+            //                return this.proposal.applicant_obj.id;
+            //            }
         },
         submitter_email: function () {
             return this.proposal.submitter_obj.email;
-//            if (this.proposal.submitter) {
-//                return this.proposal.submitter.email;
-//            } else {
-//                return this.proposal.applicant_obj.email;
-//            }
+            //            if (this.proposal.submitter) {
+            //                return this.proposal.submitter.email;
+            //            } else {
+            //                return this.proposal.applicant_obj.email;
+            //            }
         },
         proposal_form_url: function () {
             if (
@@ -677,59 +704,63 @@ export default {
         // Check if user can send to assessor (draft -> with_assessor)
         canSendToAssessor() {
             const transition = this.workflowOptions.available_transitions.find(
-                t => t.target === 'with_assessor'
+                (t) => t.target === 'with_assessor'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
-        
+
         // Check if user can send to reviewer (with_assessor -> with_reviewer)
         canSendToReviewer() {
             const transition = this.workflowOptions.available_transitions.find(
-                t => t.target === 'with_reviewer'
+                (t) => t.target === 'with_reviewer'
             );
-            console.log(!this.savingProposal)
-            console.log(!this.transitioning)
-            console.log(!!transition)
+            console.log(!this.savingProposal);
+            console.log(!this.transitioning);
+            console.log(!!transition);
             return !this.savingProposal && !this.transitioning && !!transition;
         },
-        
+
         // Check if user can return to draft (with_assessor -> draft)
         canReturnToDraft() {
             const transition = this.workflowOptions.available_transitions.find(
-                t => t.target === 'draft'
+                (t) => t.target === 'draft'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
-        
+
         // Check if user can send to review completed (with_reviewer -> review_completed)
         canSendToReviewCompleted() {
             const transition = this.workflowOptions.available_transitions.find(
-                t => t.target === 'review_completed'
+                (t) => t.target === 'review_completed'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
-        
+
         // Check if user can return to assessor (with_reviewer -> with_assessor)
         canReturnToAssessor() {
             const transition = this.workflowOptions.available_transitions.find(
-                t => t.target === 'with_assessor'
+                (t) => t.target === 'with_assessor'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
-        
+
         // Check if user can return to reviewer (review_completed -> with_reviewer)
         canReturnToReviewer() {
             const transition = this.workflowOptions.available_transitions.find(
-                t => t.target === 'with_reviewer'
+                (t) => t.target === 'with_reviewer'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
 
         // Check if current status is a "backward" status (one that should show the comment)
         isBackwardStatus() {
-            return this.proposal && ['draft', 'with_assessor', 'with_reviewer'].includes(this.proposal.processing_status);
+            return (
+                this.proposal &&
+                ['draft', 'with_assessor', 'with_reviewer'].includes(
+                    this.proposal.processing_status
+                )
+            );
         },
-
     },
     watch: {},
     updated: function () {
@@ -755,10 +786,10 @@ export default {
         });
     },
     created: async function () {
-    //    this.profile = Object.assign(
-    //        {},
-    //        await helpers.fetchWrapper(api_endpoints.profile)
-    //    );
+        //    this.profile = Object.assign(
+        //        {},
+        //        await helpers.fetchWrapper(api_endpoints.profile)
+        //    );
         this.fetchProposal();
     },
     methods: {
@@ -766,11 +797,17 @@ export default {
         isBackwardTransition(targetStatus) {
             const current = this.proposal.processing_status;
             // Return to Draft
-            if (current === 'with_assessor' && targetStatus === 'draft') return true;
+            if (current === 'with_assessor' && targetStatus === 'draft')
+                return true;
             // Return to Assessor
-            if (current === 'with_reviewer' && targetStatus === 'with_assessor') return true;
+            if (current === 'with_reviewer' && targetStatus === 'with_assessor')
+                return true;
             // Return to Reviewer
-            if (current === 'review_completed' && targetStatus === 'with_reviewer') return true;
+            if (
+                current === 'review_completed' &&
+                targetStatus === 'with_reviewer'
+            )
+                return true;
             return false;
         },
 
@@ -1200,16 +1237,16 @@ export default {
         },
         initialiseOrgContactTable: function () {
             let vm = this;
-//            if (vm.proposal && !vm.contacts_table_initialised) {
-//                vm.contacts_options.ajax.url = helpers.add_endpoint_json(
-//                    api_endpoints.organisations,
-//                    vm.proposal.applicant.id + '/contacts'
-//                );
-//                vm.contacts_table = $('#' + vm.contacts_table_id).DataTable(
-//                    vm.contacts_options
-//                );
-//                vm.contacts_table_initialised = true;
-//            }
+            //            if (vm.proposal && !vm.contacts_table_initialised) {
+            //                vm.contacts_options.ajax.url = helpers.add_endpoint_json(
+            //                    api_endpoints.organisations,
+            //                    vm.proposal.applicant.id + '/contacts'
+            //                );
+            //                vm.contacts_table = $('#' + vm.contacts_table_id).DataTable(
+            //                    vm.contacts_options
+            //                );
+            //                vm.contacts_table_initialised = true;
+            //            }
         },
         commaToNewline(s) {
             return s.replace(/[,;]/g, '\n');
@@ -1820,9 +1857,9 @@ export default {
             }
         },
         fetchAdditionalDocumentTypesDict: async function () {
-//            const response = await fetch('/api/additional_document_types_dict');
-//            const resData = await response.json();
-//            this.applySelect2ToAdditionalDocumentTypes(resData);
+            //            const response = await fetch('/api/additional_document_types_dict');
+            //            const resData = await response.json();
+            //            this.applySelect2ToAdditionalDocumentTypes(resData);
         },
         revisionToDisplay: async function (revision) {
             let payload = {
@@ -1874,44 +1911,44 @@ export default {
                 })
                 .then((data) => {
                     vm.proposal = Object.assign({}, data);
-                console.log('poposal.vue ' + vm.proposal.id)
-//                    // Dict of the latest revision's parameters
-//                    vm.latest_revision = Object.assign(
-//                        {},
-//                        data.lodgement_versions[0]
-//                    );
-//                    // Set current reivsion id to the latest one on creation
-//                    vm.current_revision_id = vm.latest_revision.revision_id;
-//                    vm.hasAmendmentRequest = this.proposal.hasAmendmentRequest;
-//                    if (vm.debug == true) {
-//                        this.showingProposal = true;
-//                    }
-//                    if (
-//                        [constants.PROPOSAL_STATUS.WITH_REFERRAL.TEXT].includes(
-//                            vm.proposal.processing_status
-//                        )
-//                    ) {
-//                        $(
-//                            'textarea.referral-comment:enabled:visible:not([readonly="readonly"]):first'
-//                        ).focus();
-//                    }
-//                    this.$nextTick(() => {
-//                        $('textarea').each(function () {
-//                            if ($(this)[0].scrollHeight > 70) {
-//                                $(this).height($(this)[0].scrollHeight - 30);
-//                            }
-//                        });
-//                        if (
-//                            constants.PROPOSAL_STATUS.APPROVED_EDITING_INVOICING
-//                                .ID == vm.proposal.processing_status_id &&
-//                            vm.profile.is_finance_officer &&
-//                            $('#invoicing-form').length
-//                        ) {
-//                            $(document).scrollTop(
-//                                $('#invoicing-form').offset()?.top - 300
-//                            );
-//                        }
-//                    });
+                    console.log('poposal.vue ' + vm.proposal.id);
+                    //                    // Dict of the latest revision's parameters
+                    //                    vm.latest_revision = Object.assign(
+                    //                        {},
+                    //                        data.lodgement_versions[0]
+                    //                    );
+                    //                    // Set current reivsion id to the latest one on creation
+                    //                    vm.current_revision_id = vm.latest_revision.revision_id;
+                    //                    vm.hasAmendmentRequest = this.proposal.hasAmendmentRequest;
+                    //                    if (vm.debug == true) {
+                    //                        this.showingProposal = true;
+                    //                    }
+                    //                    if (
+                    //                        [constants.PROPOSAL_STATUS.WITH_REFERRAL.TEXT].includes(
+                    //                            vm.proposal.processing_status
+                    //                        )
+                    //                    ) {
+                    //                        $(
+                    //                            'textarea.referral-comment:enabled:visible:not([readonly="readonly"]):first'
+                    //                        ).focus();
+                    //                    }
+                    //                    this.$nextTick(() => {
+                    //                        $('textarea').each(function () {
+                    //                            if ($(this)[0].scrollHeight > 70) {
+                    //                                $(this).height($(this)[0].scrollHeight - 30);
+                    //                            }
+                    //                        });
+                    //                        if (
+                    //                            constants.PROPOSAL_STATUS.APPROVED_EDITING_INVOICING
+                    //                                .ID == vm.proposal.processing_status_id &&
+                    //                            vm.profile.is_finance_officer &&
+                    //                            $('#invoicing-form').length
+                    //                        ) {
+                    //                            $(document).scrollTop(
+                    //                                $('#invoicing-form').offset()?.top - 300
+                    //                            );
+                    //                        }
+                    //                    });
                 })
                 .catch((error) => {
                     console.error(error);
@@ -1987,7 +2024,7 @@ export default {
         async transitionStatus(targetStatus, confirmMessage, successMessage) {
             // Check if this is a backward transition
             const isBackward = this.isBackwardTransition(targetStatus);
-            
+
             // For backward transitions, we need to ask for a comment
             // For forward transitions, we just confirm without comment
             if (isBackward) {
@@ -2018,9 +2055,12 @@ export default {
                         // Add validation for required field
                         const commentField = document.getElementById('comment');
                         const confirmButton = Swal.getConfirmButton();
-                        
+
                         const validateComment = () => {
-                            if (commentField && commentField.value.trim() === '') {
+                            if (
+                                commentField &&
+                                commentField.value.trim() === ''
+                            ) {
                                 confirmButton.disabled = true;
                                 commentField.style.borderColor = '#dc3545';
                             } else {
@@ -2028,26 +2068,29 @@ export default {
                                 commentField.style.borderColor = '';
                             }
                         };
-                        
+
                         commentField.addEventListener('input', validateComment);
                         validateComment(); // Initial validation
                     },
                     preConfirm: () => {
-                        const comment = document.getElementById('comment').value;
-                        
+                        const comment =
+                            document.getElementById('comment').value;
+
                         if (!comment || comment.trim() === '') {
-                            Swal.showValidationMessage('Please provide a comment for this status change');
+                            Swal.showValidationMessage(
+                                'Please provide a comment for this status change'
+                            );
                             return false;
                         }
-                        
+
                         return { comment: comment.trim() };
-                    }
+                    },
                 });
-                
+
                 if (!result.isConfirmed) return;
-                
+
                 this.transitioning = true;
-                
+
                 try {
                     const response = await fetch(
                         `/api/proposal/${this.proposal.id}/transition_status/`,
@@ -2055,52 +2098,53 @@ export default {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRFToken': helpers.getCookie('csrftoken')
+                                'X-CSRFToken': helpers.getCookie('csrftoken'),
                             },
                             body: JSON.stringify({
                                 target_status: targetStatus,
-                                comment: result.value.comment
-                            })
+                                comment: result.value.comment,
+                            }),
                         }
                     );
 
                     const data = await response.json();
-                    
+
                     if (!response.ok) {
                         throw new Error(data.error || 'Transition failed');
                     }
-                    
+
                     if (data.success) {
                         await Swal.fire({
                             icon: 'success',
                             title: 'Success',
                             text: successMessage || data.message,
                             timer: 2000,
-                            showConfirmButton: false
+                            showConfirmButton: false,
                         });
-                        
+
                         // Update proposal data
                         this.proposal = data.proposal;
-                        
+
                         // Refresh workflow options
                         await this.fetchWorkflowOptions();
-                        
+
                         // Reload the form to reflect changes
                         this.uuid++;
-                        
+
                         // Trigger refresh of parent components
                         this.$emit('refreshFromResponse', this.proposal);
                     } else {
                         throw new Error(data.error || 'Unknown error');
                     }
-                    
                 } catch (error) {
                     console.error('Error transitioning status:', error);
                     await Swal.fire({
                         icon: 'error',
                         title: 'Transition Failed',
-                        text: error.message || 'Failed to change status. Please try again.',
-                        confirmButtonColor: '#dc3545'
+                        text:
+                            error.message ||
+                            'Failed to change status. Please try again.',
+                        confirmButtonColor: '#dc3545',
                     });
                 } finally {
                     this.transitioning = false;
@@ -2115,13 +2159,13 @@ export default {
                     confirmButtonText: 'Confirm',
                     cancelButtonText: 'Cancel',
                     confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#dc3545'
+                    cancelButtonColor: '#dc3545',
                 });
-                
+
                 if (!result.isConfirmed) return;
-                
+
                 this.transitioning = true;
-                
+
                 try {
                     const response = await fetch(
                         `/api/proposal/${this.proposal.id}/transition_status/`,
@@ -2129,59 +2173,60 @@ export default {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRFToken': helpers.getCookie('csrftoken')
+                                'X-CSRFToken': helpers.getCookie('csrftoken'),
                             },
                             body: JSON.stringify({
                                 target_status: targetStatus,
-                                comment: '' // Empty comment for forward transitions
-                            })
+                                comment: '', // Empty comment for forward transitions
+                            }),
                         }
                     );
 
                     const data = await response.json();
-                    
+
                     if (!response.ok) {
                         throw new Error(data.error || 'Transition failed');
                     }
-                    
+
                     if (data.success) {
                         await Swal.fire({
                             icon: 'success',
                             title: 'Success',
                             text: successMessage || data.message,
                             timer: 2000,
-                            showConfirmButton: false
+                            showConfirmButton: false,
                         });
-                        
+
                         // Update proposal data
                         this.proposal = data.proposal;
-                        
+
                         // Refresh workflow options
                         await this.fetchWorkflowOptions();
-                        
+
                         // Reload the form to reflect changes
                         this.uuid++;
-                        
+
                         // Trigger refresh of parent components
                         this.$emit('refreshFromResponse', this.proposal);
                     } else {
                         throw new Error(data.error || 'Unknown error');
                     }
-                    
                 } catch (error) {
                     console.error('Error transitioning status:', error);
                     await Swal.fire({
                         icon: 'error',
                         title: 'Transition Failed',
-                        text: error.message || 'Failed to change status. Please try again.',
-                        confirmButtonColor: '#dc3545'
+                        text:
+                            error.message ||
+                            'Failed to change status. Please try again.',
+                        confirmButtonColor: '#dc3545',
                     });
                 } finally {
                     this.transitioning = false;
                 }
             }
         },
-        
+
         // Specific transition methods
         async sendToAssessor() {
             await this.transitionStatus(
@@ -2190,7 +2235,7 @@ export default {
                 'Proposal sent to Assessor successfully!'
             );
         },
-        
+
         async sendToReviewer() {
             await this.transitionStatus(
                 'with_reviewer',
@@ -2198,7 +2243,7 @@ export default {
                 'Proposal sent to Reviewer successfully!'
             );
         },
-        
+
         async returnToDraft() {
             await this.transitionStatus(
                 'draft',
@@ -2206,7 +2251,7 @@ export default {
                 'Proposal returned to Draft successfully!'
             );
         },
-        
+
         async sendToReviewCompleted() {
             await this.transitionStatus(
                 'review_completed',
@@ -2214,7 +2259,7 @@ export default {
                 'Proposal marked as Review Completed successfully!'
             );
         },
-        
+
         async returnToAssessor() {
             await this.transitionStatus(
                 'with_assessor',
@@ -2222,7 +2267,7 @@ export default {
                 'Proposal returned to Assessor successfully!'
             );
         },
-        
+
         async returnToReviewer() {
             await this.transitionStatus(
                 'with_reviewer',
@@ -2230,7 +2275,7 @@ export default {
                 'Proposal returned to Reviewer successfully!'
             );
         },
-        
+
         // Override the existing fetchProposal to also load workflow options
         async fetchProposal() {
             let vm = this;
@@ -2254,7 +2299,7 @@ export default {
                 .then(async (data) => {
                     vm.proposal = Object.assign({}, data);
                     console.log('proposal.vue ' + vm.proposal.id);
-                    
+
                     // Fetch workflow options after loading proposal
                     await vm.fetchWorkflowOptions();
                 })
@@ -2294,13 +2339,13 @@ export default {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .col-md-6.text-start,
     .col-md-6.text-end {
         text-align: center !important;
         width: 100%;
     }
-    
+
     .workflow-buttons {
         justify-content: center;
         margin-bottom: 10px;
@@ -2328,5 +2373,4 @@ export default {
 .swal2-textarea:required:valid {
     border-color: #28a745;
 }
-
 </style>

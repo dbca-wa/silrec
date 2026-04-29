@@ -1,7 +1,9 @@
 <template>
     <div>
-        <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/search/search_by_text.vue</div>
-        
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">
+            src/components/internal/search/search_by_text.vue
+        </div>
+
         <CollapsibleFilters
             ref="collapsible_filters"
             component_title="Search by Text String"
@@ -19,27 +21,34 @@
                             class="form-control"
                             placeholder="Enter text to search for (min. 2 chars) ..."
                         />
-                            <!--@keyup.enter="searchRecords"-->
+                        <!--@keyup.enter="searchRecords"-->
                         <small class="form-text text-muted">
-                            Enter text to search across all configured text fields
+                            Enter text to search across all configured text
+                            fields
                         </small>
                     </div>
                 </div>
-                                
+
                 <div class="col-md-3">
                     <div class="form-group">
                         <label for="">Records to Search</label>
                         <select
                             ref="recordsToSearchSelect"
                             class="form-select select2-single"
-                            style="width: 100%;"
+                            style="width: 100%"
                         >
-                            <option v-for="model in availableModels" 
-                                    :key="model.key"
-                                    :value="model.key">
-                                {{ model.display_name }} 
+                            <option
+                                v-for="model in availableModels"
+                                :key="model.key"
+                                :value="model.key"
+                            >
+                                {{ model.display_name }}
                                 <span v-if="model.search_fields_count > 0">
-                                    ({{ model.search_fields_count }} field{{ model.search_fields_count !== 1 ? 's' : '' }})
+                                    ({{ model.search_fields_count }} field{{
+                                        model.search_fields_count !== 1
+                                            ? 's'
+                                            : ''
+                                    }})
                                 </span>
                             </option>
                         </select>
@@ -49,10 +58,7 @@
                 <div class="col-md-3">
                     <div class="form-group">
                         <label for="">Match Type</label>
-                        <select
-                            v-model="matchType"
-                            class="form-select"
-                        >
+                        <select v-model="matchType" class="form-select">
                             <option value="contains">Contains</option>
                             <option value="exact">Exact Match</option>
                             <option value="starts_with">Starts With</option>
@@ -61,7 +67,7 @@
                     </div>
                 </div>
             </div>
-                
+
             <div class="row p-2">
                 <div class="col-md-3">
                     <div class="form-group">
@@ -74,7 +80,7 @@
                         <small class="form-text text-muted">Optional</small>
                     </div>
                 </div>
-                
+
                 <div class="col-md-3">
                     <div class="form-group">
                         <label for="">Date To</label>
@@ -86,7 +92,7 @@
                         <small class="form-text text-muted">Optional</small>
                     </div>
                 </div>
-                
+
                 <div class="col-md-3">
                     <div class="form-group">
                         <label for="">Case Sensitive</label>
@@ -97,7 +103,10 @@
                                 id="caseSensitiveSwitch"
                                 v-model="caseSensitive"
                             />
-                            <label class="form-check-label" for="caseSensitiveSwitch">
+                            <label
+                                class="form-check-label"
+                                for="caseSensitiveSwitch"
+                            >
                                 {{ caseSensitive ? 'Yes' : 'No' }}
                             </label>
                         </div>
@@ -105,29 +114,34 @@
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
-                      <label for="post_2024_only" class="form-check-label">
-                        <br>
-                        <div>
-                          <input
-                            id="post_2024_only"
-                            v-model="filterPost2024Only"
-                            type="checkbox"
-                            class="form-check-input me-2"
-                            checked
-                          />
-                          Post 2024 only
-                        </div>
-                      </label>
+                        <label for="post_2024_only" class="form-check-label">
+                            <br />
+                            <div>
+                                <input
+                                    id="post_2024_only"
+                                    v-model="filterPost2024Only"
+                                    type="checkbox"
+                                    class="form-check-input me-2"
+                                    checked
+                                />
+                                Post 2024 only
+                            </div>
+                        </label>
                     </div>
                 </div>
 
-                <div class="col-md-12 mt-2 p-2" v-if="availableFields.length > 0">
+                <div
+                    class="col-md-12 mt-2 p-2"
+                    v-if="availableFields.length > 0"
+                >
                     <div class="form-group">
                         <div class="row mb-2">
                             <div class="col-12">
                                 <label for="" class="form-label">
-                                    Text Fields to Search 
-                                    <span class="badge bg-primary ms-1">{{ availableFields.length }}</span>
+                                    Text Fields to Search
+                                    <span class="badge bg-primary ms-1">{{
+                                        availableFields.length
+                                    }}</span>
                                 </label>
                             </div>
                             <div class="col-12">
@@ -139,7 +153,10 @@
                                         :checked="allFieldsSelected"
                                         @change="toggleAllFields"
                                     />
-                                    <label class="form-check-label fw-bold" for="selectAllFields">
+                                    <label
+                                        class="form-check-label fw-bold"
+                                        for="selectAllFields"
+                                    >
                                         Select/Deselect All
                                     </label>
                                 </div>
@@ -147,10 +164,12 @@
                         </div>
                         <div class="row">
                             <div class="col-12">
-                                <div class="form-check form-check-inline mb-2" 
-                                     v-for="field in availableFields" 
-                                     :key="field.id"
-                                     style="min-width: 200px;">
+                                <div
+                                    class="form-check form-check-inline mb-2"
+                                    v-for="field in availableFields"
+                                    :key="field.id"
+                                    style="min-width: 200px"
+                                >
                                     <input
                                         class="form-check-input"
                                         type="checkbox"
@@ -158,12 +177,23 @@
                                         :value="field.field_name"
                                         v-model="selectedFields"
                                     />
-                                    <label class="form-check-label" :for="'field_' + field.id"
-                                          :title="field.description || field.display_name">
+                                    <label
+                                        class="form-check-label"
+                                        :for="'field_' + field.id"
+                                        :title="
+                                            field.description ||
+                                            field.display_name
+                                        "
+                                    >
                                         {{ field.display_name }}
-                                        <span v-if="field.description" 
-                                              class="text-muted small d-block" 
-                                              style="font-size: 0.8em; line-height: 1.2;">
+                                        <span
+                                            v-if="field.description"
+                                            class="text-muted small d-block"
+                                            style="
+                                                font-size: 0.8em;
+                                                line-height: 1.2;
+                                            "
+                                        >
                                             {{ field.description }}
                                         </span>
                                     </label>
@@ -173,35 +203,44 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <small class="text-muted">
-                                    Selected {{ selectedFields.length }} of {{ availableFields.length }} field(s)
+                                    Selected {{ selectedFields.length }} of
+                                    {{ availableFields.length }} field(s)
                                 </small>
                             </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="col-md-12" v-else-if="fieldsLoaded">
                     <div class="alert alert-warning">
                         <i class="fa-solid fa-triangle-exclamation me-2"></i>
-                        No search fields configured for <strong>{{ selectedModelDisplay }}</strong>.
-                        <router-link to="/admin/proposals/textsearchfielddisplay/" 
-                                     target="_blank"
-                                     class="alert-link ms-2">
+                        No search fields configured for
+                        <strong>{{ selectedModelDisplay }}</strong
+                        >.
+                        <router-link
+                            to="/admin/proposals/textsearchfielddisplay/"
+                            target="_blank"
+                            class="alert-link ms-2"
+                        >
                             Configure fields in Admin
                         </router-link>
                     </div>
                 </div>
-                
+
                 <div class="col-md-12 mt-4">
                     <div class="text-end">
                         <button
                             type="button"
                             class="btn btn-primary me-2"
                             @click="searchRecords"
-                            :disabled="!searchText || searchText.length < 2 || selectedFields.length === 0"
+                            :disabled="
+                                !searchText ||
+                                searchText.length < 2 ||
+                                selectedFields.length === 0
+                            "
                             :title="getSearchButtonTitle"
                         >
-                            <i class="fa-solid fa-search"></i> 
+                            <i class="fa-solid fa-search"></i>
                             <span v-if="!loading">Search</span>
                             <span v-else>Searching...</span>
                         </button>
@@ -219,7 +258,8 @@
                             @click="loadDefaultFields"
                             title="Reload default field configuration"
                         >
-                            <i class="fa-solid fa-arrows-rotate"></i> Reload Fields
+                            <i class="fa-solid fa-arrows-rotate"></i> Reload
+                            Fields
                         </button>
                     </div>
                 </div>
@@ -228,17 +268,37 @@
 
         <div v-if="searchPerformed && !loading" class="row mt-3">
             <div class="col-md-12">
-                <div class="alert" :class="totalRecords > 0 ? 'alert-success' : 'alert-warning'">
-                    <div class="d-flex justify-content-between align-items-center">
+                <div
+                    class="alert"
+                    :class="
+                        totalRecords > 0 ? 'alert-success' : 'alert-warning'
+                    "
+                >
+                    <div
+                        class="d-flex justify-content-between align-items-center"
+                    >
                         <div>
-                            <i class="fa-solid" :class="totalRecords > 0 ? 'fa-circle-check' : 'fa-circle-exclamation'"></i>
+                            <i
+                                class="fa-solid"
+                                :class="
+                                    totalRecords > 0
+                                        ? 'fa-circle-check'
+                                        : 'fa-circle-exclamation'
+                                "
+                            ></i>
                             <strong class="ms-2">
-                                {{ totalRecords }} record{{ totalRecords !== 1 ? 's' : '' }} found
+                                {{ totalRecords }} record{{
+                                    totalRecords !== 1 ? 's' : ''
+                                }}
+                                found
                             </strong>
                             <span v-if="selectedModel !== 'all'" class="ms-2">
-                                in <strong>{{ selectedModelDisplay }}</strong> model
+                                in
+                                <strong>{{ selectedModelDisplay }}</strong>
+                                model
                             </span>
-                            for text: "<strong>{{ searchText }}</strong>"
+                            for text: "<strong>{{ searchText }}</strong
+                            >"
                         </div>
                         <div>
                             <button
@@ -252,8 +312,12 @@
                         </div>
                     </div>
                     <div v-if="selectedFields.length > 0" class="mt-2 small">
-                        <span class="text-muted">Searching in {{ selectedFields.length }} field(s): </span>
-                        <span class="fst-italic">{{ selectedFields.join(', ') }}</span>
+                        <span class="text-muted"
+                            >Searching in {{ selectedFields.length }} field(s):
+                        </span>
+                        <span class="fst-italic">{{
+                            selectedFields.join(', ')
+                        }}</span>
                     </div>
                 </div>
             </div>
@@ -277,7 +341,7 @@
             </div>
         </div>
 
-<!--
+        <!--
         <div class="row" v-if="searchPerformed">
             <div class="col-lg-12">
                 <div class="card">
@@ -310,7 +374,6 @@
             </div>
         </div>
 -->
-       
     </div>
 </template>
 
@@ -328,28 +391,28 @@ export default {
     name: 'SearchByText',
     components: {
         datatable,
-        CollapsibleFilters
+        CollapsibleFilters,
     },
     filters: {
         formatModelName(value) {
             const modelNames = {
-                'proposal': 'Proposals',
-                'polygon': 'Polygons', 
-                'cohort': 'Cohorts',
-                'treatment': 'Treatments',
-                'treatment_xtra': 'Treatment Extras',
-                'survey_assessment_document': 'Survey Documents',
-                'silviculturist_comment': 'Silviculturist Comments',
-                'prescription': 'Prescriptions'
+                proposal: 'Proposals',
+                polygon: 'Polygons',
+                cohort: 'Cohorts',
+                treatment: 'Treatments',
+                treatment_xtra: 'Treatment Extras',
+                survey_assessment_document: 'Survey Documents',
+                silviculturist_comment: 'Silviculturist Comments',
+                prescription: 'Prescriptions',
             };
             return modelNames[value] || value;
-        }
+        },
     },
     data() {
         let vm = this;
         return {
             datatable_id: 'text-search-datatable-' + uuid(),
-            
+
             // Search filters
             searchText: '',
             //filterField: 'all',
@@ -359,24 +422,24 @@ export default {
             caseSensitive: false,
             selectedModel: 'all',
             selectedModelDisplay: 'All Records',
-            
+
             // Dynamic fields from database
             availableModels: [],
             availableFields: [],
             selectedFields: [],
-            
+
             // Loading states
             fieldsLoaded: false,
             loadingFields: false,
             loading: false,
-            
+
             // Search results
             searchPerformed: false,
             totalRecords: 0,
-            
+
             // Select2 instances
             select2RecordsToSearch: null,
-            
+
             // Error handling
             errorMessage: '',
             filterPost2024Only: true,
@@ -384,10 +447,12 @@ export default {
     },
     computed: {
         allFieldsSelected() {
-            return this.availableFields.length > 0 && 
-                   this.selectedFields.length === this.availableFields.length;
+            return (
+                this.availableFields.length > 0 &&
+                this.selectedFields.length === this.availableFields.length
+            );
         },
-        
+
         getSearchButtonTitle() {
             if (!this.searchText || this.searchText.length < 2) {
                 return 'Please enter at least 2 characters to search';
@@ -397,7 +462,7 @@ export default {
             }
             return 'Search records';
         },
-        
+
         dtHeaders: function () {
             return [
                 'Model',
@@ -407,10 +472,10 @@ export default {
                 'Created On',
                 'Created By',
                 'Details',
-                'Action'
+                'Action',
             ];
         },
-        
+
         column_model: function () {
             return {
                 data: 'model_type',
@@ -421,10 +486,10 @@ export default {
                     return full.model_display || full.model_type;
                 },
                 name: 'model_type',
-                className: 'text-nowrap'
+                className: 'text-nowrap',
             };
         },
-        
+
         column_id: function () {
             return {
                 data: 'record_id',
@@ -435,10 +500,10 @@ export default {
                     return full.record_id || full.id;
                 },
                 name: 'record_id',
-                className: 'text-nowrap'
+                className: 'text-nowrap',
             };
         },
-        
+
         column_field: function () {
             return {
                 data: 'field_found',
@@ -456,7 +521,7 @@ export default {
                 name: 'field_found',
             };
         },
-        
+
         column_preview: function () {
             let vm = this;
             return {
@@ -467,28 +532,34 @@ export default {
                 render: function (row, type, full) {
                     let text = full.text_preview || full.matching_text || '';
                     let searchText = vm.searchText;
-                    
+
                     // Highlight the search term in the preview
                     if (text && searchText) {
                         try {
-                            const escapedSearchText = searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const regex = new RegExp(`(${escapedSearchText})`, 'gi');
+                            const escapedSearchText = searchText.replace(
+                                /[.*+?^${}()|[\]\\]/g,
+                                '\\$&'
+                            );
+                            const regex = new RegExp(
+                                `(${escapedSearchText})`,
+                                'gi'
+                            );
                             text = text.replace(regex, '<mark>$1</mark>');
                         } catch (e) {
                             console.warn('Error highlighting search text:', e);
                         }
                     }
-                    
+
                     // Limit length for display
                     if (text.length > 150) {
                         text = text.substring(0, 150) + '...';
                     }
-                    
+
                     return text;
-                }
+                },
             };
         },
-        
+
         column_created: function () {
             return {
                 data: 'created_on',
@@ -507,7 +578,9 @@ export default {
                                     return date.format('DD/MM/YYYY HH:mm');
                                 }
                             } else if (dateStr instanceof Date) {
-                                return moment(dateStr).format('DD/MM/YYYY HH:mm');
+                                return moment(dateStr).format(
+                                    'DD/MM/YYYY HH:mm'
+                                );
                             }
                         } catch (e) {
                             console.warn('Error formatting date:', e);
@@ -516,10 +589,10 @@ export default {
                     return 'N/A';
                 },
                 name: 'created_on',
-                className: 'text-nowrap'
+                className: 'text-nowrap',
             };
         },
-        
+
         column_created_by: function () {
             return {
                 data: 'created_by',
@@ -532,7 +605,7 @@ export default {
                 name: 'created_by',
             };
         },
-        
+
         column_details: function () {
             return {
                 data: 'details',
@@ -541,24 +614,41 @@ export default {
                 visible: true,
                 render: function (row, type, full) {
                     let details = [];
-                    
+
                     // Use detail fields from the result
-                    if (full.obj_code) details.push(`<strong>Objective:</strong> ${full.obj_code}`);
-                    if (full.task_name) details.push(`<strong>Task:</strong> ${full.task_name}`);
-                    if (full.polygon_name) details.push(`<strong>Polygon:</strong> ${full.polygon_name}`);
-                    if (full.compartment) details.push(`<strong>Compartment:</strong> ${full.compartment}`);
-                    
+                    if (full.obj_code)
+                        details.push(
+                            `<strong>Objective:</strong> ${full.obj_code}`
+                        );
+                    if (full.task_name)
+                        details.push(
+                            `<strong>Task:</strong> ${full.task_name}`
+                        );
+                    if (full.polygon_name)
+                        details.push(
+                            `<strong>Polygon:</strong> ${full.polygon_name}`
+                        );
+                    if (full.compartment)
+                        details.push(
+                            `<strong>Compartment:</strong> ${full.compartment}`
+                        );
+
                     // If we have a details field from the API, use it
-                    if (full.details && full.details !== 'No additional details') {
+                    if (
+                        full.details &&
+                        full.details !== 'No additional details'
+                    ) {
                         return full.details;
                     }
-                    
-                    return details.length > 0 ? details.join('<br/>') : '<em>No additional details</em>';
+
+                    return details.length > 0
+                        ? details.join('<br/>')
+                        : '<em>No additional details</em>';
                 },
-                className: 'small'
+                className: 'small',
             };
         },
-        
+
         column_action: function () {
             let vm = this;
             return {
@@ -573,27 +663,30 @@ export default {
                         if (!url.startsWith('http') && !url.startsWith('/')) {
                             url = '/' + url;
                         }
-                        
+
                         return `<a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary">
                                   <i class="fa-solid fa-external-link-alt"></i> View
                                </a>`;
                     }
                     return '';
                 },
-                className: 'text-center'
+                className: 'text-center',
             };
         },
-        
+
         dtOptions: function () {
             let vm = this;
-            
+
             return {
                 autoWidth: true,
                 responsive: true,
                 serverSide: true,
                 searching: true,
                 processing: true,
-                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                lengthMenu: [
+                    [10, 25, 50, 100],
+                    [10, 25, 50, 100],
+                ],
                 pageLength: 10,
                 deferLoading: 0, // Don't load until we trigger it
                 language: {
@@ -605,7 +698,7 @@ export default {
                     lengthMenu: 'Show _MENU_ records',
                     loadingRecords: 'Loading...',
                     search: 'Search within results:',
-                    zeroRecords: 'No matching records found'
+                    zeroRecords: 'No matching records found',
                 },
                 ajax: {
                     url: api_endpoints.search_by_text,
@@ -629,9 +722,9 @@ export default {
                             start: d.start,
                             length: d.length,
                             order: JSON.stringify(d.order || []),
-                            search: JSON.stringify(d.search || {})
+                            search: JSON.stringify(d.search || {}),
                         };
-                        
+
                         return params;
                     },
                     error: function (xhr, error, thrown) {
@@ -641,13 +734,14 @@ export default {
                             title: 'Error',
                             text: 'Failed to load search results. Please try again.',
                             icon: 'error',
-                            confirmButtonText: 'OK'
+                            confirmButtonText: 'OK',
                         });
-                    }
+                    },
                 },
-                dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
-                     "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                dom:
+                    "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 order: [[4, 'desc']], // Default order by created date descending
                 columns: [
                     vm.column_model,
@@ -657,101 +751,155 @@ export default {
                     vm.column_created,
                     vm.column_created_by,
                     vm.column_details,
-                    vm.column_action
+                    vm.column_action,
                 ],
                 drawCallback: function (settings) {
                     // Update totalRecords on every draw
                     const json = settings.json;
                     if (json) {
-                        vm.totalRecords = json.recordsFiltered || json.recordsTotal || 0;
+                        vm.totalRecords =
+                            json.recordsFiltered || json.recordsTotal || 0;
                     }
                     vm.loading = false;
                 },
                 initComplete: function () {
                     console.log('Text search datatable initialized');
-                    
+
                     // Add custom search delay
                     const api = this.api();
                     const searchInput = $('.dataTables_filter input');
                     searchInput.unbind();
-                    searchInput.bind('input', function() {
+                    searchInput.bind('input', function () {
                         const value = this.value;
                         clearTimeout(this.delay);
-                        this.delay = setTimeout(function() {
+                        this.delay = setTimeout(function () {
                             api.search(value).draw();
                         }, 500);
                     });
                 },
             };
-        }
+        },
     },
     methods: {
         async loadAvailableModels() {
             try {
                 // Use fetch instead of this.$http
-                const response = await fetch(api_endpoints.text_search_available_models);
+                const response = await fetch(
+                    api_endpoints.text_search_available_models
+                );
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
                 this.availableModels = data;
             } catch (error) {
-                console.warn('Could not load models from API, using fallback:', error);
-                
+                console.warn(
+                    'Could not load models from API, using fallback:',
+                    error
+                );
+
                 // Fallback to default models
                 this.availableModels = [
-                    { key: 'all', display_name: 'All Records', search_fields_count: 12 },
-                    { key: 'proposal', display_name: 'Proposals', search_fields_count: 3 },
-                    { key: 'polygon', display_name: 'Polygons', search_fields_count: 2 },
-                    { key: 'cohort', display_name: 'Cohorts', search_fields_count: 3 },
-                    { key: 'treatment', display_name: 'Treatments', search_fields_count: 2 },
-                    { key: 'treatment_xtra', display_name: 'Treatment Extras', search_fields_count: 1 },
-                    { key: 'survey_assessment_document', display_name: 'Survey Documents', search_fields_count: 2 },
-                    { key: 'silviculturist_comment', display_name: 'Silviculturist Comments', search_fields_count: 1 },
-                    { key: 'prescription', display_name: 'Prescriptions', search_fields_count: 1 }
+                    {
+                        key: 'all',
+                        display_name: 'All Records',
+                        search_fields_count: 12,
+                    },
+                    {
+                        key: 'proposal',
+                        display_name: 'Proposals',
+                        search_fields_count: 3,
+                    },
+                    {
+                        key: 'polygon',
+                        display_name: 'Polygons',
+                        search_fields_count: 2,
+                    },
+                    {
+                        key: 'cohort',
+                        display_name: 'Cohorts',
+                        search_fields_count: 3,
+                    },
+                    {
+                        key: 'treatment',
+                        display_name: 'Treatments',
+                        search_fields_count: 2,
+                    },
+                    {
+                        key: 'treatment_xtra',
+                        display_name: 'Treatment Extras',
+                        search_fields_count: 1,
+                    },
+                    {
+                        key: 'survey_assessment_document',
+                        display_name: 'Survey Documents',
+                        search_fields_count: 2,
+                    },
+                    {
+                        key: 'silviculturist_comment',
+                        display_name: 'Silviculturist Comments',
+                        search_fields_count: 1,
+                    },
+                    {
+                        key: 'prescription',
+                        display_name: 'Prescriptions',
+                        search_fields_count: 1,
+                    },
                 ];
             }
         },
-        
+
         async loadFieldsForModel(modelKey) {
             this.loadingFields = true;
             this.availableFields = [];
             this.selectedFields = [];
             this.fieldsLoaded = false;
             this.errorMessage = '';
-            
+
             try {
                 // Use fetch instead of this.$http
-                console.log('URL: ' + api_endpoints.text_search_fields_by_model)
+                console.log(
+                    'URL: ' + api_endpoints.text_search_fields_by_model
+                );
                 //const url = `${api_endpoints.text_search_fields_by_model}`;
                 const baseUrl = api_endpoints.text_search_fields_by_model;
                 const url = `${baseUrl}?model=${encodeURIComponent(modelKey)}`;
 
                 //const url = new URL(api_endpoints.text_search_fields_by_model);
                 //url.searchParams.append('model', modelKey);
-                
+
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.fields && Array.isArray(data.fields)) {
                     this.availableFields = data.fields;
-                    
+
                     // Auto-select all fields by default (except for 'all' model where we might want a subset)
                     if (modelKey === 'all') {
                         // For 'all' model, select common fields by default
-                        const commonFields = ['comments', 'description', 'title', 'name', 'results'];
+                        const commonFields = [
+                            'comments',
+                            'description',
+                            'title',
+                            'name',
+                            'results',
+                        ];
                         this.selectedFields = this.availableFields
-                            .filter(field => commonFields.includes(field.field_name))
-                            .map(field => field.field_name);
+                            .filter((field) =>
+                                commonFields.includes(field.field_name)
+                            )
+                            .map((field) => field.field_name);
                     } else {
                         // For specific model, select all fields
-                        this.selectedFields = this.availableFields.map(field => field.field_name);
+                        this.selectedFields = this.availableFields.map(
+                            (field) => field.field_name
+                        );
                     }
-                    
+
                     // Update model display name
                     if (modelKey === 'all') {
                         this.selectedModelDisplay = 'All Records';
@@ -759,75 +907,150 @@ export default {
                         this.selectedModelDisplay = data.model.display_name;
                     } else {
                         // Find in availableModels
-                        const model = this.availableModels.find(m => m.key === modelKey);
-                        this.selectedModelDisplay = model ? model.display_name : this.$options.filters.formatModelName(modelKey);
+                        const model = this.availableModels.find(
+                            (m) => m.key === modelKey
+                        );
+                        this.selectedModelDisplay = model
+                            ? model.display_name
+                            : this.$options.filters.formatModelName(modelKey);
                     }
-                    
-                    console.log(`Loaded ${this.availableFields.length} fields for model: ${modelKey}`);
+
+                    console.log(
+                        `Loaded ${this.availableFields.length} fields for model: ${modelKey}`
+                    );
                 } else {
                     this.availableFields = [];
                     this.selectedFields = [];
                     console.warn('No fields returned for model:', modelKey);
                 }
-                
+
                 this.fieldsLoaded = true;
-                
             } catch (error) {
                 console.error('Error loading fields for model:', error);
                 this.errorMessage = `Failed to load fields: ${error.message}`;
                 this.fieldsLoaded = true;
-                
+
                 // Fallback to default fields based on model
                 this.loadDefaultFieldsForModel(modelKey);
-                
+
                 swal.fire({
                     title: 'Warning',
                     text: 'Using default field configuration. Some fields may not be available.',
                     icon: 'warning',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: 'OK',
                 });
             } finally {
                 this.loadingFields = false;
             }
         },
-        
+
         loadDefaultFieldsForModel(modelKey) {
             // Default field configurations as fallback
             const defaultFields = {
-                'all': [
-                    { id: 1, field_name: 'comments', display_name: 'Comments', description: 'General comments field' },
-                    { id: 2, field_name: 'description', display_name: 'Description', description: 'Description field' },
-                    { id: 3, field_name: 'title', display_name: 'Title', description: 'Title field' },
-                    { id: 4, field_name: 'name', display_name: 'Name', description: 'Name field' },
-                    { id: 5, field_name: 'results', display_name: 'Results', description: 'Results field' }
+                all: [
+                    {
+                        id: 1,
+                        field_name: 'comments',
+                        display_name: 'Comments',
+                        description: 'General comments field',
+                    },
+                    {
+                        id: 2,
+                        field_name: 'description',
+                        display_name: 'Description',
+                        description: 'Description field',
+                    },
+                    {
+                        id: 3,
+                        field_name: 'title',
+                        display_name: 'Title',
+                        description: 'Title field',
+                    },
+                    {
+                        id: 4,
+                        field_name: 'name',
+                        display_name: 'Name',
+                        description: 'Name field',
+                    },
+                    {
+                        id: 5,
+                        field_name: 'results',
+                        display_name: 'Results',
+                        description: 'Results field',
+                    },
                 ],
-                'proposal': [
-                    { id: 11, field_name: 'processing_status', display_name: 'Processing Status', description: 'Proposal status' },
-                    { id: 12, field_name: 'title', display_name: 'Title', description: 'Proposal title' }
+                proposal: [
+                    {
+                        id: 11,
+                        field_name: 'processing_status',
+                        display_name: 'Processing Status',
+                        description: 'Proposal status',
+                    },
+                    {
+                        id: 12,
+                        field_name: 'title',
+                        display_name: 'Title',
+                        description: 'Proposal title',
+                    },
                 ],
-                'polygon': [
-                    { id: 21, field_name: 'name', display_name: 'Name', description: 'Polygon name' }
+                polygon: [
+                    {
+                        id: 21,
+                        field_name: 'name',
+                        display_name: 'Name',
+                        description: 'Polygon name',
+                    },
                 ],
-                'cohort': [
-                    { id: 31, field_name: 'comments', display_name: 'Comments', description: 'Cohort comments' },
-                    { id: 32, field_name: 'obj_code', display_name: 'Objective Code', description: 'Objective code' },
-                    { id: 33, field_name: 'species', display_name: 'Species', description: 'Species information' }
+                cohort: [
+                    {
+                        id: 31,
+                        field_name: 'comments',
+                        display_name: 'Comments',
+                        description: 'Cohort comments',
+                    },
+                    {
+                        id: 32,
+                        field_name: 'obj_code',
+                        display_name: 'Objective Code',
+                        description: 'Objective code',
+                    },
+                    {
+                        id: 33,
+                        field_name: 'species',
+                        display_name: 'Species',
+                        description: 'Species information',
+                    },
                 ],
-                'treatment': [
-                    { id: 41, field_name: 'results', display_name: 'Results', description: 'Treatment results' },
-                    { id: 42, field_name: 'reference', display_name: 'Reference', description: 'Treatment reference' }
-                ]
+                treatment: [
+                    {
+                        id: 41,
+                        field_name: 'results',
+                        display_name: 'Results',
+                        description: 'Treatment results',
+                    },
+                    {
+                        id: 42,
+                        field_name: 'reference',
+                        display_name: 'Reference',
+                        description: 'Treatment reference',
+                    },
+                ],
             };
-            
-            this.availableFields = defaultFields[modelKey] || defaultFields['all'];
-            this.selectedFields = this.availableFields.map(field => field.field_name);
-            
-            const model = this.availableModels.find(m => m.key === modelKey);
-            this.selectedModelDisplay = model ? model.display_name : this.$options.filters.formatModelName(modelKey);
-            
+
+            this.availableFields =
+                defaultFields[modelKey] || defaultFields['all'];
+            this.selectedFields = this.availableFields.map(
+                (field) => field.field_name
+            );
+
+            const model = this.availableModels.find((m) => m.key === modelKey);
+            this.selectedModelDisplay = model
+                ? model.display_name
+                : this.$options.filters.formatModelName(modelKey);
+
             this.fieldsLoaded = true;
         },
-        
+
         async loadDefaultFields() {
             await this.loadFieldsForModel(this.selectedModel);
             swal.fire({
@@ -835,32 +1058,41 @@ export default {
                 text: 'Fields reloaded successfully',
                 icon: 'success',
                 timer: 1500,
-                showConfirmButton: false
+                showConfirmButton: false,
             });
         },
-        
+
         initializeSelect2() {
             // Initialize Records to Search Select2
             if (this.$refs.recordsToSearchSelect) {
                 // Destroy existing instance if any
-                if (this.select2RecordsToSearch && this.select2RecordsToSearch.select2) {
+                if (
+                    this.select2RecordsToSearch &&
+                    this.select2RecordsToSearch.select2
+                ) {
                     this.select2RecordsToSearch.select2('destroy');
                 }
-                
+
                 // Initialize Select2
-                this.select2RecordsToSearch = $(this.$refs.recordsToSearchSelect).select2({
+                this.select2RecordsToSearch = $(
+                    this.$refs.recordsToSearchSelect
+                ).select2({
                     theme: 'bootstrap-5',
                     placeholder: 'Select records to search',
                     allowClear: false,
                     width: '100%',
-                    dropdownParent: $(this.$refs.recordsToSearchSelect).parent(),
+                    dropdownParent: $(
+                        this.$refs.recordsToSearchSelect
+                    ).parent(),
                     templateResult: this.formatModelOption,
-                    templateSelection: this.formatModelSelection
+                    templateSelection: this.formatModelSelection,
                 });
-                
+
                 // Set initial value
-                this.select2RecordsToSearch.val(this.selectedModel).trigger('change');
-                
+                this.select2RecordsToSearch
+                    .val(this.selectedModel)
+                    .trigger('change');
+
                 // Bind change event
                 this.select2RecordsToSearch.on('change', async (event) => {
                     const newModel = $(event.target).val();
@@ -871,40 +1103,48 @@ export default {
                 });
             }
         },
-        
+
         formatModelOption(model) {
             if (!model.id) {
                 return model.text;
             }
-            
+
             const $option = $('<span></span>');
-            const modelData = this.availableModels.find(m => m.key === model.id);
-            
+            const modelData = this.availableModels.find(
+                (m) => m.key === model.id
+            );
+
             if (modelData) {
                 $option.text(modelData.display_name);
                 if (modelData.search_fields_count > 0) {
-                    $option.append(` <span class="badge bg-secondary float-end">${modelData.search_fields_count}</span>`);
+                    $option.append(
+                        ` <span class="badge bg-secondary float-end">${modelData.search_fields_count}</span>`
+                    );
                 }
             } else {
                 $option.text(model.text);
             }
-            
+
             return $option;
         },
-        
+
         formatModelSelection(model) {
             if (!model.id) {
                 return model.text;
             }
-            
-            const modelData = this.availableModels.find(m => m.key === model.id);
+
+            const modelData = this.availableModels.find(
+                (m) => m.key === model.id
+            );
             return modelData ? modelData.display_name : model.text;
         },
-        
+
         toggleAllFields(event) {
             if (event.target.checked) {
                 // Select all fields
-                this.selectedFields = this.availableFields.map(field => field.field_name);
+                this.selectedFields = this.availableFields.map(
+                    (field) => field.field_name
+                );
             } else {
                 // Deselect all fields
                 this.selectedFields = [];
@@ -916,7 +1156,7 @@ export default {
                     title: 'Error',
                     text: 'Please enter at least 2 characters to search',
                     icon: 'error',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: 'OK',
                 });
                 return;
             }
@@ -926,85 +1166,92 @@ export default {
                     title: 'Error',
                     text: 'Please select at least one field to search',
                     icon: 'error',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: 'OK',
                 });
                 return;
             }
 
             this.loading = true;
             this.searchPerformed = true;
-            
+
             // Use a flag to track if this is the first search
-            const isFirstSearch = !this.$refs.search_datatable || !this.$refs.search_datatable.vmDataTable;
-            
+            const isFirstSearch =
+                !this.$refs.search_datatable ||
+                !this.$refs.search_datatable.vmDataTable;
+
             if (!isFirstSearch) {
                 // For subsequent searches, just reload the existing datatable
                 const table = this.$refs.search_datatable.vmDataTable;
-                
+
                 // Clear and reload with new parameters
                 table.clear();
                 table.ajax.reload(null, false, (json) => {
                     this.loading = false;
-                    this.totalRecords = json.recordsFiltered || json.recordsTotal || 0;
-                    
+                    this.totalRecords =
+                        json.recordsFiltered || json.recordsTotal || 0;
+
                     if (this.totalRecords === 0) {
                         swal.fire({
                             title: 'No Results',
                             text: 'No records found matching your search criteria.',
                             icon: 'info',
-                            confirmButtonText: 'OK'
+                            confirmButtonText: 'OK',
                         });
                     }
                 });
             } else {
                 // For first search, wait for datatable to initialize
                 this.$nextTick(() => {
-                    if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+                    if (
+                        this.$refs.search_datatable &&
+                        this.$refs.search_datatable.vmDataTable
+                    ) {
                         const table = this.$refs.search_datatable.vmDataTable;
-                        
+
                         // Set up a one-time listener for the draw event
                         const onFirstDraw = () => {
                             this.loading = false;
-                            this.totalRecords = table.page.info().recordsDisplay;
+                            this.totalRecords =
+                                table.page.info().recordsDisplay;
                             table.off('draw.dt', onFirstDraw);
-                            
+
                             if (this.totalRecords === 0) {
                                 swal.fire({
                                     title: 'No Results',
                                     text: 'No records found matching your search criteria.',
                                     icon: 'info',
-                                    confirmButtonText: 'OK'
+                                    confirmButtonText: 'OK',
                                 });
                             }
                         };
-                        
+
                         table.on('draw.dt', onFirstDraw);
-                        
+
                         // Also set up error handling
                         const onError = () => {
                             this.loading = false;
                         };
-                        
+
                         // Add error event listener (remove it after first error)
                         $(table.table().node()).on('error.dt', onError);
-                        
+
                         // Remove error listener after first draw
                         table.one('draw.dt', () => {
                             $(table.table().node()).off('error.dt', onError);
                         });
-                        
+
                         // Trigger the initial AJAX call
                         table.ajax.reload();
                     } else {
                         // Fallback if datatable still not initialized
                         this.loading = false;
                         this.searchPerformed = true;
-                        
+
                         swal.fire({
                             title: 'Error',
                             text: 'Could not initialize search results table. Please try again.',
                             icon: 'error',
-                            confirmButtonText: 'OK'
+                            confirmButtonText: 'OK',
                         });
                     }
                 });
@@ -1018,60 +1265,72 @@ export default {
             this.filterDateTo = '';
             this.caseSensitive = false;
             this.selectedModel = 'all';
-            this.selectedFields = ['comment', 'description', 'title', 'name', 'results'];
+            this.selectedFields = [
+                'comment',
+                'description',
+                'title',
+                'name',
+                'results',
+            ];
             this.searchPerformed = false;
             this.totalRecords = 0;
             this.errorMessage = '';
-            
+
             // Reset Select2
             if (this.select2RecordsToSearch) {
                 this.select2RecordsToSearch.val('all').trigger('change');
             }
-            
+
             // Reload fields for 'all' model
             this.loadFieldsForModel('all');
-            
+
             // Clear datatable if it exists
-            if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+            if (
+                this.$refs.search_datatable &&
+                this.$refs.search_datatable.vmDataTable
+            ) {
                 this.$refs.search_datatable.vmDataTable.clear();
                 this.$refs.search_datatable.vmDataTable.draw();
             }
         },
-        
+
         exportResults() {
             // Export functionality would go here
             swal.fire({
                 title: 'Export Results',
                 text: 'Export functionality will be implemented soon.',
                 icon: 'info',
-                confirmButtonText: 'OK'
+                confirmButtonText: 'OK',
             });
         },
-        
+
         destroySelect2() {
             // Destroy Records to Search Select2
-            if (this.select2RecordsToSearch && this.select2RecordsToSearch.select2) {
+            if (
+                this.select2RecordsToSearch &&
+                this.select2RecordsToSearch.select2
+            ) {
                 this.select2RecordsToSearch.off('change');
                 this.select2RecordsToSearch.select2('destroy');
                 this.select2RecordsToSearch = null;
             }
         },
-        
+
         collapsible_component_mounted() {
             if (this.$refs.collapsible_filters) {
                 this.$refs.collapsible_filters.show_warning_icon(false);
             }
-        }
+        },
     },
     async mounted() {
         console.log('SearchByText component mounted');
-        
+
         // Load available models
         await this.loadAvailableModels();
-        
+
         // Load fields for default model
         await this.loadFieldsForModel('all');
-        
+
         // Initialize Select2 after component is mounted
         this.$nextTick(() => {
             setTimeout(() => {
@@ -1079,9 +1338,12 @@ export default {
             }, 300);
         });
     },
-    beforeDestroy() {
+    beforeUnmount() {
         // Clean up the datatable to prevent memory leaks
-        if (this.$refs.search_datatable && this.$refs.search_datatable.vmDataTable) {
+        if (
+            this.$refs.search_datatable &&
+            this.$refs.search_datatable.vmDataTable
+        ) {
             this.$refs.search_datatable.vmDataTable.destroy(true);
         }
         this.destroySelect2();
@@ -1090,15 +1352,19 @@ export default {
         // Clean up Select2 instances
         this.destroySelect2();
     },
-    
+
     watch: {
         selectedFields(newVal, oldVal) {
             // If all fields were selected and one gets deselected, update the "Select All" checkbox
-            if (oldVal && oldVal.length === this.availableFields.length && newVal.length < oldVal.length) {
+            if (
+                oldVal &&
+                oldVal.length === this.availableFields.length &&
+                newVal.length < oldVal.length
+            ) {
                 // The "Select All" checkbox will automatically update due to computed property
             }
-        }
-    }
+        },
+    },
 };
 </script>
 
@@ -1140,7 +1406,9 @@ mark {
     background-clip: padding-box;
     border: 1px solid #ced4da;
     border-radius: 0.375rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition:
+        border-color 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out;
 }
 
 .select2-container--bootstrap-5 .select2-selection:focus {
@@ -1160,12 +1428,16 @@ mark {
     padding: 0.5rem 1rem;
 }
 
-.select2-container--bootstrap-5 .select2-dropdown .select2-results__option--selected {
+.select2-container--bootstrap-5
+    .select2-dropdown
+    .select2-results__option--selected {
     background-color: #e7f1ff;
     color: #0d6efd;
 }
 
-.select2-container--bootstrap-5 .select2-dropdown .select2-results__option--highlighted {
+.select2-container--bootstrap-5
+    .select2-dropdown
+    .select2-results__option--highlighted {
     background-color: #0d6efd;
     color: white;
 }
@@ -1211,7 +1483,7 @@ mark {
         min-width: 100%;
         margin-right: 0;
     }
-    
+
     .select2-container--bootstrap-5 {
         width: 100% !important;
     }
@@ -1223,8 +1495,12 @@ mark {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Card styling */

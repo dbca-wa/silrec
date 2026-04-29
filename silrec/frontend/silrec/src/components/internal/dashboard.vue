@@ -1,6 +1,8 @@
 <template>
     <div id="externalDash" class="container">
-        <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/internal/dashboard.vue</div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">
+            src/components/internal/dashboard.vue
+        </div>
         <ul
             v-if="show_tabs"
             id="pills-tab"

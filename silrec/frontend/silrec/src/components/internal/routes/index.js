@@ -18,14 +18,13 @@ import Search from '@/components/internal/search/dashboard.vue';
 
 //import { createRouter, createWebHistory  } from 'vue-router'
 //import ProposalMap from '@/components/ProposalMap.vue'
-import CohortDetail from '@/components/internal/cohorts/cohort_detail.vue'
-import TreatmentDetail from '@/components/internal/treatments/treatment_detail.vue'
-import TreatmentExtraDetail from '@/components/internal/treatments/treatment_extra_detail.vue'
+import CohortDetail from '@/components/internal/cohorts/cohort_detail.vue';
+import TreatmentDetail from '@/components/internal/treatments/treatment_detail.vue';
+import TreatmentExtraDetail from '@/components/internal/treatments/treatment_extra_detail.vue';
 import TreatmentsDash from '@/components/internal/treatments/dashboard.vue';
 import ComponentMap2 from '@/components/common/component_map2.vue';
 import OperationDetails from '@/components/internal/operations/operation_details.vue';
 import Reports from '@/components/internal/reports/report_generator.vue';
-
 
 export default {
     path: '/internal',
@@ -65,62 +64,60 @@ export default {
             path: 'proposal/:proposal_id/cohorts/:cohortId/polygon/:polygonId',
             name: 'cohort-detail',
             component: CohortDetail,
-            props: true
-
+            props: true,
         },
         {
             path: 'cohorts/:cohortId',
             name: 'cohort-detail-simple',
             component: CohortDetail,
-            props: true
-
+            props: true,
         },
         {
             path: 'treatment/:treatmentId',
             name: 'treatment-detail',
             component: TreatmentDetail,
-            props: true
+            props: true,
         },
         {
             path: 'treatment/:treatmentId/treatment-extra/:treatmentExtraId',
             name: 'treatment-extra-detail',
             component: TreatmentExtraDetail,
-            props: true
+            props: true,
         },
         {
             path: 'cohorts/:cohortId/treatment/new',
             name: 'new-treatment',
             component: TreatmentDetail,
-            props: true
+            props: true,
         },
         {
             path: 'treatment/:treatmentId/extra/new',
             name: 'new-treatment-extra',
             component: TreatmentExtraDetail,
-            props: true
+            props: true,
         },
 
-//        // Operations section
-//        {
-//            path: 'cohorts/:cohortId/operation/new',
-//            name: 'new-operation',
-//            component: OperationDetails,
-//            props: true,
-//            //meta: { requiresAuth: true }
-//        },
-//        {
-//            path: 'operation/:operationId/edit',
-//            name: 'edit-operation',
-//            component: OperationDetails,
-//            props: true,
-//            //meta: { requiresAuth: true }
-//        },
-//        {
-//            path: 'operation/:operationId',
-//            name: 'view-operation',
-//            component: OperationDetails,
-//            props: true,
-//            //meta: { requiresAuth: true }
-//        }
+        //        // Operations section
+        //        {
+        //            path: 'cohorts/:cohortId/operation/new',
+        //            name: 'new-operation',
+        //            component: OperationDetails,
+        //            props: true,
+        //            //meta: { requiresAuth: true }
+        //        },
+        //        {
+        //            path: 'operation/:operationId/edit',
+        //            name: 'edit-operation',
+        //            component: OperationDetails,
+        //            props: true,
+        //            //meta: { requiresAuth: true }
+        //        },
+        //        {
+        //            path: 'operation/:operationId',
+        //            name: 'view-operation',
+        //            component: OperationDetails,
+        //            props: true,
+        //            //meta: { requiresAuth: true }
+        //        }
     ],
 };

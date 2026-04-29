@@ -1,6 +1,8 @@
 <template>
     <div>
-        <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/table_proposals.vue</div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">
+            src/components/common/table_proposals.vue
+        </div>
         <CollapsibleFilters
             ref="collapsible_filters"
             component_title="Filters"
@@ -76,8 +78,7 @@
                 </div>
             </div>
             <div class="row mt-1 p-2">
-                <div class="col-md-9">
-                </div>
+                <div class="col-md-9"></div>
                 <div class="col-md-3">
                     <div class="form-group">
                         <label for="post_2024_only" class="form-check-label">
@@ -95,7 +96,7 @@
             </div>
         </CollapsibleFilters>
 
-<!--
+        <!--
         <div v-if="!email_user_id_assigned" class="row">
             <div class="col-md-12">
                 <div class="text-end">
@@ -121,9 +122,19 @@
                         @click="new_application_button_clicked"
                         :disabled="isCreating"
                     >
-                        <i v-if="!isCreating" class="fa-solid fa-circle-plus"></i>
-                        <span v-if="isCreating" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        {{ isCreating ? 'Creating...' : new_migrate_button_text }}
+                        <i
+                            v-if="!isCreating"
+                            class="fa-solid fa-circle-plus"
+                        ></i>
+                        <span
+                            v-if="isCreating"
+                            class="spinner-border spinner-border-sm me-2"
+                            role="status"
+                            aria-hidden="true"
+                        ></span>
+                        {{
+                            isCreating ? 'Creating...' : new_migrate_button_text
+                        }}
                     </button>
                 </div>
             </div>
@@ -321,10 +332,10 @@ export default {
                     'Number',
                     'Type',
                     'Submitter',
-//                    'Proponent',
+                    //                    'Proponent',
                     'Status',
                     'Lodged On',
-//                    'Assigned Officer',
+                    //                    'Assigned Officer',
                     'Action',
                 ];
             }
@@ -352,9 +363,9 @@ export default {
                 visible: true,
                 render: function (row, type, full) {
                     let lodgement_number = full.lodgement_number;
-//                    if (full.migrated) {
-//                        lodgement_number += ' (M)';
-//                    }
+                    //                    if (full.migrated) {
+                    //                        lodgement_number += ' (M)';
+                    //                    }
                     return lodgement_number;
                 },
                 name: 'lodgement_number',
@@ -369,11 +380,11 @@ export default {
                 visible: true,
                 render: function (row, type, full) {
                     return full.application_type.name;
-//                    let text = full.application_type.name_display;
-//                    if (full.proposal_type?.code != 'new') {
-//                        text += ` (${full.proposal_type?.description})`;
-//                    }
-//                    return text;
+                    //                    let text = full.application_type.name_display;
+                    //                    if (full.proposal_type?.code != 'new') {
+                    //                        text += ` (${full.proposal_type?.description})`;
+                    //                    }
+                    //                    return text;
                 },
                 name: 'application_type__name',
             };
@@ -424,22 +435,22 @@ export default {
                 name: 'lodgement_date',
             };
         },
-//        column_assigned_officer: function () {
-//            return {
-//                data: 'id',
-//                orderable: true,
-//                searchable: true,
-//                visible: true,
-//                render: function (row, type, full) {
-//                    if (full.assigned_officer) {
-//                        return full.assigned_officer.fullname;
-//                    } else {
-//                        return '';
-//                    }
-//                },
-//                name: 'assigned_officer__first_name, assigned_officer__last_name, assigned_approver__first_name, assigned_approver__last_name',
-//            };
-//        },
+        //        column_assigned_officer: function () {
+        //            return {
+        //                data: 'id',
+        //                orderable: true,
+        //                searchable: true,
+        //                visible: true,
+        //                render: function (row, type, full) {
+        //                    if (full.assigned_officer) {
+        //                        return full.assigned_officer.fullname;
+        //                    } else {
+        //                        return '';
+        //                    }
+        //                },
+        //                name: 'assigned_officer__first_name, assigned_officer__last_name, assigned_approver__first_name, assigned_approver__last_name',
+        //            };
+        //        },
         column_action: function () {
             let vm = this;
             return {
@@ -701,53 +712,58 @@ export default {
 
         new_application_button_clicked: async function () {
             this.isCreating = true;
-            
+
             try {
                 // Call the API to create a new proposal
                 const response = await fetch(api_endpoints.proposal, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCookie('csrftoken')
+                        'X-CSRFToken': this.getCookie('csrftoken'),
                     },
-                    body: JSON.stringify({}) // Empty object - defaults will be set on the backend
+                    body: JSON.stringify({}), // Empty object - defaults will be set on the backend
                 });
-                
+
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to create proposal');
+                    throw new Error(
+                        errorData.error || 'Failed to create proposal'
+                    );
                 }
-                
+
                 const newProposal = await response.json();
-                
+
                 // Navigate to the new proposal
                 await this.$router.push({
                     name: 'internal-proposal',
-                    params: { proposal_id: newProposal.id }
+                    params: { proposal_id: newProposal.id },
                 });
-                
             } catch (error) {
                 console.error('Error creating proposal:', error);
                 // Show error message to user
                 this.$swal({
                     title: 'Error',
-                    text: error.message || 'Failed to create new proposal. Please try again.',
+                    text:
+                        error.message ||
+                        'Failed to create new proposal. Please try again.',
                     icon: 'error',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: 'OK',
                 });
             } finally {
                 this.isCreating = false;
             }
         },
 
-        getCookie: function(name) {
+        getCookie: function (name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
                 const cookies = document.cookie.split(';');
                 for (let i = 0; i < cookies.length; i++) {
                     const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    if (cookie.substring(0, name.length + 1) === name + '=') {
+                        cookieValue = decodeURIComponent(
+                            cookie.substring(name.length + 1)
+                        );
                         break;
                     }
                 }
@@ -768,22 +784,22 @@ export default {
             let vm = this;
 
             // Application Types
-//            fetch(api_endpoints.application_types + 'key-value-list/').then(
-//                async (response) => {
-//                    const resData = await response.json();
-//                    vm.application_types = resData;
-//                },
-//                () => {}
-//            );
+            //            fetch(api_endpoints.application_types + 'key-value-list/').then(
+            //                async (response) => {
+            //                    const resData = await response.json();
+            //                    vm.application_types = resData;
+            //                },
+            //                () => {}
+            //            );
 
             // Application Statuses
-//            const res = await fetch(api_endpoints.application_statuses_dict);
-//            const data = await res.json();
-//            if (vm.is_internal) {
-//                vm.application_statuses = data.internal_statuses;
-//            } else {
-//                vm.application_statuses = data.external_statuses;
-//            }
+            //            const res = await fetch(api_endpoints.application_statuses_dict);
+            //            const data = await res.json();
+            //            if (vm.is_internal) {
+            //                vm.application_statuses = data.internal_statuses;
+            //            } else {
+            //                vm.application_statuses = data.external_statuses;
+            //            }
         },
         addEventListeners: function () {
             let vm = this;

@@ -233,7 +233,7 @@ export default {
         get_documents: function () {
             var formData = new FormData();
 
-            console.log('this.document_action_url' + this.document_action_url)
+            console.log('this.document_action_url' + this.document_action_url);
             if (this.document_action_url) {
                 this.show_spinner = true;
 

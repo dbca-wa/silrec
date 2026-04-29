@@ -1,7 +1,7 @@
 <template lang="html">
     <div>
         <div v-if="proposal">
-		    {{proposal.lodgement_number}}
+            {{ proposal.lodgement_number }}
         </div>
     </div>
 </template>
@@ -9,8 +9,7 @@
 <script>
 export default {
     name: 'ProposalForm',
-    components: {
-    },
+    components: {},
     props: {
         proposal: {
             type: Object,
@@ -22,17 +21,14 @@ export default {
         },
     },
     data: function () {
-	return {};
+        return {};
     },
-    computed: {
-    },
-    created: function () {
-    },
+    computed: {},
+    created: function () {},
     mounted: function () {
         //console.log('form.vue ' + this.proposal.lodgement_number)
     },
-    methods: {
-    },
+    methods: {},
 };
 </script>
 

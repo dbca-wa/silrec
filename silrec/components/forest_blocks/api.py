@@ -528,23 +528,22 @@ class _PolygonCohortTableViewSet(viewsets.ModelViewSet):
 
 class IsOfficer(BasePermission):
     def has_permission(self, request, view):
-        #return request.user.groups.filter(name='Officers').exists()
         return True
 
 class IsAssessor(BasePermission):
     def has_permission(self, request, view):
-        #return request.user.groups.filter(name='Assessors').exists()
-        return True
+        return request.user.is_authenticated and request.user.groups.filter(name='Assessor').exists()
 
 class IsReviewer(BasePermission):
     def has_permission(self, request, view):
-        #return request.user.groups.filter(name='Reviewers').exists()
-        return True
+        return request.user.is_authenticated and request.user.groups.filter(name='Reviewer').exists()
 
 class IsSilrecAdmin(BasePermission):
     def has_permission(self, request, view):
-        #return request.user.groups.filter(name='Silrec Admin').exists()
-        return True
+        return request.user.is_authenticated and (
+            request.user.groups.filter(name='Silrec Admin').exists() or
+            request.user.is_superuser
+        )
 
 class ReadOnlyPermission(BasePermission):
     def has_permission(self, request, view):

@@ -6,6 +6,7 @@
 {% load utils %}
 {% is_internal as is_internal_login %}
 {% is_silrec_admin as is_silrec_admin_user %}
+{% has_access as has_access %}
 {% system_name_short as short_name %}
 {% dept_name as department_name %}
 {% system_name as system_name %}
@@ -31,14 +32,6 @@
         {% endblock %}
 
         {% block custom_js %}
-            <!--
-            <script language="javascript">
-            var env = {
-                "kmi_server_url": "{{ KMI_SERVER_URL }}",
-                "gis_server_url": "{{ GIS_SERVER_URL }}"
-            }
-            </script>
-            -->
             <script type="module" src="{% vite_asset_url vue3_entry_script %}?v={{ build_tag }}"></script>
         {% endblock %}
 
@@ -47,7 +40,7 @@
             <div class="navbar-nav">
                     <div class="nav-item">
                         <a class="nav-link" href="{% url 'home'%}"><img src="/static/img/pwl_icon.png">
-                            {% if is_internal_login %}
+                            {% if is_internal_login and has_access %}
                                 Proposals
                             {% else %}
                                 Home

@@ -1,290 +1,437 @@
 <template>
-  <div>
-    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/component_map.vue</div>
-    <div class="map-container" :class="{ 'maximised': isMaximised }">
-        <div ref="mapContainer" class="map"></div>
-
-        <!-- Layer control popup -->
-        <div v-if="showLayerControl" class="layer-control-popup">
-        <div class="popup-header">
-            <h3>Layers</h3>
-            <button @click="showLayerControl = false" class="close-btn">×</button>
+    <div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">
+            src/components/common/component_map.vue
         </div>
-        <div class="layer-list">
-            <div class="layer-item">
-            <label>
-                <input 
-                type="checkbox" 
-                v-model="layer1Visible" 
-                @change="toggleLayer('layer1')"
-                >
-                <span class="layer-label">
-                    Shapefile Layer
-                    <span v-if="layer1FeatureCount > 0" class="feature-count-badge">{{ layer1FeatureCount }}</span>
-                </span>
-            </label>
-            </div>
-            <div class="layer-item" v-if="hasLayer2">
-            <label>
-                <input 
-                type="checkbox" 
-                v-model="layer2Visible" 
-                @change="toggleLayer('layer2')"
-                >
-                <span class="layer-label">
-                    Pre-processed (current) Layer
-                    <span v-if="layer2FeatureCount > 0" class="feature-count-badge">{{ layer2FeatureCount }}</span>
-                </span>
-            </label>
-            </div>
-            <div class="layer-item" v-if="hasLayer3">
-            <label>
-                <input 
-                type="checkbox" 
-                v-model="layer3Visible" 
-                @change="toggleLayer('layer3')"
-                >
-                <span class="layer-label">
-                    Processed Layer
-                    <span v-if="layer3FeatureCount > 0" class="feature-count-badge">{{ layer3FeatureCount }}</span>
-                </span>
-            </label>
-            </div>
-            <!-- New Layer 4 with nested radio buttons -->
-            <div class="layer-item" v-if="hasLayer4">
-            <label>
-                <input 
-                type="checkbox" 
-                v-model="layer4Visible" 
-                @change="toggleLayer('layer4')"
-                >
-                <span class="layer-label">
-                    Geometry Collections
-                    <span v-if="layer4FeatureCount > 0" class="feature-count-badge">{{ layer4FeatureCount }}</span>
-                </span>
-            </label>
-            
-            <!-- Nested radio buttons for geometry collections -->
-                <div v-if="layer4Visible" class="nested-radio-group">
-                <div 
-                    v-for="(geometry, index) in geometryCollections" 
-                    :key="index"
-                    class="radio-item"
-                >
-                    <div class="geometry-item-header">
-                        <div class="radio-label">
-                            <input 
-                            type="radio" 
-                            :value="index"
-                            v-model="selectedGeometryIndex"
-                            @change="toggleGeometryCollection(index)"
+        <div class="map-container" :class="{ maximised: isMaximised }">
+            <div ref="mapContainer" class="map"></div>
+
+            <!-- Layer control popup -->
+            <div v-if="showLayerControl" class="layer-control-popup">
+                <div class="popup-header">
+                    <h3>Layers</h3>
+                    <button @click="showLayerControl = false" class="close-btn">
+                        ×
+                    </button>
+                </div>
+                <div class="layer-list">
+                    <div class="layer-item">
+                        <label>
+                            <input
+                                type="checkbox"
+                                v-model="layer1Visible"
+                                @change="toggleLayer('layer1')"
+                            />
+                            <span class="layer-label">
+                                Shapefile Layer
+                                <span
+                                    v-if="layer1FeatureCount > 0"
+                                    class="feature-count-badge"
+                                    >{{ layer1FeatureCount }}</span
+                                >
+                            </span>
+                        </label>
+                    </div>
+                    <div class="layer-item" v-if="hasLayer2">
+                        <label>
+                            <input
+                                type="checkbox"
+                                v-model="layer2Visible"
+                                @change="toggleLayer('layer2')"
+                            />
+                            <span class="layer-label">
+                                Pre-processed (current) Layer
+                                <span
+                                    v-if="layer2FeatureCount > 0"
+                                    class="feature-count-badge"
+                                    >{{ layer2FeatureCount }}</span
+                                >
+                            </span>
+                        </label>
+                    </div>
+                    <div class="layer-item" v-if="hasLayer3">
+                        <label>
+                            <input
+                                type="checkbox"
+                                v-model="layer3Visible"
+                                @change="toggleLayer('layer3')"
+                            />
+                            <span class="layer-label">
+                                Processed Layer
+                                <span
+                                    v-if="layer3FeatureCount > 0"
+                                    class="feature-count-badge"
+                                    >{{ layer3FeatureCount }}</span
+                                >
+                            </span>
+                        </label>
+                    </div>
+                    <!-- New Layer 4 with nested radio buttons -->
+                    <div class="layer-item" v-if="hasLayer4">
+                        <label>
+                            <input
+                                type="checkbox"
+                                v-model="layer4Visible"
+                                @change="toggleLayer('layer4')"
+                            />
+                            <span class="layer-label">
+                                Geometry Collections
+                                <span
+                                    v-if="layer4FeatureCount > 0"
+                                    class="feature-count-badge"
+                                    >{{ layer4FeatureCount }}</span
+                                >
+                            </span>
+                        </label>
+
+                        <!-- Nested radio buttons for geometry collections -->
+                        <div v-if="layer4Visible" class="nested-radio-group">
+                            <div
+                                v-for="(geometry, index) in geometryCollections"
+                                :key="index"
+                                class="radio-item"
                             >
-                            <span>Polygon {{ index + 1 }} ({{ index + 1 }}st iter)</span>
+                                <div class="geometry-item-header">
+                                    <div class="radio-label">
+                                        <input
+                                            type="radio"
+                                            :value="index"
+                                            v-model="selectedGeometryIndex"
+                                            @change="
+                                                toggleGeometryCollection(index)
+                                            "
+                                        />
+                                        <span
+                                            >Polygon {{ index + 1 }} ({{
+                                                index + 1
+                                            }}st iter)</span
+                                        >
+                                    </div>
+                                    <button
+                                        v-if="
+                                            geometry.cht_init ||
+                                            geometry.cht_new
+                                        "
+                                        @click="openChtDialog(index)"
+                                        class="cht-link-btn"
+                                        title="View Cohort Data"
+                                    >
+                                        <i class="bi bi-table"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <button 
-                            v-if="geometry.cht_init || geometry.cht_new"
-                            @click="openChtDialog(index)"
-                            class="cht-link-btn"
-                            title="View Cohort Data"
-                        >
-                            <i class="bi bi-table"></i>
-                        </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Feature info popup -->
+            <div v-if="selectedFeature" class="feature-popup">
+                <div class="popup-header">
+                    <h3>Feature Details</h3>
+                    <button @click="closeFeaturePopup" class="close-btn">
+                        ×
+                    </button>
+                </div>
+                <div class="feature-content">
+                    <!-- Basic attributes table -->
+                    <table class="feature-table basic-attributes compact">
+                        <tbody>
+                            <tr v-for="field in displayFields" :key="field.key">
+                                <th class="field-label">{{ field.label }}:</th>
+                                <td class="field-value">
+                                    {{
+                                        getFeatureValue(
+                                            selectedFeature,
+                                            field.key
+                                        )
+                                    }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Information icon toggle -->
+                    <div class="info-toggle-section compact">
+                        <button
+                            class="info-toggle-btn"
+                            @click="showAdditionalInfo = !showAdditionalInfo"
+                            :title="
+                                showAdditionalInfo
+                                    ? 'Hide additional details'
+                                    : 'Show additional details'
+                            "
+                        >
+                            <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                                />
+                            </svg>
+                            <span class="toggle-text">
+                                {{
+                                    showAdditionalInfo
+                                        ? 'Less details'
+                                        : 'More details...'
+                                }}
+                            </span>
+                        </button>
+                    </div>
+
+                    <!-- Additional attributes in multi-column layout -->
+                    <div
+                        v-if="showAdditionalInfo && additionalFields.length > 0"
+                        class="additional-attributes compact"
+                    >
+                        <h4 class="additional-title">Additional Information</h4>
+                        <div class="attributes-grid">
+                            <div
+                                v-for="field in additionalFields"
+                                :key="field.key"
+                                class="attribute-item"
+                            >
+                                <span class="attribute-label"
+                                    >{{ field.label }}:</span
+                                >
+                                <span class="attribute-value">{{
+                                    getFeatureValue(selectedFeature, field.key)
+                                }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        </div>
 
-        <!-- Feature info popup -->
-        <div v-if="selectedFeature" class="feature-popup">
-        <div class="popup-header">
-            <h3>Feature Details</h3>
-            <button @click="closeFeaturePopup" class="close-btn">×</button>
-        </div>
-        <div class="feature-content">
-            <!-- Basic attributes table -->
-            <table class="feature-table basic-attributes compact">
-            <tbody>
-                <tr v-for="field in displayFields" :key="field.key">
-                <th class="field-label">{{ field.label }}:</th>
-                <td class="field-value">{{ getFeatureValue(selectedFeature, field.key) }}</td>
-                </tr>
-            </tbody>
-            </table>
-            
-            <!-- Information icon toggle -->
-            <div class="info-toggle-section compact">
-            <button 
-                class="info-toggle-btn"
-                @click="showAdditionalInfo = !showAdditionalInfo"
-                :title="showAdditionalInfo ? 'Hide additional details' : 'Show additional details'"
+            <!-- CHT Data Dialog -->
+            <div
+                v-if="showChtDialog && currentChtData"
+                class="cht-dialog-overlay"
+                @click="showChtDialog = false"
             >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                </svg>
-                <span class="toggle-text">
-                {{ showAdditionalInfo ? 'Less details' : 'More details...' }}
-                </span>
-            </button>
+                <div class="cht-dialog" @click.stop>
+                    <div class="popup-header">
+                        <h3>
+                            Cohort Data - Polygon
+                            {{ selectedGeometryIndex + 1 }}
+                        </h3>
+                        <div class="header-actions">
+                            <button
+                                @click="exportChtToExcel"
+                                class="export-excel-btn"
+                                title="Export to Excel"
+                            >
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    style="margin-right: 4px"
+                                >
+                                    <path
+                                        d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14h13.5V2zM15 17H9v-1.5h6zm0-3.5H9V12h6zm0-3.5H9V8.5h6z"
+                                    />
+                                </svg>
+                                Export Excel
+                            </button>
+                            <button
+                                @click="showChtDialog = false"
+                                class="close-btn"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cht-content">
+                        <!-- CHT Init Table -->
+                        <div
+                            class="cht-table-section"
+                            v-if="currentChtData.cht_init"
+                        >
+                            <h4>Initial - 'Polygon - AC2P - Cohort'</h4>
+                            <div class="table-container">
+                                <table class="cht-table">
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                v-for="key in getChtInitKeys(
+                                                    currentChtData.cht_init
+                                                )"
+                                                :key="'init-' + key"
+                                            >
+                                                {{ key }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="(row, index) in parseChtData(
+                                                currentChtData.cht_init
+                                            )"
+                                            :key="'init-row-' + index"
+                                        >
+                                            <td
+                                                v-for="key in getChtInitKeys(
+                                                    currentChtData.cht_init
+                                                )"
+                                                :key="
+                                                    'init-' + key + '-' + index
+                                                "
+                                            >
+                                                {{ row[key] }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- CHT New Table -->
+                        <div
+                            class="cht-table-section"
+                            v-if="currentChtData.cht_new"
+                        >
+                            <h4>New - 'Polygon - AC2P - Cohort'</h4>
+                            <div class="table-container">
+                                <table class="cht-table">
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                v-for="key in getChtNewKeys(
+                                                    currentChtData.cht_new
+                                                )"
+                                                :key="'new-' + key"
+                                            >
+                                                {{ key }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="(row, index) in parseChtData(
+                                                currentChtData.cht_new
+                                            )"
+                                            :key="'new-row-' + index"
+                                        >
+                                            <td
+                                                v-for="key in getChtNewKeys(
+                                                    currentChtData.cht_new
+                                                )"
+                                                :key="
+                                                    'new-' + key + '-' + index
+                                                "
+                                            >
+                                                {{ row[key] }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Additional attributes in multi-column layout -->
-            <div v-if="showAdditionalInfo && additionalFields.length > 0" class="additional-attributes compact">
-            <h4 class="additional-title">Additional Information</h4>
-            <div class="attributes-grid">
-                <div 
-                v-for="field in additionalFields" 
-                :key="field.key"
-                class="attribute-item"
+            <!-- Map control buttons -->
+            <div class="map-controls">
+                <button
+                    class="control-btn maximise-btn"
+                    @click="toggleMaximise"
+                    :title="isMaximised ? 'Minimise map' : 'Maximise map'"
                 >
-                <span class="attribute-label">{{ field.label }}:</span>
-                <span class="attribute-value">{{ getFeatureValue(selectedFeature, field.key) }}</span>
-                </div>
-            </div>
-            </div>
-        </div>
-        </div>
-
-        <!-- CHT Data Dialog -->
-        <div v-if="showChtDialog && currentChtData" class="cht-dialog-overlay" @click="showChtDialog = false">
-        <div class="cht-dialog" @click.stop>
-            <div class="popup-header">
-            <h3>Cohort Data - Polygon {{ selectedGeometryIndex + 1 }}</h3>
-            <div class="header-actions">
-                <button @click="exportChtToExcel" class="export-excel-btn" title="Export to Excel">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
-                    <path d="M19.5 3.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14h13.5V2zM15 17H9v-1.5h6zm0-3.5H9V12h6zm0-3.5H9V8.5h6z"/>
-                </svg>
-                Export Excel
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            v-if="!isMaximised"
+                            d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                        />
+                        <path
+                            v-if="isMaximised"
+                            d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+                        />
+                    </svg>
                 </button>
-                <button @click="showChtDialog = false" class="close-btn">×</button>
-            </div>
-            </div>
 
-            <div class="cht-content">
-            <!-- CHT Init Table -->
-            <div class="cht-table-section" v-if="currentChtData.cht_init">
-                <h4>Initial  - 'Polygon - AC2P - Cohort'</h4>
-                <div class="table-container">
-                <table class="cht-table">
-                    <thead>
-                    <tr>
-                        <th v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key">
-                        {{ key }}
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="(row, index) in parseChtData(currentChtData.cht_init)" :key="'init-row-' + index">
-                        <td v-for="key in getChtInitKeys(currentChtData.cht_init)" :key="'init-' + key + '-' + index">
-                        {{ row[key] }}
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-                </div>
-            </div>
+                <button
+                    class="control-btn zoom-to-layer-btn"
+                    @click="zoomToActiveLayer"
+                    :title="getZoomToLayerTitle"
+                >
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                        />
+                        <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
+                    </svg>
+                </button>
 
-            <!-- CHT New Table -->
-            <div class="cht-table-section" v-if="currentChtData.cht_new">
-                <h4>New - 'Polygon - AC2P - Cohort'</h4>
-                <div class="table-container">
-                <table class="cht-table">
-                    <thead>
-                    <tr>
-                        <th v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key">
-                        {{ key }}
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="(row, index) in parseChtData(currentChtData.cht_new)" :key="'new-row-' + index">
-                        <td v-for="key in getChtNewKeys(currentChtData.cht_new)" :key="'new-' + key + '-' + index">
-                        {{ row[key] }}
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-                </div>
-            </div>
+                <button
+                    class="control-btn layer-control-btn"
+                    @click="showLayerControl = !showLayerControl"
+                    title="Toggle Layers"
+                >
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"
+                        />
+                    </svg>
+                </button>
+
+                <MergePolygonTool
+                    v-if="hasLayer3"
+                    :map="map"
+                    :layer3="layer3"
+                    :hasLayer3="hasLayer3"
+                    :proposalId="currentProposalId"
+                    :highlightStyle="highlightStyle"
+                    @update-processed-geometry="handleProcessedGeometryUpdate"
+                    @disable-select-interaction="disableSelectInteraction"
+                    @enable-select-interaction="enableSelectInteraction"
+                />
+
+                <CutPolygonTool
+                    v-if="hasLayer3"
+                    :map="map"
+                    :layer3="layer3"
+                    :hasLayer3="hasLayer3"
+                    :proposalId="currentProposalId"
+                    :highlightStyle="highlightStyle"
+                    @update-processed-geometry="handleProcessedGeometryUpdate"
+                    @disable-select-interaction="disableSelectInteraction"
+                    @enable-select-interaction="enableSelectInteraction"
+                    @clear-selection="clearCutSelection"
+                />
             </div>
         </div>
-        </div>
 
-        <!-- Map control buttons -->
-        <div class="map-controls">
-          <button 
-            class="control-btn maximise-btn"
-            @click="toggleMaximise"
-            :title="isMaximised ? 'Minimise map' : 'Maximise map'"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path v-if="!isMaximised" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-              <path v-if="isMaximised" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
-            </svg>
-          </button>
-          
-          <button 
-            class="control-btn zoom-to-layer-btn"
-            @click="zoomToActiveLayer"
-            :title="getZoomToLayerTitle"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-              <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
-            </svg>
-          </button>
-          
-          <button 
-            class="control-btn layer-control-btn"
-            @click="showLayerControl = !showLayerControl"
-            title="Toggle Layers"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
-            </svg>
-          </button>
-
-          <MergePolygonTool
-            v-if="hasLayer3"
-            :map="map"
-            :layer3="layer3"
-            :hasLayer3="hasLayer3"
-            :proposalId="currentProposalId"
-            :highlightStyle="highlightStyle"
-            @update-processed-geometry="handleProcessedGeometryUpdate"
-            @disable-select-interaction="disableSelectInteraction"
-            @enable-select-interaction="enableSelectInteraction"
-          />
-
-          <CutPolygonTool
-            v-if="hasLayer3"
-            :map="map"
-            :layer3="layer3"
-            :hasLayer3="hasLayer3"
-            :proposalId="currentProposalId"
-            :highlightStyle="highlightStyle"
-            @update-processed-geometry="handleProcessedGeometryUpdate"
-            @disable-select-interaction="disableSelectInteraction"
-            @enable-select-interaction="enableSelectInteraction"
-            @clear-selection="clearCutSelection"
-          />
-
+        <div>
+            <PolygonCohortTable
+                ref="polygonCohortTable"
+                :proposalId="currentProposalId"
+                :initialVisible="showDataTable"
+                @polygon-selected="onPolygonSelected"
+                @zoom-to-polygon="onZoomToPolygon"
+            />
         </div>
     </div>
-
-    <div>
-        <PolygonCohortTable 
-        ref="polygonCohortTable"
-        :proposalId="currentProposalId"
-        :initialVisible="showDataTable"
-        @polygon-selected="onPolygonSelected"
-        @zoom-to-polygon="onZoomToPolygon"
-        />
-    </div>
-
-  </div>
 </template>
 
 <script>
@@ -307,1361 +454,1454 @@ import MergePolygonTool from '@/components/common/merge_polygon_tool.vue';
 import CutPolygonTool from '@/components/common/cut_polygon_tool.vue';
 
 export default {
-  name: 'MapComponent',
-  components: {
-    PolygonCohortTable,
-    MergePolygonTool,
-    CutPolygonTool,
-  },
-  props: {
-    proposalId: {
-      type: [Number, String],
-      default: null
+    name: 'MapComponent',
+    components: {
+        PolygonCohortTable,
+        MergePolygonTool,
+        CutPolygonTool,
     },
-    proposalIds: {
-      type: Array,
-      default: () => [-1]
+    props: {
+        proposalId: {
+            type: [Number, String],
+            default: null,
+        },
+        proposalIds: {
+            type: Array,
+            default: () => [-1],
+        },
+        featureCollection: {
+            type: Object,
+            default: null,
+        },
+        featureCollection2: {
+            type: Object,
+            default: null,
+        },
+        featureCollection3: {
+            type: Object,
+            default: null,
+        },
+        featureCollection4: {
+            type: Array,
+            default: () => [],
+        },
+        context: {
+            type: Object,
+            default: null,
+        },
     },
-    featureCollection: {
-      type: Object,
-      default: null
-    },
-    featureCollection2: {
-      type: Object,
-      default: null
-    },
-    featureCollection3: {
-      type: Object,
-      default: null
-    },
-    featureCollection4: {
-      type: Array,
-      default: () => []
-    },
-    context: {
-      type: Object,
-      default: null
-    }
-  },
-  emits: ['refresh-from-response', 'update-processed-geometry', 'refresh-datatable'],
-  data() {
-    return {
-      map: null,
-      layer1: null,
-      layer2: null,
-      layer3: null,
-      layer4: null,
-      layer1Visible: true,
-      layer2Visible: true,
-      layer3Visible: true,
-      layer4Visible: false,
-      showLayerControl: false,
-      hasLayer2: false,
-      hasLayer3: false,
-      hasLayer4: false,
-      selectedFeature: null,
-      selectInteraction: null,
-      showAdditionalInfo: false,
-      isMaximised: false,
-      geometryCollections: [],
-      selectedGeometryIndex: null,
-      highlightStyle: new Style({
-        fill: new Fill({
-          color: 'rgba(255, 255, 0, 0.6)'
-        }),
-        stroke: new Stroke({
-          color: 'rgba(255, 255, 0, 1)',
-          width: 3
-        })
-      }),
-      layer4Style: function(feature) {
-        const polyType = feature.get('poly_type');
-        const baseColor = 'rgba(255, 255, 255, 0.6)';
-        const defaultColor = 'rgba(100, 100, 100, 0.5)';
-        
-        return new Style({
-            fill: new Fill({
-            color: polyType === 'BASE' ? baseColor : defaultColor
+    emits: [
+        'refresh-from-response',
+        'update-processed-geometry',
+        'refresh-datatable',
+    ],
+    data() {
+        return {
+            map: null,
+            layer1: null,
+            layer2: null,
+            layer3: null,
+            layer4: null,
+            layer1Visible: true,
+            layer2Visible: true,
+            layer3Visible: true,
+            layer4Visible: false,
+            showLayerControl: false,
+            hasLayer2: false,
+            hasLayer3: false,
+            hasLayer4: false,
+            selectedFeature: null,
+            selectInteraction: null,
+            showAdditionalInfo: false,
+            isMaximised: false,
+            geometryCollections: [],
+            selectedGeometryIndex: null,
+            highlightStyle: new Style({
+                fill: new Fill({
+                    color: 'rgba(255, 255, 0, 0.6)',
+                }),
+                stroke: new Stroke({
+                    color: 'rgba(255, 255, 0, 1)',
+                    width: 3,
+                }),
             }),
-            stroke: new Stroke({
-            color: 'rgba(255, 165, 0, 0.8)',
-            width: 2
-            })
+            layer4Style: function (feature) {
+                const polyType = feature.get('poly_type');
+                const baseColor = 'rgba(255, 255, 255, 0.6)';
+                const defaultColor = 'rgba(100, 100, 100, 0.5)';
+
+                return new Style({
+                    fill: new Fill({
+                        color: polyType === 'BASE' ? baseColor : defaultColor,
+                    }),
+                    stroke: new Stroke({
+                        color: 'rgba(255, 165, 0, 0.8)',
+                        width: 2,
+                    }),
+                });
+            },
+            showChtDialog: false,
+            currentChtData: null,
+            currentProposalId: null,
+            showDataTable: true,
+            selectedPolygonId: null,
+            polygonHighlightLayer: null,
+
+            // Merge mode properties removed, now handled by child component
+
+            // Flag to prevent multiple initializations
+            mapInitialized: false,
+
+            // Global click handler reference for cleanup
+            globalClickHandler: null,
+
+            // Feature counts
+            layer1FeatureCount: 0,
+            layer2FeatureCount: 0,
+            layer3FeatureCount: 0,
+            layer4FeatureCount: 0,
+
+            displayFields: [
+                { key: 'Block', label: 'Block' },
+                { key: 'Compno', label: 'Comp No' },
+                { key: 'fea_id', label: 'FEA ID' },
+                { key: 'area_ha', label: 'Area (ha)' },
+                { key: 'obj_code', label: 'Objective Code' },
+                { key: 'resid_ba_m2ha', label: 'Residual BA (m²/ha)' },
+                { key: 'target_ba_m2ha', label: 'Target BA (m²/ha)' },
+                { key: 'species', label: 'Species' },
+            ],
+            additionalFields: [
+                { key: 'region', label: 'Region' },
+                { key: 'op_date', label: 'Operation Date (year)' },
+                { key: 'regen_date', label: 'Regeneration Date (year)' },
+                { key: 'resid_spha', label: 'Residual SPHA' },
+                { key: 'target_spha', label: 'Target SPHA' },
+            ],
+        };
+    },
+    computed: {
+        getZoomToLayerTitle() {
+            if (
+                this.hasLayer4 &&
+                this.layer4Visible &&
+                this.selectedGeometryIndex !== null
+            ) {
+                return `Zoom to Geometry ${this.selectedGeometryIndex + 1}`;
+            } else if (this.hasLayer3 && this.layer3Visible) {
+                return 'Zoom to Layer 3';
+            } else if (this.hasLayer2 && this.layer2Visible) {
+                return 'Zoom to Layer 2';
+            } else {
+                return 'Zoom to Layer 1';
+            }
+        },
+    },
+    watch: {
+        featureCollection: {
+            handler(newGeoJSON) {
+                console.log('Feature collection updated:', newGeoJSON);
+                this.updateLayer1(newGeoJSON);
+                if (this.map) {
+                    setTimeout(() => {
+                        this.map.updateSize();
+                    }, 100);
+                }
+                // Force refresh the map
+                this.$nextTick(() => {
+                    this.forceToRefreshMap();
+                });
+            },
+            deep: true,
+            immediate: true,
+        },
+        featureCollection2: {
+            handler(newGeoJSON) {
+                this.updateLayer2(newGeoJSON);
+            },
+            deep: true,
+        },
+        featureCollection3: {
+            handler(newGeoJSON) {
+                console.log(
+                    'Feature collection3 updated, length:',
+                    newGeoJSON?.features?.length
+                );
+                if (this.ignoreNextPropUpdate) {
+                    console.log(
+                        'Ignoring featureCollection3 update (merge just happened)'
+                    );
+                    this.ignoreNextPropUpdate = false;
+                    return;
+                }
+                this.updateLayer3(newGeoJSON);
+
+                // Refresh datatable when layer3 is updated
+                this.refreshDataTable();
+            },
+            deep: true,
+        },
+        featureCollection4: {
+            handler(newGeometryList) {
+                console.log('featureCollection4 updated:', newGeometryList);
+                this.updateLayer4(newGeometryList);
+                if (this.layer4Visible && newGeometryList.length > 0) {
+                    if (
+                        this.selectedGeometryIndex === null ||
+                        this.selectedGeometryIndex >= newGeometryList.length
+                    ) {
+                        this.selectedGeometryIndex = 0;
+                    }
+                    this.displayGeometryCollection(this.selectedGeometryIndex);
+                } else if (newGeometryList.length === 0) {
+                    this.selectedGeometryIndex = null;
+                }
+            },
+            deep: true,
+        },
+        proposalId: {
+            handler(newVal) {
+                this.currentProposalId = this.ensureNumber(newVal);
+            },
+            immediate: true,
+        },
+        '$route.params.proposal_id': {
+            handler(newVal) {
+                if (newVal && !this.currentProposalId) {
+                    this.currentProposalId = this.ensureNumber(newVal);
+                }
+            },
+            immediate: true,
+        },
+        context: {
+            handler(newVal) {
+                if (newVal && newVal.id && !this.currentProposalId) {
+                    this.currentProposalId = this.ensureNumber(newVal.id);
+                }
+            },
+            deep: true,
+            immediate: true,
+        },
+    },
+    mounted() {
+        console.log(
+            'MapComponent mounted, container exists:',
+            !!this.$refs.mapContainer
+        );
+
+        this.$nextTick(() => {
+            this.initializeMapWithRetry();
         });
-      },
-      showChtDialog: false,
-      currentChtData: null,
-      currentProposalId: null,
-      showDataTable: true,
-      selectedPolygonId: null,
-      polygonHighlightLayer: null,
+    },
+    beforeUnmount() {
+        console.log('MapComponent beforeDestroy');
+        if (this.map) {
+            if (this.globalClickHandler) {
+                this.map.un('click', this.globalClickHandler);
+            }
+            this.map.setTarget(null);
+        }
+        window.removeEventListener('resize', this.handleResize);
+        document.removeEventListener('keydown', this.handleEscape);
+    },
+    methods: {
+        initializeMapWithRetry(retries = 5) {
+            const container = this.$refs.mapContainer;
+            if (!container) {
+                console.warn('Map container ref not found');
+                return;
+            }
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+            console.log(`Map container dimensions: ${width}x${height}`);
+            if (width > 0 && height > 0) {
+                this.initializeMap();
+            } else if (retries > 0) {
+                console.log(
+                    `Map container has zero dimensions, retrying... (${retries} left)`
+                );
+                setTimeout(() => {
+                    this.initializeMapWithRetry(retries - 1);
+                }, 100);
+            } else {
+                console.warn(
+                    'Map container still has zero dimensions after retries, initializing anyway.'
+                );
+                this.initializeMap();
+            }
+        },
 
-      // Merge mode properties removed, now handled by child component
+        // Method to refresh the datatable
+        refreshDataTable() {
+            console.log('Refreshing polygon cohort datatable');
+            this.$emit('refresh-datatable');
+            // Also directly call the table's refresh method if ref is available
+            if (this.$refs.polygonCohortTable) {
+                this.$nextTick(() => {
+                    this.$refs.polygonCohortTable.refreshData();
+                });
+            }
+        },
 
-      // Flag to prevent multiple initializations
-      mapInitialized: false,
+        async exportChtToExcel() {
+            if (!this.currentChtData) return;
 
-      // Global click handler reference for cleanup
-      globalClickHandler: null,
+            try {
+                const workbook = XLSX.utils.book_new();
 
-      // Feature counts
-      layer1FeatureCount: 0,
-      layer2FeatureCount: 0,
-      layer3FeatureCount: 0,
-      layer4FeatureCount: 0,
+                if (this.currentChtData.cht_init) {
+                    const initData = this.parseChtData(
+                        this.currentChtData.cht_init
+                    );
+                    if (initData.length > 0) {
+                        const initWorksheet =
+                            XLSX.utils.json_to_sheet(initData);
+                        XLSX.utils.book_append_sheet(
+                            workbook,
+                            initWorksheet,
+                            'Initial_Cohorts'
+                        );
+                    }
+                }
 
-      displayFields: [
-        { key: 'Block', label: 'Block' },
-        { key: 'Compno', label: 'Comp No' },
-        { key: 'fea_id', label: 'FEA ID' },
-        { key: 'area_ha', label: 'Area (ha)' },
-        { key: 'obj_code', label: 'Objective Code' },
-        { key: 'resid_ba_m2ha', label: 'Residual BA (m²/ha)' },
-        { key: 'target_ba_m2ha', label: 'Target BA (m²/ha)' },
-        { key: 'species', label: 'Species' }
-      ],
-      additionalFields: [
-        { key: 'region', label: 'Region' },
-        { key: 'op_date', label: 'Operation Date (year)' },
-        { key: 'regen_date', label: 'Regeneration Date (year)' },
-        { key: 'resid_spha', label: 'Residual SPHA' },
-        { key: 'target_spha', label: 'Target SPHA' }
-      ]
-    };
-  },
-  computed: {
-    getZoomToLayerTitle() {
-      if (this.hasLayer4 && this.layer4Visible && this.selectedGeometryIndex !== null) {
-        return `Zoom to Geometry ${this.selectedGeometryIndex + 1}`;
-      } else if (this.hasLayer3 && this.layer3Visible) {
-        return 'Zoom to Layer 3';
-      } else if (this.hasLayer2 && this.layer2Visible) {
-        return 'Zoom to Layer 2';
-      } else {
-        return 'Zoom to Layer 1';
-      }
-    }
-  },
-  watch: {
-    featureCollection: {
-        handler(newGeoJSON) {
-            console.log('Feature collection updated:', newGeoJSON);
-            this.updateLayer1(newGeoJSON);
+                if (this.currentChtData.cht_new) {
+                    const newData = this.parseChtData(
+                        this.currentChtData.cht_new
+                    );
+                    if (newData.length > 0) {
+                        const newWorksheet = XLSX.utils.json_to_sheet(newData);
+                        XLSX.utils.book_append_sheet(
+                            workbook,
+                            newWorksheet,
+                            'New_Cohorts'
+                        );
+                    }
+                }
+
+                const timestamp = new Date()
+                    .toISOString()
+                    .slice(0, 19)
+                    .replace(/:/g, '-');
+                const filename = `cohort_data_polygon_${this.selectedGeometryIndex + 1}_${timestamp}.xlsx`;
+
+                XLSX.writeFile(workbook, filename);
+
+                await swal.fire({
+                    icon: 'success',
+                    title: 'Export Successful',
+                    text: `Data exported to ${filename}`,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    customClass: {
+                        popup: 'swal2-popup-custom',
+                    },
+                });
+            } catch (error) {
+                console.error('Error exporting to Excel:', error);
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Export Failed',
+                    text: 'Error exporting data to Excel. Please try again.',
+                    confirmButtonText: 'OK',
+                    customClass: {
+                        popup: 'swal2-popup-custom',
+                    },
+                });
+            }
+        },
+
+        openChtDialog(geometryIndex) {
+            const geometry = this.geometryCollections[geometryIndex];
+            if (geometry && (geometry.cht_init || geometry.cht_new)) {
+                this.selectedGeometryIndex = geometryIndex;
+                this.currentChtData = {
+                    cht_init: geometry.cht_init,
+                    cht_new: geometry.cht_new,
+                };
+                this.showChtDialog = true;
+            }
+        },
+
+        parseChtData(chtJsonString) {
+            try {
+                const data = JSON.parse(chtJsonString);
+                const keys = Object.keys(data);
+                if (keys.length === 0) return [];
+
+                const rowCount = data[keys[0]]
+                    ? Object.keys(data[keys[0]]).length
+                    : 0;
+                const rows = [];
+
+                for (let i = 0; i < rowCount; i++) {
+                    const row = {};
+                    keys.forEach((key) => {
+                        row[key] = data[key] ? data[key][i] : null;
+                    });
+                    rows.push(row);
+                }
+
+                return rows;
+            } catch (error) {
+                console.error('Error parsing CHT data:', error);
+                return [];
+            }
+        },
+
+        getChtInitKeys(chtInitJson) {
+            try {
+                const data = JSON.parse(chtInitJson);
+                return Object.keys(data);
+            } catch (error) {
+                return [];
+            }
+        },
+
+        getChtNewKeys(chtNewJson) {
+            try {
+                const data = JSON.parse(chtNewJson);
+                return Object.keys(data);
+            } catch (error) {
+                return [];
+            }
+        },
+
+        initializeMap() {
+            if (this.mapInitialized) return;
+            console.log('initializeMap called');
+            this.mapInitialized = true;
+
+            const layer1Source = new VectorSource();
+            const layer2Source = new VectorSource();
+            const layer3Source = new VectorSource();
+            const layer4Source = new VectorSource();
+
+            const layer1Style = new Style({
+                fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' }),
+                stroke: new Stroke({ color: 'rgba(255, 0, 0, 0.8)', width: 2 }),
+            });
+
+            const layer2Style = new Style({
+                fill: new Fill({ color: 'rgba(0, 0, 255, 0.3)' }),
+                stroke: new Stroke({ color: 'rgba(0, 0, 255, 0.8)', width: 2 }),
+            });
+
+            const layer3Style = new Style({
+                fill: new Fill({ color: 'rgba(68, 68, 68, 0.3)' }),
+                stroke: new Stroke({
+                    color: 'rgba(68, 68, 68, 0.8)',
+                    width: 2,
+                }),
+            });
+
+            this.layer1 = new VectorLayer({
+                source: layer1Source,
+                style: layer1Style,
+                visible: this.layer1Visible,
+            });
+
+            this.layer2 = new VectorLayer({
+                source: layer2Source,
+                style: layer2Style,
+                visible: this.layer2Visible,
+            });
+
+            // Layer3 with style function that respects feature styles
+            this.layer3 = new VectorLayer({
+                source: layer3Source,
+                style: function (feature) {
+                    if (feature.getStyle && feature.getStyle()) {
+                        return feature.getStyle();
+                    }
+                    return layer3Style;
+                },
+                visible: this.layer3Visible,
+            });
+
+            this.layer4 = new VectorLayer({
+                source: layer4Source,
+                style: this.layer4Style,
+                visible: this.layer4Visible,
+                zIndex: 10,
+            });
+
+            const baseLayer = new TileLayer({ source: new OSM() });
+
+            this.map = new Map({
+                target: this.$refs.mapContainer,
+                layers: [
+                    baseLayer,
+                    this.layer1,
+                    this.layer2,
+                    this.layer3,
+                    this.layer4,
+                ],
+                view: new View({
+                    projection: 'EPSG:4326',
+                    center: fromLonLat([121.5, -24.5], 'EPSG:4326'),
+                    zoom: 6,
+                }),
+            });
+
+            console.log(
+                'Map created, interactions count:',
+                this.map.getInteractions().getLength()
+            );
+
+            // Add global click listener for debugging
+            this.globalClickHandler = (evt) => {
+                console.log('Map click at', evt.coordinate);
+            };
+            this.map.on('click', this.globalClickHandler);
+
+            this.setupSelectInteraction();
+
+            if (this.featureCollection) {
+                this.updateLayer1(this.featureCollection);
+            }
+            if (this.featureCollection2) {
+                this.updateLayer2(this.featureCollection2);
+            }
+            if (this.featureCollection3) {
+                this.updateLayer3(this.featureCollection3);
+            }
+            if (this.featureCollection4 && this.featureCollection4.length > 0) {
+                this.updateLayer4(this.featureCollection4);
+            }
+
+            window.addEventListener('resize', this.handleResize);
+            document.addEventListener('keydown', this.handleEscape);
+        },
+
+        setupSelectInteraction() {
+            if (this.selectInteraction) {
+                this.map.removeInteraction(this.selectInteraction);
+            }
+
+            this.selectInteraction = new Select({
+                condition: singleClick,
+                layers: [this.layer1, this.layer2, this.layer3, this.layer4],
+                style: this.highlightStyle,
+                multi: false,
+            });
+
+            this.selectInteraction.on('select', (event) => {
+                console.log(
+                    'Default select interaction fired, selected:',
+                    event.selected.length
+                );
+                if (event.selected.length > 0) {
+                    this.selectedFeature = event.selected[0];
+                    this.showAdditionalInfo = false;
+                } else {
+                    this.selectedFeature = null;
+                    this.showAdditionalInfo = false;
+                }
+            });
+
+            this.map.addInteraction(this.selectInteraction);
+            console.log(
+                'Select interaction added, total interactions:',
+                this.map.getInteractions().getLength()
+            );
+        },
+
+        closeFeaturePopup() {
+            this.selectedFeature = null;
+            this.showAdditionalInfo = false;
+            if (this.selectInteraction) {
+                this.selectInteraction.getFeatures().clear();
+            }
+        },
+
+        toggleMaximise() {
+            this.isMaximised = !this.isMaximised;
+            setTimeout(() => {
+                this.map.updateSize();
+            }, 100);
+        },
+
+        handleEscape(event) {
+            if (event.key === 'Escape' && this.isMaximised) {
+                this.isMaximised = false;
+                setTimeout(() => {
+                    this.map.updateSize();
+                }, 100);
+            }
+        },
+
+        handleResize() {
             if (this.map) {
                 setTimeout(() => {
                     this.map.updateSize();
                 }, 100);
             }
-            // Force refresh the map
-            this.$nextTick(() => {
-                this.forceToRefreshMap();
-            });
         },
-        deep: true,
-        immediate: true
-    },
-    featureCollection2: {
-      handler(newGeoJSON) {
-        this.updateLayer2(newGeoJSON);
-      },
-      deep: true
-    },
-    featureCollection3: {
-      handler(newGeoJSON) {
-        console.log('Feature collection3 updated, length:', newGeoJSON?.features?.length);
-        if (this.ignoreNextPropUpdate) {
-          console.log('Ignoring featureCollection3 update (merge just happened)');
-          this.ignoreNextPropUpdate = false;
-          return;
-        }
-        this.updateLayer3(newGeoJSON);
-        
-        // Refresh datatable when layer3 is updated
-        this.refreshDataTable();
-      },
-      deep: true
-    },
-    featureCollection4: {
-      handler(newGeometryList) {
-        console.log('featureCollection4 updated:', newGeometryList);
-        this.updateLayer4(newGeometryList);
-        if (this.layer4Visible && newGeometryList.length > 0) {
-          if (this.selectedGeometryIndex === null || this.selectedGeometryIndex >= newGeometryList.length) {
-            this.selectedGeometryIndex = 0;
-          }
-          this.displayGeometryCollection(this.selectedGeometryIndex);
-        } else if (newGeometryList.length === 0) {
-          this.selectedGeometryIndex = null;
-        }
-      },
-      deep: true
-    },
-    proposalId: {
-      handler(newVal) {
-        this.currentProposalId = this.ensureNumber(newVal);
-      },
-      immediate: true
-    },
-    '$route.params.proposal_id': {
-      handler(newVal) {
-        if (newVal && !this.currentProposalId) {
-          this.currentProposalId = this.ensureNumber(newVal);
-        }
-      },
-      immediate: true
-    },
-    context: {
-      handler(newVal) {
-        if (newVal && newVal.id && !this.currentProposalId) {
-          this.currentProposalId = this.ensureNumber(newVal.id);
-        }
-      },
-      deep: true,
-      immediate: true
-    }
-  },
-  mounted() {
-    console.log('MapComponent mounted, container exists:', !!this.$refs.mapContainer);
 
-    this.$nextTick(() => {
-      this.initializeMapWithRetry();
-    });
-  },
-  beforeDestroy() {
-    console.log('MapComponent beforeDestroy');
-    if (this.map) {
-      if (this.globalClickHandler) {
-        this.map.un('click', this.globalClickHandler);
-      }
-      this.map.setTarget(null);
-    }
-    window.removeEventListener('resize', this.handleResize);
-    document.removeEventListener('keydown', this.handleEscape);
-  },
-  methods: {
-    initializeMapWithRetry(retries = 5) {
-      const container = this.$refs.mapContainer;
-      if (!container) {
-        console.warn('Map container ref not found');
-        return;
-      }
-      const width = container.offsetWidth;
-      const height = container.offsetHeight;
-      console.log(`Map container dimensions: ${width}x${height}`);
-      if (width > 0 && height > 0) {
-        this.initializeMap();
-      } else if (retries > 0) {
-        console.log(`Map container has zero dimensions, retrying... (${retries} left)`);
-        setTimeout(() => {
-          this.initializeMapWithRetry(retries - 1);
-        }, 100);
-      } else {
-        console.warn('Map container still has zero dimensions after retries, initializing anyway.');
-        this.initializeMap();
-      }
-    },
+        forceToRefreshMap: function () {
+            console.log('forceToRefreshMap called');
+            if (this.map) {
+                // Update map size
+                this.map.updateSize();
 
-    // Method to refresh the datatable
-    refreshDataTable() {
-      console.log('Refreshing polygon cohort datatable');
-      this.$emit('refresh-datatable');
-      // Also directly call the table's refresh method if ref is available
-      if (this.$refs.polygonCohortTable) {
-        this.$nextTick(() => {
-          this.$refs.polygonCohortTable.refreshData();
-        });
-      }
-    },
-
-    async exportChtToExcel() {
-        if (!this.currentChtData) return;
-
-        try {
-            const workbook = XLSX.utils.book_new();
-
-            if (this.currentChtData.cht_init) {
-                const initData = this.parseChtData(this.currentChtData.cht_init);
-                if (initData.length > 0) {
-                    const initWorksheet = XLSX.utils.json_to_sheet(initData);
-                    XLSX.utils.book_append_sheet(workbook, initWorksheet, 'Initial_Cohorts');
+                // Force layer source updates
+                if (this.layer1 && this.layer1.getSource()) {
+                    this.layer1.getSource().changed();
                 }
+                if (this.layer2 && this.layer2.getSource()) {
+                    this.layer2.getSource().changed();
+                }
+                if (this.layer3 && this.layer3.getSource()) {
+                    this.layer3.getSource().changed();
+                }
+                if (this.layer4 && this.layer4.getSource()) {
+                    this.layer4.getSource().changed();
+                }
+
+                // Force render
+                this.map.render();
+
+                // Re-zoom to fit if we have features
+                this.zoomToActiveLayer();
+
+                console.log('Map refresh completed');
+            } else {
+                console.warn('Map not initialized');
             }
-
-            if (this.currentChtData.cht_new) {
-                const newData = this.parseChtData(this.currentChtData.cht_new);
-                if (newData.length > 0) {
-                    const newWorksheet = XLSX.utils.json_to_sheet(newData);
-                    XLSX.utils.book_append_sheet(workbook, newWorksheet, 'New_Cohorts');
-                }
-            }
-
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            const filename = `cohort_data_polygon_${this.selectedGeometryIndex + 1}_${timestamp}.xlsx`;
-
-            XLSX.writeFile(workbook, filename);
-
-            await swal.fire({
-                icon: 'success',
-                title: 'Export Successful',
-                text: `Data exported to ${filename}`,
-                timer: 3000,
-                showConfirmButton: false,
-                customClass: {
-                    popup: 'swal2-popup-custom'
-                }
-            });
-
-        } catch (error) {
-            console.error('Error exporting to Excel:', error);
-            await swal.fire({
-                icon: 'error',
-                title: 'Export Failed',
-                text: 'Error exporting data to Excel. Please try again.',
-                confirmButtonText: 'OK',
-                customClass: {
-                    popup: 'swal2-popup-custom'
-                }
-            });
-        }
-    },
-
-    openChtDialog(geometryIndex) {
-        const geometry = this.geometryCollections[geometryIndex];
-        if (geometry && (geometry.cht_init || geometry.cht_new)) {
-        this.selectedGeometryIndex = geometryIndex;
-        this.currentChtData = {
-            cht_init: geometry.cht_init,
-            cht_new: geometry.cht_new
-        };
-        this.showChtDialog = true;
-        }
-    },
-
-    parseChtData(chtJsonString) {
-        try {
-        const data = JSON.parse(chtJsonString);
-        const keys = Object.keys(data);
-        if (keys.length === 0) return [];
-        
-        const rowCount = data[keys[0]] ? Object.keys(data[keys[0]]).length : 0;
-        const rows = [];
-        
-        for (let i = 0; i < rowCount; i++) {
-            const row = {};
-            keys.forEach(key => {
-            row[key] = data[key] ? data[key][i] : null;
-            });
-            rows.push(row);
-        }
-        
-        return rows;
-        } catch (error) {
-        console.error('Error parsing CHT data:', error);
-        return [];
-        }
-    },
-
-    getChtInitKeys(chtInitJson) {
-        try {
-            const data = JSON.parse(chtInitJson);
-            return Object.keys(data);
-        } catch (error) {
-            return [];
-        }
-    },
-
-    getChtNewKeys(chtNewJson) {
-        try {
-            const data = JSON.parse(chtNewJson);
-            return Object.keys(data);
-        } catch (error) {
-            return [];
-        }
-    },
-
-    initializeMap() {
-      if (this.mapInitialized) return;
-      console.log('initializeMap called');
-      this.mapInitialized = true;
-
-      const layer1Source = new VectorSource();
-      const layer2Source = new VectorSource();
-      const layer3Source = new VectorSource();
-      const layer4Source = new VectorSource();
-
-      const layer1Style = new Style({
-        fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' }),
-        stroke: new Stroke({ color: 'rgba(255, 0, 0, 0.8)', width: 2 })
-      });
-
-      const layer2Style = new Style({
-        fill: new Fill({ color: 'rgba(0, 0, 255, 0.3)' }),
-        stroke: new Stroke({ color: 'rgba(0, 0, 255, 0.8)', width: 2 })
-      });
-
-      const layer3Style = new Style({
-        fill: new Fill({ color: 'rgba(68, 68, 68, 0.3)' }),
-        stroke: new Stroke({ color: 'rgba(68, 68, 68, 0.8)', width: 2 })
-      });
-
-      this.layer1 = new VectorLayer({
-        source: layer1Source,
-        style: layer1Style,
-        visible: this.layer1Visible
-      });
-
-      this.layer2 = new VectorLayer({
-        source: layer2Source,
-        style: layer2Style,
-        visible: this.layer2Visible
-      });
-
-      // Layer3 with style function that respects feature styles
-      this.layer3 = new VectorLayer({
-        source: layer3Source,
-        style: function(feature) {
-          if (feature.getStyle && feature.getStyle()) {
-            return feature.getStyle();
-          }
-          return layer3Style;
         },
-        visible: this.layer3Visible
-      });
 
-      this.layer4 = new VectorLayer({
-        source: layer4Source,
-        style: this.layer4Style,
-        visible: this.layer4Visible,
-        zIndex: 10
-      });
+        // Add method to update layer1 externally
+        updateLayer1: function (geoJSON) {
+            console.log('External updateLayer1 called');
+            if (!this.layer1 || !geoJSON) return;
 
-      const baseLayer = new TileLayer({ source: new OSM() });
+            const format = new GeoJSON();
+            const features = format.readFeatures(geoJSON, {
+                featureProjection: 'EPSG:4326',
+                dataProjection: 'EPSG:4326',
+            });
 
-      this.map = new Map({
-        target: this.$refs.mapContainer,
-        layers: [baseLayer, this.layer1, this.layer2, this.layer3, this.layer4],
-        view: new View({
-          projection: 'EPSG:4326',
-          center: fromLonLat([121.5, -24.5], 'EPSG:4326'),
-          zoom: 6,
-        })
-      });
+            this.layer1.getSource().clear();
+            this.layer1.getSource().addFeatures(features);
+            this.layer1FeatureCount = features.length;
+            console.log('Layer1 updated, features added:', features.length);
 
-      console.log('Map created, interactions count:', this.map.getInteractions().getLength());
+            // Make layer visible
+            this.layer1.setVisible(true);
+            this.layer1Visible = true;
 
-      // Add global click listener for debugging
-      this.globalClickHandler = (evt) => {
-        console.log('Map click at', evt.coordinate);
-      };
-      this.map.on('click', this.globalClickHandler);
-
-      this.setupSelectInteraction();
-
-      if (this.featureCollection) {
-        this.updateLayer1(this.featureCollection);
-      }
-      if (this.featureCollection2) {
-        this.updateLayer2(this.featureCollection2);
-      }
-      if (this.featureCollection3) {
-        this.updateLayer3(this.featureCollection3);
-      }
-      if (this.featureCollection4 && this.featureCollection4.length > 0) {
-        this.updateLayer4(this.featureCollection4);
-      }
-
-      window.addEventListener('resize', this.handleResize);
-      document.addEventListener('keydown', this.handleEscape);
-    },
-
-    setupSelectInteraction() {
-      if (this.selectInteraction) {
-        this.map.removeInteraction(this.selectInteraction);
-      }
-
-      this.selectInteraction = new Select({
-        condition: singleClick,
-        layers: [this.layer1, this.layer2, this.layer3, this.layer4],
-        style: this.highlightStyle,
-        multi: false
-      });
-
-      this.selectInteraction.on('select', (event) => {
-        console.log('Default select interaction fired, selected:', event.selected.length);
-        if (event.selected.length > 0) {
-          this.selectedFeature = event.selected[0];
-          this.showAdditionalInfo = false;
-        } else {
-          this.selectedFeature = null;
-          this.showAdditionalInfo = false;
-        }
-      });
-
-      this.map.addInteraction(this.selectInteraction);
-      console.log('Select interaction added, total interactions:', this.map.getInteractions().getLength());
-    },
-
-    closeFeaturePopup() {
-      this.selectedFeature = null;
-      this.showAdditionalInfo = false;
-      if (this.selectInteraction) {
-        this.selectInteraction.getFeatures().clear();
-      }
-    },
-
-    toggleMaximise() {
-      this.isMaximised = !this.isMaximised;
-      setTimeout(() => {
-        this.map.updateSize();
-      }, 100);
-    },
-
-    handleEscape(event) {
-      if (event.key === 'Escape' && this.isMaximised) {
-        this.isMaximised = false;
-        setTimeout(() => {
-          this.map.updateSize();
-        }, 100);
-      }
-    },
-
-    handleResize() {
-      if (this.map) {
-        setTimeout(() => {
-          this.map.updateSize();
-        }, 100);
-      }
-    },
-
-    forceToRefreshMap: function() {
-        console.log('forceToRefreshMap called');
-        if (this.map) {
-            // Update map size
-            this.map.updateSize();
-            
-            // Force layer source updates
-            if (this.layer1 && this.layer1.getSource()) {
-                this.layer1.getSource().changed();
+            // Zoom to fit if needed
+            if (features.length > 0 && !this.hasLayer2) {
+                this.zoomToLayer('layer1');
             }
-            if (this.layer2 && this.layer2.getSource()) {
-                this.layer2.getSource().changed();
+        },
+
+        // Add method to update layer2 externally
+        updateLayer2: function (geoJSON) {
+            console.log('External updateLayer2 called');
+            if (!this.layer2 || !geoJSON) return;
+
+            this.hasLayer2 = true;
+            this.layer2Visible = true;
+            this.layer2.setVisible(true);
+
+            const format = new GeoJSON();
+            const features = format.readFeatures(geoJSON, {
+                featureProjection: 'EPSG:4326',
+                dataProjection: 'EPSG:4326',
+            });
+
+            this.layer2.getSource().clear();
+            this.layer2.getSource().addFeatures(features);
+            this.layer2FeatureCount = features.length;
+            console.log('Layer2 updated, features added:', features.length);
+
+            if (features.length > 0) {
+                this.zoomToLayer('layer2');
             }
-            if (this.layer3 && this.layer3.getSource()) {
-                this.layer3.getSource().changed();
+        },
+
+        // Add method to update layer3 externally
+        updateLayer3: function (geoJSON) {
+            console.log('External updateLayer3 called');
+            if (!this.layer3 || !geoJSON) return;
+
+            this.hasLayer3 = true;
+            this.layer3Visible = true;
+            this.layer3.setVisible(true);
+
+            const format = new GeoJSON();
+            const features = format.readFeatures(geoJSON, {
+                featureProjection: 'EPSG:4326',
+                dataProjection: 'EPSG:4326',
+            });
+
+            this.layer3.getSource().clear();
+            this.layer3.getSource().addFeatures(features);
+            this.layer3FeatureCount = features.length;
+            console.log('Layer3 updated, features added:', features.length);
+
+            if (features.length > 0) {
+                this.zoomToLayer('layer3');
             }
-            if (this.layer4 && this.layer4.getSource()) {
-                this.layer4.getSource().changed();
+        },
+
+        updateLayer4(geometryList) {
+            if (!this.layer4) return;
+
+            this.hasLayer4 = geometryList.length > 0;
+            this.geometryCollections = geometryList;
+
+            // Calculate total features across all geometry collections
+            let totalFeatures = 0;
+            geometryList.forEach((geo) => {
+                if (geo && geo.features) {
+                    totalFeatures += geo.features.length;
+                }
+            });
+            this.layer4FeatureCount = totalFeatures;
+
+            this.layer4.getSource().clear();
+
+            if (this.layer4Visible && geometryList.length > 0) {
+                if (
+                    this.selectedGeometryIndex === null ||
+                    this.selectedGeometryIndex >= geometryList.length
+                ) {
+                    this.selectedGeometryIndex = 0;
+                }
+                this.displayGeometryCollection(this.selectedGeometryIndex);
+            } else if (geometryList.length === 0) {
+                this.selectedGeometryIndex = null;
             }
-            
-            // Force render
-            this.map.render();
-            
-            // Re-zoom to fit if we have features
-            this.zoomToActiveLayer();
-            
-            console.log('Map refresh completed');
-        } else {
-            console.warn('Map not initialized');
-        }
-    },
-    
-    // Add method to update layer1 externally
-    updateLayer1: function(geoJSON) {
-        console.log('External updateLayer1 called');
-        if (!this.layer1 || !geoJSON) return;
-        
-        const format = new GeoJSON();
-        const features = format.readFeatures(geoJSON, {
-            featureProjection: 'EPSG:4326',
-            dataProjection: 'EPSG:4326'
-        });
-        
-        this.layer1.getSource().clear();
-        this.layer1.getSource().addFeatures(features);
-        this.layer1FeatureCount = features.length;
-        console.log('Layer1 updated, features added:', features.length);
-        
-        // Make layer visible
-        this.layer1.setVisible(true);
-        this.layer1Visible = true;
-        
-        // Zoom to fit if needed
-        if (features.length > 0 && !this.hasLayer2) {
-            this.zoomToLayer('layer1');
-        }
-    },
-    
-    // Add method to update layer2 externally
-    updateLayer2: function(geoJSON) {
-        console.log('External updateLayer2 called');
-        if (!this.layer2 || !geoJSON) return;
-        
-        this.hasLayer2 = true;
-        this.layer2Visible = true;
-        this.layer2.setVisible(true);
-        
-        const format = new GeoJSON();
-        const features = format.readFeatures(geoJSON, {
-            featureProjection: 'EPSG:4326',
-            dataProjection: 'EPSG:4326'
-        });
-        
-        this.layer2.getSource().clear();
-        this.layer2.getSource().addFeatures(features);
-        this.layer2FeatureCount = features.length;
-        console.log('Layer2 updated, features added:', features.length);
-        
-        if (features.length > 0) {
-            this.zoomToLayer('layer2');
-        }
-    },
-    
-    // Add method to update layer3 externally
-    updateLayer3: function(geoJSON) {
-        console.log('External updateLayer3 called');
-        if (!this.layer3 || !geoJSON) return;
-        
-        this.hasLayer3 = true;
-        this.layer3Visible = true;
-        this.layer3.setVisible(true);
-        
-        const format = new GeoJSON();
-        const features = format.readFeatures(geoJSON, {
-            featureProjection: 'EPSG:4326',
-            dataProjection: 'EPSG:4326'
-        });
-        
-        this.layer3.getSource().clear();
-        this.layer3.getSource().addFeatures(features);
-        this.layer3FeatureCount = features.length;
-        console.log('Layer3 updated, features added:', features.length);
-        
-        if (features.length > 0) {
-            this.zoomToLayer('layer3');
-        }
-    },
+        },
 
-    updateLayer4(geometryList) {
-      if (!this.layer4) return;
-      
-      this.hasLayer4 = geometryList.length > 0;
-      this.geometryCollections = geometryList;
-      
-      // Calculate total features across all geometry collections
-      let totalFeatures = 0;
-      geometryList.forEach(geo => {
-        if (geo && geo.features) {
-          totalFeatures += geo.features.length;
-        }
-      });
-      this.layer4FeatureCount = totalFeatures;
-      
-      this.layer4.getSource().clear();
-      
-      if (this.layer4Visible && geometryList.length > 0) {
-        if (this.selectedGeometryIndex === null || this.selectedGeometryIndex >= geometryList.length) {
-          this.selectedGeometryIndex = 0;
-        }
-        this.displayGeometryCollection(this.selectedGeometryIndex);
-      } else if (geometryList.length === 0) {
-        this.selectedGeometryIndex = null;
-      }
-    },
-
-    toggleGeometryCollection(geometryIndex) {
-      console.log('Selecting geometry index:', geometryIndex);
-      this.selectedGeometryIndex = parseInt(geometryIndex);
-      this.displayGeometryCollection(this.selectedGeometryIndex);
-    },
-
-    displayGeometryCollection(geometryIndex) {
-      if (!this.layer4 || !this.geometryCollections[geometryIndex]) {
-        console.log('Cannot display geometry - layer4:', this.layer4, 'geometry at index:', geometryIndex);
-        return;
-      }
-      
-      const format = new GeoJSON();
-      const features = format.readFeatures(this.geometryCollections[geometryIndex], {
-        featureProjection: 'EPSG:4326',
-        dataProjection: 'EPSG:4326'
-      });
-      
-      this.layer4.getSource().clear();
-      this.layer4.getSource().addFeatures(features);
-      
-      if (features.length > 0) {
-        this.zoomToLayer('layer4');
-      }
-    },
-
-    toggleLayer(layerName) {
-      if (layerName === 'layer1') {
-        this.layer1.setVisible(this.layer1Visible);
-      } else if (layerName === 'layer2' && this.layer2) {
-        this.layer2.setVisible(this.layer2Visible);
-      } else if (layerName === 'layer3' && this.layer3) {
-        this.layer3.setVisible(this.layer3Visible);
-      } else if (layerName === 'layer4' && this.layer4) {
-        this.layer4.setVisible(this.layer4Visible);
-        if (this.layer4Visible && this.hasLayer4) {
-          if (this.selectedGeometryIndex === null && this.geometryCollections.length > 0) {
-            this.selectedGeometryIndex = 0;
-          }
-          if (this.selectedGeometryIndex !== null) {
+        toggleGeometryCollection(geometryIndex) {
+            console.log('Selecting geometry index:', geometryIndex);
+            this.selectedGeometryIndex = parseInt(geometryIndex);
             this.displayGeometryCollection(this.selectedGeometryIndex);
-          }
-        }
-      }
-    },
+        },
 
-    zoomToActiveLayer() {
-      if (this.hasLayer4 && this.layer4Visible && this.selectedGeometryIndex !== null) {
-        this.zoomToLayer('layer4');
-      } else if (this.hasLayer3 && this.layer3Visible) {
-        this.zoomToLayer('layer3');
-      } else if (this.hasLayer2 && this.layer2Visible) {
-        this.zoomToLayer('layer2');
-      } else if (this.layer1Visible) {
-        this.zoomToLayer('layer1');
-      }
-    },
+        displayGeometryCollection(geometryIndex) {
+            if (!this.layer4 || !this.geometryCollections[geometryIndex]) {
+                console.log(
+                    'Cannot display geometry - layer4:',
+                    this.layer4,
+                    'geometry at index:',
+                    geometryIndex
+                );
+                return;
+            }
 
-    zoomToLayer(layerName) {
-      let layer;
-      if (layerName === 'layer1') {
-        layer = this.layer1;
-      } else if (layerName === 'layer2') {
-        layer = this.layer2;
-      } else if (layerName === 'layer3') {
-        layer = this.layer3;
-      } else if (layerName === 'layer4') {
-        layer = this.layer4;
-      }
-      
-      if (!layer || !layer.getVisible()) return;
+            const format = new GeoJSON();
+            const features = format.readFeatures(
+                this.geometryCollections[geometryIndex],
+                {
+                    featureProjection: 'EPSG:4326',
+                    dataProjection: 'EPSG:4326',
+                }
+            );
 
-      const source = layer.getSource();
-      const features = source.getFeatures();
-      
-      if (features.length > 0) {
-        const extent = source.getExtent();
-        this.map.getView().fit(extent, {
-          padding: [20, 20, 20, 20],
-          duration: 1000
-        });
-      }
-    },
+            this.layer4.getSource().clear();
+            this.layer4.getSource().addFeatures(features);
 
-    refreshFromResponse() {
-      this.$emit('refresh-from-response');
-    },
+            if (features.length > 0) {
+                this.zoomToLayer('layer4');
+            }
+        },
 
-    testLayer4() {
-      console.log('Testing Layer 4...');
-      console.log('Layer4 visible:', this.layer4.getVisible());
-      console.log('Layer4 source features:', this.layer4.getSource().getFeatures().length);
+        toggleLayer(layerName) {
+            if (layerName === 'layer1') {
+                this.layer1.setVisible(this.layer1Visible);
+            } else if (layerName === 'layer2' && this.layer2) {
+                this.layer2.setVisible(this.layer2Visible);
+            } else if (layerName === 'layer3' && this.layer3) {
+                this.layer3.setVisible(this.layer3Visible);
+            } else if (layerName === 'layer4' && this.layer4) {
+                this.layer4.setVisible(this.layer4Visible);
+                if (this.layer4Visible && this.hasLayer4) {
+                    if (
+                        this.selectedGeometryIndex === null &&
+                        this.geometryCollections.length > 0
+                    ) {
+                        this.selectedGeometryIndex = 0;
+                    }
+                    if (this.selectedGeometryIndex !== null) {
+                        this.displayGeometryCollection(
+                            this.selectedGeometryIndex
+                        );
+                    }
+                }
+            }
+        },
 
-      this.layer4.getSource().changed();
-      this.map.render();
-    },
+        zoomToActiveLayer() {
+            if (
+                this.hasLayer4 &&
+                this.layer4Visible &&
+                this.selectedGeometryIndex !== null
+            ) {
+                this.zoomToLayer('layer4');
+            } else if (this.hasLayer3 && this.layer3Visible) {
+                this.zoomToLayer('layer3');
+            } else if (this.hasLayer2 && this.layer2Visible) {
+                this.zoomToLayer('layer2');
+            } else if (this.layer1Visible) {
+                this.zoomToLayer('layer1');
+            }
+        },
 
-    toggleDataTable() {
-      this.showDataTable = !this.showDataTable;
-    },
+        zoomToLayer(layerName) {
+            let layer;
+            if (layerName === 'layer1') {
+                layer = this.layer1;
+            } else if (layerName === 'layer2') {
+                layer = this.layer2;
+            } else if (layerName === 'layer3') {
+                layer = this.layer3;
+            } else if (layerName === 'layer4') {
+                layer = this.layer4;
+            }
 
-    ensureNumber(value) {
-      if (value === null || value === undefined) return null;
-      const num = Number(value);
-      return isNaN(num) ? null : num;
-    },
-
-    onPolygonSelected(polygonId) {
-        console.log('Polygon selected:', polygonId);
-        this.selectedPolygonId = polygonId;
-        this.closeFeaturePopup();
-        this.highlightPolygonInLayers(polygonId);
-    },
-
-    onZoomToPolygon(polygonId) {
-        console.log('Zoom to polygon:', polygonId);
-        this.selectedPolygonId = polygonId;
-        this.zoomToPolygonInLayers(polygonId);
-    },
-
-    highlightPolygonInLayers(polygonId) {
-        if (!this.map || !polygonId) return;
-
-        const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
-
-        for (const layer of layers) {
-            if (!layer || !layer.getVisible()) continue;
+            if (!layer || !layer.getVisible()) return;
 
             const source = layer.getSource();
             const features = source.getFeatures();
 
-            const foundFeature = this.findFeatureById(features, polygonId);
-
-            if (foundFeature) {
-            this.selectInteraction.getFeatures().clear();
-            this.selectInteraction.getFeatures().push(foundFeature);
-            this.selectedFeature = foundFeature;
-            this.showAdditionalInfo = false;
-            console.log('Found and highlighted polygon in layer:', layer);
-            return;
+            if (features.length > 0) {
+                const extent = source.getExtent();
+                this.map.getView().fit(extent, {
+                    padding: [20, 20, 20, 20],
+                    duration: 1000,
+                });
             }
-        }
+        },
 
-        console.warn('Polygon with ID', polygonId, 'not found in any visible layer');
-    },
+        refreshFromResponse() {
+            this.$emit('refresh-from-response');
+        },
 
-    zoomToPolygonInLayers(polygonId) {
-        if (!this.map || !polygonId) return;
+        testLayer4() {
+            console.log('Testing Layer 4...');
+            console.log('Layer4 visible:', this.layer4.getVisible());
+            console.log(
+                'Layer4 source features:',
+                this.layer4.getSource().getFeatures().length
+            );
 
-        const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
+            this.layer4.getSource().changed();
+            this.map.render();
+        },
 
-        for (const layer of layers) {
-            if (!layer || !layer.getVisible()) continue;
+        toggleDataTable() {
+            this.showDataTable = !this.showDataTable;
+        },
 
-            const source = layer.getSource();
-            const features = source.getFeatures();
+        ensureNumber(value) {
+            if (value === null || value === undefined) return null;
+            const num = Number(value);
+            return isNaN(num) ? null : num;
+        },
 
-            const foundFeature = this.findFeatureById(features, polygonId);
+        onPolygonSelected(polygonId) {
+            console.log('Polygon selected:', polygonId);
+            this.selectedPolygonId = polygonId;
+            this.closeFeaturePopup();
+            this.highlightPolygonInLayers(polygonId);
+        },
 
-            if (foundFeature) {
-            this.selectInteraction.getFeatures().clear();
-            this.selectInteraction.getFeatures().push(foundFeature);
-            this.selectedFeature = foundFeature;
-            this.showAdditionalInfo = false;
-            this.zoomToFeature(foundFeature);
-            console.log('Found and zoomed to polygon in layer:', layer);
-            return;
+        onZoomToPolygon(polygonId) {
+            console.log('Zoom to polygon:', polygonId);
+            this.selectedPolygonId = polygonId;
+            this.zoomToPolygonInLayers(polygonId);
+        },
+
+        highlightPolygonInLayers(polygonId) {
+            if (!this.map || !polygonId) return;
+
+            const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
+
+            for (const layer of layers) {
+                if (!layer || !layer.getVisible()) continue;
+
+                const source = layer.getSource();
+                const features = source.getFeatures();
+
+                const foundFeature = this.findFeatureById(features, polygonId);
+
+                if (foundFeature) {
+                    this.selectInteraction.getFeatures().clear();
+                    this.selectInteraction.getFeatures().push(foundFeature);
+                    this.selectedFeature = foundFeature;
+                    this.showAdditionalInfo = false;
+                    console.log(
+                        'Found and highlighted polygon in layer:',
+                        layer
+                    );
+                    return;
+                }
             }
-        }
 
-        console.warn('Polygon with ID', polygonId, 'not found in any visible layer');
-    },
+            console.warn(
+                'Polygon with ID',
+                polygonId,
+                'not found in any visible layer'
+            );
+        },
 
-    findFeatureById(features, polygonId) {
-        return features.find(feature => {
-            const featureId = feature.get('id') || 
-                            feature.get('polygon_id') || 
-                            feature.get('poly_id') ||
-                            feature.get('name') ||
-                            feature.get('fea_id') ||
-                            (feature.get('properties') && (
-                            feature.get('properties').id ||
+        zoomToPolygonInLayers(polygonId) {
+            if (!this.map || !polygonId) return;
+
+            const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
+
+            for (const layer of layers) {
+                if (!layer || !layer.getVisible()) continue;
+
+                const source = layer.getSource();
+                const features = source.getFeatures();
+
+                const foundFeature = this.findFeatureById(features, polygonId);
+
+                if (foundFeature) {
+                    this.selectInteraction.getFeatures().clear();
+                    this.selectInteraction.getFeatures().push(foundFeature);
+                    this.selectedFeature = foundFeature;
+                    this.showAdditionalInfo = false;
+                    this.zoomToFeature(foundFeature);
+                    console.log('Found and zoomed to polygon in layer:', layer);
+                    return;
+                }
+            }
+
+            console.warn(
+                'Polygon with ID',
+                polygonId,
+                'not found in any visible layer'
+            );
+        },
+
+        findFeatureById(features, polygonId) {
+            return features.find((feature) => {
+                const featureId =
+                    feature.get('id') ||
+                    feature.get('polygon_id') ||
+                    feature.get('poly_id') ||
+                    feature.get('name') ||
+                    feature.get('fea_id') ||
+                    (feature.get('properties') &&
+                        (feature.get('properties').id ||
                             feature.get('properties').polygon_id ||
                             feature.get('properties').poly_id ||
                             feature.get('properties').name ||
-                            feature.get('properties').fea_id
-                            ));
+                            feature.get('properties').fea_id));
 
-            return featureId && featureId.toString() === polygonId.toString();
-        });
-    },
-
-    zoomToFeature(feature) {
-        if (!feature || !this.map) return;
-
-        const geometry = feature.getGeometry();
-        if (geometry) {
-            const extent = geometry.getExtent();
-            this.map.getView().fit(extent, {
-            padding: [50, 50, 50, 50],
-            duration: 1000,
-            maxZoom: 15
+                return (
+                    featureId && featureId.toString() === polygonId.toString()
+                );
             });
-        }
-    },
+        },
 
-    // Handler for merge tool to update parent data
-    handleProcessedGeometryUpdate(updatedGeoJSON) {
-      this.ignoreNextPropUpdate = true; // prevent overwriting from prop
-      this.$emit('update-processed-geometry', updatedGeoJSON);
-    },
+        zoomToFeature(feature) {
+            if (!feature || !this.map) return;
 
-    // Update these methods in component_map.vue
-    disableSelectInteraction() {
-    console.log('Disabling select interaction');
-    if (this.selectInteraction) {
-        // First clear any selected features
-        this.selectInteraction.getFeatures().clear();
-        // Then remove the interaction
-        this.map.removeInteraction(this.selectInteraction);
-        this.selectInteraction = null;
-        
-        // Also clear the selected feature data
-        this.selectedFeature = null;
-        this.showAdditionalInfo = false;
-    }
-    },
-
-    enableSelectInteraction() {
-    console.log('Enabling select interaction');
-    if (!this.selectInteraction) {
-        this.setupSelectInteraction();
-    }
-    },
-
-    // Add to methods in component_map.vue
-    getJSONFeatures() {
-    console.log('getJSONFeatures called');
-    // Return the current feature collection from layer3 or whatever is needed
-    if (this.layer3) {
-        const features = this.layer3.getSource().getFeatures();
-        return {
-        type: 'FeatureCollection',
-        features: features.map(f => 
-            new GeoJSON().writeFeatureObject(f, {
-            featureProjection: 'EPSG:4326',
-            dataProjection: 'EPSG:4326'
-            })
-        )
-        };
-    }
-    return null;
-    },
-
-    // Add this method to safely extract feature values
-    getFeatureValue(feature, key) {
-        if (!feature) return '';
-        
-        // Check if the property exists directly on the feature
-        const value = feature.get(key);
-        if (value !== undefined) return value;
-        
-        // Check in properties object (common in GeoJSON)
-        const properties = feature.get('properties');
-        if (properties && properties[key] !== undefined) {
-            return properties[key];
-        }
-        
-        // Check for nested properties with different naming conventions
-        const alternativeKeys = [
-            key.toLowerCase(),
-            key.replace(/_/g, ''),
-            key.replace(/_/g, ' '),
-            key.toUpperCase()
-        ];
-        
-        for (const altKey of alternativeKeys) {
-            // Check direct
-            const directValue = feature.get(altKey);
-            if (directValue !== undefined) return directValue;
-            
-            // Check in properties
-            if (properties && properties[altKey] !== undefined) {
-                return properties[altKey];
+            const geometry = feature.getGeometry();
+            if (geometry) {
+                const extent = geometry.getExtent();
+                this.map.getView().fit(extent, {
+                    padding: [50, 50, 50, 50],
+                    duration: 1000,
+                    maxZoom: 15,
+                });
             }
-        }
-        
-        // Return empty string if not found
-        return '';
-    },
+        },
 
-    // In component_map.vue, update the clearCutSelection method:
-    clearCutSelection() {
-        console.log('CLEAR CUT SELECTION CALLED - starting cleanup');
-        // Clear the selected feature data
-        this.selectedFeature = null;
-        this.showAdditionalInfo = false;
-        // Clear the select interaction
-        if (this.selectInteraction) {
-            console.log('Clearing select interaction features');
-            this.selectInteraction.getFeatures().clear();
-        } else {
-            console.log('No select interaction found');
-        }
-        // Also clear any highlighted polygon from the polygon highlight layer
-        if (this.polygonHighlightLayer) {
-            console.log('Clearing polygon highlight layer');
-            this.polygonHighlightLayer.getSource().clear();
-        }
-        // Force a re-render
-        if (this.map) {
-            console.log('Forcing map re-render');
-            this.map.render();
-        }
-        console.log('CLEAR CUT SELECTION COMPLETED');
-    },
+        // Handler for merge tool to update parent data
+        handleProcessedGeometryUpdate(updatedGeoJSON) {
+            this.ignoreNextPropUpdate = true; // prevent overwriting from prop
+            this.$emit('update-processed-geometry', updatedGeoJSON);
+        },
 
-  },
+        // Update these methods in component_map.vue
+        disableSelectInteraction() {
+            console.log('Disabling select interaction');
+            if (this.selectInteraction) {
+                // First clear any selected features
+                this.selectInteraction.getFeatures().clear();
+                // Then remove the interaction
+                this.map.removeInteraction(this.selectInteraction);
+                this.selectInteraction = null;
+
+                // Also clear the selected feature data
+                this.selectedFeature = null;
+                this.showAdditionalInfo = false;
+            }
+        },
+
+        enableSelectInteraction() {
+            console.log('Enabling select interaction');
+            if (!this.selectInteraction) {
+                this.setupSelectInteraction();
+            }
+        },
+
+        // Add to methods in component_map.vue
+        getJSONFeatures() {
+            console.log('getJSONFeatures called');
+            // Return the current feature collection from layer3 or whatever is needed
+            if (this.layer3) {
+                const features = this.layer3.getSource().getFeatures();
+                return {
+                    type: 'FeatureCollection',
+                    features: features.map((f) =>
+                        new GeoJSON().writeFeatureObject(f, {
+                            featureProjection: 'EPSG:4326',
+                            dataProjection: 'EPSG:4326',
+                        })
+                    ),
+                };
+            }
+            return null;
+        },
+
+        // Add this method to safely extract feature values
+        getFeatureValue(feature, key) {
+            if (!feature) return '';
+
+            // Check if the property exists directly on the feature
+            const value = feature.get(key);
+            if (value !== undefined) return value;
+
+            // Check in properties object (common in GeoJSON)
+            const properties = feature.get('properties');
+            if (properties && properties[key] !== undefined) {
+                return properties[key];
+            }
+
+            // Check for nested properties with different naming conventions
+            const alternativeKeys = [
+                key.toLowerCase(),
+                key.replace(/_/g, ''),
+                key.replace(/_/g, ' '),
+                key.toUpperCase(),
+            ];
+
+            for (const altKey of alternativeKeys) {
+                // Check direct
+                const directValue = feature.get(altKey);
+                if (directValue !== undefined) return directValue;
+
+                // Check in properties
+                if (properties && properties[altKey] !== undefined) {
+                    return properties[altKey];
+                }
+            }
+
+            // Return empty string if not found
+            return '';
+        },
+
+        // In component_map.vue, update the clearCutSelection method:
+        clearCutSelection() {
+            console.log('CLEAR CUT SELECTION CALLED - starting cleanup');
+            // Clear the selected feature data
+            this.selectedFeature = null;
+            this.showAdditionalInfo = false;
+            // Clear the select interaction
+            if (this.selectInteraction) {
+                console.log('Clearing select interaction features');
+                this.selectInteraction.getFeatures().clear();
+            } else {
+                console.log('No select interaction found');
+            }
+            // Also clear any highlighted polygon from the polygon highlight layer
+            if (this.polygonHighlightLayer) {
+                console.log('Clearing polygon highlight layer');
+                this.polygonHighlightLayer.getSource().clear();
+            }
+            // Force a re-render
+            if (this.map) {
+                console.log('Forcing map re-render');
+                this.map.render();
+            }
+            console.log('CLEAR CUT SELECTION COMPLETED');
+        },
+    },
 };
 </script>
 
 <style scoped>
 .map-container {
-  position: relative;
-  width: 100%;
-  height: 600px;
-  min-height: 400px;
-  transition: all 0.3s ease;
+    position: relative;
+    width: 100%;
+    height: 600px;
+    min-height: 400px;
+    transition: all 0.3s ease;
 }
 
 .map-container.maximised {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 10000;
-  background: white;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10000;
+    background: white;
 }
 
 .map {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .map-controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  z-index: 1000;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 1000;
 }
 
 .control-btn {
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 8px;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #333;
-  width: 36px;
-  height: 36px;
-  transition: all 0.2s ease;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    width: 36px;
+    height: 36px;
+    transition: all 0.2s ease;
 }
 
 .control-btn:hover {
-  background: #f5f5f5;
-  transform: scale(1.05);
+    background: #f5f5f5;
+    transform: scale(1.05);
 }
 
 .layer-control-popup,
 .feature-popup {
-  position: absolute;
-  top: 50px;
-  right: 50px;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-  min-width: 280px;
-  max-width: 400px;
+    position: absolute;
+    top: 50px;
+    right: 50px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 280px;
+    max-width: 400px;
 }
 
 .popup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
 }
 
 .popup-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: #666;
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #666;
 }
 
 .close-btn:hover {
-  color: #333;
+    color: #333;
 }
 
 .layer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .layer-item label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    width: 100%;
 }
 
-.layer-item input[type="checkbox"] {
-  margin: 0;
+.layer-item input[type='checkbox'] {
+    margin: 0;
 }
 
 .layer-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
 }
 
 .feature-count-badge {
-  display: inline-block;
-  background-color: #007bff;
-  color: white;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  margin-left: 8px;
-  min-width: 24px;
-  text-align: center;
+    display: inline-block;
+    background-color: #007bff;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+    min-width: 24px;
+    text-align: center;
 }
 
 .nested-radio-group {
-  margin-left: 16px;
-  margin-top: 6px;
-  padding-left: 8px;
-  border-left: 2px solid #e0e0e0;
+    margin-left: 16px;
+    margin-top: 6px;
+    padding-left: 8px;
+    border-left: 2px solid #e0e0e0;
 }
 
 .radio-item {
-  margin: 4px 0;
+    margin: 4px 0;
 }
 
 .radio-item label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #666;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #666;
 }
 
-.radio-item input[type="radio"] {
-  margin: 0;
+.radio-item input[type='radio'] {
+    margin: 0;
 }
 
 .feature-content {
-  font-size: 13px;
+    font-size: 13px;
 }
 
 /* Compact table styles */
 .feature-table.basic-attributes.compact {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 8px;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
 }
 
 .feature-table.basic-attributes.compact th,
 .feature-table.basic-attributes.compact td {
-  padding: 2px 6px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-  line-height: 1.2;
+    padding: 2px 6px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    line-height: 1.2;
 }
 
 .feature-table.basic-attributes.compact th {
-  font-weight: 600;
-  color: #555;
-  white-space: nowrap;
-  padding-right: 10px;
-  width: 45%;
-  font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+    padding-right: 10px;
+    width: 45%;
+    font-size: 12px;
 }
 
 .feature-table.basic-attributes.compact td {
-  color: #333;
-  word-break: break-word;
-  font-size: 12px;
+    color: #333;
+    word-break: break-word;
+    font-size: 12px;
 }
 
 /* Compact info toggle */
 .info-toggle-section.compact {
-  margin: 8px 0;
-  padding: 6px 0;
-  border-top: 1px solid #eee;
-  border-bottom: 1px solid #eee;
+    margin: 8px 0;
+    padding: 6px 0;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
 }
 
 .info-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  color: #007bff;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  transition: all 0.2s;
-  font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: all 0.2s;
+    font-size: 12px;
 }
 
 .info-toggle-btn:hover {
-  background-color: #f8f9fa;
+    background-color: #f8f9fa;
 }
 
 .toggle-text {
-  font-weight: 500;
+    font-weight: 500;
 }
 
 /* Compact additional attributes */
 .additional-attributes.compact {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #eee;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
 }
 
 .additional-attributes.compact .additional-title {
-  margin: 0 0 8px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #555;
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
 }
 
 .additional-attributes.compact .attributes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 4px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 4px;
 }
 
 .additional-attributes.compact .attribute-item {
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-  background: #f8f9fa;
-  border-radius: 3px;
-  border: 1px solid #e9ecef;
-  min-height: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    background: #f8f9fa;
+    border-radius: 3px;
+    border: 1px solid #e9ecef;
+    min-height: auto;
 }
 
 .additional-attributes.compact .attribute-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #6c757d;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 1px;
-  line-height: 1.1;
+    font-size: 10px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1px;
+    line-height: 1.1;
 }
 
 .additional-attributes.compact .attribute-value {
-  font-size: 11px;
-  color: #333;
-  font-weight: 500;
-  word-break: break-word;
-  line-height: 1.2;
+    font-size: 11px;
+    color: #333;
+    font-weight: 500;
+    word-break: break-word;
+    line-height: 1.2;
 }
 
 .geometry-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
 .cht-link-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  transition: background-color 0.2s;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
 }
 
 .cht-link-btn:hover {
-  background-color: #f0f0f0;
+    background-color: #f0f0f0;
 }
 
 .cht-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10001;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
 }
 
 .cht-dialog {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  max-width: 90vw;
-  max-height: 90vh;
-  width: 950px;
-  overflow: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 950px;
+    overflow: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .cht-content {
-  max-height: 70vh;
-  overflow-y: auto;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 .cht-table-section {
-  margin-bottom: 20px;
+    margin-bottom: 20px;
 }
 
 .cht-table-section h4 {
-  margin: 0 0 10px 0;
-  color: #333;
-  font-size: 15px;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 4px;
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 15px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 4px;
 }
 
 .table-container {
-  overflow-x: auto;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
 .cht-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
 }
 
 .cht-table th,
 .cht-table td {
-  padding: 6px 8px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-  border-right: 1px solid #eee;
-  white-space: nowrap;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    border-right: 1px solid #eee;
+    white-space: nowrap;
 }
 
 .cht-table th {
-  background-color: #f8f9fa;
-  font-weight: 600;
-  color: #495057;
-  position: sticky;
-  top: 0;
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
 }
 
 .cht-table tr:hover {
-  background-color: #f5f5f5;
+    background-color: #f5f5f5;
 }
 
 .cht-table th:last-child,
 .cht-table td:last-child {
-  border-right: none;
+    border-right: none;
 }
 
 /* Floating merge panel styles are now in the child component */
@@ -1677,7 +1917,6 @@ export default {
 :deep(.swal2-backdrop-show) {
     z-index: 10003 !important;
 }
-
 </style>
 
 <style>

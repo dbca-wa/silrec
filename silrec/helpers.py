@@ -27,11 +27,17 @@ def belongs_to(user, group_name):
     if belongs_to_value:
         print ('From Cache - User-belongs_to'+str(user.id)+'group_name:'+group_name)
     if belongs_to_value is None:
-       belongs_to_value = user.groups().filter(name=group_name).exists()
+       belongs_to_value = user.groups.filter(name=group_name).exists()
        cache.set('User-belongs_to'+str(user.id)+'group_name:'+group_name, belongs_to_value, 3600)
     return belongs_to_value
 
-    #return user.groups.filter(name=group_name).exists()
+
+VALID_GROUPS = ['User', 'Operator', 'Assessor', 'Reviewer', 'Silrec Admin']
+
+
+def has_access(user):
+    """Check if user is in any valid group AND is_staff=True."""
+    return user.is_authenticated and user.is_staff and user.groups.filter(name__in=VALID_GROUPS).exists()
 
 #def is_model_backend(request):
 #    # Return True if user logged in via single sign-on (i.e. an internal)

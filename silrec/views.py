@@ -13,7 +13,7 @@ from django.db import transaction
 
 from datetime import datetime, timedelta
 
-from silrec.helpers import is_internal
+from silrec.helpers import is_internal, has_access
 from silrec.forms import *
 from silrec.components.proposals.models import Proposal
 
@@ -38,7 +38,12 @@ class InternalView(UserPassesTestMixin, TemplateView):
     template_name = 'silrec/dash/index.html'
 
     def test_func(self):
-        return is_internal(self.request)
+        return is_internal(self.request) and has_access(self.request.user)
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            return render(self.request, 'silrec/index.html')
+        return self.no_permissions_fail(self.request)
 
     def get_context_data(self, **kwargs):
         context = super(InternalView, self).get_context_data(**kwargs)
@@ -56,12 +61,21 @@ class ExternalView(LoginRequiredMixin, TemplateView):
         context['dev_url'] = settings.DEV_STATIC_URL
         return context
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not has_access(request.user):
+            return render(request, 'silrec/index.html')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class SilrecRoutingView(TemplateView):
     template_name = 'silrec/index.html'
 
     def get(self, *args, **kwargs):
         if self.request.user.is_authenticated:
+            if not self.request.user.is_staff:
+                return super(SilrecRoutingView, self).get(*args, **kwargs)
+            if not has_access(self.request.user):
+                return super(SilrecRoutingView, self).get(*args, **kwargs)
             if is_internal(self.request):
                 return redirect('internal')
             return redirect('external')
@@ -85,6 +99,8 @@ class InternalProposalView(DetailView):
 
     def get(self, *args, **kwargs):
         if self.request.user.is_authenticated:
+            if not has_access(self.request.user):
+                return super(SilrecRoutingView, self).get(*args, **kwargs)
             if is_internal(self.request):
                 return super().get(*args, **kwargs)
             return redirect("external")

@@ -1,21 +1,26 @@
 <template>
     <div class="polygon-cohort-table-container" data-table="polygon-cohort">
-    <div v-if="$route.query.debug?.toLowerCase() === 'true'">src/components/common/table_polygon_cohort.vue</div>
+        <div v-if="$route.query.debug?.toLowerCase() === 'true'">
+            src/components/common/table_polygon_cohort.vue
+        </div>
         <div class="table-controls mb-3">
             <div class="row align-items-center">
                 <div class="col-md-6">
                     <h5 v-if="showTitle">Polygon & Cohort Data</h5>
                 </div>
                 <div class="col-md-6 text-end">
-                    <button 
+                    <button
                         class="btn btn-sm btn-outline-secondary me-2"
                         @click="toggleTable"
                         :title="tableVisible ? 'Hide table' : 'Show table'"
                     >
-                        <i class="bi" :class="tableVisible ? 'bi-eye-slash' : 'bi-eye'"></i>
+                        <i
+                            class="bi"
+                            :class="tableVisible ? 'bi-eye-slash' : 'bi-eye'"
+                        ></i>
                         {{ tableVisible ? 'Hide Table' : 'Show Table' }}
                     </button>
-                    <button 
+                    <button
                         class="btn btn-sm btn-outline-primary"
                         @click="refreshData"
                         title="Refresh data"
@@ -49,7 +54,9 @@
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="filterCohortStatus">Cohort Status</label>
+                            <label for="filterCohortStatus"
+                                >Cohort Status</label
+                            >
                             <select
                                 v-model="filterCohortStatus"
                                 class="form-select"
@@ -119,22 +126,22 @@ export default {
     props: {
         proposalId: {
             type: Number,
-            required: true
+            required: true,
         },
         showTitle: {
             type: Boolean,
-            default: true
+            default: true,
         },
         initialVisible: {
             type: Boolean,
-            default: false
-        }
+            default: false,
+        },
     },
     data() {
         return {
             datatable_id: 'polygon-cohort-table-' + uuid(),
             tableVisible: this.initialVisible,
-            
+
             // Filters
             filterPolygonName: '',
             filterCohortStatus: 'all',
@@ -155,12 +162,12 @@ export default {
                 'Residual BA (m²/ha)',
                 'Species',
                 'Status',
-                'Actions'
+                'Actions',
             ];
         },
         dtOptions() {
             let vm = this;
-            
+
             return {
                 autoWidth: false,
                 responsive: true,
@@ -170,13 +177,13 @@ export default {
                 ajax: {
                     url: api_endpoints.polygon_cohort_table,
                     dataSrc: 'data',
-                    data: function(d) {
+                    data: function (d) {
                         d.proposal_id = vm.proposalId;
                         d.filter_polygon_name = vm.filterPolygonName;
                         d.filter_cohort_status = vm.filterCohortStatus;
                         d.filter_species = vm.filterSpecies;
                         d.filter_min_area = vm.filterMinArea;
-                    }
+                    },
                 },
                 columns: [
                     // Polygon ID
@@ -184,119 +191,136 @@ export default {
                         data: 'polygon_id',
                         name: 'polygon_id',
                         visible: false,
-                        orderable: true
+                        orderable: true,
                     },
                     // Polygon Name
                     {
                         data: 'name',
                         name: 'name',
                         orderable: true,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             return data || 'N/A';
-                        }
+                        },
                     },
                     // FEA ID
                     {
                         data: 'zfea_id',
                         name: 'zfea_id',
                         orderable: true,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             return data || 'N/A';
-                        }
+                        },
                     },
                     // Area
                     {
                         data: 'area_ha',
                         name: 'area_ha',
                         orderable: true,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             return data ? data.toFixed(2) : 'N/A';
-                        }
+                        },
                     },
                     // Cohort ID
                     {
                         data: 'assigned_cohorts',
                         name: 'assigned_cohorts',
                         orderable: false,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             if (data && data.length > 0) {
-                                return data.map(cht => cht.cohort).join(', ');
+                                return data.map((cht) => cht.cohort).join(', ');
                             }
                             return 'No cohorts';
-                        }
+                        },
                     },
                     // Objective Code
                     {
                         data: 'assigned_cohorts',
                         name: 'assigned_cohorts',
                         orderable: false,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             if (data && data.length > 0) {
-                                return data.map(cht => 
-                                    cht.cohort_details?.obj_code || 'N/A'
-                                ).join(', ');
+                                return data
+                                    .map(
+                                        (cht) =>
+                                            cht.cohort_details?.obj_code ||
+                                            'N/A'
+                                    )
+                                    .join(', ');
                             }
                             return 'N/A';
-                        }
+                        },
                     },
                     // Target BA
                     {
                         data: 'assigned_cohorts',
                         name: 'assigned_cohorts',
                         orderable: false,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             if (data && data.length > 0) {
-                                return data.map(cht => 
-                                    cht.cohort_details?.target_ba_m2ha ? 
-                                    cht.cohort_details.target_ba_m2ha.toFixed(2) : 'N/A'
-                                ).join(', ');
+                                return data
+                                    .map((cht) =>
+                                        cht.cohort_details?.target_ba_m2ha
+                                            ? cht.cohort_details.target_ba_m2ha.toFixed(
+                                                  2
+                                              )
+                                            : 'N/A'
+                                    )
+                                    .join(', ');
                             }
                             return 'N/A';
-                        }
+                        },
                     },
                     // Residual BA
                     {
                         data: 'assigned_cohorts',
                         name: 'assigned_cohorts',
                         orderable: false,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             if (data && data.length > 0) {
-                                return data.map(cht => 
-                                    cht.cohort_details?.resid_ba_m2ha ? 
-                                    cht.cohort_details.resid_ba_m2ha.toFixed(2) : 'N/A'
-                                ).join(', ');
+                                return data
+                                    .map((cht) =>
+                                        cht.cohort_details?.resid_ba_m2ha
+                                            ? cht.cohort_details.resid_ba_m2ha.toFixed(
+                                                  2
+                                              )
+                                            : 'N/A'
+                                    )
+                                    .join(', ');
                             }
                             return 'N/A';
-                        }
+                        },
                     },
                     // Species
                     {
                         data: 'assigned_cohorts',
                         name: 'assigned_cohorts',
                         orderable: false,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             if (data && data.length > 0) {
-                                return data.map(cht => 
-                                    cht.cohort_details?.species || 'N/A'
-                                ).join(', ');
+                                return data
+                                    .map(
+                                        (cht) =>
+                                            cht.cohort_details?.species || 'N/A'
+                                    )
+                                    .join(', ');
                             }
                             return 'N/A';
-                        }
+                        },
                     },
                     // Status
                     {
                         data: 'assigned_cohorts',
                         name: 'assigned_cohorts',
                         orderable: false,
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             if (data && data.length > 0) {
-                                const statuses = data.map(cht => 
+                                const statuses = data.map((cht) =>
                                     cht.status_current ? 'Active' : 'Closed'
                                 );
                                 return [...new Set(statuses)].join(', '); // Remove duplicates
                             }
                             return 'N/A';
-                        }
+                        },
                     },
                     // Actions
                     {
@@ -304,11 +328,17 @@ export default {
                         orderable: false,
                         searchable: false,
                         className: 'action-column',
-                        render: function(data, type, row) {
+                        render: function (data, type, row) {
                             let actions = '';
                             // Get the first cohort ID for navigation
-                            const cohortId = row.assigned_cohorts && row.assigned_cohorts.length > 0 ? row.assigned_cohorts[0].cohort : null;
-                            console.log('JM 8: ' + JSON.stringify(row.proposal_id))
+                            const cohortId =
+                                row.assigned_cohorts &&
+                                row.assigned_cohorts.length > 0
+                                    ? row.assigned_cohorts[0].cohort
+                                    : null;
+                            console.log(
+                                'JM 8: ' + JSON.stringify(row.proposal_id)
+                            );
 
                             if (cohortId) {
                                 actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">
@@ -325,21 +355,23 @@ export default {
                                 <i class="bi bi-zoom-in"></i>
                             </button>`;
                             return actions;
-                        }
-                    }
+                        },
+                    },
                 ],
-                dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
-                     "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                dom:
+                    "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 language: {
-                    processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+                    processing:
+                        '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
                 },
-                drawCallback: function(settings) {
+                drawCallback: function (settings) {
                     // Re-attach event listeners after table redraw
                     vm.attachEventListeners();
-                }
+                },
             };
-        }
+        },
     },
     methods: {
         toggleTable() {
@@ -352,7 +384,10 @@ export default {
         },
         async __refreshData() {
             try {
-                if (this.$refs.polygon_cohort_datatable && this.$refs.polygon_cohort_datatable.vmDataTable) {
+                if (
+                    this.$refs.polygon_cohort_datatable &&
+                    this.$refs.polygon_cohort_datatable.vmDataTable
+                ) {
                     await this.$refs.polygon_cohort_datatable.vmDataTable.ajax.reload();
                 }
             } catch (error) {
@@ -361,14 +396,17 @@ export default {
                     icon: 'error',
                     title: 'Refresh Failed',
                     text: 'Failed to refresh table data. Please try again.',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: 'OK',
                 });
             }
         },
 
-        refreshData: async function() {
+        refreshData: async function () {
             try {
-                if (this.$refs.polygon_cohort_datatable && this.$refs.polygon_cohort_datatable.vmDataTable) {
+                if (
+                    this.$refs.polygon_cohort_datatable &&
+                    this.$refs.polygon_cohort_datatable.vmDataTable
+                ) {
                     await this.$refs.polygon_cohort_datatable.vmDataTable.ajax.reload();
                     console.log('Datatable refreshed successfully');
                 } else {
@@ -380,7 +418,7 @@ export default {
                     icon: 'error',
                     title: 'Refresh Failed',
                     text: 'Failed to refresh table data. Please try again.',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: 'OK',
                 });
             }
         },
@@ -399,22 +437,22 @@ export default {
         // Attach event listeners to action buttons
         attachEventListeners() {
             const vm = this;
-            
+
             // Remove existing listeners to prevent duplicates
             $(this.$el).off('click', '.view-polygon-btn');
             $(this.$el).off('click', '.zoom-polygon-btn');
-            
+
             // Attach new listeners
-            $(this.$el).on('click', '.view-polygon-btn', function() {
+            $(this.$el).on('click', '.view-polygon-btn', function () {
                 const polygonId = $(this).data('polygon-id');
                 vm.handlePolygonSelection(polygonId);
             });
-            
-            $(this.$el).on('click', '.zoom-polygon-btn', function() {
+
+            $(this.$el).on('click', '.zoom-polygon-btn', function () {
                 const polygonId = $(this).data('polygon-id');
                 vm.handleZoomToPolygon(polygonId);
             });
-        }
+        },
     },
     mounted() {
         // Load data if table is initially visible
@@ -431,7 +469,7 @@ export default {
                     this.refreshData();
                 }
             },
-            immediate: true
+            immediate: true,
         },
         // Watch filters and refresh data when they change
         filterPolygonName() {
@@ -445,8 +483,8 @@ export default {
         },
         filterMinArea() {
             this.refreshData();
-        }
-    }
+        },
+    },
 };
 </script>
 

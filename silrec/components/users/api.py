@@ -48,12 +48,15 @@ class CurrentUserView(APIView):
 
     def get(self, request):
         user = request.user
+        groups = list(user.groups.values_list('name', flat=True))
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'is_staff': user.is_staff,
+            'groups': groups,
         })
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -82,12 +85,15 @@ class UserViewSet(viewsets.ModelViewSet):
         http://localhost:8001/api/users/current/
         '''
         user = request.user
+        groups = list(user.groups.values_list('name', flat=True))
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'is_staff': user.is_staff,
+            'groups': groups,
         })
 
     @action(detail=True, methods=['GET'])

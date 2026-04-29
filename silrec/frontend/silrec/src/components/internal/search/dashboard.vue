@@ -1,13 +1,13 @@
 <template>
     <div class="container" id="SearchDashboard">
         <h1 class="my-4">Search</h1>
-        
+
         <div class="row">
             <div class="col-md-12 mb-4">
                 <SearchByUser />
             </div>
         </div>
-        
+
         <div class="row mt-5">
             <div class="col-md-12">
                 <SearchByText />
@@ -24,13 +24,13 @@ export default {
     name: 'SearchDashboard',
     components: {
         SearchByUser,
-        SearchByText
+        SearchByText,
     },
     data() {
         return {
-            activeTab: 'user'
+            activeTab: 'user',
         };
-    }
+    },
 };
 </script>
 
@@ -39,8 +39,6 @@ export default {
     padding: 20px;
 }
 .toggle_filters_button {
-	color: blue !important;
+    color: blue !important;
 }
 </style>
-
-

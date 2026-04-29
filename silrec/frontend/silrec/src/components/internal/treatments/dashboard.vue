@@ -24,7 +24,10 @@ export default {
     methods: {
         async refreshTreatments() {
             // Refresh the treatments table data
-            if (this.$refs.treatmentsTable && this.$refs.treatmentsTable.refresh) {
+            if (
+                this.$refs.treatmentsTable &&
+                this.$refs.treatmentsTable.refresh
+            ) {
                 await this.$refs.treatmentsTable.refresh();
             }
         },

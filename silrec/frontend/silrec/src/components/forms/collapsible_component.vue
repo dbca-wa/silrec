@@ -104,7 +104,7 @@ export default {
 <style scoped>
 .toggle_filters_wrapper {
     background: #efefee;
-    padding: 0.0em;
+    padding: 0em;
     display: grid;
 }
 

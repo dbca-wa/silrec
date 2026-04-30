@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='proposals' %}">Proposals</a>
+&rsaquo; <a href="{% url 'admin:proposals_formvalidationrule_changelist' %}">Form Validation Rules</a>
+&rsaquo; Clone Rule #{{ original.rule_id }}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Clone Form Validation Rule #{{ original.rule_id }}</h1>
+
+<div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+    <h3>Original Rule</h3>
+    <table style="width: auto;">
+        <tr><th style="text-align: left; padding-right: 20px;">Model:</th><td>{{ original.model_name }}</td></tr>
+        <tr><th style="text-align: left; padding-right: 20px;">Field:</th><td>{{ original.field_name }}</td></tr>
+        <tr><th style="text-align: left; padding-right: 20px;">Label:</th><td>{{ original.field_label }}</td></tr>
+        <tr><th style="text-align: left; padding-right: 20px;">Required:</th><td>{{ original.is_required }}</td></tr>
+        <tr><th style="text-align: left; padding-right: 20px;">Order:</th><td>{{ original.order }}</td></tr>
+        <tr><th style="text-align: left; padding-right: 20px;">Status Field:</th><td>{{ original.status_field|default:'—' }}</td></tr>
+        <tr><th style="text-align: left; padding-right: 20px;">Status Values:</th><td>{{ original.status_values|default:'—' }}</td></tr>
+    </table>
+</div>
+
+<div style="margin: 20px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">
+    <strong>Cloned rule will be created with:</strong>
+    <ul>
+        <li><code>is_required = False</code></li>
+        <li><code>order</code> = next available value</li>
+        <li>Same <code>model_name</code>, <code>status_field</code>, <code>status_values</code></li>
+    </ul>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <fieldset class="module aligned">
+        <div style="margin-bottom: 15px;">
+            <label for="id_field_name" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                New Field Name <span style="color: red;">*</span>
+            </label>
+            <select
+                id="id_field_name"
+                name="field_name"
+                required
+                style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; width: 400px;"
+            >
+                <option value="">— Select a field —</option>
+                {% for field in available_fields %}
+                <option value="{{ field }}">{{ field }}</option>
+                {% endfor %}
+                {% if not available_fields %}
+                <option value="" disabled>No available fields (all already added)</option>
+                {% endif %}
+            </select>
+            {% if not available_fields %}
+            <div style="margin-top: 5px; color: #856404; background: #fff3cd; padding: 6px 10px; border-radius: 4px; font-size: 13px;">
+                All fields from <strong>{{ original.model_name }}</strong> have already been added to Form Validation Rules.
+            </div>
+            {% endif %}
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label for="id_field_label" style="display: block; font-weight: bold; margin-bottom: 5px;">
+                New Field Label
+            </label>
+            <input
+                id="id_field_label"
+                name="field_label"
+                type="text"
+                size="50"
+                maxlength="200"
+                placeholder="e.g. New Field Label (defaults to field_name)"
+                style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; width: 400px;"
+            />
+        </div>
+    </fieldset>
+
+    <div style="margin-top: 20px;">
+        <input type="submit" value="Clone Rule" class="default" style="padding: 8px 20px; font-weight: bold;" />
+        <a href="{% url 'admin:proposals_formvalidationrule_changelist' %}" style="margin-left: 15px;">Cancel</a>
+    </div>
+</form>
+{% endblock %}

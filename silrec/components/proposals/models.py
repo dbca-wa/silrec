@@ -2195,6 +2195,52 @@ class ReportTemplate(models.Model):
         super().save(*args, **kwargs)
 
 
+class FormValidationRule(models.Model):
+    rule_id = models.AutoField(primary_key=True)
+    model_name = models.CharField(
+        max_length=100,
+        help_text="Dotted model path, e.g. 'forest_blocks.Cohort'"
+    )
+    field_name = models.CharField(
+        max_length=100,
+        help_text='Field name on the model, e.g. obj_code, species'
+    )
+    field_label = models.CharField(
+        max_length=200,
+        blank=True, null=True,
+        help_text='Human-readable label for error messages. Leave blank to use field_name.'
+    )
+    is_required = models.BooleanField(
+        default=True,
+        help_text='Check to make this field mandatory'
+    )
+    status_field = models.CharField(
+        max_length=100,
+        blank=True, null=True,
+        help_text="Optional: model field that holds processing status (e.g. 'processing_status')"
+    )
+    status_values = models.CharField(
+        max_length=500,
+        blank=True, null=True,
+        help_text="Optional: comma-separated status values when rule applies (e.g. 'draft,processing_shapefile'). Leave blank for all statuses."
+    )
+    order = models.IntegerField(
+        default=0,
+        help_text='Display order in validation messages'
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'form_validation_rule'
+        app_label = 'silrec'
+        ordering = ['model_name', 'order', 'field_name']
+        verbose_name = 'Form Validation Rule'
+        verbose_name_plural = 'Form Validation Rules'
+
+    def __str__(self):
+        return f'{self.model_name}.{self.field_name}'
+
+
 ## -------------------------------------------------------------------------------------
 #
 ## Helper to collect all relation names (forward + reverse) for reversion.follow
@@ -2244,4 +2290,7 @@ register(TextSearchModelConfig, follow=['created_by'])
 register(TextSearchFieldDisplay, follow=['created_by'])
 register(ShapefileAttributeConfig, follow=['application_type'])
 register(ShapefileProcessing, follow=['proposal', 'user'])
+register(FormValidationRule, follow=[])
+
+
 

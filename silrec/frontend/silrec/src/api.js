@@ -85,6 +85,7 @@ export default {
     search_by_text: '/api/search_by_text/',
     text_search_fields_by_model: '/api/text_search_fields_by_model/',
     text_search_available_models: '/api/text_search_available_models/',
+    form_validation_rules: '/api/form_validation_rules/',
 
     lookupApprovalDetails: function (id) {
         return `/api/approvals/${id}/lookup_approval.json`;

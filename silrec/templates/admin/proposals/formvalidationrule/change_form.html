@@ -1,0 +1,84 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script id="django-admin-form-validation-rule-fields">
+(function() {
+    var FIELD_SELECTOR = '#id_field_name';
+    var MODEL_SELECTOR = '#id_model_name';
+
+    function fetchAndReplaceFieldName(modelName) {
+        var originalInput = document.querySelector(FIELD_SELECTOR);
+        if (!originalInput) return;
+
+        var currentValue = originalInput.value;
+
+        var select = document.createElement('select');
+        select.id = 'id_field_name';
+        select.name = 'field_name';
+        select.classList.add('vTextField');
+        select.style.width = '400px';
+        select.style.padding = '4px 6px';
+        select.style.border = '1px solid #ccc';
+        select.style.borderRadius = '4px';
+
+        originalInput.parentNode.replaceChild(select, originalInput);
+
+        if (!modelName || modelName.trim() === '') {
+            select.innerHTML = '<option value="">— Enter a model name first —</option>';
+            return;
+        }
+
+        select.innerHTML = '<option value="">Loading fields...</option>';
+
+        fetch('/admin/proposals/formvalidationrule/available-fields/?model=' + encodeURIComponent(modelName.trim()))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                select.innerHTML = '<option value="">— Select a field —</option>';
+                if (data.fields && data.fields.length > 0) {
+                    data.fields.forEach(function(f) {
+                        var opt = document.createElement('option');
+                        opt.value = f;
+                        opt.text = f;
+                        select.appendChild(opt);
+                    });
+                } else {
+                    var opt = document.createElement('option');
+                    opt.value = '';
+                    opt.text = 'No available fields (all already added)';
+                    opt.disabled = true;
+                    select.appendChild(opt);
+                }
+                if (currentValue) select.value = currentValue;
+            })
+            .catch(function() {
+                select.innerHTML = '<option value="">— Error loading fields —</option>';
+            });
+    }
+
+    function init() {
+        var modelInput = document.querySelector(MODEL_SELECTOR);
+        if (!modelInput) return;
+
+        function trigger() {
+            fetchAndReplaceFieldName(modelInput.value);
+        }
+
+        modelInput.addEventListener('change', trigger);
+        modelInput.addEventListener('blur', trigger);
+        modelInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                setTimeout(trigger, 100);
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+{% endblock %}

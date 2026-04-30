@@ -52,6 +52,7 @@ from silrec.components.proposals.models import (
     TextSearchModelConfig,
     ShapefileDocument,
     ShapefileProcessing,
+    FormValidationRule,
 )
 
 from silrec.components.main.models import (
@@ -81,6 +82,7 @@ from silrec.components.proposals.serializers import (
     ShapefileProcessResultSerializer,
     ShapefileProcessRequestSerializer,
     ShapefileProcessingSerializer,
+    FormValidationRuleSerializer,
 )
 from silrec.components.main.api import (
     UserActionLoggingViewset,
@@ -2640,6 +2642,27 @@ class TextSearchModelConfigViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """Order by order field"""
         return super().get_queryset().order_by('order')
+
+
+class FormValidationRuleView(APIView):
+    """API endpoint to get validation rules for a specific model"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        model_name = request.query_params.get('model', '').strip()
+        if not model_name:
+            return Response(
+                {'error': 'model query parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        rules = FormValidationRule.objects.filter(
+            model_name=model_name,
+            is_active=True
+        ).order_by('order', 'field_name')
+
+        serializer = FormValidationRuleSerializer(rules, many=True)
+        return Response(serializer.data)
 
 
 class TextSearchFieldsByModelView(APIView):

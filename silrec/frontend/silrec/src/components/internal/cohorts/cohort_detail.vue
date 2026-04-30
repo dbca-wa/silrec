@@ -387,10 +387,11 @@ import TreatmentsTable from '@/components/internal/treatments/treatments_table.v
 import OperationForm from '@/components/internal/operations/operations_form.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
 import permissionsMixin from '@/mixins/permissions';
+import formValidationMixin from '@/mixins/form_validation';
 
 export default {
     name: 'CohortDetail',
-    mixins: [permissionsMixin],
+    mixins: [permissionsMixin, formValidationMixin],
     components: {
         CohortForm,
         AdditionalCohortFields,
@@ -769,11 +770,17 @@ export default {
 
                 console.log('Saving combined data:', combinedData);
 
-                if (!combinedData.obj_code) {
-                    throw new Error('Objective Code is required');
-                }
-                if (!combinedData.regen_method) {
-                    throw new Error('Regeneration Method is required');
+                if (!this.validateFormData(combinedData)) {
+                    const messages = this.validationErrors
+                        .map((e) => `- ${e.message}`)
+                        .join('\n');
+                    await swal.fire({
+                        icon: 'warning',
+                        title: 'Validation Error',
+                        text: `Please fix the following:\n${messages}`,
+                        confirmButtonText: 'OK',
+                    });
+                    return false;
                 }
 
                 const url = `${api_endpoints.cohorts}${this.cohortData.cohort_id}/`;
@@ -893,6 +900,7 @@ export default {
     mounted() {
         this.loadCohortData();
         this.loadUserPermissions();
+        this.fetchValidationRules('forest_blocks.Cohort');
 
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
     },

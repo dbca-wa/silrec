@@ -1,0 +1,198 @@
+[
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 1,
+    "fields": {
+      "model_name": "forest_blocks.Cohort",
+      "field_name": "obj_code",
+      "field_label": "Objective Code",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 2,
+    "fields": {
+      "model_name": "forest_blocks.Cohort",
+      "field_name": "regen_method",
+      "field_label": "Regeneration Method",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 3,
+    "fields": {
+      "model_name": "forest_blocks.Cohort",
+      "field_name": "pct_area",
+      "field_label": "Percentage Area",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 4,
+    "fields": {
+      "model_name": "forest_blocks.Cohort",
+      "field_name": "species",
+      "field_label": "Species",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 4,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 5,
+    "fields": {
+      "model_name": "forest_blocks.Treatment",
+      "field_name": "task",
+      "field_label": "Task",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 6,
+    "fields": {
+      "model_name": "forest_blocks.Treatment",
+      "field_name": "status",
+      "field_label": "Status",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 7,
+    "fields": {
+      "model_name": "forest_blocks.Prescription",
+      "field_name": "prescription_type",
+      "field_label": "Prescription Type",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 8,
+    "fields": {
+      "model_name": "forest_blocks.Prescription",
+      "field_name": "description",
+      "field_label": "Description",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 9,
+    "fields": {
+      "model_name": "forest_blocks.SilviculturistComment",
+      "field_name": "comment",
+      "field_label": "Comment",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 10,
+    "fields": {
+      "model_name": "forest_blocks.SurveyAssessmentDocument",
+      "field_name": "document_type",
+      "field_label": "Document Type",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 11,
+    "fields": {
+      "model_name": "forest_blocks.SurveyAssessmentDocument",
+      "field_name": "title",
+      "field_label": "Title",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 12,
+    "fields": {
+      "model_name": "forest_blocks.SurveyAssessmentDocument",
+      "field_name": "file",
+      "field_label": "File",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 13,
+    "fields": {
+      "model_name": "forest_blocks.Operation",
+      "field_name": "fea_id",
+      "field_label": "FEA ID",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "proposals.FormValidationRule",
+    "pk": 14,
+    "fields": {
+      "model_name": "forest_blocks.Treatmentxtra",
+      "field_name": "success_rate_pct",
+      "field_label": "Success Rate (%)",
+      "is_required": true,
+      "status_field": null,
+      "status_values": null,
+      "order": 1,
+      "is_active": true
+    }
+  }
+]

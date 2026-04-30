@@ -35,6 +35,7 @@ from silrec.components.proposals.models import (
     SQLReport,
     TextSearchFieldDisplay,
     TextSearchModelConfig,
+    FormValidationRule,
 )
 
 from silrec.helpers import (
@@ -847,4 +848,13 @@ class ShapefileRestoreRequestSerializer(serializers.Serializer):
         help_text="Optional explicit dump file path; defaults to most recent for this proposal")
     check_only = serializers.BooleanField(required=False, default=False,
         help_text="If true, only check whether the dump file exists without running restore")
+
+
+class FormValidationRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FormValidationRule
+        fields = [
+            'rule_id', 'model_name', 'field_name', 'field_label',
+            'is_required', 'status_field', 'status_values', 'order', 'is_active',
+        ]
 

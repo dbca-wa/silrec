@@ -146,6 +146,12 @@ urlpatterns = [
     re_path(r'^api/search_by_user/', users_api.SearchByUserView.as_view(), name='search_by_user'),
 
     re_path(
+        r"^api/form_validation_rules/$",
+        proposal_api.FormValidationRuleView.as_view(),
+        name="form-validation-rules",
+    ),
+
+    re_path(
         r"^api/proposal/(?P<pk>\d+)/upload_shapefile/$",
         proposal_api.ShapefileUploadView.as_view(),
         name="upload-shapefile",

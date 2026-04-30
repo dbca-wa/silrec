@@ -297,7 +297,7 @@
             </div>
 
             <!-- Action Buttons -->
-            <div v-if="!readOnly" class="mt-4">
+            <div v-if="!readOnly && showActions" class="mt-4">
                 <button
                     type="submit"
                     class="btn btn-primary me-2"
@@ -344,6 +344,10 @@ export default {
         readOnly: {
             type: Boolean,
             default: false,
+        },
+        showActions: {
+            type: Boolean,
+            default: true,
         },
     },
     data() {

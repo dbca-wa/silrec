@@ -426,8 +426,17 @@ export default {
             return canEdit;
         },
         displaySaveBtns: function () {
+            if (this.isReviewerUser) {
+                return (
+                    this.proposal &&
+                    this.proposal.processing_status === 'with_reviewer'
+                );
+            }
             if (this.isReadOnlyUser) {
                 return false;
+            }
+            if (this.isOperatorUser && this.proposal) {
+                return this.canEditForStatus(this.proposal.processing_status);
             }
             return true;
             let display = false;
@@ -602,6 +611,9 @@ export default {
         readonly: function () {
             if (this.isReadOnlyUser) {
                 return true;
+            }
+            if (this.isOperatorUser && this.proposal) {
+                return !this.canEditForStatus(this.proposal.processing_status);
             }
             return !(
                 this.proposal.added_internally && this.proposal.assigned_officer
@@ -2332,7 +2344,8 @@ export default {
 }
 
 .workflow-buttons .btn {
-    min-width: 140px;
+    min-width: 230px;
+    white-space: nowrap;
 }
 
 .workflow-buttons .btn:disabled {

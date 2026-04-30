@@ -28,6 +28,7 @@
                     :treatment-id="treatmentId"
                     :cohort-id="cohortId"
                     :read-only="readOnly"
+                    :show-actions="!isReadOnlyUser && !isOperatorUser"
                     @treatment-saved="handleTreatmentSaved"
                     @cancel="goBack"
                     @error="handleError"

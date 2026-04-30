@@ -60,6 +60,7 @@ class CurrentUserView(APIView):
             'is_readonly_user': ('User' in groups or 'Reviewer' in groups) and not any(
                 g in groups for g in ['Operator', 'Assessor', 'Silrec Admin']
             ),
+            'is_operator_user': 'Operator' in groups,
         })
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -100,6 +101,7 @@ class UserViewSet(viewsets.ModelViewSet):
             'is_readonly_user': ('User' in groups or 'Reviewer' in groups) and not any(
                 g in groups for g in ['Operator', 'Assessor', 'Silrec Admin']
             ),
+            'is_operator_user': 'Operator' in groups,
         })
 
     @action(detail=True, methods=['GET'])

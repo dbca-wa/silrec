@@ -534,8 +534,9 @@ class ProposalViewSet(UserActionLoggingViewset):
         action_defs = {
             'upload_shapefile': {
                 'label': 'Upload Shapefile',
-                'enabled': current_status == 'draft',
-                'reason': '' if current_status == 'draft' else 'Upload only allowed in Draft status',
+                'enabled': current_status in ['draft'], #, 'processing_shapefile'],
+                #'reason': '' if current_status in ['draft', 'processing_shapefile'] else 'Upload only allowed in Draft/Processing Shapefile status',
+                'reason': '' if current_status in ['draft'] else 'Upload only allowed in Draft status',
             },
             'process_shapefile': {
                 'label': 'Process Shapefile',
@@ -2771,12 +2772,13 @@ class ShapefileUploadView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            # Check permissions
-            if not request.user.is_superuser and proposal.submitter != request.user.id:
-                return Response(
-                    {'error': 'You do not have permission to modify this proposal'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+             # TODO - any user can process other user's proposals - if they have correct Group permissions
+#            # Check permissions
+#            if not request.user.is_superuser and proposal.submitter != request.user.id:
+#                return Response(
+#                    {'error': 'You do not have permission to modify this proposal'},
+#                    status=status.HTTP_403_FORBIDDEN
+#                )
 
             # Check if there's an existing shapefile and confirmation is required
             existing_shapefile = proposal.shapefile_documents.last()
@@ -2818,6 +2820,7 @@ class ShapefileUploadView(APIView):
             proposal.shapefile_json = result['geojson']
             proposal.geojson_data_processed = None  # Clear processed data
             proposal.geojson_data_processed_iters = None
+            proposal.processing_status=Proposal.PROCESSING_STATUS_DRAFT
             proposal.save()
 
             # Serialize and return the updated proposal
@@ -3163,12 +3166,13 @@ class DeleteShapefileView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            # Check permissions
-            if not request.user.is_superuser and proposal.submitter != request.user.id:
-                return Response(
-                    {'error': 'You do not have permission to modify this proposal'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+             # TODO - any user can process other user's proposals - if they have correct Group permissions
+#            # Check permissions
+#            if not request.user.is_superuser and proposal.submitter != request.user.id:
+#                return Response(
+#                    {'error': 'You do not have permission to modify this proposal'},
+#                    status=status.HTTP_403_FORBIDDEN
+#                )
 
             # Delete shapefile documents
             shapefile_docs = ShapefileDocument.objects.filter(proposal=proposal)
@@ -3382,12 +3386,13 @@ class ProcessShapefileView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            # Check permissions
-            if not request.user.is_superuser and proposal.submitter != request.user.id:
-                return Response(
-                    {'error': 'You do not have permission to modify this proposal'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+             # TODO - any user can process other user's proposals - if they have correct Group permissions
+#            # Check permissions
+#            if not request.user.is_superuser and proposal.submitter != request.user.id:
+#                return Response(
+#                    {'error': 'You do not have permission to modify this proposal'},
+#                    status=status.HTTP_403_FORBIDDEN
+#                )
 
             # Check if shapefile exists
             if not proposal.shapefile_json:
@@ -3705,15 +3710,15 @@ class RevertShapefileProcessingView(APIView):
                     {'error': f'Proposal with ID {proposal_id} not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-
-            if not request.user.is_superuser and proposal.submitter != request.user.id:
-                logger.warning(
-                    f"Revert denied: user {request.user.id} does not own proposal {proposal_id}"
-                )
-                return Response(
-                    {'error': 'You do not have permission to modify this proposal'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+             # TODO - any user can process other user's proposals - if they have correct Group permissions
+#            if not request.user.is_superuser and proposal.submitter != request.user.id:
+#                logger.warning(
+#                    f"Revert denied: user {request.user.id} does not own proposal {proposal_id}"
+#                )
+#                return Response(
+#                    {'error': 'You do not have permission to modify this proposal'},
+#                    status=status.HTTP_403_FORBIDDEN
+#                )
 
             if not has_dump:
                 msg = (

@@ -224,7 +224,7 @@
                                 attributes</span
                             >
                             <router-link
-                                v-if="!readOnly"
+                                v-if="!readOnly && showActions"
                                 :to="`/internal/treatment/${treatmentId}/extra/new`"
                                 class="btn btn-outline-primary btn-sm"
                             >
@@ -235,7 +235,7 @@
 
                         <TreatmentExtrasTable
                             :treatment-id="treatmentId"
-                            :read-only="readOnly"
+                            :read-only="readOnly || !showActions"
                             @extra-updated="refreshExtras"
                         />
                     </div>
@@ -275,7 +275,7 @@
                             silviculturists</span
                         >
                         <button
-                            v-if="!readOnly"
+                            v-if="!readOnly && showActions"
                             type="button"
                             class="btn btn-outline-primary btn-sm"
                             @click="addNewComment"
@@ -288,7 +288,7 @@
                     <SilviculturistComment
                         ref="silviculturistComment"
                         :treatment-id="treatmentId"
-                        :read-only="readOnly"
+                        :read-only="readOnly || !showActions"
                         @comment-updated="refreshComments"
                     />
                 </div>
@@ -327,7 +327,7 @@
                             and assessments</span
                         >
                         <button
-                            v-if="!readOnly"
+                            v-if="!readOnly && showActions"
                             type="button"
                             class="btn btn-outline-primary btn-sm"
                             @click="addNewDocument"
@@ -339,7 +339,7 @@
                     <SurveyAssessment
                         ref="surveyAssessment"
                         :treatment-id="treatmentId"
-                        :read-only="readOnly"
+                        :read-only="readOnly || !showActions"
                         @document-updated="refreshDocuments"
                     />
                 </div>
@@ -347,7 +347,7 @@
         </div>
 
         <!-- Action Buttons -->
-        <div v-if="!readOnly" class="mt-4">
+        <div v-if="!readOnly && showActions" class="mt-4">
             <button
                 type="submit"
                 class="btn btn-primary me-2"
@@ -399,6 +399,10 @@ export default {
         readOnly: {
             type: Boolean,
             default: false,
+        },
+        showActions: {
+            type: Boolean,
+            default: true,
         },
     },
     data() {

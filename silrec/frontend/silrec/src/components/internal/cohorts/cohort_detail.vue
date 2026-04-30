@@ -17,7 +17,7 @@
 
             <!-- Add Treatment Button -->
             <router-link
-                v-if="canEdit"
+                v-if="showFormActions"
                 :to="`/internal/cohorts/${$route.params.cohortId}/treatment/new`"
                 class="btn btn-primary"
             >
@@ -127,7 +127,7 @@
                 </h5>
                 <div>
                     <router-link
-                        v-if="canEdit"
+                        v-if="showFormActions"
                         :to="`/internal/cohorts/${$route.params.cohortId}/treatment/new`"
                         class="btn btn-primary btn-sm"
                     >
@@ -237,6 +237,7 @@
                             :cohort-id="cohortData.cohort_id"
                             :fea-id="feaId"
                             :read-only="!canEdit"
+                            :show-actions="showFormActions"
                             @operation-saved="handleOperationSaved"
                             @cancel="cancelOperationEdit"
                         />
@@ -247,7 +248,7 @@
 
         <!-- Sticky Action Buttons -->
         <div
-            v-if="!loading && !error && cohortData.cohort_id && canEdit"
+            v-if="!loading && !error && cohortData.cohort_id && showFormActions"
             class="navbar fixed-bottom bg-navbar"
         >
             <div class="container">
@@ -440,13 +441,10 @@ export default {
     },
     computed: {
         canEdit() {
-            if (this.isReadOnlyUser) {
-                return false;
-            }
-            const editRoles = ['Assessors', 'Reviewers', 'Silrec Admin'];
-            return this.userPermissions.some((perm) =>
-                editRoles.includes(perm)
-            );
+            return !this.isReadOnlyUser;
+        },
+        showFormActions() {
+            return this.canEdit && !this.isOperatorUser;
         },
         debug: function () {
             if (this.$route.query.debug) {

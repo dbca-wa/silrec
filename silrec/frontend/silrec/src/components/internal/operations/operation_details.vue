@@ -25,6 +25,7 @@
                     :cohort-id="$route.params.cohortId"
                     :fea-id="feaId"
                     :read-only="readOnly"
+                    :show-actions="!isReadOnlyUser && !isOperatorUser"
                     @operation-saved="handleOperationSaved"
                     @cancel="goBack"
                 />

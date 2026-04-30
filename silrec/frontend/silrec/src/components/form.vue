@@ -25,9 +25,15 @@
                 <div v-if="showShapefileActions" class="upload-controls">
                     <div class="d-flex align-items-center flex-wrap">
                         <button
-                            class="btn btn-primary me-2"
+                            :class="[
+                                'btn',
+                                shapefileDisabled
+                                    ? 'btn-secondary'
+                                    : 'btn-primary',
+                                'me-2',
+                            ]"
                             @click="triggerShapefileUpload"
-                            :disabled="uploadingShapefile"
+                            :disabled="uploadingShapefile || shapefileDisabled"
                         >
                             <i class="bi bi-upload me-2"></i>
                             Upload Shapefile
@@ -48,8 +54,11 @@
                             <button
                                 class="btn btn-sm btn-link text-danger ms-2 p-0"
                                 @click="confirmDeleteShapefile"
-                                :disabled="uploadingShapefile || !hasShapefile"
-                                :title="'Delete current shapefile'"
+                                :disabled="
+                                    uploadingShapefile ||
+                                    !hasShapefile ||
+                                    shapefileDisabled
+                                "
                             >
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -240,6 +249,7 @@ import Swal from 'sweetalert2';
 import moment from 'moment';
 
 import { api_endpoints, helpers } from '@/utils/hooks';
+import permissionsMixin from '@/mixins/permissions';
 //import {
 //    owsQuery,
 //    validateFeature,
@@ -247,6 +257,7 @@ import { api_endpoints, helpers } from '@/utils/hooks';
 
 export default {
     name: 'ProposalForm',
+    mixins: [permissionsMixin],
     components: {
         FormSection,
         MapComponent,
@@ -621,13 +632,21 @@ export default {
         hasDumpFile: function () {
             return this.dumpFileExists;
         },
-        // Only show shapefile actions in draft or processing_shapefile status, and not for read-only users
+        // Only show shapefile actions in draft or processing_shapefile status
         showShapefileActions: function () {
-            if (this.readonly) return false;
+            if (this.isReviewerUser) return false;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return false;
             const s = this.workflowOptions.current_status;
             return s === 'draft' || s === 'processing_shapefile';
+        },
+        shapefileDisabled: function () {
+            if (!this.isOperatorUser && !this.isAssessorUser) return false;
+            if (!this.workflowOptions || !this.workflowOptions.current_status)
+                return false;
+            return (
+                this.workflowOptions.current_status === 'processing_shapefile'
+            );
         },
 
         // Button state computed properties from workflowOptions API
@@ -685,6 +704,7 @@ export default {
 
         // Get current user ID
         this.getCurrentUser();
+        this.fetchCurrentUser();
     },
     mounted: function () {
         this.$emit('formMounted');

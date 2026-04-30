@@ -772,12 +772,12 @@ export default {
 
                 if (!this.validateFormData(combinedData)) {
                     const messages = this.validationErrors
-                        .map((e) => `- ${e.message}`)
-                        .join('\n');
+                        .map((e) => `<li>${e.message}</li>`)
+                        .join('');
                     await swal.fire({
                         icon: 'warning',
                         title: 'Validation Error',
-                        text: `Please fix the following:\n${messages}`,
+                        html: `<div style="text-align: left;">Please fix the following:<ul>${messages}</ul></div>`,
                         confirmButtonText: 'OK',
                     });
                     return false;

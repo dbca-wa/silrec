@@ -158,6 +158,12 @@ urlpatterns = [
     ),
 
     re_path(
+        r"^api/proposal/(?P<pk>\d+)/download_shapefile/$",
+        proposal_api.DownloadShapefileView.as_view(),
+        name="download-shapefile",
+    ),
+
+    re_path(
         r"^api/proposal/(?P<pk>\d+)/process_shapefile/$",
         proposal_api.ProcessShapefileView.as_view(),
         name="process-shapefile",

@@ -99,6 +99,9 @@ export default {
     discard_proposal: function (id) {
         return `/api/proposal/${id}/discard/`;
     },
+    download_shapefile: function (id) {
+        return `/api/proposal/${id}/download_shapefile/`;
+    },
 
     // ------------------- ledger ui
 

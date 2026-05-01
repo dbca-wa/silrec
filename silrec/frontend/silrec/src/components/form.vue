@@ -20,6 +20,13 @@
                     <i class="bi bi-file-earmark-zip me-1"></i>
                     <span class="text-muted">Uploaded:</span>
                     <strong class="ms-1">{{ fileNameToDisplay }}</strong>
+                    <a
+                        :href="api_endpoints.download_shapefile(proposalId)"
+                        class="btn btn-sm btn-link text-info ms-2 p-0"
+                        title="Download Shapefile"
+                    >
+                        <i class="bi bi-download"></i>
+                    </a>
                 </div>
 
                 <div v-if="showShapefileActions" class="upload-controls">
@@ -49,6 +56,17 @@
                             <strong class="ms-1">{{
                                 fileNameToDisplay
                             }}</strong>
+
+                            <!-- Download button -->
+                            <a
+                                :href="
+                                    api_endpoints.download_shapefile(proposalId)
+                                "
+                                class="btn btn-sm btn-link text-info ms-2 p-0"
+                                title="Download Shapefile"
+                            >
+                                <i class="bi bi-download"></i>
+                            </a>
 
                             <!-- Delete button -->
                             <button
@@ -387,6 +405,7 @@ export default {
 
             // Temporary filename for immediate feedback (until proposal updates)
             selectedFileName: '',
+            originalShpBasename: '',
 
             // Map key – used only if we must force a full remount (rare)
             componentMapKey: 0,
@@ -845,10 +864,13 @@ export default {
             // Case 2: Multiple shapefile components
             const shapefileComponents = this.validateShapefileComponents(files);
             if (shapefileComponents.valid) {
-                // Use the .shp filename for display
+                // Use the .shp filename for display and zip naming
                 const shpFile = shapefileComponents.files.find((f) =>
                     f.name.toLowerCase().endsWith('.shp')
                 );
+                this.originalShpBasename = shpFile
+                    ? shpFile.name.replace('.shp', '')
+                    : 'shapefile';
                 this.selectedFileName = shpFile
                     ? shpFile.name.replace('.shp', ' (components)')
                     : 'Shapefile components';
@@ -940,7 +962,7 @@ export default {
                 );
 
                 // Create a File object from the blob
-                const zipFileName = `shapefile_${Date.now()}.zip`;
+                const zipFileName = `${this.originalShpBasename}_${Date.now()}.zip`;
                 const zipFile = new File([content], zipFileName, {
                     type: 'application/zip',
                 });

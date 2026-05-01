@@ -3228,6 +3228,36 @@ class DeleteShapefileView(APIView):
             )
 
 
+class DownloadShapefileView(APIView):
+    """API endpoint for downloading the uploaded shapefile"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            proposal = Proposal.objects.get(id=pk)
+        except Proposal.DoesNotExist:
+            return Response(
+                {'error': f'Proposal with ID {pk} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        doc = proposal.shapefile_documents.last()
+        if not doc or not doc._file:
+            return Response(
+                {'error': 'No shapefile found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        file_path = doc._file.path
+        file_name = doc.input_name or 'shapefile.zip'
+
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+            return response
+
+
 class MergePolygonView(APIView):
     """
     POST: Receive merged polygon GeoJSON and return it for inspection.

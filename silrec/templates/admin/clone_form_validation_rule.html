@@ -4,8 +4,8 @@
 {% block breadcrumbs %}
 <div class="breadcrumbs">
 <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
-&rsaquo; <a href="{% url 'admin:app_list' app_label='proposals' %}">Proposals</a>
-&rsaquo; <a href="{% url 'admin:proposals_formvalidationrule_changelist' %}">Form Validation Rules</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='silrec' %}">Silrec</a>
+&rsaquo; <a href="{% url 'admin:silrec_formvalidationrule_changelist' %}">Form Validation Rules</a>
 &rsaquo; Clone Rule #{{ original.rule_id }}
 </div>
 {% endblock %}
@@ -80,7 +80,7 @@
 
     <div style="margin-top: 20px;">
         <input type="submit" value="Clone Rule" class="default" style="padding: 8px 20px; font-weight: bold;" />
-        <a href="{% url 'admin:proposals_formvalidationrule_changelist' %}" style="margin-left: 15px;">Cancel</a>
+        <a href="{% url 'admin:silrec_formvalidationrule_changelist' %}" style="margin-left: 15px;">Cancel</a>
     </div>
 </form>
 {% endblock %}

@@ -19,7 +19,13 @@
                 >
                     <i class="bi bi-file-earmark-zip me-1"></i>
                     <span class="text-muted">Uploaded:</span>
-                    <strong class="ms-1">{{ fileNameToDisplay }}</strong>
+                    <strong
+                        class="ms-1 text-truncate"
+                        style="max-width: 300px"
+                        :title="fileNameToDisplay"
+                    >
+                        {{ truncatedFileName }}
+                    </strong>
                     <a
                         :href="api_endpoints.download_shapefile(proposalId)"
                         class="btn btn-sm btn-link text-info ms-2 p-0"
@@ -53,9 +59,13 @@
                         >
                             <i class="bi bi-file-earmark-zip me-1"></i>
                             <span class="text-muted">Uploaded:</span>
-                            <strong class="ms-1">{{
-                                fileNameToDisplay
-                            }}</strong>
+                            <strong
+                                class="ms-1 text-truncate"
+                                style="max-width: 300px"
+                                :title="fileNameToDisplay"
+                            >
+                                {{ truncatedFileName }}
+                            </strong>
 
                             <!-- Download button -->
                             <a
@@ -149,7 +159,7 @@
                     <input
                         type="file"
                         ref="shapefileInput"
-                        accept=".zip,.shp,.shx,.dbf,.prj"
+                        accept=".zip,.shz,.gpkg,.shp,.shx,.dbf,.prj"
                         :multiple="true"
                         style="display: none"
                         @change="handleShapefileUpload"
@@ -192,8 +202,13 @@
                         Upload either:
                         <ul class="mt-1 mb-0 ps-3">
                             <li>
-                                A single <strong>.zip</strong> file containing
-                                all shapefile components
+                                A single <strong>.zip</strong> or
+                                <strong>.shz</strong> file containing all
+                                shapefile components
+                            </li>
+                            <li>
+                                A single <strong>.gpkg</strong> (GeoPackage)
+                                file
                             </li>
                             <li>
                                 OR select multiple files:
@@ -445,6 +460,11 @@ export default {
         // Display filename: show selectedFileName during upload, otherwise storedFileName
         fileNameToDisplay: function () {
             return this.selectedFileName || this.storedFileName;
+        },
+        truncatedFileName: function () {
+            var name = this.fileNameToDisplay;
+            if (!name) return '';
+            return name.length > 40 ? name.substring(0, 37) + '...' : name;
         },
         // Check if shapefile exists
         hasShapefile: function () {
@@ -851,14 +871,19 @@ export default {
             this.uploadError = null;
             this.processError = null;
 
-            // Case 1: Single ZIP file
-            if (
-                files.length === 1 &&
-                files[0].name.toLowerCase().endsWith('.zip')
-            ) {
-                this.selectedFileName = files[0].name;
-                await this.uploadShapefile(files[0], confirmed);
-                return;
+            // Case 1: Single archive file (.zip, .shz) or GeoPackage (.gpkg)
+            if (files.length === 1) {
+                const name = files[0].name.toLowerCase();
+                if (name.endsWith('.zip') || name.endsWith('.shz')) {
+                    this.selectedFileName = files[0].name;
+                    await this.uploadShapefile(files[0], confirmed);
+                    return;
+                }
+                if (name.endsWith('.gpkg')) {
+                    this.selectedFileName = files[0].name;
+                    await this.uploadShapefile(files[0], confirmed);
+                    return;
+                }
             }
 
             // Case 2: Multiple shapefile components
@@ -883,7 +908,7 @@ export default {
             } else {
                 this.uploadError =
                     shapefileComponents.error ||
-                    'Invalid file selection. Please select either a single .zip file OR all required shapefile components (.shp, .shx, .dbf, .prj)';
+                    'Invalid file selection. Please select a single .zip/.shz/.gpkg file OR all required shapefile components (.shp, .shx, .dbf, .prj)';
                 this.clearFileInput();
 
                 // Auto-clear error after 10 seconds

@@ -2812,16 +2812,19 @@ class ShapefileUploadView(APIView):
                     'existing_filename': existing_shapefile.input_name
                 }, status=status.HTTP_200_OK)
 
-            # Determine if we're dealing with a zip file or individual components
+            # Determine if we're dealing with a zip file, geopackage, or individual components
             if 'shapefile' in request.FILES:
-                # Legacy zip file upload
                 shapefile = request.FILES['shapefile']
-                if not shapefile.name.lower().endswith('.zip'):
+                name_lower = shapefile.name.lower()
+                if name_lower.endswith('.zip') or name_lower.endswith('.shz'):
+                    result = self.process_shapefile_from_zip(shapefile)
+                elif name_lower.endswith('.gpkg'):
+                    result = self.process_geopackage(shapefile)
+                else:
                     return Response(
-                        {'error': 'File must be a .zip file'},
+                        {'error': 'File must be a .zip, .shz, or .gpkg file'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                result = self.process_shapefile_from_zip(shapefile)
             else:
                 # Individual components upload
                 result = self.process_shapefile_components(request.FILES)
@@ -2948,6 +2951,39 @@ class ShapefileUploadView(APIView):
             return {
                 'success': False,
                 'message': f'Error processing shapefile: {str(e)}',
+                'errors': [str(e)],
+                'feature_count': 0
+            }
+
+    def process_geopackage(self, gpkg_file):
+        """
+        Process a GeoPackage (.gpkg) file directly using GeoPandas
+        """
+        try:
+            import tempfile
+            import os
+            import geopandas as gpd
+            import json
+
+            with tempfile.NamedTemporaryFile(suffix='.gpkg', delete=False) as tmp_file:
+                for chunk in gpkg_file.chunks():
+                    tmp_file.write(chunk)
+                gpkg_path = tmp_file.name
+
+            try:
+                gdf = gpd.read_file(gpkg_path, driver='GPKG')
+                return self._process_geodataframe(gdf)
+            finally:
+                try:
+                    os.unlink(gpkg_path)
+                except:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Error processing GeoPackage: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'message': f'Error processing GeoPackage: {str(e)}',
                 'errors': [str(e)],
                 'feature_count': 0
             }

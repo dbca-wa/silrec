@@ -766,12 +766,10 @@ class ShapefileUploadSerializer(serializers.Serializer):
     proposal_id = serializers.IntegerField(required=True)
 
     def validate_shapefile(self, value):
-        # Check file extension
-        if not value.name.lower().endswith('.zip'):
-            raise serializers.ValidationError("File must be a .zip file")
-
-        # Check file size (already handled by max_upload_size)
-
+        name_lower = value.name.lower()
+        allowed = ('.zip', '.shz', '.gpkg')
+        if not any(name_lower.endswith(ext) for ext in allowed):
+            raise serializers.ValidationError("File must be a .zip, .shz, or .gpkg file")
         return value
 
     def validate(self, data):

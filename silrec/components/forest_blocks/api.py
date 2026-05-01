@@ -38,6 +38,7 @@ from silrec.components.proposals.models import   (
     TextSearchFieldDisplay,
     TextSearchFieldDisplay,
 )
+from silrec.components.lookups.models import ObjectiveLkp
 from silrec.components.forest_blocks.models import   (
     Polygon,
     #TmpPolygon,
@@ -819,6 +820,7 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
 
         # Apply filters
         obj_code = self.request.query_params.get('obj_code')
+        obj_classification_id = self.request.query_params.get('obj_classification_id')
         compartment = self.request.query_params.get('compartment')
         block = self.request.query_params.get('block')
         district = self.request.query_params.get('district')
@@ -828,13 +830,26 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         created_to = self.request.query_params.get('created_to')
         return_empty = self.request.query_params.get('return_empty')
 
-        # Return empty if no filters provided and return_empty is set
-        #if return_empty and not any([obj_code, compartment, zfea_id, treatment_status, created_from, created_to]):
-        #    return Polygon.objects.none()
+        # Filter by objective classification
+        if (
+            obj_classification_id
+            and obj_classification_id != 'all'
+        ):
+            try:
+                class_id = int(obj_classification_id)
+                obj_codes = ObjectiveLkp.objects.filter(
+                    obj_class_id=class_id
+                ).values('obj_code')
+                queryset = queryset.filter(
+                    assignchttoply__cohort__obj_code__in=obj_codes,
+                    assignchttoply__status_current=True
+                ).distinct()
+            except ValueError:
+                pass
 
         if obj_code:
             queryset = queryset.filter(
-                assignchttoply__cohort__obj_code__icontains=obj_code,
+                assignchttoply__cohort__obj_code__iexact=obj_code.strip(),
                 assignchttoply__status_current=True
             ).distinct()
 
@@ -847,7 +862,11 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         if district:
             queryset = queryset.filter(compartment__district__icontains=district)
 
-        #import ipdb; ipdb.set_trace()
+        # Filter by post 2024 only
+        filter_post_2024_only = self.request.query_params.get('filter_post_2024_only')
+        if filter_post_2024_only and filter_post_2024_only.lower() == 'true':
+            queryset = queryset.filter(created_on__year__gte=2024)
+
         if zfea_id:
             queryset = queryset.filter(zfea_id__icontains=zfea_id)
 

@@ -919,6 +919,7 @@ export default {
                     data: function (d) {
                         // Add our custom filters to the DataTables request
                         d.obj_code = vm.filters.obj_code;
+                        d.obj_classification_id = vm.filterObjClassificationId;
                         d.compartment = vm.filters.compartment;
                         d.block = vm.filters.block;
                         d.district = vm.filters.district;
@@ -926,10 +927,14 @@ export default {
                         d.treatment_status = vm.filters.treatment_status;
                         d.created_from = vm.filters.created_from;
                         d.created_to = vm.filters.created_to;
+                        d.filter_post_2024_only = vm.filterPost2024Only;
 
                         // Only search if at least one filter is provided
                         const hasFilters = Object.values(vm.filters).some(
                             (val) => val !== ''
+                        ) || (
+                            vm.filterObjClassificationId &&
+                            vm.filterObjClassificationId !== 'all'
                         );
                         if (!hasFilters) {
                             // Return empty result if no filters
@@ -1474,6 +1479,7 @@ export default {
             this.objectiveSearch = ''; // Clear search when selection is made
             this.filterObjectiveOptions(); // Reset filtered list
             this.closeAllDropdowns(); // Close dropdown after selection
+            this.refreshData();
         },
 
         selectCompartment(value) {

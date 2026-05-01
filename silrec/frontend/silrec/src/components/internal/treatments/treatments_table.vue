@@ -3,14 +3,14 @@
         <div v-if="$route.query.debug?.toLowerCase() === 'true'">
             src/components/internal/treatments/treatments_table.vue
         </div>
-        <div class="table-controls mb-3">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h5>Treatments</h5>
-                </div>
-                <div class="col-md-6 text-end">
+        <div class="card">
+            <div
+                class="card-header bg-primary text-white d-flex justify-content-between align-items-center"
+            >
+                <h5 class="mb-0">Treatments</h5>
+                <div>
                     <button
-                        class="btn btn-sm btn-outline-primary"
+                        class="btn btn-sm btn-light"
                         @click="refreshData"
                         title="Refresh data"
                     >
@@ -19,7 +19,7 @@
                     </button>
                 </div>
             </div>
-        </div>
+            <div class="card-body">
 
         <div class="filters-wrapper mb-3">
             <CollapsibleFilters
@@ -307,6 +307,8 @@
                 :dt-options="dtOptions"
                 :dt-headers="dtHeaders"
             />
+        </div>
+            </div>
         </div>
     </div>
 </template>
@@ -918,11 +920,6 @@ export default {
             },
             immediate: true,
         },
-        filterTaskClassificationId: {
-            handler() {
-                this.updateFilteredTasks();
-            },
-        },
         filterTask() {
             this.refreshData();
             this.$nextTick(() => this.updateFilterIconColor());
@@ -979,19 +976,15 @@ export default {
 <style scoped>
 .treatments-table-container {
     margin-top: 20px;
+}
+
+.treatments-table-container :deep(.card) {
     border: 1px solid #dee2e6;
     border-radius: 4px;
-    padding: 15px;
-    background-color: #fff;
 }
 
 .table-wrapper {
     margin-top: 15px;
-}
-
-.table-controls {
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
 }
 
 .filters-wrapper {
@@ -1007,6 +1000,11 @@ export default {
 
 :deep(.table) {
     margin-bottom: 0;
+}
+
+:deep(.table.dataTable td),
+:deep(.table.dataTable th) {
+    padding: 0.3rem 0.4rem;
 }
 
 :deep(.btn-sm) {

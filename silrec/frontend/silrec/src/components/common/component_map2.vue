@@ -4,7 +4,12 @@
         <div v-if="$route.query.debug?.toLowerCase() === 'true'">
             src/components/common/component_map2.vue
         </div>
-        <div class="map-container" :class="{ maximised: isMaximised }">
+        <FormSection
+            :form-collapse="false"
+            label="Map"
+            index="map_search_map"
+        >
+            <div class="map-container" :class="{ maximised: isMaximised }">
             <div ref="mapContainer" class="map"></div>
 
             <!-- Feature info popup -->
@@ -681,6 +686,7 @@
                 </div>
             </div>
         </div>
+        </FormSection>
     </div>
 </template>
 
@@ -701,12 +707,14 @@ import datatable from '@/utils/vue/datatable.vue';
 import { api_endpoints } from '@/utils/hooks';
 import { v4 as uuid } from 'uuid';
 import permissionsMixin from '@/mixins/permissions';
+import FormSection from '@/components/forms/section_toggle.vue';
 
 export default {
     name: 'MapComponent',
     mixins: [permissionsMixin],
     components: {
         datatable,
+        FormSection,
     },
     props: {
         featureCollection: {
@@ -1045,9 +1053,6 @@ export default {
                 `
                           : ''
                 }
-                <button class="btn btn-sm btn-outline-primary me-1 view-polygon-btn" data-polygon-id="${data}" title="View Details">
-                <i class="bi bi-eye"></i>
-                </button>
                 <button class="btn btn-sm btn-outline-info zoom-polygon-btn" data-polygon-id="${data}" title="Zoom to Polygon">
                 <i class="bi bi-zoom-in"></i>
                 </button>
@@ -1753,6 +1758,9 @@ export default {
     height: 600px;
     min-height: 400px;
     transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background-color: #fff;
 }
 
 .map-container.maximised {
@@ -1945,6 +1953,11 @@ export default {
 
 .datatable-container {
     margin-top: 20px;
+}
+
+.datatable-container :deep(.card) {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
 }
 
 :deep(.action-column) {

@@ -579,6 +579,7 @@ class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
 
         # Apply custom filters for treatments
         filter_task = request.query_params.get('filter_task', '')
+        filter_task_classification_id = request.query_params.get('filter_task_classification_id', '')
         filter_status = request.query_params.get('filter_status', 'all')
         filter_plan_year = request.query_params.get('filter_plan_year', '')
         filter_plan_month = request.query_params.get('filter_plan_month', 'all')
@@ -590,6 +591,19 @@ class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
         # Filter by task
         if filter_task:
             queryset = queryset.filter(task__task=filter_task)
+
+        # Filter by task classification
+        if (
+            filter_task_classification_id
+            and filter_task_classification_id != 'all'
+        ):
+            try:
+                task_class_id = int(filter_task_classification_id)
+                queryset = queryset.filter(
+                    task__task_class_id=task_class_id
+                )
+            except ValueError:
+                pass
 
         # Filter by status
         if filter_status != 'all':

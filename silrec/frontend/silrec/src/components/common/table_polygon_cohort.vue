@@ -348,9 +348,6 @@ export default {
                                 <i class="bi bi-pencil"></i> Edit</button>`;
                             }
 
-                            actions += `<button class="btn btn-sm btn-outline-primary me-1 view-polygon-btn" data-polygon-id="${data}" title="View Details">
-                                <i class="bi bi-eye"></i>
-                            </button>`;
                             actions += `<button class="btn btn-sm btn-outline-info zoom-polygon-btn" data-polygon-id="${data}" title="Zoom to Polygon">
                                 <i class="bi bi-zoom-in"></i>
                             </button>`;
@@ -439,15 +436,9 @@ export default {
             const vm = this;
 
             // Remove existing listeners to prevent duplicates
-            $(this.$el).off('click', '.view-polygon-btn');
             $(this.$el).off('click', '.zoom-polygon-btn');
 
             // Attach new listeners
-            $(this.$el).on('click', '.view-polygon-btn', function () {
-                const polygonId = $(this).data('polygon-id');
-                vm.handlePolygonSelection(polygonId);
-            });
-
             $(this.$el).on('click', '.zoom-polygon-btn', function () {
                 const polygonId = $(this).data('polygon-id');
                 vm.handleZoomToPolygon(polygonId);

@@ -252,7 +252,8 @@ def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
 
         poly.updated_by = request_metrics.user.id
 
-        if poly.proposal_id is None and row.get('poly_type') == 'BASE':
+        #if poly.proposal_id is None and row.get('poly_type') == 'BASE':
+        if row.get('poly_type') == 'BASE':
             poly.proposal_id = request_metrics.proposal.id
 
         poly.save()

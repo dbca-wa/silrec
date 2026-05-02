@@ -1,79 +1,56 @@
 # SILREC — Agents Guide
 
-Django 5.2 + Vue 3 frontend for DBCA WA. Tracks forest compartments, polygons (FEAs), cohorts, treatments, and spatial/operations data.
+Django 5.2 + Vue 3 + Vite for DBCA WA. Tracks forest compartments, polygons, cohorts, treatments. API at `/api/`.
 
 ## Architecture
 
-- **Backend**: Django, DRF, DRF-datatables. API at `/api/` via DRF router in `silrec/urls.py`.
-- **Frontend**: Vue 3 + Vite in `silrec/frontend/silrec/`. Built output → `silrec/static/silrec_vue/`.
-- **Auth**: SSO via `dbca_utils.middleware.SSOLoginMiddleware`. Dev fallback: `ENABLE_DJANGO_LOGIN=True` enables `LoginView` at `/ssologin/`.
-- **Database**: PostgreSQL/PostGIS. Schema via `PGSQL_OPTIONS` env var (`public,silrec` search path). `django.contrib.gis` NOT in INSTALLED_APPS — GIS ops use GeoAlchemy2/SQLAlchemy + raw SQL.
+- **Backend**: Django, DRF, `django-rest-framework-datatables` (all list endpoints require `draw`, `start`, `length` params). No type hints.
+- **Frontend**: Vue 3 in `silrec/frontend/silrec/`. Build output → `silrec/static/silrec_vue/`.
+- **Auth**: SSO via `dbca_utils.middleware.SSOLoginMiddleware`. Dev fallback: `ENABLE_DJANGO_LOGIN=True` → login at `/ssologin/`.
+- **DB**: PostgreSQL/PostGIS. `django.contrib.gis` NOT in INSTALLED_APPS — GIS via GeoAlchemy2/SQLAlchemy + raw SQL. Search path from `PGSQL_OPTIONS` env var (default `public,silrec`).
 - **Sub-apps**: `silrec/components/` — `forest_blocks` (polygons, cohorts, treatments), `proposals` (lifecycle, shapefile upload/merge/cut), `lookups`, `users`, `main`.
-- **Entrypoints**: `silrec/urls.py` (all routes), `silrec/frontend/silrec/src/main.js` (Vue), `silrec/wsgi.py` (gunicorn).
+- **Entrypoints**: `silrec/urls.py` (DRF router + views), `silrec/frontend/silrec/src/main.js` (Vue), `silrec/wsgi.py` (gunicorn).
 
-## Developer commands
+## Dev commands
 
 ```bash
-# Backend
+# Backend (from repo root)
 python manage.py runserver 0.0.0.0:8002
 python manage.py shell_plus
 
 # Frontend (in silrec/frontend/silrec/)
-npm run dev   # Vite on port 5183 (HMR requires EMAIL_INSTANCE=DEV + DEBUG=True)
+npm run dev    # Vite on :5183
 npm run build
-npm run lint  # ESLint via eslint.config.mjs + Prettier
+npm run lint   # ESLint 9 flat config + Prettier
 ```
 
-## Vite HMR quirk
+## Vite HMR
 
-`silrec/settings.py:319`: Vite dev mode activates only when `runserver` AND `EMAIL_INSTANCE=DEV` AND `DEBUG=True`. Otherwise Django serves prebuilt static files.
+Activates only when all three are true: `runserver` AND `EMAIL_INSTANCE=DEV` AND `DEBUG=True` (see `silrec/settings.py:319`). Otherwise Django serves prebuilt static files.
 
 ## Tests
 
 ```bash
-python manage.py test silrec.tests
-python manage.py test silrec.components.forest_blocks.tests
-python manage.py test tests.test_snapshot_revert
+python manage.py test tests.test_snapshot_revert   # only real test
 ```
 
-Most `tests.py` files are empty stubs. The only real test is `tests/test_snapshot_revert.py` (uses `TransactionTestCase` + `SnapshotTestMixin` — needs a real DB, not SQLite). No pytest, no test DB seeding.
+The only non-stub test is `tests/test_snapshot_revert.py` (TransactionTestCase + SnapshotTestMixin — needs real Postgres, not SQLite). No pytest, no test DB seeding. All `tests.py` in sub-apps are empty stubs.
 
 ## Conventions
 
-- Python: indent 4 spaces, single quotes preferred. No type hints.
-- JS/Vue: indent 4 spaces, single quotes, semicolons required, trailing commas. Prettier config in `.prettierrc`.
+- Python: 4-space indent, single quotes preferred, no type hints.
+- JS/Vue: 4-space indent, single quotes, semicolons required, trailing commas (Prettier in `.prettierrc`). ESLint 9 flat config (`eslint.config.mjs`).
 - `.env` at repo root, read by `confy` in `settings.py`. All config via env vars.
-- Migrations in `silrec/migrations/` and per-component.
-- No pre-commit hooks. No formatter beyond ESLint/Prettier for JS.
-- Logs: `logs/silrec.log`, `logs/requests.log`, `logs/sys_stats.log` (5 MB rotating each).
+- Migrations in `silrec/migrations/` plus per-component.
+- No pre-commit hooks. No Python formatter.
+- Logs: `logs/silrec.log`, `logs/requests.log`, `logs/sys_stats.log` (5 MB rotating).
+- Vite aliases: `@` → `src/`, `@vue-utils` → `src/utils/vue`, `@common-utils` → `src/components/common/`.
 
 ## Easy to miss
 
 - `silrec/ordered_model.py` — custom base for ordered models with auto-sequence via DB trigger.
-- `silrec/exceptions.py` — custom DRF exception classes (`LayerProviderException`).
-- Shapefile pipeline: `silrec/components/proposals/` (views, API, service layer).
-- **All list endpoints use DRF datatables pagination** — requests must include `draw`, `start`, `length` params.
-- `silrec/settings.py:CRS_CARTESIAN` defaults to `epsg:3043`, `CRS_GDA94` to `epsg:28350`.
-- Docker build: Azure Pipelines pushes to `dbcawa/silrec` on Docker Hub (main branch only). Also builds a dev image `dbcawa/docker_app_dev`.
-- Project uses `django-reversion` for audit history.
-- `SECURE_CROSS_ORIGIN_OPENER_POLICY` must be unset via `.env` for dev (`SECURE_CROSS_ORIGIN_OPENER_POLICY="same-origin" # None`).
-- Vite aliases: `@` → `src/`, `@vue-utils` → `src/utils/vue`, `@common-utils` → `src/components/common/`.
-- Cron runs managed by an external scheduler script (`/bin/scheduler.py` from `dbca-wa/wagov_utils`), not django-cron. Config in `cron` file.
-
-## Shapefile workflow buttons (form.vue + workflow_options API)
-
-Button states driven by `GET /api/proposal/<id>/workflow_options/` — returns `actions` object with `enabled`/`reason` for each button, plus `current_status`, `has_shapefile`, `has_processed`, `has_dump`.
-
-| condition | Upload | Process | Revert | Keep |
-|---|---|---|---|---|
-| no shapefile, status=draft | enabled | disabled | hidden | hidden |
-| shapefile exists, status=draft | enabled | enabled | hidden | hidden |
-| status=processing_shapefile | disabled | disabled | enabled | enabled |
-| user uploads new shapefile | — | sets status=draft, Process re-enabled | — | — |
-
-- **Keep** button sends `POST {transition: 'keep'}` to `workflow_options/` → sets status `with_assessor`, nulls geojson fields
-- **Revert** nulls `geojson_data_hist`/`geojson_data_processed`/`geojson_data_processed_iters`, sets status `draft`
-- Shapefile buttons only visible in `draft` or `processing_shapefile` status
-- Uploaded filename shown read-only in all statuses; delete button only in draft/processing_shapefile
-- `POST /api/proposal/<id>/workflow_options/` also handles `transition` field for status changes (to_assessor, to_reviewer, etc.)
-- Disabled workflow buttons render light grey via CSS `.workflow-buttons .btn:disabled { background: #d3d3d3 }`
+- CRS defaults: `epsg:3043` (cartesian), `epsg:28350` (GDA94) in `settings.py`.
+- Docker: CI (Azure Pipelines, main branch only) pushes to `dbcawa/silrec` + `dbcawa/docker_app_dev`.
+- `django-reversion` for audit history.
+- CRON managed by external `/bin/scheduler.py` from `dbca-wa/wagov_utils`, config in `cron` file (not django-cron).
+- Shapefile pipeline: `silrec/components/proposals/` — views, API, service layer, workflow buttons driven by `GET /api/proposal/<id>/workflow_options/`.

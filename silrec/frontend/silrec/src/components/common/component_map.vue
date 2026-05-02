@@ -1352,7 +1352,8 @@ export default {
         zoomToPolygonInLayers(polygonId) {
             if (!this.map || !polygonId) return;
 
-            const layers = [this.layer1, this.layer2, this.layer3, this.layer4];
+            // Search layer3 first (processed layer — relates to datatable), then others
+            const layers = [this.layer3, this.layer1, this.layer2, this.layer4];
 
             for (const layer of layers) {
                 if (!layer || !layer.getVisible()) continue;
@@ -1383,13 +1384,15 @@ export default {
         findFeatureById(features, polygonId) {
             return features.find((feature) => {
                 const featureId =
+                    feature.get('poly_id_new') ||
                     feature.get('id') ||
                     feature.get('polygon_id') ||
                     feature.get('poly_id') ||
                     feature.get('name') ||
                     feature.get('fea_id') ||
                     (feature.get('properties') &&
-                        (feature.get('properties').id ||
+                        (feature.get('properties').poly_id_new ||
+                            feature.get('properties').id ||
                             feature.get('properties').polygon_id ||
                             feature.get('properties').poly_id ||
                             feature.get('properties').name ||

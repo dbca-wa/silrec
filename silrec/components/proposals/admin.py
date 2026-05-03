@@ -2,41 +2,27 @@ from typing import Any
 
 from django.contrib import admin
 from django.db import transaction
-from django.db.models import TextField
+from django.db.models import Max, TextField
 from django import forms
+from django.contrib.admin import action
 from django.forms import Textarea
 from django.http import HttpResponseRedirect, HttpResponse
 from django.http.request import HttpRequest
-from django.urls import re_path
+from django.urls import re_path, reverse, path
 from django.utils.html import format_html
-from django.urls import reverse, path
 from django.contrib.gis.geos import GEOSGeometry
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.contrib.admin import action
 from django.template.response import TemplateResponse
 
 from django.utils import timezone
 import json
 
 from silrec import helpers
-#from silrec.components.proposals.models import (
-#    SQLReport,
-#    TextSearchModelConfig,
-#    TextSearchFieldDisplay
-#)
 from silrec.components.proposals import models
 
-from silrec.components.forest_blocks.models import (
-    Polygon, Cohort, AssignChtToPly, Treatment, TreatmentXtra,
-    SilviculturistComment, Prescription, Operation, Compartments
-)
+# Register your models here.
 
-import logging
-logger = logging.getLogger(__name__)
-
-
-@admin.register(models.ProposalType)
 class ProposalTypeAdmin(admin.ModelAdmin):
     list_display = ["code", "description"]
     ordering = ("code",)
@@ -573,6 +559,22 @@ class TextSearchFieldDisplayAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class ShapefileAttributeConfigForm(forms.ModelForm):
+    new_field_name = forms.CharField(
+        max_length=255, required=True,
+        label='New Field Name',
+        help_text='Enter the new field name for the cloned record.'
+    )
+    new_display_name = forms.CharField(
+        max_length=255, required=False, label='New Display Name',
+        help_text='Enter the new display name for the cloned record (optional).'
+    )
+
+    class Meta:
+        model = models.ShapefileAttributeConfig
+        fields = ['new_field_name', 'new_display_name']
+
+
 @admin.register(models.ShapefileAttributeConfig)
 class ShapefileAttributeConfigAdmin(admin.ModelAdmin):
     list_display = [
@@ -598,6 +600,93 @@ class ShapefileAttributeConfigAdmin(admin.ModelAdmin):
             )
         }),
     )
+    actions = ['clone_shapefile_attribute']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'clone-shapefile-attribute/',
+                self.admin_site.admin_view(self.clone_view),
+                name='clone-shapefile-attribute',
+            ),
+        ]
+        return custom_urls + urls
+
+    def clone_shapefile_attribute(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                'Please select exactly one record to clone.',
+                level=messages.WARNING,
+            )
+            return
+        original = queryset.first()
+        return HttpResponseRedirect(
+            reverse('admin:clone-shapefile-attribute') + f'?pk={original.pk}'
+        )
+    clone_shapefile_attribute.short_description = 'Clone selected record with new field/display name'
+
+    def clone_view(self, request):
+        pk = request.GET.get('pk') or request.POST.get('pk')
+        if not pk:
+            self.message_user(request, 'No record specified.', level=messages.ERROR)
+            return HttpResponseRedirect(reverse('admin:silrec_shapefileattributeconfig_changelist'))
+
+        original = get_object_or_404(models.ShapefileAttributeConfig, pk=pk)
+
+        max_order = models.ShapefileAttributeConfig.objects.filter(
+            application_type=original.application_type
+        ).aggregate(models.Max('order'))['order__max'] or 0
+
+        if request.method == 'POST':
+            form = ShapefileAttributeConfigForm(request.POST)
+            if form.is_valid():
+                new_field = form.cleaned_data['new_field_name']
+                new_display = form.cleaned_data['new_display_name'] or ''
+                if models.ShapefileAttributeConfig.objects.filter(
+                    application_type=original.application_type,
+                    field_name=new_field,
+                ).exists():
+                    self.message_user(
+                        request,
+                        f'A record with field_name "{new_field}" already exists for this application type.',
+                        level=messages.ERROR,
+                    )
+                else:
+                    clone = models.ShapefileAttributeConfig.objects.create(
+                        application_type=original.application_type,
+                        field_name=new_field,
+                        display_name=new_display,
+                        is_mandatory=False,
+                        is_reserved=original.is_reserved,
+                        data_type=original.data_type,
+                        target_db_field=original.target_db_field,
+                        order=max_order + 1,
+                    )
+                    self.message_user(
+                        request,
+                        f'Cloned record {original.pk} as new record {clone.pk} '
+                        f'(field_name="{new_field}", display_name="{new_display}").',
+                        level=messages.SUCCESS,
+                    )
+                    return HttpResponseRedirect(
+                        reverse('admin:silrec_shapefileattributeconfig_change', args=[clone.pk])
+                    )
+        else:
+            form = ShapefileAttributeConfigForm(initial={
+                'new_field_name': original.field_name + '_copy',
+                'new_display_name': original.display_name,
+            })
+
+        context = {
+            'title': 'Clone Shapefile Attribute Configuration',
+            'original': original,
+            'form': form,
+            'opts': models.ShapefileAttributeConfig._meta,
+            'media': self.media,
+        }
+        return render(request, 'admin/silrec/clone_shapefile_attribute.html', context)
 
 
 # ---------- Inline for AuditLog within RequestMetrics ----------

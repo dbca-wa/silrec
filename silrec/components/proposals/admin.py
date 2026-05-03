@@ -577,18 +577,18 @@ class TextSearchFieldDisplayAdmin(admin.ModelAdmin):
 class ShapefileAttributeConfigAdmin(admin.ModelAdmin):
     list_display = [
         'application_type', 'field_name', 'display_name',
-        'target_db_field', 'is_mandatory', 'is_reserved', 'data_type', 'order'
+        'target_db_field', 'is_mandatory', 'data_type', 'order'
     ]
     list_filter = ['application_type', 'is_mandatory', 'data_type']
     search_fields = ['field_name', 'display_name', 'target_db_field']
-    list_editable = ['is_mandatory', 'is_reserved', 'order', 'data_type']  # target_db_field not editable here due to length
+    list_editable = ['is_mandatory', 'order', 'data_type']  # target_db_field not editable here due to length
     ordering = ['application_type', 'order', 'field_name']
     fieldsets = (
         (None, {
             'fields': ('application_type', 'field_name', 'display_name')
         }),
         ('Validation', {
-            'fields': ('is_mandatory', 'is_reserved', 'data_type', 'order')
+            'fields': ('is_mandatory', 'data_type', 'order')
         }),
         ('Database Mapping', {
             'fields': ('target_db_field',),

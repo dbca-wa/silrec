@@ -606,6 +606,17 @@ class ProposalViewSet(UserActionLoggingViewset):
             proposal.transition_to(target_status, request.user)
             proposal.save()
 
+            # After Keep: write shapefile attributes to DB tables per target_db_field config
+            if current_status == 'processing_shapefile' and target_status == 'with_assessor':
+                try:
+                    from silrec.components.proposals.service import write_shapefile_attributes_to_db
+                    write_shapefile_attributes_to_db(proposal)
+                except Exception as e:
+                    logger.error(
+                        f"Error writing shapefile attributes to DB for proposal {proposal.id}: {str(e)}",
+                        exc_info=True
+                    )
+
             # Send email for keep transition (processing_shapefile -> with_assessor)
             try:
                 from silrec.components.proposals.email import send_submit_email_notification

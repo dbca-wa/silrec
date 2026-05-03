@@ -1740,14 +1740,21 @@ class ShapefileAttributeConfig(models.Model):
         """
         Parse the target_db_field string into (app_label, model_name, field_name).
         Returns a tuple of three strings, any of which may be None if parsing fails.
+
+        Accepted formats:
+          silrec.forest_blocks.operation.fea_id  -> ('silrec', 'operation', 'fea_id')
+          forest_blocks.operation.fea_id          -> ('forest_blocks', 'operation', 'fea_id')
+          operation.fea_id                        -> (None, 'operation', 'fea_id')
         """
         if not self.target_db_field:
             return None, None, None
         parts = self.target_db_field.split('.')
-        if len(parts) == 3:
+        if len(parts) == 4:
+            # silrec.forest_blocks.operation.fea_id -> app_label, subapp, model, field
+            return parts[0], parts[2], parts[3]
+        elif len(parts) == 3:
             return parts[0], parts[1], parts[2]
         elif len(parts) == 2:
-            # assume model_name.field_name, app_label omitted
             return None, parts[0], parts[1]
         else:
             return None, None, None

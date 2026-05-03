@@ -7,10 +7,12 @@
         "field_name": "fea_id",
         "display_name": "fea_id",
         "is_mandatory": true,
-        "data_type": "integer",
+        "is_reserved": false,
+        "data_type": "string",
+        "target_db_field": "silrec.forest_blocks.operation.fea_id",
         "order": 0,
         "created": "2026-02-24T05:56:55.093",
-        "updated": "2026-02-24T05:56:55.093"
+        "updated": "2026-05-03T19:33:09.560"
     }
 },
 {
@@ -21,10 +23,12 @@
         "field_name": "region",
         "display_name": "region",
         "is_mandatory": false,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": "silrec.forest_blocks.compartments.region",
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-05-03T19:35:48.062"
     }
 },
 {
@@ -35,10 +39,12 @@
         "field_name": "block",
         "display_name": "block",
         "is_mandatory": true,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": "silrec.forest_blocks.compartments.block",
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-05-03T19:31:48.780"
     }
 },
 {
@@ -49,10 +55,12 @@
         "field_name": "block_cpt",
         "display_name": "block_cpt",
         "is_mandatory": true,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": null,
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-05-03T17:15:29.286"
     }
 },
 {
@@ -63,10 +71,12 @@
         "field_name": "ops_status",
         "display_name": "ops_status",
         "is_mandatory": false,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": null,
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-02-24T05:58:47.493"
     }
 },
 {
@@ -77,24 +87,12 @@
         "field_name": "target_ba_",
         "display_name": "target_ba_",
         "is_mandatory": true,
+        "is_reserved": false,
         "data_type": "float",
+        "target_db_field": null,
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
-    }
-},
-{
-    "model": "silrec.shapefileattributeconfig",
-    "pk": 6,
-    "fields": {
-        "application_type": 1,
-        "field_name": "target_ba_",
-        "display_name": "target_ba_",
-        "is_mandatory": true,
-        "data_type": "float",
-        "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-05-03T20:12:42.886"
     }
 },
 {
@@ -104,11 +102,13 @@
         "application_type": 1,
         "field_name": "veg_comple",
         "display_name": "veg_comple",
-        "is_mandatory": false,
+        "is_mandatory": true,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": null,
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-05-03T17:15:29.291"
     }
 },
 {
@@ -119,10 +119,12 @@
         "field_name": "lmu",
         "display_name": "lmu",
         "is_mandatory": false,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": "silrec.forest_blocks.silvicplaninput.lmu",
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-05-03T19:34:40.750"
     }
 },
 {
@@ -133,10 +135,44 @@
         "field_name": "herbicide_",
         "display_name": "herbicide_",
         "is_mandatory": false,
+        "is_reserved": false,
         "data_type": "string",
+        "target_db_field": null,
         "order": 0,
-        "created": "2026-02-24t05:58:47.493",
-        "updated": "2026-02-24t05:58:47.493"
+        "created": "2026-02-24T05:58:47.493",
+        "updated": "2026-02-24T05:58:47.493"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 10,
+    "fields": {
+        "application_type": 1,
+        "field_name": "dummy_attr",
+        "display_name": "Dummy Attr",
+        "is_mandatory": false,
+        "is_reserved": false,
+        "data_type": "string",
+        "target_db_field": null,
+        "order": 0,
+        "created": "2026-05-03T17:20:21.067",
+        "updated": "2026-05-03T17:20:42.851"
+    }
+},
+{
+    "model": "silrec.shapefileattributeconfig",
+    "pk": 11,
+    "fields": {
+        "application_type": 1,
+        "field_name": "area",
+        "display_name": "Area",
+        "is_mandatory": false,
+        "is_reserved": false,
+        "data_type": "float",
+        "target_db_field": null,
+        "order": 0,
+        "created": "2026-05-03T17:29:30.680",
+        "updated": "2026-05-03T18:31:30.417"
     }
 }
 ]

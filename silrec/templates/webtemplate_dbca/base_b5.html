@@ -1,6 +1,7 @@
 {% load static %}
 
 {% load users %}
+{% system_maintenance_due as system_maintenance_due %}
 
 <!DOCTYPE html>
 <html lang="en" >
@@ -54,7 +55,14 @@
             </div>
             {% endif %}
         {% endblock %}
- 
+
+        {% if system_maintenance_due %}
+            <div class="alert alert-warning text-center">
+                <strong>Notice!</strong> System will be down for maintenance between {{ system_maintenance_due }}
+            </div>
+        {% endif %}
+
+
         {% block header_top_menu %}
 	      {% if request.user.is_authenticated %}
                   <div class="top_header_bar">

@@ -80,14 +80,13 @@ class SystemMaintenanceAdminForm(forms.ModelForm):
             )
         except SystemMaintenance.DoesNotExist:
             latest_obj = SystemMaintenance.objects.none()
-        tz_local = pytz.timezone(settings.TIME_ZONE)  # start_date.tzinfo
 
         if latest_obj:
-            latest_end_date = latest_obj.end_date.astimezone(tz=tz_local)
+            latest_end_date = latest_obj.end_date
             if self.instance.id:
                 if (
                     start_date < latest_end_date
-                    and start_date < self.instance.start_date.astimezone(tz_local)
+                    and start_date < self.instance.start_date
                 ):
                     raise forms.ValidationError(
                         "Start date cannot be before an existing records latest end_date. "
@@ -101,14 +100,14 @@ class SystemMaintenanceAdminForm(forms.ModelForm):
                     )
 
         if self.instance.id:
-            if start_date < datetime.now(tz=tz_local) - timedelta(
+            if start_date < datetime.now() - timedelta(
                 minutes=5
-            ) and start_date < self.instance.start_date.astimezone(tz_local):
+            ) and start_date < self.instance.start_date:
                 raise forms.ValidationError(
                     "Start date cannot be edited to be further in the past"
                 )
         else:
-            if start_date < datetime.now(tz=tz_local) - timedelta(minutes=5):
+            if start_date < datetime.now() - timedelta(minutes=5):
                 raise forms.ValidationError("Start date cannot be in the past")
 
         if end_date < start_date:

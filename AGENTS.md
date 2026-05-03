@@ -1,48 +1,44 @@
 # SILREC — Agents Guide
 
-Django 5.2 + Vue 3 + Vite for DBCA WA. Tracks forest compartments, polygons, cohorts, treatments. API at `/api/`.
+Django 5.2 + Vue 3 + Vite. Tracks forest compartments, polygons, cohorts, treatments for DBCA WA. API at `/api/`.
 
-## Architecture
-
-- **Backend**: Django, DRF, `django-rest-framework-datatables` (all list endpoints require `draw`, `start`, `length` params). No type hints.
-- **Frontend**: Vue 3 in `silrec/frontend/silrec/`. Build output → `silrec/static/silrec_vue/`.
-- **Auth**: SSO via `dbca_utils.middleware.SSOLoginMiddleware`. Dev fallback: `ENABLE_DJANGO_LOGIN=True` → login at `/ssologin/`.
-- **DB**: PostgreSQL/PostGIS. `django.contrib.gis` NOT in INSTALLED_APPS — GIS via GeoAlchemy2/SQLAlchemy + raw SQL. Search path from `PGSQL_OPTIONS` env var (default `public,silrec`).
-- **Sub-apps**: `silrec/components/` — `forest_blocks` (polygons, cohorts, treatments), `proposals` (lifecycle, shapefile upload/merge/cut), `lookups`, `users`, `main`.
-- **Entrypoints**: `silrec/urls.py` (DRF router + views), `silrec/frontend/silrec/src/main.js` (Vue), `silrec/wsgi.py` (gunicorn).
-
-## Dev commands
+## Quick commands
 
 ```bash
-# Backend (from repo root)
+# Backend (repo root)
 python manage.py runserver 0.0.0.0:8002
 python manage.py shell_plus
 
-# Frontend (in silrec/frontend/silrec/)
+# Frontend (silrec/frontend/silrec/)
 npm run dev    # Vite on :5183
 npm run build
 npm run lint   # ESLint 9 flat config + Prettier
+npm ci         # CI uses npm ci --omit=dev (Dockerfile:94)
+
+# Test (only real test)
+python manage.py test tests.test_snapshot_revert
 ```
+
+## Architecture
+
+- Backend: Django, DRF, `django-rest-framework-datatables` — **all list endpoints require `draw`, `start`, `length` query params**.
+- Frontend: Vue 3 in `silrec/frontend/silrec/`. Build output → `silrec/static/silrec_vue/`.
+- Auth: SSO via `dbca_utils.middleware.SSOLoginMiddleware`. Dev fallback: `ENABLE_DJANGO_LOGIN=True` → login at `/ssologin/`.
+- DB: PostgreSQL/PostGIS. `django.contrib.gis` NOT in `INSTALLED_APPS` — GIS via GeoAlchemy2/SQLAlchemy + raw SQL. Search path from `PGSQL_OPTIONS` env var (default `public,silrec`).
+- Sub-apps under `silrec/components/`: `forest_blocks` (polygons, cohorts, treatments), `proposals` (lifecycle, shapefile upload/merge/cut), `lookups`, `users`, `main`.
+- Entrypoints: `silrec/urls.py` (DRF router + views), `silrec/frontend/silrec/src/main.js` (Vue), `silrec/wsgi.py` (gunicorn).
 
 ## Vite HMR
 
-Activates only when all three are true: `runserver` AND `EMAIL_INSTANCE=DEV` AND `DEBUG=True` (see `silrec/settings.py:319`). Otherwise Django serves prebuilt static files.
-
-## Tests
-
-```bash
-python manage.py test tests.test_snapshot_revert   # only real test
-```
-
-The only non-stub test is `tests/test_snapshot_revert.py` (TransactionTestCase + SnapshotTestMixin — needs real Postgres, not SQLite). No pytest, no test DB seeding. All `tests.py` in sub-apps are empty stubs.
+Activates only when all three are true: `runserver` AND `EMAIL_INSTANCE=DEV` AND `DEBUG=True` (`silrec/settings.py:319`). Otherwise Django serves prebuilt static files.
 
 ## Conventions
 
-- Python: 4-space indent, single quotes preferred, no type hints.
-- JS/Vue: 4-space indent, single quotes, semicolons required, trailing commas (Prettier in `.prettierrc`). ESLint 9 flat config (`eslint.config.mjs`).
+- **Python**: 4-space indent, single quotes preferred, no type hints, no formatter.
+- **JS/Vue**: 4-space indent, single quotes, semicolons required, trailing commas (Prettier). ESLint 9 flat config (`eslint.config.mjs` in frontend dir).
 - `.env` at repo root, read by `confy` in `settings.py`. All config via env vars.
 - Migrations in `silrec/migrations/` plus per-component.
-- No pre-commit hooks. No Python formatter.
+- No pre-commit hooks.
 - Logs: `logs/silrec.log`, `logs/requests.log`, `logs/sys_stats.log` (5 MB rotating).
 - Vite aliases: `@` → `src/`, `@vue-utils` → `src/utils/vue`, `@common-utils` → `src/components/common/`.
 
@@ -54,3 +50,5 @@ The only non-stub test is `tests/test_snapshot_revert.py` (TransactionTestCase +
 - `django-reversion` for audit history.
 - CRON managed by external `/bin/scheduler.py` from `dbca-wa/wagov_utils`, config in `cron` file (not django-cron).
 - Shapefile pipeline: `silrec/components/proposals/` — views, API, service layer, workflow buttons driven by `GET /api/proposal/<id>/workflow_options/`.
+- Only one real test exists: `tests/test_snapshot_revert.py` (TransactionTestCase + SnapshotTestMixin — needs real Postgres, not SQLite). All `tests.py` in sub-apps are empty stubs.
+- Gunicorn config in `gunicorn.ini` at repo root. Container entrypoint: `startup.sh` (runs gunicorn on :8080 or cron depending on env vars).

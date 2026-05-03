@@ -1086,6 +1086,50 @@ export default {
                 this.uploadStatus = 'Upload complete, processing...';
 
                 if (!response.ok) {
+                    if (data.missing_mandatory) {
+                        const missingList = data.missing_mandatory
+                            .map(function (f) {
+                                return '<li style="margin-left: 20px;"><strong>' + f + '</strong></li>';
+                            })
+                            .join('');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Missing Mandatory Attributes',
+                            html:
+                                '<div style="text-align: left;">' +
+                                '<p>The shapefile is missing the following mandatory attribute(s):</p>' +
+                                '<ul style="margin-top: 8px;">' + missingList + '</ul>' +
+                                '<p style="margin-top: 12px;">Please update your shapefile to include these columns and try again.</p>' +
+                                '</div>',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6',
+                        });
+                        this.clearFileInput();
+                        this.uploadingShapefile = false;
+                        return;
+                    }
+                    if (data.type_errors) {
+                        const typeList = data.type_errors
+                            .map(function (msg) {
+                                return '<li style="margin-left: 20px;">' + msg + '</li>';
+                            })
+                            .join('');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Data Type Mismatch',
+                            html:
+                                '<div style="text-align: left;">' +
+                                '<p>The shapefile has attributes with incorrect data types:</p>' +
+                                '<ul style="margin-top: 8px;">' + typeList + '</ul>' +
+                                '<p style="margin-top: 12px;">Please correct these columns in your shapefile and try again.</p>' +
+                                '</div>',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6',
+                        });
+                        this.clearFileInput();
+                        this.uploadingShapefile = false;
+                        return;
+                    }
                     throw new Error(
                         data.error || data.message || 'Upload failed'
                     );

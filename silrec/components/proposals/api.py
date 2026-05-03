@@ -50,6 +50,7 @@ from silrec.components.proposals.models import (
     SQLReport,
     TextSearchFieldDisplay,
     TextSearchModelConfig,
+    ShapefileAttributeConfig,
     ShapefileDocument,
     ShapefileProcessing,
     FormValidationRule,
@@ -2832,6 +2833,91 @@ class ShapefileUploadView(APIView):
             if not result['success']:
                 return Response(
                     {'error': result['message'], 'details': result.get('errors', [])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate mandatory shapefile attributes (case-insensitive) and data types
+            import geopandas as gpd
+            import numpy as np
+            gdf_type_check = gpd.GeoDataFrame.from_features(result['geojson']['features'])
+            present_fields_lower = {c.lower(): c for c in gdf_type_check.columns}
+            config_records = ShapefileAttributeConfig.objects.filter(
+                application_type=proposal.application_type
+            ).values('field_name', 'is_mandatory', 'data_type')
+            missing_mandatory = []
+            type_errors = []
+            for rec in config_records:
+                field_lower = rec['field_name'].lower()
+                if rec['is_mandatory'] and field_lower not in present_fields_lower:
+                    missing_mandatory.append(rec['field_name'])
+                # data type check (skip when None/blank)
+                if rec['data_type'] and field_lower in present_fields_lower:
+                    actual_col = present_fields_lower[field_lower]
+                    actual_val = gdf_type_check[actual_col]
+                    non_null = actual_val.dropna()
+                    if len(non_null) == 0:
+                        continue
+                    expected = rec['data_type']
+                    mismatches = 0
+                    try:
+                        if expected == 'integer':
+                            for v in non_null:
+                                try:
+                                    float(v)
+                                except (ValueError, TypeError):
+                                    mismatches += 1
+                                    break
+                                if float(v) != int(float(v)):
+                                    mismatches += 1
+                                    break
+                        elif expected == 'float':
+                            for v in non_null:
+                                try:
+                                    float(v)
+                                except (ValueError, TypeError):
+                                    mismatches += 1
+                                    break
+                        elif expected == 'boolean':
+                            ok_vals = {'true', 'false', '1', '0', 'yes', 'no', 't', 'f'}
+                            for v in non_null:
+                                if str(v).strip().lower() not in ok_vals:
+                                    mismatches += 1
+                                    break
+                        elif expected == 'date':
+                            import pandas as pd
+                            for v in non_null:
+                                try:
+                                    pd.to_datetime(v)
+                                except (ValueError, TypeError):
+                                    mismatches += 1
+                                    break
+                        # 'string' — always passes
+                    except (ValueError, TypeError):
+                        mismatches += 1
+                    if mismatches:
+                        type_errors.append(
+                            f"'{rec['field_name']}' expects {expected} but the shapefile column contains incompatible values"
+                        )
+            if missing_mandatory:
+                return Response(
+                    {
+                        'error': 'Shapefile is missing mandatory attributes',
+                        'missing_mandatory': sorted(missing_mandatory),
+                        'details': [
+                            f'The shapefile is missing the following mandatory attribute(s): '
+                            f'{", ".join(sorted(missing_mandatory))}. '
+                            f'Please ensure your shapefile includes these columns.'
+                        ],
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if type_errors:
+                return Response(
+                    {
+                        'error': 'Shapefile attribute data type mismatch',
+                        'type_errors': type_errors,
+                        'details': type_errors,
+                    },
                     status=status.HTTP_400_BAD_REQUEST
                 )
 

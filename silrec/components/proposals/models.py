@@ -1662,9 +1662,11 @@ class ShapefileAttributeConfig(models.Model):
     based on the application type.
     """
     DATA_TYPE_CHOICES = [
+        (None, 'None (skip type check)'),
         ('string', 'String'),
         ('integer', 'Integer'),
         ('float', 'Float'),
+        ('boolean', 'Boolean'),
         ('date', 'Date'),
     ]
 
@@ -1698,9 +1700,11 @@ class ShapefileAttributeConfig(models.Model):
     data_type = models.CharField(
             max_length=50,
             choices=DATA_TYPE_CHOICES,
-            default='string',
+            blank=True,
+            null=True,
+            default=None,
             verbose_name=_("Data Type"),
-            help_text=_("Expected data type (for future validation)")
+            help_text=_("Expected data type. Select 'None (skip type check)' to bypass.")
     )
     target_db_field = models.CharField(
         max_length=255,

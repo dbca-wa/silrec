@@ -1,5 +1,7 @@
 import traceback
 from django.db.models import Q, Min
+from django.db.models.functions import Cast
+from django.db.models import DateTimeField
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import FileResponse
@@ -806,7 +808,8 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # Transform geometry to EPSG:4326 at the database level
         queryset = Polygon.objects.all().annotate(
-            geom_4326=Transform('geom', 4326)
+            geom_4326=Transform('geom', 4326),
+            created_on_dt=Cast('created_on', DateTimeField())
         ).prefetch_related(
             'compartment',
             'assignchttoply_set',
@@ -865,7 +868,7 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         # Filter by post 2024 only
         filter_post_2024_only = self.request.query_params.get('filter_post_2024_only')
         if filter_post_2024_only and filter_post_2024_only.lower() == 'true':
-            queryset = queryset.filter(created_on__year__gte=2024)
+            queryset = queryset.filter(created_on_dt__year__gte=2024)
 
         if zfea_id:
             queryset = queryset.filter(zfea_id__icontains=zfea_id)
@@ -879,14 +882,14 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         if created_from:
             try:
                 created_from_date = datetime.strptime(created_from, '%Y-%m-%d').date()
-                queryset = queryset.filter(created_on__gte=created_from_date)
+                queryset = queryset.filter(created_on_dt__gte=created_from_date)
             except ValueError:
                 pass
 
         if created_to:
             try:
                 created_to_date = datetime.strptime(created_to, '%Y-%m-%d').date()
-                queryset = queryset.filter(created_on__lte=created_to_date)
+                queryset = queryset.filter(created_on_dt__lte=created_to_date)
             except ValueError:
                 pass
 

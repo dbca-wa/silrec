@@ -1,6 +1,6 @@
 [
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 1,
     "fields": {
       "model_name": "forest_blocks.Cohort",
@@ -14,7 +14,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 2,
     "fields": {
       "model_name": "forest_blocks.Cohort",
@@ -28,7 +28,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 3,
     "fields": {
       "model_name": "forest_blocks.Cohort",
@@ -42,7 +42,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 4,
     "fields": {
       "model_name": "forest_blocks.Cohort",
@@ -56,7 +56,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 5,
     "fields": {
       "model_name": "forest_blocks.Treatment",
@@ -70,7 +70,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 6,
     "fields": {
       "model_name": "forest_blocks.Treatment",
@@ -84,7 +84,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 7,
     "fields": {
       "model_name": "forest_blocks.Prescription",
@@ -98,7 +98,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 8,
     "fields": {
       "model_name": "forest_blocks.Prescription",
@@ -112,7 +112,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 9,
     "fields": {
       "model_name": "forest_blocks.SilviculturistComment",
@@ -126,7 +126,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 10,
     "fields": {
       "model_name": "forest_blocks.SurveyAssessmentDocument",
@@ -140,7 +140,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 11,
     "fields": {
       "model_name": "forest_blocks.SurveyAssessmentDocument",
@@ -154,7 +154,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 12,
     "fields": {
       "model_name": "forest_blocks.SurveyAssessmentDocument",
@@ -168,7 +168,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 13,
     "fields": {
       "model_name": "forest_blocks.Operation",
@@ -182,7 +182,7 @@
     }
   },
   {
-    "model": "proposals.FormValidationRule",
+    "model": "silrec.FormValidationRule",
     "pk": 14,
     "fields": {
       "model_name": "forest_blocks.Treatmentxtra",

@@ -1,0 +1,1599 @@
+SET
+SET
+SET
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:15: ERROR:  unrecognized configuration parameter "transaction_timeout"
+SET
+SET
+ set_config 
+------------
+ 
+(1 row)
+
+SET
+SET
+SET
+SET
+CREATE SCHEMA
+ALTER SCHEMA
+SET
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+COMMENT
+CREATE FUNCTION
+ALTER FUNCTION
+COMMENT
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+SET
+SET
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE VIEW
+ALTER VIEW
+CREATE VIEW
+ALTER VIEW
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE VIEW
+ALTER VIEW
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+ALTER TABLE
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE VIEW
+ALTER VIEW
+CREATE VIEW
+ALTER VIEW
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+COPY 0
+COPY 0
+COPY 60643
+COPY 57820
+COPY 0
+COPY 47819
+COPY 0
+COPY 0
+COPY 112
+COPY 0
+COPY 172
+COPY 8
+COPY 0
+COPY 8
+COPY 2
+COPY 5
+COPY 76
+COPY 82521
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:384862: ERROR:  missing data for column "updated_by"
+CONTEXT:  COPY cohort_jn, line 35: "DELETE	2026-03-23 14:53:23.701558	postgres	135025	R-RIVER             	931	2005-12-15 00:00:00	100	\..."
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 1429
+COPY 0
+COPY 65481
+COPY 65481
+COPY 1691
+COPY 0
+COPY 145638
+COPY 56
+COPY 0
+COPY 0
+COPY 5007
+COPY 80
+COPY 0
+COPY 22
+COPY 0
+COPY 98
+COPY 2004
+COPY 0
+COPY 0
+COPY 5021
+COPY 21808
+COPY 11
+COPY 11
+COPY 65370
+COPY 65469
+COPY 65465
+COPY 130990
+COPY 65608
+COPY 268
+COPY 65610
+COPY 65464
+COPY 130928
+COPY 1088
+COPY 0
+COPY 12
+COPY 1
+COPY 1
+COPY 0
+COPY 1
+COPY 0
+COPY 5
+COPY 5
+COPY 0
+COPY 11
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 4
+COPY 8
+COPY 53
+COPY 0
+COPY 130934
+COPY 2
+COPY 0
+COPY 12
+COPY 0
+COPY 114
+COPY 311
+COPY 2
+COPY 0
+COPY 460518
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1948644: ERROR:  missing data for column "updated_by"
+CONTEXT:  COPY treatment_jn, line 2: "DELETE	2026-03-24 09:02:34.913916	postgres	298768	84	158950	BURN-J-GAP          	4	2016	100	2016-10-..."
+COPY 6
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+COPY 0
+ setval 
+--------
+      3
+(1 row)
+
+ setval 
+--------
+    114
+(1 row)
+
+ setval 
+--------
+ 132007
+(1 row)
+
+ setval 
+--------
+     15
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+      5
+(1 row)
+
+ setval 
+--------
+     76
+(1 row)
+
+ setval 
+--------
+   1431
+(1 row)
+
+ setval 
+--------
+ 364807
+(1 row)
+
+ setval 
+--------
+      3
+(1 row)
+
+ setval 
+--------
+  65481
+(1 row)
+
+ setval 
+--------
+  65481
+(1 row)
+
+ setval 
+--------
+     56
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+     22
+(1 row)
+
+ setval 
+--------
+   5024
+(1 row)
+
+ setval 
+--------
+  65465
+(1 row)
+
+ setval 
+--------
+ 458927
+(1 row)
+
+ setval 
+--------
+  65608
+(1 row)
+
+ setval 
+--------
+   1940
+(1 row)
+
+ setval 
+--------
+      2
+(1 row)
+
+ setval 
+--------
+     81
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+      4
+(1 row)
+
+ setval 
+--------
+      7
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+     23
+(1 row)
+
+ setval 
+--------
+      2
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+     12
+(1 row)
+
+ setval 
+--------
+      1
+(1 row)
+
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+ALTER TABLE
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1950237: ERROR:  function public.objst_jn_func() does not exist
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1950425: ERROR:  insert or update on table "assign_cht_to_ply" violates foreign key constraint "cht2ply_cht_FK"
+DETAIL:  Key (cohort_id)=(321833) is not present in table "cohort".
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 112
+UPDATE 112
+UPDATE 112
+UPDATE 112
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951603: ERROR:  insert or update on table "assign_task_to_report" violates foreign key constraint "tsk2trpt_tsk_FK"
+DETAIL:  Key (task)=(4CAST-JSEED) is not present in table "task_lkp".
+UPDATE 112
+UPDATE 560
+UPDATE 560
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951607: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951608: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951609: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951610: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951611: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951612: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951613: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951614: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951615: ERROR:  value too long for type character varying(3)
+CONTEXT:  SQL statement "INSERT INTO silrec.cohort_jn (jn_operation, jn_date, jn_db_user, cohort_id, obj_code, op_id, op_date, pct_area, year_last_cut, treatments, regen_date, regen_date2, species, regen_method, regen_done, complete_date, resid_ba_m2ha, target_ba_m2ha, resid_spha, target_spha, site_quality, herbicide_app_spec, vrp_id, vrp_tot_area, comments, extra_info, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.cohort_id, old.obj_code, old.op_id, old.op_date, old.pct_area, old.year_last_cut, old.treatments, old.regen_date, old.regen_date2, old.species, old.regen_method, old.regen_done, old.complete_date, old.resid_ba_m2ha, old.target_ba_m2ha, old.resid_spha, old.target_spha, old.site_quality, old.herbicide_app_spec, old.vrp_id, old.vrp_tot_area, old.comments, old.extra_info, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function cht_jn_func() line 9 at SQL statement
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 1429
+UPDATE 1429
+UPDATE 1429
+UPDATE 1429
+UPDATE 1429
+UPDATE 7145
+UPDATE 7145
+UPDATE 7145
+UPDATE 7145
+UPDATE 7145
+UPDATE 1691
+DELETE 0
+UPDATE 1691
+UPDATE 1691
+UPDATE 1691
+UPDATE 1691
+UPDATE 8455
+UPDATE 8455
+UPDATE 8455
+UPDATE 8455
+UPDATE 8455
+UPDATE 145638
+UPDATE 0
+UPDATE 5007
+UPDATE 5007
+UPDATE 80
+UPDATE 80
+UPDATE 80
+UPDATE 80
+UPDATE 80
+UPDATE 400
+UPDATE 400
+UPDATE 400
+UPDATE 400
+UPDATE 400
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+DELETE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951675: ERROR:  update or delete on table "objective_lkp" violates foreign key constraint "cht_obj_FK" on table "cohort"
+DETAIL:  Key (obj_code)=(U-STEEP             ) is still referenced from table "cohort".
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+UPDATE 98
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951684: ERROR:  column "zobjective" does not exist
+LINE 1: ...E ONLY silrec.objective_lkp SET zObjective = TRIM(zObjective...
+                                                             ^
+HINT:  Perhaps you meant to reference the column "objective_lkp.zObjective".
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951685: ERROR:  column "zustncolour" does not exist
+LINE 1: ... ONLY silrec.objective_lkp SET zUstnColour = TRIM(zUstnColou...
+                                                             ^
+HINT:  Perhaps you meant to reference the column "objective_lkp.zUstnColour".
+UPDATE 98
+UPDATE 98
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+UPDATE 3866
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951702: ERROR:  column "fmiscode" does not exist
+LINE 1: ...ONLY silrec.objective_subtype SET FMIScode = TRIM(FMIScode);
+                                                             ^
+UPDATE 0
+UPDATE 0
+UPDATE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951706: ERROR:  column "fmiscode" does not exist
+LINE 1: ...Y silrec.objective_subtype_jn SET FMIScode = TRIM(FMIScode);
+                                                             ^
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 5021
+UPDATE 26829
+UPDATE 11
+DELETE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951714: ERROR:  update or delete on table "organisation_lkp" violates foreign key constraint "prsn_org_FK" on table "prescription"
+DETAIL:  Key (organisation)=(CALM      ) is still referenced from table "prescription".
+UPDATE 22
+UPDATE 22
+UPDATE 130990
+UPDATE 130990
+UPDATE 130990
+UPDATE 65464
+UPDATE 65464
+UPDATE 65464
+UPDATE 65464
+UPDATE 65464
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951725: ERROR:  column "zcoupeid" does not exist
+LINE 1: ...PDATE ONLY silrec.polygon_old SET zCoupeID = TRIM(zCoupeID);
+                                                             ^
+HINT:  Perhaps you meant to reference the column "polygon_old.zCoupeID".
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951726: ERROR:  column "zstandno" does not exist
+LINE 1: ...PDATE ONLY silrec.polygon_old SET zStandNo = TRIM(zStandNo);
+                                                             ^
+HINT:  Perhaps you meant to reference the column "polygon_old.zStandNo".
+UPDATE 65464
+UPDATE 130928
+UPDATE 130928
+UPDATE 130928
+UPDATE 130928
+UPDATE 130928
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951733: ERROR:  column "zcoupeid" does not exist
+LINE 1: ...rec.polygon_prior_to_area_fix SET zCoupeID = TRIM(zCoupeID);
+                                                             ^
+HINT:  Perhaps you meant to reference the column "polygon_prior_to_area_fix.zCoupeID".
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951734: ERROR:  column "zstandno" does not exist
+LINE 1: ...rec.polygon_prior_to_area_fix SET zStandNo = TRIM(zStandNo);
+                                                             ^
+HINT:  Perhaps you meant to reference the column "polygon_prior_to_area_fix.zStandNo".
+UPDATE 130928
+UPDATE 1088
+UPDATE 1088
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951738: ERROR:  insert or update on table "prescription" violates foreign key constraint "prscn_obj_FK"
+DETAIL:  Key (obj_code)=(K-PART-ESTAB) is not present in table "objective_lkp".
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951739: ERROR:  insert or update on table "prescription" violates foreign key constraint "prsn_org_FK"
+DETAIL:  Key (responsibility)=(FPC) is not present in table "organisation_lkp".
+UPDATE 1088
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951741: ERROR:  insert or update on table "prescription" violates foreign key constraint "prscn_tsk_FK"
+DETAIL:  Key (task)=(ASST-K-REGN) is not present in table "task_lkp".
+UPDATE 3264
+UPDATE 3264
+UPDATE 3264
+UPDATE 3264
+UPDATE 12
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951747: ERROR:  update or delete on table "regeneration_methods_lkp" violates foreign key constraint "cht_rm_FK" on table "cohort"
+DETAIL:  Key (regen_method)=( +) is still referenced from table "cohort".
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951748: ERROR:  duplicate key value violates unique constraint "rm_PK"
+DETAIL:  Key (regen_method)=(+) already exists.
+UPDATE 13
+UPDATE 13
+UPDATE 1
+UPDATE 1
+UPDATE 2
+UPDATE 2
+UPDATE 1
+UPDATE 1
+UPDATE 2
+UPDATE 2
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951759: ERROR:  value too long for type character varying(15)
+CONTEXT:  SQL statement "INSERT INTO silrec.reschedule_reasons_lkp_jn (jn_operation, jn_date, jn_db_user, rescheduled_reason, description, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.rescheduled_reason, old.description, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function rr_jn_func() line 9 at SQL statement
+DELETE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951761: ERROR:  value too long for type character varying(15)
+CONTEXT:  SQL statement "INSERT INTO silrec.reschedule_reasons_lkp_jn (jn_operation, jn_date, jn_db_user, rescheduled_reason, description, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.rescheduled_reason, old.description, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function rr_jn_func() line 9 at SQL statement
+UPDATE 5
+UPDATE 5
+UPDATE 0
+UPDATE 11
+UPDATE 11
+UPDATE 11
+UPDATE 33
+UPDATE 33
+UPDATE 33
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 4
+DELETE 0
+UPDATE 4
+UPDATE 4
+UPDATE 20
+UPDATE 20
+UPDATE 20
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951798: ERROR:  column "fmiscode_species" does not exist
+LINE 1: ...ilrec.species_api_lkp SET FMIScode_species = TRIM(FMIScode_s...
+                                                             ^
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951799: ERROR:  column "fmiscode_type" does not exist
+LINE 1: ...Y silrec.species_api_lkp SET FMIScode_type = TRIM(FMIScode_t...
+                                                             ^
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951800: ERROR:  column "fmisdescription_type" does not exist
+LINE 1: ...c.species_api_lkp SET FMISdescription_type = TRIM(FMISdescri...
+                                                             ^
+UPDATE 53
+UPDATE 53
+DELETE 0
+UPDATE 53
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951805: ERROR:  column "fmiscode_species" does not exist
+LINE 1: ...ec.species_api_lkp_jn SET FMIScode_species = TRIM(FMIScode_s...
+                                                             ^
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951806: ERROR:  column "fmiscode_type" does not exist
+LINE 1: ...ilrec.species_api_lkp_jn SET FMIScode_type = TRIM(FMIScode_t...
+                                                             ^
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951807: ERROR:  column "fmisdescription_type" does not exist
+LINE 1: ...pecies_api_lkp_jn SET FMISdescription_type = TRIM(FMISdescri...
+                                                             ^
+UPDATE 159
+UPDATE 159
+UPDATE 159
+UPDATE 2
+UPDATE 2
+UPDATE 4
+UPDATE 4
+UPDATE 114
+UPDATE 114
+UPDATE 114
+UPDATE 114
+UPDATE 114
+UPDATE 114
+UPDATE 114
+DELETE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951823: ERROR:  update or delete on table "task_lkp" violates foreign key constraint "prscn_tsk_FK" on table "prescription"
+DETAIL:  Key (task)=(DAMAGE              ) is still referenced from table "prescription".
+UPDATE 114
+UPDATE 114
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951826: ERROR:  column "zustncolour" does not exist
+LINE 1: ...PDATE ONLY silrec.task_lkp SET zUstnColour = TRIM(zUstnColou...
+                                                             ^
+HINT:  Perhaps you meant to reference the column "task_lkp.zUstnColour".
+UPDATE 114
+UPDATE 114
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+UPDATE 1565
+DELETE 0
+UPDATE 2
+UPDATE 2
+UPDATE 4
+UPDATE 4
+UPDATE 460518
+UPDATE 460518
+UPDATE 460518
+UPDATE 460518
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951848: ERROR:  insert or update on table "treatment" violates foreign key constraint "trt_tsk_FK"
+DETAIL:  Key (task)=(PLANT-K2) is not present in table "task_lkp".
+UPDATE 460518
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951850: ERROR:  column "zsilvic" does not exist
+LINE 1: UPDATE ONLY silrec.treatment SET zSilvic = TRIM(zSilvic);
+                                                        ^
+HINT:  Perhaps you meant to reference the column "treatment.zSilvic".
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951851: ERROR:  column "zstand" does not exist
+LINE 1: UPDATE ONLY silrec.treatment SET zStand = TRIM(zStand);
+                                                       ^
+HINT:  Perhaps you meant to reference the column "treatment.zStand".
+UPDATE 460518
+UPDATE 2763108
+UPDATE 2763108
+UPDATE 2763108
+UPDATE 2763108
+UPDATE 2763108
+UPDATE 2763108
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951859: ERROR:  value too long for type character varying(500)
+CONTEXT:  SQL statement "INSERT INTO silrec.treatment_status_lkp_jn (jn_operation, jn_date, jn_db_user, status, name, definition, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.status, old.name, old.definition, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function ts_jn_func() line 9 at SQL statement
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951860: ERROR:  value too long for type character varying(500)
+CONTEXT:  SQL statement "INSERT INTO silrec.treatment_status_lkp_jn (jn_operation, jn_date, jn_db_user, status, name, definition, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.status, old.name, old.definition, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function ts_jn_func() line 9 at SQL statement
+DELETE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951862: ERROR:  value too long for type character varying(500)
+CONTEXT:  SQL statement "INSERT INTO silrec.treatment_status_lkp_jn (jn_operation, jn_date, jn_db_user, status, name, definition, created_on, created_by, updated_on, updated_by)
+        VALUES ('UPDATE', CURRENT_TIMESTAMP, user_id, old.status, old.name, old.definition, old.created_on, old.created_by, old.updated_on, old.updated_by)"
+PL/pgSQL function ts_jn_func() line 9 at SQL statement
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+psql:/tmp/silrec_v3_backup_04May2026_cleaned.sql:1951868: ERROR:  column "ztaskid" does not exist
+LINE 1: ...DATE ONLY silrec.treatment_xtra SET zTaskID = TRIM(zTaskID);
+                                                              ^
+HINT:  Perhaps you meant to reference the column "treatment_xtra.zTaskID".
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0
+UPDATE 0

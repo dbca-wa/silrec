@@ -34,8 +34,9 @@ def write_cohort_to_db(obj_code, op_id, year, target_ba, regen_method, request_m
         )
 
         if len(cohort_qs) == 0:
+            import ipdb; ipdb.set_trace()
             cohort_obj = Cohort.objects.create(
-                obj_code=obj_code,
+                obj_code__icontains=obj_code,
                 op_id=op_id,
                 op_date=op_date,
                 target_ba_m2ha=target_ba_float,

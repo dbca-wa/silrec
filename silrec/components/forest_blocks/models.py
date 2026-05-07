@@ -538,6 +538,7 @@ class Operation(models.Model):
     plan_release = models.CharField(max_length=50, blank=True, null=True, db_comment='identifier for the release package including the FEA')
     silvic_plan_map = models.BinaryField(blank=True, null=True, db_comment='Document (PDF) of a map of the silvics plan (FINAL VERSION)\n\nCorrect data type?\nStore simply as URL to SharePoint location')
     silvic_plan_doc = models.BinaryField(blank=True, null=True, db_comment='Silvic plan document (FINAL VERSION) providing the detailed silvicultural tactics to be applied in the operation, may be .DOCX or PDF file.\n\nStore simply as URL to SharePoint location')
+    plan_period = models.CharField(max_length=20, blank=True, null=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     document_date = models.DateField(blank=True, null=True)

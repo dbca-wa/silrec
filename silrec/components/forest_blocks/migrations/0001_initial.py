@@ -254,6 +254,7 @@ class Migration(migrations.Migration):
                 ('plan_release', models.CharField(blank=True, db_comment='identifier for the release package including the FEA', max_length=50, null=True)),
                 ('silvic_plan_map', models.BinaryField(blank=True, db_comment='Document (PDF) of a map of the silvics plan (FINAL VERSION)\n\nCorrect data type?\nStore simply as URL to SharePoint location', null=True)),
                 ('silvic_plan_doc', models.BinaryField(blank=True, db_comment='Silvic plan document (FINAL VERSION) providing the detailed silvicultural tactics to be applied in the operation, may be .DOCX or PDF file.\n\nStore simply as URL to SharePoint location', null=True)),
+                ('plan_period', models.CharField(blank=True, max_length=20, null=True)),
 #                ('status', models.CharField(choices=[('draft', 'Draft'), ('final', 'Final')], default='draft', max_length=20)),
 #                ('document_date', models.DateField(blank=True, null=True)),
 #                ('marked_deleted', models.BooleanField(default=False)),

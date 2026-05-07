@@ -11,7 +11,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('forest_blocks', '0001_initial'),
-        ('silrec', '0002_alter_auditlog_options_remove_auditlog_proposal_and_more'),
+#        ('silrec', '0002_alter_auditlog_options_remove_auditlog_proposal_and_more'),
+#        ('silrec', '0002_communicationslogentry_formvalidationrule_and_more.py'),
     ]
 
     operations = [

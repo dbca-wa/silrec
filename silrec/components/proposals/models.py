@@ -977,6 +977,7 @@ class ProposalLogEntry(CommunicationsLogEntry):
     proposal = models.ForeignKey(Proposal, related_name='comms_logs', on_delete=models.CASCADE)
 
     class Meta:
+        db_table = 'proposallogentry'
         app_label = 'silrec'
 
     def save(self, **kwargs):

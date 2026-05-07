@@ -82,6 +82,11 @@ ALTER TABLE polygon RENAME COLUMN reason_clo TO reason_closed;
  1132  sed -i '/johnm/d' ../tmp/silrec_v3_backup_25Feb2026.sql
  1133  sed -i '/shelleyp/d' ../tmp/silrec_v3_backup_25Feb2026.sql
 
+       sed -i 's/OWNER TO postgres/OWNER TO dev/g' silrec_v3_backup_04May2026.sql
+       sed -i 's/updated_on timestamp without time zone/updated_on timestamp/g' silrec_v3_backup_04May2026.sql
+       sed -i 's/created_on timestamp without time zone/created_on timestamp/g' silrec_v3_backup_04May2026.sql
+
+
  # Create the Database and grant permissions
  1139  psql -h localhost -p 5432 -U postgres -W -f  ~/projects/docker_scripts/silrec_test2.sql
 

@@ -174,6 +174,7 @@ class CommunicationsLogEntry(models.Model):
     created = models.DateTimeField(auto_now_add=True, null=False, blank=False)
 
     class Meta:
+        db_table = 'communicationslogentry'
         app_label = 'silrec'
 
 
@@ -197,6 +198,7 @@ class ApplicationType(models.Model):
     searchable = models.BooleanField(default=True)
 
     class Meta:
+        db_table = 'applicationtype'
         app_label = 'silrec'
         ordering = ['order', 'name']
 
@@ -222,6 +224,7 @@ class SystemMaintenance(models.Model):
     duration.short_description = "Duration (mins)"
 
     class Meta:
+        db_table = 'systemmaintenance'
         app_label = "silrec"
         verbose_name_plural = "System maintenance"
 

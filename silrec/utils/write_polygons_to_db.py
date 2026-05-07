@@ -5,7 +5,6 @@ from datetime import datetime, date
 from decimal import Decimal
 from django.db import transaction, models, IntegrityError
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
-from django.contrib.gis.geos import Polygon as GeosPolygon
 from silrec.components.forest_blocks.models import Polygon
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 from copy import deepcopy
@@ -185,7 +184,7 @@ def _insert_new_polygon(row, request_metrics, iter_seq):
             area_ha=row['area_ha'],
             sp_code=row['sp_code'],
             proposal_id=proposal_id_row,
-            geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
+            geom=MultiPolygon(geom) if geom is not None and geom.geom_type == 'Polygon' else geom,
             created_by=user_id,
             updated_by=user_id,
         )
@@ -215,7 +214,7 @@ def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
             area_ha=row['area_ha'],
             sp_code=row['sp_code'],
             proposal_id=proposal_id_row,
-            geom=MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom,
+            geom=MultiPolygon(geom) if geom is not None and geom.geom_type == 'Polygon' else geom,
             created_by=user_id,
             updated_by=user_id,
         )
@@ -239,16 +238,23 @@ def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
         poly = Polygon.objects.get(polygon_id=int(polygon_id))
         poly_orig = deepcopy(poly)
 
+        # deepcopy of a GEOS MultiPolygon with a single polygon may produce a
+        # bare Polygon, which breaks SpatialProxy on model_to_dict. Fix it
+        # by setting __dict__ directly to avoid triggering SpatialProxy.__get__.
+        raw_geom = poly_orig.__dict__.get('geom')
+        if raw_geom is not None and raw_geom.geom_type == 'Polygon':
+            poly_orig.__dict__['geom'] = MultiPolygon(raw_geom)
+
         # Update fields
         poly.name = row['name']
         poly.compartment_id = row['compartment']
         poly.area_ha = row['area_ha']
         poly.sp_code = row['sp_code']
 
-        import ipdb; ipdb.set_trace()
         if hasattr(row['geometry'], 'wkt'):
             geom = GEOSGeometry(row['geometry'].wkt)
-            poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
+            #poly.geom = MultiPolygon(geom) if isinstance(geom, GeosPolygon) else geom
+            poly.geom = MultiPolygon(geom) if geom.geom_type == 'Polygon' else geom
 
         poly.updated_by = request_metrics.user.id
 

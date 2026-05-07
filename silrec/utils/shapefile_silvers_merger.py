@@ -672,7 +672,7 @@ class ShapefileSliversMerger():
         gdf_cht_init = gdf_result[gdf_result.polygon_id==gdf_result.poly_id_new][cols].copy()
 
         if gdf_cht_init.empty:
-            return gdf_result
+            return gdf_result, pd.DataFrame()
 
         polygon_ids = gdf_hist.polygon_id.to_list()
         polygon_ids = list(set(polygon_ids)) if polygon_ids else [0]
@@ -680,7 +680,7 @@ class ShapefileSliversMerger():
         cohort_ids = gdf_result.cht_id_cur.to_list()
         cohort_ids = list(set(cohort_ids)) if cohort_ids else [0]
         if len(cohort_ids) == 0:
-            return None
+            return None, None
 
         try:
             query = f"""
@@ -713,7 +713,7 @@ class ShapefileSliversMerger():
 
         except Exception as e:
             logger.error(f'{e}')
-            pass
+            return None, None
 
         # Merge with original GeoDataFrame
         gdf_cht_init = gdf_cht_init.merge(

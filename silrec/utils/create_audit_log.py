@@ -91,6 +91,7 @@ class AuditLogger:
         """
         Create and return an AuditLog entry.
         """
+        #import ipdb; ipdb.set_trace()
         valid_ops = ['INSERT', 'UPDATE', 'DELETE']
         if self.operation not in valid_ops:
             raise ValueError(f"Operation must be one of {valid_ops}")

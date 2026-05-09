@@ -24,6 +24,7 @@ from silrec.utils.sliver_test1 import identify_slivers
 from silrec.utils.write_polygons_to_db import write_polygons_to_db
 from silrec.utils.write_cohort_to_db import write_cohort_to_db, save_cht_new_to_db
 
+from silrec.components.lookups.models import ObjectiveLkp
 from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
 from silrec.components.proposals.models import Proposal
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
@@ -204,7 +205,12 @@ class ShapefileSliversMerger():
                         self.gdf_single = self.set_data(self.gdf_single, poly_type='BASE')
 
                         target_ba = float(self.gdf_single.iloc[0].target_ba_)
+                        import ipdb; ipdb.set_trace()
                         obj_code = self.gdf_single.iloc[0].obj_code
+                        try:
+                            obj_code_lkp = ObjectiveLkp.objects.get(obj_code__contains=obj_code)
+                        except Exception as e:
+                            raise Exception(f'Objective Code not found: {obj_code}')
                         op_id = 1
                         year = 2024
                         regen_method = ' %'  # non-null FK req'd

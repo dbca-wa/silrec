@@ -25,14 +25,16 @@ ALTER TABLE polygon RENAME COLUMN reason_clo TO reason_closed;
        sed -i 's/updated_on timestamp without time zone/updated_on timestamp/g' silrec_v3_backup_04May2026.sql
        sed -i 's/created_on timestamp without time zone/created_on timestamp/g' silrec_v3_backup_04May2026.sql
 
+# Create the Database and grant permissions
+psql -h localhost -p 5432 -U postgres -W -f  ~/projects/docker_scripts/silrec_test5.sql
 
 # run this FIRST on the SQL dump file - to clean primary key and  fk whitespaces
-./scripts/clean_pg_restore.sh /tmp/silrec_v3_backup_04May2026.sql /tmp/silrec_v3_backup_04May2026_cleaned.sql
-PGPASSWORD="dev123" psql -h localhost -U dev -d silrec_test5 -f /tmp/silrec_v3_backup_04May2026_cleaned.sql
+./scripts/clean_pg_restore.sh /tmp/silrec_v3_backup_04May2026.sql ~/projects/tmp/silrec_v3_backup_04May2026_cleaned.sql
+PGPASSWORD="dev123" psql -h localhost -U dev -d silrec_test5 -f ~/projects/tmp/silrec_v3_backup_04May2026_cleaned.sql
 
 
 # run this SECOND against the restored database (with arg as orig un-cleaned file!!):
-PGPASSWORD="dev123" ./scripts/trim_pg_restore.sh silrec_test5 /tmp/silrec_v3_backup_04May2026.sql
+PGPASSWORD="dev123" ./scripts/trim_pg_restore.sh silrec_test5 ~/projects/tmp/silrec_v3_backup_04May2026.sql
 
 This drops triggers and constraints, trims trailing spaces from all Django-managed CharField data 
 (dedupping PKs where needed), then recreates everything. Pass the original .sql backup file as the i
@@ -66,7 +68,7 @@ second argument to auto-recreate _jn audit triggers.
 
 
 ./manage.py dbshell
- ALTER TABLE polygon RENAME COLUMN compartmen TO compartment;
+ALTER TABLE polygon RENAME COLUMN compartmen TO compartment;
 
 ALTER TABLE polygon
 ALTER COLUMN updated_on TYPE TIMESTAMPTZ
@@ -83,10 +85,53 @@ ALTER COLUMN polygon_id TYPE INTEGER USING polygon_id::INTEGER;
 CREATE DATABASE silrec_test5_orig_04May2026 WITH TEMPLATE silrec_test5;
 
 # PG_DUMP
-pg_dump -h localhost -p 5432 -U dev -d silrec_orig_mpoly_silrec_v3_25feb2026 -t silrec.assign_cht_to_ply -t silrec.cohort -t silrec.polygon -Fc -f silrec_test4_3tables_25Feb2026.dump
+pg_dump -h localhost -p 5432 -U dev -d silrec_orig_mpoly_silrec_v3_25feb2026 -t silrec.assign_cht_to_ply -t silrec.cohort -t silrec.polygon -Fc -f silre
+c_test4_3tables_25Feb2026.dump
 
 # PG_RESTORE
 PGPASSWORD='<password>' pg_restore -h localhost -p 5432 -U dev -d silrec_test2 silrec_test4_3tables_25Feb2026.dump -v
+
+u=User.objects.create(first_name='nouser', last_name='nouser_group', username='nouser', email='nouser@dbca.wa.gov.au')
+u.set_password('test')
+u.is_staff=True
+u.is_superuser=False
+u.save()
+
+u=User.objects.create(first_name='user', last_name='user_group', username='user', email='user@dbca.wa.gov.au')
+u.set_password('test')
+u.is_staff=True
+u.is_superuser=False
+u.save()
+
+u=User.objects.create(first_name='operator', last_name='operator_group', username='operator', email='operator@dbca.wa.gov.au')
+u.set_password('test')
+u.is_staff=True
+u.is_superuser=False
+u.save()
+
+u=User.objects.create(first_name='assessor', last_name='assessor_group', username='assessor', email='assessor@dbca.wa.gov.au')
+u.set_password('test')
+u.is_staff=True
+u.is_superuser=False
+u.save()
+
+u=User.objects.create(first_name='reviewer', last_name='reviewer_group', username='reviewer', email='reviewer@dbca.wa.gov.au')
+u.set_password('test')
+u.is_staff=True
+u.is_superuser=False
+u.save()
+
+u=User.objects.create(first_name='silrec_admin', last_name='silrec_admin_group', username='silrec_admin', email='silrec_admin@dbca.wa.gov.au')
+u.set_password('test')
+u.is_staff=True
+u.is_superuser=False
+u.save()
+
+CREATE DATABASE silrec_test5__04May2026 WITH TEMPLATE silrec_test5;
+
+# PG_DUMP
+pg_dump -h localhost -p 5432 -U dev -d silrec_test5 -t silrec.assign_cht_to_ply -t silrec.cohort -t silrec.polygon -Fc -f silrec_test5_3tables_04May2026.dump
+
 
 
 03-Mar-2026

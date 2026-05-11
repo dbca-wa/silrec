@@ -349,9 +349,10 @@
         <!-- Action Buttons -->
         <div v-if="!readOnly && showActions" class="mt-4">
             <button
-                type="submit"
+                type="button"
                 class="btn btn-primary me-2"
                 :disabled="saving"
+                @click="saveTreatment"
             >
                 <span
                     v-if="saving"
@@ -394,7 +395,7 @@ export default {
         },
         cohortId: {
             type: [Number, String],
-            required: true,
+            default: null,
         },
         readOnly: {
             type: Boolean,
@@ -539,8 +540,23 @@ export default {
                     method = 'POST';
                 }
 
-                console.log('Saving treatment data:', this.treatmentData);
-                console.log('URL:', url, 'Method:', method);
+                // Only send writable fields the form edits
+                const payload = {
+                    task: this.treatmentData.task,
+                    status: this.treatmentData.status,
+                    plan_yr: this.treatmentData.plan_yr,
+                    plan_mth: this.treatmentData.plan_mth,
+                    pct_area: this.treatmentData.pct_area,
+                    complete_date: this.treatmentData.complete_date,
+                    results: this.treatmentData.results,
+                    reference: this.treatmentData.reference,
+                    organisation: this.treatmentData.organisation,
+                };
+                if (this.treatmentData.prescription_id) {
+                    payload.prescription_id = this.treatmentData.prescription_id;
+                }
+
+                console.log('Saving treatment data:', payload);
 
                 const response = await fetch(url, {
                     method: method,
@@ -548,7 +564,7 @@ export default {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': this.getCSRFToken(),
                     },
-                    body: JSON.stringify(this.treatmentData),
+                    body: JSON.stringify(payload),
                 });
 
                 console.log('Response status:', response.status);

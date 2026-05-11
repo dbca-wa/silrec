@@ -3830,7 +3830,7 @@ class ProcessShapefileView(APIView):
             logger.error(f"Error in process_shapefile_with_threshold: {str(e)}", exc_info=True)
             return {
                 'success': False,
-                'message': 'Error processing shapefile geometries',
+                'message': str(e),
                 'errors': [str(e)]
             }
 

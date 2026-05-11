@@ -39,6 +39,7 @@
                     <tr
                         v-for="extra in treatmentExtras"
                         :key="extra.treatment_xtra_id"
+                        @click="console.log('tr clicked')"
                     >
                         <td>
                             <span
@@ -75,7 +76,7 @@
                         </td>
                         <td v-if="!readOnly" class="action-column">
                             <router-link
-                                :to="`/internal/treatment/${treatment_id}/treatment-extra/${extra.treatment_xtra_id}`"
+                                :to="`/internal/treatment/${treatmentId}/treatment-extra/${extra.treatment_xtra_id}`"
                                 class="btn btn-sm btn-outline-primary me-1"
                                 title="Edit Details"
                             >
@@ -111,6 +112,7 @@
 <script>
 import TreatmentExtraForm from './treatments_extras_form.vue';
 import { api_endpoints } from '@/utils/hooks';
+import Swal from 'sweetalert2';
 
 export default {
     name: 'TreatmentExtrasTable',
@@ -185,7 +187,7 @@ export default {
             } catch (error) {
                 console.error('Error loading treatment extras:', error);
                 this.error = 'Failed to load treatment details';
-                await swal.fire({
+                await Swal.fire({
                     icon: 'error',
                     title: 'Load Failed',
                     text: 'Failed to load treatment details',
@@ -197,7 +199,7 @@ export default {
         },
 
         async deleteExtra(treatmentExtraId) {
-            const result = await swal.fire({
+            const result = await Swal.fire({
                 icon: 'warning',
                 title: 'Are you sure?',
                 text: 'Are you sure you want to delete these treatment details?',
@@ -219,21 +221,25 @@ export default {
                         headers: {
                             'X-CSRFToken': this.getCSRFToken(),
                         },
+                        credentials: 'same-origin',
                     }
                 );
 
+                if (response.redirected) {
+                    throw new Error('Session expired — redirect to login');
+                }
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 // Remove from local array
                 this.treatmentExtras = this.treatmentExtras.filter(
-                    (extra) => extra.treatment_xtra_id !== treatmentExtraId
+                    (extra) => Number(extra.treatment_xtra_id) !== Number(treatmentExtraId)
                 );
 
                 this.$emit('extra-updated');
 
-                await swal.fire({
+                await Swal.fire({
                     icon: 'success',
                     title: 'Deleted!',
                     text: 'Treatment details deleted successfully',
@@ -242,7 +248,7 @@ export default {
                 });
             } catch (error) {
                 console.error('Error deleting treatment extra:', error);
-                await swal.fire({
+                await Swal.fire({
                     icon: 'error',
                     title: 'Delete Failed',
                     text: 'Failed to delete treatment details',
@@ -260,6 +266,9 @@ export default {
         refreshData() {
             this.loadTreatmentExtras();
         },
+    },
+    created() {
+        console.log('TreatmentExtrasTable created');
     },
     mounted() {
         this.loadTreatmentExtras();

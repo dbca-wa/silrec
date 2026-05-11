@@ -14,6 +14,16 @@ logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
+def _to_int_id(val):
+    """Convert a polygon_id value (possibly float from GeoDataFrame) to int."""
+    if val is None:
+        return None
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return val
+
+
 def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
     """
     Write GeoDataFrame to polygon table using Django ORM.
@@ -46,7 +56,7 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
     gdf_sorted['polygon_id'] = pd.to_numeric(gdf_sorted['polygon_id'], errors='coerce').fillna(0).astype(int)
 
     for idx, row in gdf_sorted.iterrows():
-        polygon_id = row['polygon_id']
+        polygon_id = _to_int_id(row['polygon_id'])
         poly_type = row.get('poly_type', 'OTHER')
 
         # Check if polygon_id already exists in the database
@@ -137,7 +147,7 @@ def _create_poly_type_map(gdf):
     priority_order = {'CUT': 1, 'BASE': 2}
 
     for _, row in gdf.iterrows():
-        pid = row['polygon_id']
+        pid = _to_int_id(row['polygon_id'])
         ptype = row['poly_type']
         current_prio = priority_order.get(ptype, 3)
 
@@ -178,7 +188,7 @@ def _insert_new_polygon(row, request_metrics, iter_seq):
 
     try:
         ply = Polygon.objects.create(
-            polygon_id=int(row['polygon_id']),
+            polygon_id=_to_int_id(row['polygon_id']),
             name=row['name'],
             compartment_id=row['compartment'],
             area_ha=row['area_ha'],
@@ -208,7 +218,7 @@ def _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq):
 
     try:
         ply = Polygon.objects.create(
-            polygon_id=int(new_polygon_id),
+            polygon_id=_to_int_id(new_polygon_id),
             name=row['name'],
             compartment_id=row['compartment'],
             area_ha=row['area_ha'],
@@ -235,7 +245,7 @@ def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
     Update an existing polygon record. Returns the updated object.
     """
     try:
-        poly = Polygon.objects.get(polygon_id=int(polygon_id))
+        poly = Polygon.objects.get(polygon_id=_to_int_id(polygon_id))
         poly_orig = deepcopy(poly)
 
         # deepcopy of a GEOS MultiPolygon with a single polygon may produce a
@@ -282,7 +292,7 @@ def _update_existing_polygon(row, polygon_id, request_metrics, iter_seq):
 def _get_next_polygon_id():
     """Return the next available polygon_id (max existing + 1)."""
     max_id = Polygon.objects.aggregate(models.Max('polygon_id'))['polygon_id__max']
-    return (int(max_id) or 0) + 1
+    return int(float(max_id or 0)) + 1
 
 
 def _prepare_for_json(obj):

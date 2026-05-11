@@ -438,56 +438,21 @@ export default {
             if (this.isOperatorUser && this.proposal) {
                 return this.canEditForStatus(this.proposal.processing_status);
             }
-            return true;
-            let display = false;
-
-            if (
-                [
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID,
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID,
-                ].includes(this.proposal.processing_status_id)
-            ) {
-                if (
-                    this.proposal.application_type.name ===
-                    constants.APPLICATION_TYPES.LEASE_LICENCE
-                ) {
-                    if (
-                        this.proposal.accessing_user_roles.includes(
-                            constants.ROLES.GROUP_NAME_ASSESSOR.ID
-                        )
-                    ) {
-                        display = true;
-                    }
-                } else if (
-                    this.proposal.application_type.name ===
-                    constants.APPLICATION_TYPES.REGISTRATION_OF_INTEREST
-                ) {
-                    if (
-                        this.proposal.accessing_user_roles.includes(
-                            constants.ROLES.GROUP_NAME_ASSESSOR.ID
-                        )
-                    ) {
-                        display = true;
-                    }
-                }
-            } else if (this.withReferral && this.profile.is_referee) {
-                display = true;
-            } else if (
-                [
-                    constants.PROPOSAL_STATUS.APPROVED_EDITING_INVOICING.ID,
-                ].includes(this.proposal.processing_status_id)
-            ) {
-                if (
+            return (
+                this.proposal &&
+                this.proposal.accessing_user_roles &&
+                (this.proposal.accessing_user_roles.includes(
+                    constants.ROLES.GROUP_NAME_ASSESSOR.ID
+                ) ||
+                    this.proposal.accessing_user_roles.includes(
+                        constants.ROLES.GROUP_NAME_REFERRAL.ID
+                    ) ||
                     this.proposal.accessing_user_roles.includes(
                         constants.ROLES.FINANCE.ID
-                    )
-                ) {
-                    display = true;
-                }
-            }
-
-            return display;
+                    ))
+            );
         },
+
         disableSaveAndContinueBtn: function () {
             // Is this needed?
             return !this.displaySaveBtns;

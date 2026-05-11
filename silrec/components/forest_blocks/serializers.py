@@ -587,10 +587,16 @@ class TreatmentXtraSerializer(serializers.ModelSerializer):
     def get_treatment_info(self, obj):
         """Get basic treatment information"""
         if obj.treatment:
+            cohort_id = None
+            try:
+                if obj.treatment.cohort_id and obj.treatment.cohort:
+                    cohort_id = obj.treatment.cohort.cohort_id
+            except Cohort.DoesNotExist:
+                pass
             return {
                 'treatment_id': obj.treatment.treatment_id,
                 'task_name': obj.treatment.task.task_name if obj.treatment.task else None,
-                'cohort_id': obj.treatment.cohort.cohort_id if obj.treatment.cohort else None,
+                'cohort_id': cohort_id,
             }
         return None
 
@@ -695,7 +701,7 @@ class TreatmentSerializer(serializers.ModelSerializer):
     # Foreign key fields (writeable)
     prescription_id = serializers.PrimaryKeyRelatedField(
         source='prescription',
-        queryset=Treatment.objects.all(),
+        queryset=Prescription.objects.all(),
         required=False,
         allow_null=True
     )
@@ -750,12 +756,15 @@ class TreatmentSerializer(serializers.ModelSerializer):
 
     def get_cohort_info(self, obj):
         """Get basic cohort information"""
-        if obj.cohort:
-            return {
-                'cohort_id': obj.cohort.cohort_id,
-                'obj_code': obj.cohort.obj_code,
-                'species': obj.cohort.species,
-            }
+        try:
+            if obj.cohort_id and obj.cohort:
+                return {
+                    'cohort_id': obj.cohort.cohort_id,
+                    'obj_code': obj.cohort.obj_code,
+                    'species': obj.cohort.species,
+                }
+        except Cohort.DoesNotExist:
+            pass
         return None
 
     def get_treatment_extras_count(self, obj):

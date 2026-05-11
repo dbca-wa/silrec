@@ -1477,11 +1477,11 @@ export default {
                 Swal.close();
 
                 if (!response.ok) {
-                    throw new Error(
-                        data.error ||
-                            data.message ||
-                            'Failed to process shapefile'
-                    );
+                    let msg = data.error || data.message || 'Failed to process shapefile';
+                    if (data.details && data.details.length) {
+                        msg += '\n' + data.details.join('\n');
+                    }
+                    throw new Error(msg);
                 }
 
                 if (data.success) {

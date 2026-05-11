@@ -559,7 +559,7 @@ class Operation(models.Model):
 
 
 class Polygon(models.Model):
-    polygon_id = models.AutoField(primary_key=True, db_comment='Primary key')
+    polygon_id = models.FloatField(primary_key=True, db_comment='Primary key')
     proposal = models.ForeignKey(
         Proposal, on_delete=models.CASCADE, related_name="polygons", blank=True, null=True
     )
@@ -567,9 +567,9 @@ class Polygon(models.Model):
     compartment = models.ForeignKey(Compartments, on_delete=models.CASCADE, db_column='compartment', db_comment='foreign key to compartment and blocks table')
     area_ha = models.FloatField(blank=True, null=True, db_comment='Area in ha of the polygon, as measured on flat/2D plane\nTrigger to calculate & populate ON UPDATE, ON CREATE')
     sp_code = models.ForeignKey(SpatialPrecisionLkp, on_delete=models.CASCADE, db_column='sp_code', blank=True, null=True, db_comment='Code for spatial precision of mapping or capture method\nforeign key to lookup table')
-    created_on = models.DateTimeField(blank=True, null=True, db_comment='Date/time of creation of the polygon in the SILREC database')
+    created_on = models.CharField(max_length=24, blank=True, null=True, db_comment='Date/time of creation of the polygon in the SILREC database')
     created_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person creating the polygon in the database')
-    updated_on = models.DateTimeField(blank=True, null=True, db_comment='date patch area was last changed')
+    updated_on = models.CharField(max_length=24, blank=True, null=True, db_comment='date patch area was last changed')
     updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person updating the patch area in the database')
     zclosed = models.DateField(blank=True, null=True, db_comment='Date when polygon is closed for activity; further work assigned to new, overlaying polygon\n\nALL open polygons (i.e. NOT CLOSED) should not overlap, i.e. planar enforcement')
     reason_closed = models.CharField(max_length=250, blank=True, null=True, db_comment='Reason for closure of polygon, usually system related (data restructure), major perturbation resulting in destruction of multiple stands (e.g. wildfire), or new management regime (e.g. FMP24)')

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
-def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
+def write_polygons_to_db(gdf_result, request_metrics, iter_seq):
     """
     Write GeoDataFrame to polygon table using Django ORM.
     Handles repeated polygon_ids, prioritizes poly_type (CUT > BASE > others),
@@ -56,10 +56,6 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
             # New polygon_id → insert
             ply = _insert_new_polygon(row, request_metrics, iter_seq)
             if ply:
-                # Add to revision if provided
-                if revision:
-                    revision.add_to_revision(ply)
-
                 ops_summary['new_records'] += 1
                 ops_summary['new_polygon_ids'].append(polygon_id)
                 gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id
@@ -73,10 +69,6 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
                     # Higher priority → update the existing record
                     ply = _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
                     if ply:
-                        # Add to revision if provided
-                        if revision:
-                            revision.add_to_revision(ply)
-
                         ops_summary['updated_records'] += 1
                         ops_summary['updated_polygon_ids'].append(polygon_id)
                         ops_summary['priority_updates'].append(polygon_id)
@@ -87,10 +79,6 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
                     new_polygon_id = _get_next_polygon_id()
                     ply = _insert_duplicate_polygon(row, new_polygon_id, request_metrics, iter_seq)
                     if ply:
-                        # Add to revision if provided
-                        if revision:
-                            revision.add_to_revision(ply)
-
                         ops_summary['new_records'] += 1
                         ops_summary['new_polygon_ids'].append(new_polygon_id)
                         gdf_result_with_ids.loc[idx, 'poly_id_new'] = new_polygon_id
@@ -99,10 +87,6 @@ def write_polygons_to_db(gdf_result, request_metrics, iter_seq, revision=None):
                 # First occurrence of this polygon_id in the input → update
                 ply = _update_existing_polygon(row, polygon_id, request_metrics, iter_seq)
                 if ply:
-                    # Add to revision if provided
-                    if revision:
-                        revision.add_to_revision(ply)
-
                     ops_summary['updated_records'] += 1
                     ops_summary['updated_polygon_ids'].append(polygon_id)
                     gdf_result_with_ids.loc[idx, 'poly_id_new'] = polygon_id

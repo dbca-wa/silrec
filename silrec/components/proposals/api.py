@@ -3769,7 +3769,6 @@ class ProcessShapefileView(APIView):
         Runs pg_dump before processing to capture a pre-processing snapshot.
         """
         try:
-            import reversion
             from django.db import transaction, DatabaseError
             from silrec.components.proposals.models import ShapefileProcessingRun, SavepointRecord, AuditLog, ShapefileProcessing
 
@@ -3784,25 +3783,24 @@ class ProcessShapefileView(APIView):
             processing_run, dump_info = self._run_pg_dump(proposal, user_id, threshold)
 
             # Process shapefile
-            if True:
-                ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
-                try:
-                    list_state = ssm.create_gdf(savepoint_callback=None)
+            ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
+            try:
+                list_state = ssm.create_gdf()
 
-                    geom_data = ssm.prep_proposal_data(list_state)
+                geom_data = ssm.prep_proposal_data(list_state)
 
-                    proposal.geojson_data_processed = json.loads(
-                        list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json()
-                    )
-                    proposal.geojson_data_hist = json.loads(
-                        list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json()
-                    )
-                    proposal.geojson_data_processed_iters = geom_data
-                    proposal.save()
+                proposal.geojson_data_processed = json.loads(
+                    list_state[0]['GDF_RESULT_COMBINED'].to_crs(settings.CRS).to_json()
+                )
+                proposal.geojson_data_hist = json.loads(
+                    list_state[0]['GDF_HIST'].to_crs(settings.CRS).to_json()
+                )
+                proposal.geojson_data_processed_iters = geom_data
+                proposal.save()
 
-                except Exception as e:
-                    logger.error(f"Error during shapefile processing: {str(e)}")
-                    raise
+            except Exception as e:
+                logger.error(f"Error during shapefile processing: {str(e)}")
+                raise
 
             warnings = []
             feature_count = len(proposal.geojson_data_processed['features'])
@@ -4150,4 +4148,3 @@ class ShapefileProcessingListView(APIView):
                 {'success': False, 'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-

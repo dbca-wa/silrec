@@ -3807,8 +3807,12 @@ class ProcessShapefileView(APIView):
                     proposal_id=proposal.id, threshold=threshold, user_id=user_id
                 )
                 savepoint_checksums = ssm.create_savepoint()
-                dump_info = None
-                processing_run = None
+                # Also run pg_dump as a precautionary secondary backup
+                try:
+                    processing_run, dump_info = self._run_pg_dump(proposal, user_id, threshold)
+                except Exception as dump_err:
+                    logger.warning('Secondary pg_dump failed (savepoint is the primary): %s', dump_err)
+                    processing_run, dump_info = None, None
             else:
                 processing_run, dump_info = self._run_pg_dump(proposal, user_id, threshold)
                 ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)

@@ -1,0 +1,74 @@
+shell_plus usage examples for ShapefileSliversMerger savepoint/revert
+=====================================================================
+
+Setup:
+
+    import geopandas as gpd
+    from silrec.utils.shapefile_silvers_merger import ShapefileSliversMerger
+    from silrec.utils.create_temp_tables import drop_prod_tables_django
+
+    gdf_shp_16 = gpd.read_file('silrec/utils/Shapefiles/demarcation_16_polygons/Demarcation_Boundary_16_polygons.shp')
+
+    drop_prod_tables_django()
+    !PGPASSWORD='<passwd>' pg_restore -h localhost -p 5432 -U dev -d silrec_test1 ../tmp/silrec_3tables_04May2026_v2.dump
+
+--- Demo 1: Run Processing then Revert (cross-request) ---
+
+    # --- Request 1: Run Processing (creates backup tables) ---
+    ssm = ShapefileSliversMerger(proposal_id=1, gdf_shpfile=gdf_shp_16, threshold=5, user_id=1)
+    checksums = ssm.create_savepoint()
+    # Creates silrec.baseline_polygon, silrec.baseline_cohort, silrec.baseline_assign_cht_to_ply
+    # These hold the pre-merge state and persist across HTTP requests
+
+    list_state = ssm.create_gdf()
+    # Tables silrec.polygon, silrec.cohort, silrec.assign_cht_to_ply are now modified
+
+    # Save checksums for later verification
+    saved_checksums = checksums
+    print('Backup checksums:', saved_checksums)
+
+    # --- Request 2: Revert (separate request) ---
+    ssm2 = ShapefileSliversMerger(proposal_id=1, gdf_shpfile=gdf_shp_16, threshold=5, user_id=1)
+    result = ssm2.revert_savepoint()
+    # Truncates + restores silrec.polygon, silrec.cohort, silrec.assign_cht_to_ply
+    # from silrec.baseline_* tables. Verifies MD5 checksums.
+
+    print(result)
+    # {
+    #   'success': True,
+    #   'checksums_match': True,
+    #   'tables': {
+    #     'silrec.polygon':           {row_count_before: ..., row_count_after: ..., checksum_before: ..., checksum_after: ..., match: True},
+    #     'silrec.cohort':            {match: True},
+    #     'silrec.assign_cht_to_ply': {match: True},
+    #   }
+    # }
+
+--- Demo 2: Run Processing then Keep (cleanup) ---
+
+    ssm3 = ShapefileSliversMerger(proposal_id=1, gdf_shpfile=gdf_shp_16, threshold=5, user_id=1)
+    ssm3.create_savepoint()
+    list_state = ssm3.create_gdf()
+    ssm3.keep_savepoint()
+    # Drops silrec.baseline_* tables. Changes are kept permanently.
+
+--- Demo 3: Inspect backup tables directly ---
+
+    from django.db import connection
+    with connection.cursor() as c:
+        for tbl in ['silrec.baseline_polygon', 'silrec.baseline_cohort', 'silrec.baseline_assign_cht_to_ply']:
+            c.execute(f"SELECT COUNT(*) FROM {tbl}")
+            print(f'{tbl}: {c.fetchone()[0]} rows')
+
+
+=================
+
+
+Savepoint data saved on disk.
+  ┃
+The savepoint data is stored in the database itself, specifically as backup tables in the silrec schema:
+                                                                                                                                                                                     - silrec.baseline_polygon                                                                                                                                                               silrec.baseline_cohort
+silrec.baseline_assign_cht_to_ply
+                                                                                                                                                                                       These are real Postgres tables created by CREATE TABLE ... LIKE ... INCLUDING ALL inside the silrec schema. They live alongside the
+original tables (silrec.polygon, etc.) and persist indefinitely until you drop them via keep_savepoint() or manually with DROP TABLE.
+                                                                                                                                                                                       No data is written to disk externally (no pg_dump files).

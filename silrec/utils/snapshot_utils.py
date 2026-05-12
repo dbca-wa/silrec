@@ -41,6 +41,100 @@ class SnapshotManager:
         if not os.path.exists(self.snapshot_dir):
             os.makedirs(self.snapshot_dir)
 
+    # ------------------------------------------------------------------ #
+    #  Postgres-driven dirty-table detection & baseline capture          #
+    # ------------------------------------------------------------------ #
+
+    def _capture_n_tuples(self):
+        """
+        Return dict of {schema.table: n_tup_mod} by querying
+        pg_stat_user_tables **in the current transaction**, so the
+        counts reflect what this session has dirtied so far.
+        """
+        with connection.cursor() as c:
+            c.execute("""
+                SELECT schemaname || '.' || relname, n_tup_ins + n_tup_upd + n_tup_del
+                FROM pg_stat_user_tables
+            """)
+            return dict(c.fetchall())
+
+    def _snapshot_full_table(self, table_name, schema='public'):
+        """Dump every row of a table as a list of JSON-safe dicts."""
+        with connection.cursor() as c:
+            c.execute(f'SELECT * FROM {schema}.{table_name}')
+            cols = [d[0] for d in c.description]
+            rows = []
+            for row in c.fetchall():
+                d = {}
+                for i, val in enumerate(row):
+                    if hasattr(val, 'isoformat'):
+                        val = val.isoformat()
+                    elif hasattr(val, 'wkb') or hasattr(val, 'wkt'):
+                        val = str(val)
+                    d[cols[i]] = val
+                rows.append(d)
+            return rows
+
+    def detect_dirtied_tables(self):
+        """
+        Snapshot n_tup_mod counters, then execute a no-op WAL flush so
+        the next read catches only subsequent writes, and return the
+        current counters as a baseline.
+
+        After running work, call diff_dirtied_tables(baseline) to get
+        the list of tables whose n_tup_mod counter advanced.
+
+        Usage:
+            sm = SnapshotManager()
+            before = sm.detect_dirtied_tables()
+            # ... run create_gdf() ...
+            dirty = sm.diff_dirtied_tables(before)
+            # dirty == ['public.polygon', 'public.cohort', ...]
+        """
+        return self._capture_n_tuples()
+
+    def diff_dirtied_tables(self, baseline):
+        """
+        Compare current n_tup_mod counters against *baseline* (a
+        dict returned by detect_dirtied_tables()) and return the list
+        of schema-qualified table names whose counter advanced.
+        """
+        after = self._capture_n_tuples()
+        return sorted(
+            tbl for tbl, cnt in after.items()
+            if cnt != baseline.get(tbl, 0)
+        )
+
+    def capture_baseline(self):
+        """
+        1. Detect which user tables were dirtied so far in this
+           session/transaction.
+        2. Snapshot every row from every table whose counter is > 0.
+        3. Return the full row-level dump keyed by table name, plus
+           the n_tup_mod counters so the caller can correlate later.
+
+        Because Postgres' pg_stat_user_tables reflects the *entire*
+        session, call this *immediately before* the code you want to
+        monitor (create_gdf), ideally right after opening a new
+        connection or transaction.
+
+        Returns
+        -------
+        dict with keys:
+            'tables'     : {table_name: [row_dict, ...], ...}
+            'n_tup_mod'  : {schema.table: int, ...}
+        """
+        baseline = {
+            'tables': {},
+            'n_tup_mod': self._capture_n_tuples(),
+        }
+        for tbl_key, cnt in baseline['n_tup_mod'].items():
+            if cnt == 0:
+                continue
+            schema, tbl = tbl_key.split('.', 1)
+            baseline['tables'][tbl] = self._snapshot_full_table(tbl, schema)
+        return baseline
+
     def get_affected_tables(self):
         """
         Return list of tables that are typically modified during shapefile processing
@@ -602,4 +696,3 @@ class SnapshotTestMixin:
                 comparison['summary']['total_changes'], 0,
                 f"Expected no changes but found {comparison['summary']['total_changes']}"
             )
-

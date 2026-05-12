@@ -3970,9 +3970,9 @@ class RevertShapefileProcessingView(APIView):
 
                 warnings_list = []
                 if not sv_result['checksums_match']:
-                    warnings_list.append(
-                        'Row counts match but content checksums differ '
-                        '(likely auto-generated timestamps). Data restored correctly.'
+                    logger.info(
+                        'Revert row counts OK but checksums differ for proposal %s',
+                        proposal_id
                     )
 
                 proposal.refresh_from_db()

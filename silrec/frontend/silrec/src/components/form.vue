@@ -1748,18 +1748,12 @@ export default {
                             var chkIcon = t.checksum_match ? '✅' : '⚠️';
                             tableRows += '<tr><td>' + tbl + '</td><td>' + t.row_count_before + '</td><td>' + t.row_count_after + '</td><td>' + rowIcon + '</td><td>' + chkIcon + '</td></tr>';
                         }
-                        var warningsHtml = '';
-                        if (data.warnings && data.warnings.length > 0) {
-                            warningsHtml = '<div style="margin: 10px 0; max-height: 100px; overflow-y: auto; font-size: 0.85em; color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px;"><ul style="margin: 0; padding-left: 20px;">' +
-                                data.warnings.map(function(w) { return '<li>' + w + '</li>'; }).join('') + '</ul></div>';
-                        }
                         await Swal.fire({
                             icon: v.success ? 'success' : 'warning',
                             title: v.success ? 'Revert Verified' : 'Revert Completed with Notes',
                             html: `
                                 <div style="text-align: center;">
                                     <p>${data.message || 'Database reverted via savepoint'}</p>
-                                    ${warningsHtml}
                                     <hr style="margin: 10px 0;">
                                     <div style="font-size: 0.85em; color: #495057; text-align: left;">
                                         <table style="width: 100%; border-collapse: collapse;">

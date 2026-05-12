@@ -17,6 +17,8 @@ archive/
 protected_media/
 _proposals/
 AGENTS.md
+main.js
+main.css
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

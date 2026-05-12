@@ -53,9 +53,9 @@ class ShapefileSliversMerger():
     plot_multi([list_state[0]['GDF_SHP'], list_state[0]['GDF_HIST'], list_state[0]['GDF_RESULT_COMBINED']])
 
     '''
-    def __init__(self, proposal_id, gdf_shpfile=None, threshold=None, user_id=None):
+    def __init__(self, proposal_id, gdf_shpfile=None, threshold=None, user_id=None, skip_shapefile=False):
         self.proposal_id = proposal_id
-        self.gdf_shpfile = self.get_shapefile(gdf_shpfile)
+        self.gdf_shpfile = None if skip_shapefile else self.get_shapefile(gdf_shpfile)
         self.threshold = threshold
         self.user_id = user_id
         self._snapshot_mgr = SnapshotManager()
@@ -299,27 +299,41 @@ class ShapefileSliversMerger():
 
             after = self._checksum_silrec_tables(cursor, self.BASELINE_TABLES)
 
+
+
         all_ok = True
+        all_checksums_ok = True
+        all_row_counts_ok = True
         tables_report = {}
         for tbl, bak in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
             b_cnt, b_chk = before.get(bak, (0, ''))
-            a_cnt, a_chk = after.get(bak, (0, ''))
-            match = (b_cnt == a_cnt and b_chk == a_chk)
-            if not match:
+            a_cnt, a_chk = after.get(tbl, (0, ''))
+            row_match = (b_cnt == a_cnt)
+            chk_match = (b_chk == a_chk)
+            full_match = row_match and chk_match
+            if not full_match:
                 all_ok = False
+            if not chk_match:
+                all_checksums_ok = False
+            if not row_match:
+                all_row_counts_ok = False
             tables_report[tbl] = {
                 'row_count_before': b_cnt,
                 'row_count_after':  a_cnt,
+                'row_match':        row_match,
                 'checksum_before':  b_chk,
                 'checksum_after':   a_chk,
-                'match':            match,
+                'checksum_match':   chk_match,
+                'match':            full_match,
             }
 
-        logger.info('Revert complete.  All OK: %s', all_ok)
+        logger.info('Revert complete.  All row counts OK: %s, all checksums OK: %s',
+                     all_row_counts_ok, all_checksums_ok)
         return {
-            'success':         all_ok,
-            'checksums_match': all_ok,
-            'tables':          tables_report,
+            'success':           all_ok,
+            'checksums_match':   all_checksums_ok,
+            'row_counts_match':  all_row_counts_ok,
+            'tables':            tables_report,
         }
 
     def keep_savepoint(self):

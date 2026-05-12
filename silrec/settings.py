@@ -46,6 +46,19 @@ OGR2OGR = env('OGR2OGR', '/usr/bin/ogr2ogr')
 
 SLIVER_AREALENGTH_THRESHOLD=5 # Polygon AREA/LENGTH
 
+REVERT_PGDUMP=env('REVERT_PGDUMP', False)
+REVERT_SAVEPOINT=env('REVERT_SAVEPOINT', True)
+
+if REVERT_PGDUMP and REVERT_SAVEPOINT:
+    raise ImproperlyConfigured(
+        'Only one of REVERT_PGDUMP / REVERT_SAVEPOINT can be True at a time.'
+    )
+if not REVERT_PGDUMP and not REVERT_SAVEPOINT:
+    raise ImproperlyConfigured(
+        'At least one of REVERT_PGDUMP / REVERT_SAVEPOINT must be True.'
+    )
+
+SLIVER_AREALENGTH_THRESHOLD=5 # Polygon AREA/LENGTH
 #KMI_SERVER_URL = env("KMI_SERVER_URL", "https://kmi.dbca.wa.gov.au")
 #
 #GIS_SERVER_URL = env(
@@ -423,4 +436,3 @@ TEMPLATE_HEADER_LOGO = "/static/silrec/img/logo-park-stay-trunc.gif"
 
 SHAPEFILE_PROCESSING_STORE = env('SHAPEFILE_PROCESSING_STORE', 'protected_media/shapefile_processing')
 SHAPEFILE_EXPORT_KEEP = env('SHAPEFILE_EXPORT_KEEP', 10)
-

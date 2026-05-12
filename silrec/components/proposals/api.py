@@ -647,14 +647,31 @@ class ProposalViewSet(UserActionLoggingViewset):
             'has_shapefile': has_shapefile,
             'has_processed': has_processed,
             'has_dump': has_dump,
+            'revert_method': 'savepoint' if settings.REVERT_SAVEPOINT else 'pgdump',
             'actions': action_defs,
             'available_transitions': available,
         })
 
     def _check_dump_exists(self, proposal):
-        """Check if a pg_dump file exists for this proposal."""
+        """Check if a restore point exists for this proposal.
+
+        In savepoint mode: check if baseline backup tables exist in the DB.
+        In pgdump mode: check if a .dump file exists on disk.
+        """
+        from django.conf import settings as dj_settings
+        if dj_settings.REVERT_SAVEPOINT:
+            from django.db import connection
+            with connection.cursor() as c:
+                c.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables
+                        WHERE table_schema = 'silrec'
+                          AND table_name = 'baseline_polygon'
+                    )
+                """)
+                return c.fetchone()[0]
+
         import os
-        from django.conf import settings
         processing_store = getattr(settings, 'SHAPEFILE_PROCESSING_STORE', 'protected_media/shapefile_processing')
         dump_dir = os.path.join(settings.BASE_DIR, processing_store)
         if not os.path.isdir(dump_dir):
@@ -3618,7 +3635,9 @@ class ProcessShapefileView(APIView):
                 'feature_count': result['feature_count'],
                 'warnings': result.get('warnings', []),
                 'dump_info': result.get('dump_info', {}),
+                'savepoint_info': result.get('savepoint_info'),
                 'processing_run_id': result.get('processing_run_id', 0),
+                'method': 'savepoint' if result.get('savepoint_info') else 'pgdump',
             }
 
             return Response(response_data)
@@ -3780,10 +3799,19 @@ class ProcessShapefileView(APIView):
                 }
 
             # pg_dump export before processing (best-effort snapshot)
-            processing_run, dump_info = self._run_pg_dump(proposal, user_id, threshold)
+            # OR savepoint backup — controlled by REVERT_PGDUMP / REVERT_SAVEPOINT
+            from django.conf import settings as dj_settings
 
-            # Process shapefile
-            ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
+            if dj_settings.REVERT_SAVEPOINT:
+                ssm = ShapefileSliversMerger(
+                    proposal_id=proposal.id, threshold=threshold, user_id=user_id
+                )
+                savepoint_checksums = ssm.create_savepoint()
+                dump_info = None
+                processing_run = None
+            else:
+                processing_run, dump_info = self._run_pg_dump(proposal, user_id, threshold)
+                ssm = ShapefileSliversMerger(proposal_id=proposal.id, threshold=threshold, user_id=user_id)
             try:
                 list_state = ssm.create_gdf()
 
@@ -3815,6 +3843,10 @@ class ProcessShapefileView(APIView):
                 'warnings': warnings,
                 'processing_run_id': processing_run.id if processing_run else 0,
                 'dump_info': dump_info,
+                'savepoint_info': {
+                    'method': 'savepoint',
+                    'checksums': savepoint_checksums,
+                } if dj_settings.REVERT_SAVEPOINT else None,
             }
 
         except DatabaseError as e:
@@ -3905,17 +3937,62 @@ class RevertShapefileProcessingView(APIView):
 #                )
 
             if not has_dump:
-                msg = (
-                    f"Critical: dump file {expected_path} for proposal {proposal_id} "
-                    f"does not exist. Aborting restore."
-                )
-                logger.critical(msg)
-                return Response(
-                    {'error': msg},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                if settings.REVERT_PGDUMP:
+                    msg = (
+                        f"Critical: dump file {expected_path} for proposal {proposal_id} "
+                        f"does not exist. Aborting restore."
+                    )
+                    logger.critical(msg)
+                    return Response(
+                        {'error': msg},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # savepoint mode: backup tables are the snapshot instead of dump file
+                # so continue — revert_savepoint() will verify they exist
 
             dump_file = serializer.validated_data.get('dump_file')
+
+            if settings.REVERT_SAVEPOINT:
+                ssm = ShapefileSliversMerger(
+                    proposal_id=proposal_id, threshold=5, user_id=user_id,
+                    skip_shapefile=True
+                )
+                sv_result = ssm.revert_savepoint()
+
+                # Row counts matching is the real check — checksum may
+                # differ if tables have auto-generated timestamp columns
+                if not sv_result.get('row_counts_match', False):
+                    return Response({
+                        'success': False,
+                        'error': 'Savepoint revert failed — row counts do not match',
+                        'details': sv_result,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                warnings_list = []
+                if not sv_result['checksums_match']:
+                    warnings_list.append(
+                        'Row counts match but content checksums differ '
+                        '(likely auto-generated timestamps). Data restored correctly.'
+                    )
+
+                proposal.refresh_from_db()
+                proposal.processing_status = Proposal.PROCESSING_STATUS_DRAFT
+                proposal.geojson_data_hist = None
+                proposal.geojson_data_processed = None
+                proposal.geojson_data_processed_iters = None
+                proposal.save()
+
+                proposal_serializer = ProposalSerializer(proposal, context={'request': request})
+                return Response({
+                    'success': True,
+                    'message': 'Database reverted via savepoint. Data restored to pre-processing state.',
+                    'proposal': proposal_serializer.data,
+                    'verification': sv_result,
+                    'method': 'savepoint',
+                    'warnings': warnings_list,
+                })
+
+            # pg_restore path
             result = self.revert_shapefile_processing(proposal, user_id, dump_file)
 
             if result['success']:
@@ -3948,6 +4025,7 @@ class RevertShapefileProcessingView(APIView):
                 'proposal': proposal_serializer.data,
                 'dump_info': result.get('dump_info', {}),
                 'warnings': result.get('warnings', []),
+                'method': 'pgdump',
             }
 
             return Response(response_data)

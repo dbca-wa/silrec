@@ -1385,13 +1385,13 @@ export default {
                         <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
                             <label for="threshold" style="font-weight: bold; min-width: 120px; text-align: right;">Threshold Value:</label>
                             <div style="flex: 1;">
-                                <input 
-                                    type="number" 
-                                    id="threshold" 
-                                    class="swal2-input" 
-                                    value="5.0" 
-                                    min="0.1" 
-                                    max="100" 
+                                <input
+                                    type="number"
+                                    id="threshold"
+                                    class="swal2-input"
+                                    value="5.0"
+                                    min="0.1"
+                                    max="100"
                                     step="0.1"
                                     style="width: 100%; margin: 0;"
                                 >
@@ -1647,18 +1647,21 @@ export default {
         },
 
         openRevertDialog: function () {
+            var isSavepoint = this.workflowOptions &&
+                this.workflowOptions.revert_method === 'savepoint';
+            var methodLabel = isSavepoint ? 'savepoint backup' : 'pg_dump backup';
             Swal.fire({
                 title: 'Revert Changes',
                 html:
                     '<div style="text-align: left;">' +
                     '<p style="font-size: 0.9em; color: #6c757d; margin-bottom: 10px;">' +
-                    'This will restore the database from the most recent pg_dump backup for this proposal.' +
+                    'This will restore the database from the most recent ' + methodLabel + ' for this proposal.' +
                     '</p>' +
                     '<p>Are you sure you want to revert all changes made by the last shapefile processing operation?</p>' +
                     '<p style="font-weight: bold; color: #dc3545;">This action cannot be undone!</p>' +
                     '<p>This will:</p>' +
                     '<ul style="margin-top: 5px;">' +
-                    '<li>Restore the database to its state before processing via pg_restore</li>' +
+                    '<li>Restore the database to its state before processing</li>' +
                     '<li>Remove any new polygons and cohorts created</li>' +
                     '<li>Restore original geometry data</li>' +
                     '</ul>' +
@@ -1685,9 +1688,16 @@ export default {
             this.revertError = null;
 
             // Show processing dialog during the restore
+            var isSavepoint = this.workflowOptions &&
+                this.workflowOptions.revert_method === 'savepoint';
+            var progressTitle = isSavepoint ? 'Reverting via Savepoint' : 'Restoring Database';
+            var progressHtml = isSavepoint
+                ? 'Restoring baseline tables from savepoint backup. This may take a moment...'
+                : 'Running pg_restore from the pg_dump backup. This may take a moment...';
+
             Swal.fire({
-                title: 'Restoring Database',
-                html: 'Running pg_restore from the pg_dump backup. This may take a moment...',
+                title: progressTitle,
+                html: progressHtml,
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
@@ -1729,22 +1739,73 @@ export default {
                 }
 
                 if (data.success) {
-                    // Show warnings if present
-                    if (data.warnings && data.warnings.length > 0) {
+                    if (data.method === 'savepoint' && data.verification) {
+                        var v = data.verification;
+                        var tableRows = '';
+                        for (var tbl in v.tables) {
+                            var t = v.tables[tbl];
+                            var rowIcon = t.row_match ? '✅' : '❌';
+                            var chkIcon = t.checksum_match ? '✅' : '⚠️';
+                            tableRows += '<tr><td>' + tbl + '</td><td>' + t.row_count_before + '</td><td>' + t.row_count_after + '</td><td>' + rowIcon + '</td><td>' + chkIcon + '</td></tr>';
+                        }
+                        var warningsHtml = '';
+                        if (data.warnings && data.warnings.length > 0) {
+                            warningsHtml = '<div style="margin: 10px 0; max-height: 100px; overflow-y: auto; font-size: 0.85em; color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px;"><ul style="margin: 0; padding-left: 20px;">' +
+                                data.warnings.map(function(w) { return '<li>' + w + '</li>'; }).join('') + '</ul></div>';
+                        }
                         await Swal.fire({
-                            icon: 'warning',
-                            title: 'Restore Completed with Warnings',
+                            icon: v.success ? 'success' : 'warning',
+                            title: v.success ? 'Revert Verified' : 'Revert Completed with Notes',
                             html: `
-                                <div style="text-align: left;">
-                                    <p>${data.message || 'Database restored with warnings'}</p>
-                                    <div style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
-                                        <ul style="margin: 0; padding-left: 20px;">
-                                            ${data.warnings.map((w) => `<li style="font-size: 0.9em;">${w}</li>`).join('')}
-                                        </ul>
+                                <div style="text-align: center;">
+                                    <p>${data.message || 'Database reverted via savepoint'}</p>
+                                    ${warningsHtml}
+                                    <hr style="margin: 10px 0;">
+                                    <div style="font-size: 0.85em; color: #495057; text-align: left;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead><tr style="border-bottom: 1px solid #dee2e6;">
+                                                <th style="padding: 4px 8px; text-align: left;">Table</th>
+                                                <th style="padding: 4px 8px; text-align: right;">Rows Before</th>
+                                                <th style="padding: 4px 8px; text-align: right;">Rows After</th>
+                                                <th style="padding: 4px 8px; text-align: center;">Rows</th>
+                                                <th style="padding: 4px 8px; text-align: center;">Checksum</th>
+                                            </tr></thead>
+                                            <tbody>${tableRows}</tbody>
+                                        </table>
                                     </div>
                                 </div>
                             `,
-                            confirmButtonColor: '#ffc107',
+                            confirmButtonColor: v.success ? '#28a745' : '#ffc107',
+                        });
+                    } else if (data.warnings && data.warnings.length > 0) {
+                        var v = data.verification;
+                        var tableRows = '';
+                        for (var tbl in v.tables) {
+                            var t = v.tables[tbl];
+                            var icon = t.match ? '✅' : '❌';
+                            tableRows += '<tr><td>' + tbl + '</td><td>' + t.row_count_before + '</td><td>' + t.row_count_after + '</td><td>' + icon + '</td></tr>';
+                        }
+                        await Swal.fire({
+                            icon: v.success ? 'success' : 'error',
+                            title: v.success ? 'Revert Verified' : 'Revert Verification Failed',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p>${data.message || 'Database reverted via savepoint'}</p>
+                                    <hr style="margin: 10px 0;">
+                                    <div style="font-size: 0.85em; color: #495057; text-align: left;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead><tr style="border-bottom: 1px solid #dee2e6;">
+                                                <th style="padding: 4px 8px; text-align: left;">Table</th>
+                                                <th style="padding: 4px 8px; text-align: right;">Rows Before</th>
+                                                <th style="padding: 4px 8px; text-align: right;">Rows After</th>
+                                                <th style="padding: 4px 8px; text-align: center;">Match</th>
+                                            </tr></thead>
+                                            <tbody>${tableRows}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonColor: v.success ? '#28a745' : '#dc3545',
                         });
                     } else {
                         await Swal.fire({
@@ -1770,7 +1831,6 @@ export default {
                                 </div>
                             `,
                             confirmButtonColor: '#28a745',
-                            //timer: 6000
                         });
                     }
 

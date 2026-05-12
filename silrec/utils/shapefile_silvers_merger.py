@@ -44,7 +44,7 @@ class ShapefileSliversMerger():
 
 
     drop_prod_tables_django()
-    !PGPASSWORD='dev123' pg_restore -h localhost -p 5432 -U dev -d silrec_test3 silrec_3tables_14Mar2026.dump
+    !PGPASSWORD='<passwd>' pg_restore -h localhost -p 5432 -U dev -d silrec_test3 silrec_3tables_14Mar2026.dump
     ssm = ShapefileSliversMerger(proposal_id=1, gdf_shpfile=gdf_shp_16, threshold=5, user_id=1)
     list_state = ssm.create_gdf()
 
@@ -199,13 +199,15 @@ class ShapefileSliversMerger():
             try:
                 # Start a transaction with reversion
                 with transaction.atomic():
-                    with reversion.create_revision() as revision:
+                    #with reversion.create_revision() as revision:
+                    revision=None
+                    if True:
                         # Create a single polygon GeoDataFrame
                         self.gdf_single = gpd.GeoDataFrame([row], geometry=[row.geometry], crs=settings.CRS_GDA94)
                         self.gdf_single = self.set_data(self.gdf_single, poly_type='BASE')
 
                         target_ba = float(self.gdf_single.iloc[0].target_ba_)
-                        import ipdb; ipdb.set_trace()
+                        #import ipdb; ipdb.set_trace()
                         obj_code = self.gdf_single.iloc[0].obj_code
                         try:
                             obj_code_lkp = ObjectiveLkp.objects.get(obj_code__contains=obj_code)
@@ -234,7 +236,6 @@ class ShapefileSliversMerger():
 
                         # Assemble result with cohort data
                         gdf_result = self.assemble_gdf_result(gdf_result, gdf_hist, cohort_id, op_id, idx_count, revision)
-                        gdf_result['poly_id_new'] = pd.to_numeric(gdf_result['poly_id_new'], errors='coerce').fillna(0).astype(int)
 
                         # Get initial cohort data
                         gdf_cht_init, cohort_gdf_init = self.merge_cohort_data_init(gdf_result, gdf_hist)
@@ -257,7 +258,7 @@ class ShapefileSliversMerger():
                             logger.info(f"Updated iteration {idx_count} with planar-fixed geometries")
 
                         # Set reversion comment
-                        reversion.set_comment(f'Shapefile processing iteration {idx_count} for proposal {self.proposal_id}')
+                        #reversion.set_comment(f'Shapefile processing iteration {idx_count} for proposal {self.proposal_id}')
 
             except Exception as e:
                 # Something went wrong in this iteration
@@ -846,7 +847,6 @@ class ShapefileSliversMerger():
         gdf_result['name'] = joined_reset['name'].values
         gdf_result['compartment'] = joined_reset['compartment'].values
         gdf_result['sp_code'] = joined_reset['sp_code'].values
-        gdf_result['polygon_id'] = gdf_result['polygon_id'].fillna(0).astype(int)
         gdf_result['area_ha'] = gdf_result.area/10000
         gdf_result['proposal_id'] = self.proposal_id
         gdf_result.drop(
@@ -891,5 +891,10 @@ class ShapefileSliversMerger():
         # Add new column cht_type
         gdf_result['cht_type'] = 'NEW' # initialize column
         gdf_result.loc[gdf_result['cht_id_cur']==gdf_result['cht_id_new'], 'cht_type'] = 'ORIG' # assign to new cohort
+
+        # Cast all integer ID columns to int (DB double-precision values come as float)
+        for col in gdf_result.columns:
+            if col.endswith('_id') or col in ('polygon_id', 'poly_id_new', 'cohort_id'):
+                gdf_result[col] = pd.to_numeric(gdf_result[col], errors='coerce').fillna(0).astype(int)
 
         return gdf_result

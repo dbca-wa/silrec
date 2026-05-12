@@ -2,6 +2,7 @@
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models import PolygonField, MultiPolygonField
 from django.conf import settings
+from datetime import datetime
 
 from silrec.components.lookups.models import (
     CohortMetricsLkp,
@@ -573,6 +574,30 @@ class Polygon(models.Model):
     updated_by = models.CharField(max_length=50, blank=True, null=True, db_comment='user ID of person updating the patch area in the database')
     zclosed = models.DateField(blank=True, null=True, db_comment='Date when polygon is closed for activity; further work assigned to new, overlaying polygon\n\nALL open polygons (i.e. NOT CLOSED) should not overlap, i.e. planar enforcement')
     reason_closed = models.CharField(max_length=250, blank=True, null=True, db_comment='Reason for closure of polygon, usually system related (data restructure), major perturbation resulting in destruction of multiple stands (e.g. wildfire), or new management regime (e.g. FMP24)')
+
+    _DATETIME_FMTS = ('%Y/%m/%d %H:%M:%S.%f', '%Y/%m/%d %H:%M:%S',
+                      '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._normalize_legacy_columns()
+
+    def _normalize_legacy_columns(self):
+        if not isinstance(self.polygon_id, int):
+            self.polygon_id = int(self.polygon_id)
+        for fname in ('created_on', 'updated_on'):
+            val = getattr(self, fname)
+            if isinstance(val, str):
+                for fmt in self._DATETIME_FMTS:
+                    try:
+                        setattr(self, fname, datetime.strptime(val, fmt))
+                        break
+                    except ValueError:
+                        continue
+
+    def save(self, *args, **kwargs):
+        self._normalize_legacy_columns()
+        super().save(*args, **kwargs)
     zcoupeid = models.CharField(db_column='zcoupeid', max_length=5, blank=True, null=True)  # Field name made lowercase.
     zstandno = models.CharField(db_column='zstandno', max_length=5, blank=True, null=True)  # Field name made lowercase.
     zmslink = models.FloatField(db_column='zmslink', blank=True, null=True)  # Field name made lowercase.
@@ -1128,4 +1153,3 @@ register(FpcHarvestTracker, follow=[])
 #register(TmpPolygon, follow=['proposal', 'compartment', 'sp_code'])
 #register(TmpAssignChtToPly, follow=['polygon', 'cohort', 'op'])
 #register(TmpCohort, follow=['regen_method', 'vrp'])
-

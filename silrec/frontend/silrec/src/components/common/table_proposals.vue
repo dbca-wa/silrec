@@ -465,11 +465,9 @@ export default {
                     let links = '';
                     if (vm.is_internal) {
                         if (full.accessing_user_can_process) {
-                            links += `<a href='/internal/proposal/${full.id}'>Process</a><br/>`;
-                        } else if (full.can_edit_invoicing_details) {
-                            links += `<a href='/internal/proposal/${full.id}'>Edit Invoicing</a><br/>`;
+                            links += `<a href='/internal/proposal/${full.id}' class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i> Process</a> `;
                         } else {
-                            links += `<a href='/internal/proposal/${full.id}'>View</a><br/>`;
+                            links += `<a href='/internal/proposal/${full.id}' class="btn btn-sm btn-outline-info me-1"><i class="bi bi-eye"></i> View</a> `;
                         }
                     }
                     if (vm.is_external) {

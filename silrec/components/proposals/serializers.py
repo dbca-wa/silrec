@@ -362,6 +362,7 @@ class ListProposalSerializer(BaseProposalSerializer):
     #submitter = serializers.SerializerMethodField(read_only=True)
     processing_status_id = serializers.SerializerMethodField(read_only=True)
     proposalgeometry = serializers.SerializerMethodField(read_only=True)
+    accessing_user_can_process = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
@@ -384,7 +385,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             #"can_officer_process",
             #"allowed_assessors",
             "proposal_type",
-            #"accessing_user_can_process",
+            "accessing_user_can_process",
             #"groups",
             "proposalgeometry",
         )
@@ -402,11 +403,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             "previous_application",
             "lodgement_date",
             "lodgement_number",
-            #"can_user_edit",
-            #"can_user_view",
-            #"can_officer_process",
-            #"accessing_user_can_process",
-            #"groups",
+            "accessing_user_can_process",
         )
 
     def get_submitter(self, obj):
@@ -422,6 +419,23 @@ class ListProposalSerializer(BaseProposalSerializer):
     def get_proposalgeometry(self, obj):
         # TODO - JM
         return {}
+
+    def get_accessing_user_can_process(self, obj):
+        user = self.context['request'].user
+        if hasattr(user, 'is_superuser') and user.is_superuser:
+            return True
+        try:
+            from silrec.helpers import is_internal
+            if not is_internal(self.context['request']):
+                return False
+            groups = list(user.groups.values_list('name', flat=True))
+            if 'Silrec Admin' in groups:
+                return True
+            if 'Operator' in groups or 'Assessor' in groups:
+                return True
+            return False
+        except Exception:
+            return False
 
 
 class SQLReportSerializer(serializers.ModelSerializer):
@@ -855,4 +869,3 @@ class FormValidationRuleSerializer(serializers.ModelSerializer):
             'rule_id', 'model_name', 'field_name', 'field_label',
             'is_required', 'status_field', 'status_values', 'order', 'is_active',
         ]
-

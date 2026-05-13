@@ -20,6 +20,7 @@
 ## Detailed Breakdown
 
 ### User (`isReadOnlyUser = true`)
+- src/components/form.vue
 - **All statuses**: Read-only.
 - Form fields: greyed-out / disabled.
 - Action buttons: None visible. No Upload/Process/Revert/Keep/Delete shapefile buttons. No Add/Create/Save/Cancel buttons. No workflow transition buttons.

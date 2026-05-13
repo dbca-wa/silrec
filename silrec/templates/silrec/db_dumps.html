@@ -1,0 +1,113 @@
+{% extends 'silrec/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>Database Exports</h2>
+            <hr>
+
+            <details class="mb-3" style="font-size: 0.9em;">
+                <summary class="text-muted" style="cursor: pointer;">
+                    <i class="bi bi-info-circle"></i> Retention policy
+                </summary>
+                <div class="alert alert-info py-2 px-3 mt-2 mb-0">
+                    Exports from the last <strong>14 days</strong> are kept.<br>
+                    First-business-day export from each of the last
+                    <strong>9 months</strong> is kept.<br>
+                    Older exports are automatically removed by the
+                    <code>db_dump</code> management command.
+                </div>
+            </details>
+
+            {% if request.user.is_superuser %}
+            <div class="mb-3">
+                <button id="create-dump-btn" class="btn btn-primary" onclick="createDump()">
+                    <i class="bi bi-cloud-arrow-down"></i> Create New DB Export
+                </button>
+                <span id="dump-status" class="ms-3" style="display:none;"></span>
+            </div>
+            {% endif %}
+
+            {% if dump_dir_exists %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Size</th>
+                            <th>Modified</th>
+                            <th>Download</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in dumps %}
+                        <tr>
+                            <td>{{ d.filename }}</td>
+                            <td>{{ d.size }}</td>
+                            <td>{{ d.modified }}</td>
+                            <td>
+                                <a href="{% url 'db-dump-download' d.filename %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-muted">No dump files found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-info">
+                    <code>db_dumps/</code> directory does not exist yet.
+                    {% if request.user.is_superuser %}
+                        Click <strong>Create New DB Export</strong> to generate the first backup.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if request.user.is_superuser %}
+<script>
+function createDump() {
+    var btn = document.getElementById('create-dump-btn');
+    var status = document.getElementById('dump-status');
+    btn.disabled = true;
+    status.style.display = 'inline';
+    status.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting database...';
+    status.className = 'ms-3 text-info';
+
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            status.innerHTML = '<i class="bi bi-check-circle"></i> Dump created — reloading...';
+            status.className = 'ms-3 text-success';
+            setTimeout(function() { location.reload(); }, 1000);
+        } else {
+            status.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Failed: ' + (data.error || 'unknown error');
+            status.className = 'ms-3 text-danger';
+            btn.disabled = false;
+        }
+    })
+    .catch(function(err) {
+        status.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Request failed: ' + err.message;
+        status.className = 'ms-3 text-danger';
+        btn.disabled = false;
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

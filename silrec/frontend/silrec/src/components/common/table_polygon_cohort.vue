@@ -136,6 +136,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        readonly: {
+            type: Boolean,
+            default: false,
+        },
     },
     data() {
         return {
@@ -336,13 +340,15 @@ export default {
                                 row.assigned_cohorts.length > 0
                                     ? row.assigned_cohorts[0].cohort
                                     : null;
-                            console.log(
-                                'JM 8: ' + JSON.stringify(row.proposal_id)
-                            );
 
                             if (cohortId) {
-                                actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">
-                                <i class="bi bi-pencil"></i> Edit 1</a>`;
+                                if (vm.readonly) {
+                                    actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-info me-1" title="View Cohort">
+                                    <i class="bi bi-eye"></i> View</a>`;
+                                } else {
+                                    actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">
+                                    <i class="bi bi-pencil"></i> Edit</a>`;
+                                }
                             } else {
                                 actions += `<button class="btn btn-sm btn-outline-secondary me-1" disabled title="No Cohort Assigned">
                                 <i class="bi bi-pencil"></i> Edit</button>`;

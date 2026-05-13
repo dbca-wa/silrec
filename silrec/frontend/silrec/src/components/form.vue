@@ -264,6 +264,7 @@
                 :navbar-buttons-disabled="navbarButtonsDisabled"
                 :saving-features="savingInProgress"
                 level="internal"
+                :polygon-cohort-readonly="isReadOnlyUser"
                 :map-info-text="
                     is_internal
                         ? ''
@@ -689,6 +690,7 @@ export default {
         },
         // Only show shapefile actions in draft or processing_shapefile status
         showShapefileActions: function () {
+            if (this.isReadOnlyUser) return false;
             if (this.isReviewerUser) return false;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return false;
@@ -696,9 +698,10 @@ export default {
             return s === 'draft' || s === 'processing_shapefile';
         },
         shapefileDisabled: function () {
-            if (!this.isOperatorUser && !this.isAssessorUser) return false;
+            if (this.isReadOnlyUser) return true;
+            if (!this.isOperatorUser && !this.isAssessorUser) return true;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
-                return false;
+                return true;
             return (
                 this.workflowOptions.current_status === 'processing_shapefile'
             );

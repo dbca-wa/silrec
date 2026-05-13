@@ -427,6 +427,7 @@
                 ref="polygonCohortTable"
                 :proposalId="currentProposalId"
                 :initialVisible="showDataTable"
+                :readonly="polygonCohortReadonly"
                 @polygon-selected="onPolygonSelected"
                 @zoom-to-polygon="onZoomToPolygon"
             />
@@ -488,6 +489,10 @@ export default {
         context: {
             type: Object,
             default: null,
+        },
+        polygonCohortReadonly: {
+            type: Boolean,
+            default: false,
         },
     },
     emits: [

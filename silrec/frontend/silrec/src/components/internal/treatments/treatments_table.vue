@@ -527,7 +527,7 @@ export default {
                 </button>`;
                             } else {
                                 actions += `<a href="/internal/treatment/${data}" class="btn btn-sm btn-outline-info" title="View Treatment">
-                  <i class="bi bi-eye"></i>
+                  <i class="bi bi-eye"></i> View
                 </a>`;
                             }
                             return actions;

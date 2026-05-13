@@ -23,6 +23,8 @@ from silrec.components.proposals import api as proposal_api
 
 from silrec.components.forest_blocks import views as forest_blocks_views
 
+from silrec.views import DbDumpListView, DbDumpDownloadView
+
 # API patterns
 router = routers.DefaultRouter()
 router.include_root_view = False
@@ -223,3 +225,9 @@ if settings.SHOW_DEBUG_TOOLBAR:
     urlpatterns = [
         *urlpatterns,
     ] + debug_toolbar_urls()
+
+# DB dump management
+urlpatterns += [
+    re_path(r'^mgt-commands/db-dumps/$', DbDumpListView.as_view(), name='db-dump-list'),
+    re_path(r'^mgt-commands/db-dumps/download/(?P<filename>.+)$', DbDumpDownloadView.as_view(), name='db-dump-download'),
+]

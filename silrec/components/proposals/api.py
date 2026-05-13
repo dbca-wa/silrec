@@ -37,6 +37,27 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, B
 
 import json
 import pandas as pd
+
+from silrec.components.proposals.models import Proposal
+
+
+def _get_processing_lock_info(exclude_proposal_id=None):
+    """
+    Return (locked_by_proposal, locked_by_lodgement) tuple.
+
+    If another proposal (not *exclude_proposal_id*) has
+    processing_status='processing_shapefile', that proposal is
+    holding the lock.  Returns (None, None) when no lock is held.
+    """
+    qs = Proposal.objects.filter(
+        processing_status=Proposal.PROCESSING_STATUS_PROCESSING_SHAPEFILE
+    )
+    if exclude_proposal_id is not None:
+        qs = qs.exclude(id=exclude_proposal_id)
+    locked = qs.first()
+    if locked is None:
+        return None, None
+    return locked.id, locked.lodgement_number or f'#{locked.id}'
 from shapely import wkt
 import io
 from reportlab.pdfgen import canvas
@@ -526,6 +547,17 @@ class ProposalViewSet(UserActionLoggingViewset):
         """
         proposal = self.get_object()
         current_status = proposal.processing_status
+
+        # Check global lock: another proposal in processing_shapefile blocks actions
+        locked_by_id, locked_by_lodgement = _get_processing_lock_info(
+            exclude_proposal_id=proposal.id
+        )
+        is_locked = locked_by_id is not None
+        lock_msg = (
+            f'Not permitted — locked by proposal {locked_by_lodgement}'
+            if is_locked else ''
+        )
+
         has_shapefile = bool(proposal.shapefile_json)
         has_processed = bool(
             proposal.geojson_data_processed or
@@ -537,26 +569,28 @@ class ProposalViewSet(UserActionLoggingViewset):
         action_defs = {
             'upload_shapefile': {
                 'label': 'Upload Shapefile',
-                'enabled': current_status in ['draft'], #, 'processing_shapefile'],
-                #'reason': '' if current_status in ['draft', 'processing_shapefile'] else 'Upload only allowed in Draft/Processing Shapefile status',
-                'reason': '' if current_status in ['draft'] else 'Upload only allowed in Draft status',
+                'enabled': current_status in ['draft'] and not is_locked,
+                'reason': lock_msg if is_locked else ('' if current_status in ['draft'] else 'Upload only allowed in Draft status'),
             },
             'process_shapefile': {
                 'label': 'Process Shapefile',
-                'enabled': has_shapefile and current_status == 'draft',
-                'reason': '' if has_shapefile and current_status == 'draft'
+                'enabled': has_shapefile and current_status == 'draft' and not is_locked,
+                'reason': lock_msg if is_locked
+                    else ('' if has_shapefile and current_status == 'draft'
                     else ('' if has_shapefile else 'Upload a shapefile first'
-                    if current_status != 'draft' else ''),
+                    if current_status != 'draft' else '')),
             },
             'revert': {
                 'label': 'Revert',
-                'enabled': current_status == 'processing_shapefile',
-                'reason': '' if current_status == 'processing_shapefile' else 'Only available after processing',
+                'enabled': current_status == 'processing_shapefile' and not is_locked,
+                'reason': lock_msg if is_locked
+                    else ('' if current_status == 'processing_shapefile' else 'Only available after processing'),
             },
             'keep': {
                 'label': 'Keep',
-                'enabled': current_status == 'processing_shapefile',
-                'reason': '' if current_status == 'processing_shapefile' else 'Only available after processing',
+                'enabled': current_status == 'processing_shapefile' and not is_locked,
+                'reason': lock_msg if is_locked
+                    else ('' if current_status == 'processing_shapefile' else 'Only available after processing'),
             },
         }
 
@@ -584,6 +618,11 @@ class ProposalViewSet(UserActionLoggingViewset):
 
         if request.method == 'POST':
             transition_key = request.data.get('transition')
+
+            # Lock check: if this is a locked action, reject it server-side
+            if is_locked and transition_key in ('keep', 'to_processing_shapefile'):
+                return Response({'error': lock_msg}, status=423)
+
             if not transition_key:
                 return Response({'error': 'Transition key is required'}, status=400)
 
@@ -648,6 +687,8 @@ class ProposalViewSet(UserActionLoggingViewset):
             'has_processed': has_processed,
             'has_dump': has_dump,
             'revert_method': 'savepoint' if settings.REVERT_SAVEPOINT else 'pgdump',
+            'is_locked': is_locked,
+            'locked_by_lodgement': locked_by_lodgement if is_locked else None,
             'actions': action_defs,
             'available_transitions': available,
         })
@@ -3604,6 +3645,16 @@ class ProcessShapefileView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Global lock: only one proposal may be processed at a time
+            locked_by_id, locked_by_lodgement = _get_processing_lock_info(
+                exclude_proposal_id=proposal.id
+            )
+            if locked_by_id is not None:
+                return Response(
+                    {'error': f'Not permitted — locked by proposal {locked_by_lodgement}'},
+                    status=status.HTTP_423_LOCKED
+                )
+
             # Update processing status to indicate shapefile processing
             proposal.processing_status = Proposal.PROCESSING_STATUS_PROCESSING_SHAPEFILE
             proposal.save()
@@ -3905,6 +3956,16 @@ class RevertShapefileProcessingView(APIView):
                     'has_dump': has_dump,
                     'dump_filename': expected_dump if has_dump else None,
                 })
+
+            # Global lock: only the proposal in processing_shapefile may revert
+            locked_by_id, locked_by_lodgement = _get_processing_lock_info(
+                exclude_proposal_id=proposal_id
+            )
+            if locked_by_id is not None:
+                return Response(
+                    {'error': f'Not permitted — locked by proposal {locked_by_lodgement}'},
+                    status=status.HTTP_423_LOCKED
+                )
 
             logger.info(
                 f"Revert requested for proposal {proposal_id} by user {user_id}"

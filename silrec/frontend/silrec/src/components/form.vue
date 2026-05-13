@@ -33,7 +33,7 @@
                     >
                         <i class="bi bi-download"></i>
                     </a>
-                </div>
+                        </div>
 
                 <div v-if="showShapefileActions" class="upload-controls">
                     <div class="d-flex align-items-center flex-wrap">
@@ -92,6 +92,19 @@
                             </button>
                         </div>
 
+                        <!-- Lock banner when another proposal is processing -->
+                        <div
+                            v-if="isLocked"
+                            class="alert alert-warning py-2 px-3 mb-2 ms-auto d-flex align-items-center gap-2"
+                            style="font-size: 0.9em; width: fit-content;"
+                        >
+                            <i class="bi bi-lock-fill"></i>
+                            <span>
+                                Shapefile Processing Not Permitted — locked by proposal
+                                <strong>{{ lockedByLodgement }}</strong>
+                            </span>
+                        </div>
+
                         <!-- Shapefile action buttons -->
                         <div class="ms-auto d-flex gap-2">
                             <button
@@ -100,6 +113,7 @@
                                 @click="openRevertDialog"
                                 :disabled="revertBtnDisabled"
                                 :title="revertBtnTitle"
+                                style="min-width: 100px;"
                             >
                                 <i
                                     class="bi bi-arrow-counterclockwise me-2"
@@ -121,6 +135,7 @@
                                 @click="keepProcessing"
                                 :disabled="keepBtnDisabled"
                                 :title="keepBtnTitle"
+                                style="min-width: 100px;"
                             >
                                 <i class="bi bi-check-lg me-2"></i>
                                 <span v-if="keepingShapefile">
@@ -140,6 +155,7 @@
                                 @click="openProcessDialog"
                                 :disabled="processBtnDisabled"
                                 :title="processBtnTitle"
+                                style="min-width: 100px;"
                             >
                                 <i class="bi bi-gear me-2"></i>
                                 <span v-if="processingShapefile">
@@ -693,6 +709,14 @@ export default {
             return this.workflowOptions && this.workflowOptions.actions
                 ? this.workflowOptions.actions
                 : {};
+        },
+        isLocked: function () {
+            return this.workflowOptions && this.workflowOptions.is_locked === true;
+        },
+        lockedByLodgement: function () {
+            return this.workflowOptions
+                ? this.workflowOptions.locked_by_lodgement
+                : null;
         },
         processBtnEnabled: function () {
             return (

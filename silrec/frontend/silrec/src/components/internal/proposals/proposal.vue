@@ -215,6 +215,7 @@
                     </div>
 
                     <!-- Right side - Save buttons -->
+		    <!--
                     <div class="col-md-6 text-end">
                         <BootstrapButtonSpinner
                             v-if="savingProposal"
@@ -248,6 +249,7 @@
                             Save and Continue
                         </button>
                     </div>
+		    -->
                 </div>
             </div>
         </div>
@@ -430,17 +432,13 @@ export default {
             return canEdit;
         },
         displaySaveBtns: function () {
-            if (this.isReviewerUser) {
+            if (this.isReviewerUser && !this.isOperatorUser && !this.isSilrecAdmin) {
                 return (
                     this.proposal &&
                     this.proposal.processing_status === 'with_reviewer'
                 );
             }
             if (this.isReadOnlyUser) {
-                return false;
-            }
-            // Non-reviewer users should not see workflow buttons in with_reviewer status
-            if (this.proposal && this.proposal.processing_status === 'with_reviewer') {
                 return false;
             }
             return true;

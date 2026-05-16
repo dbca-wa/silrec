@@ -691,7 +691,7 @@ export default {
         // Only show shapefile actions in draft or processing_shapefile status
         showShapefileActions: function () {
             if (this.isReadOnlyUser) return false;
-            if (this.isReviewerUser) return false;
+            if (this.isReviewerUser && !this.isSilrecAdmin) return false;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return false;
             const s = this.workflowOptions.current_status;
@@ -699,7 +699,7 @@ export default {
         },
         shapefileDisabled: function () {
             if (this.isReadOnlyUser) return true;
-            if (!this.isOperatorUser) return true;
+            if (!this.isOperatorUser && !this.isSilrecAdmin) return true;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return true;
             return (
@@ -720,6 +720,11 @@ export default {
             return this.workflowOptions
                 ? this.workflowOptions.locked_by_lodgement
                 : null;
+        },
+        isSilrecAdmin: function () {
+            return this.currentUser &&
+                this.currentUser.groups &&
+                this.currentUser.groups.includes('Silrec Admin');
         },
         processBtnEnabled: function () {
             return (

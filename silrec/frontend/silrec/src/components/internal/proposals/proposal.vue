@@ -2060,6 +2060,7 @@ export default {
                                 <textarea id="comment" class="swal2-textarea" rows="3"
                                     placeholder="Please provide a reason for this status change..."
                                     required></textarea>
+			        </br>
                                 <small class="text-muted" style="color: #dc3545;">This field is required</small>
                             </div>
                         </div>

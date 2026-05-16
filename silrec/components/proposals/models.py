@@ -2281,7 +2281,10 @@ register(Proposal, follow=[
     'proposal_type',
     'previous_application',
     'application_type',
-    'polygons',              # Reverse relation to Polygon
+    # 'polygons' intentionally omitted — polygon data is tracked via
+    # the AuditLog model.  Including it causes reversion to create
+    # version records for every polygon FK-related to the proposal,
+    # resulting in thousands of INSERTs on every proposal save.
     'shapefile_documents',   # Shapefile documents
     'supporting_documents',  # Other documents
     #'request_metrics'        # Request metrics

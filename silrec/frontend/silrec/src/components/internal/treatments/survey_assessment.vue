@@ -104,6 +104,7 @@
                             <div class="btn-group btn-group-sm">
                                 <button
                                     v-if="!readOnly"
+                                    type="button"
                                     class="btn btn-sm btn-outline-primary"
                                     @click="editDocument(doc)"
                                     title="Edit Document"
@@ -113,6 +114,7 @@
                                 </button>
                                 <button
                                     v-if="!readOnly"
+                                    type="button"
                                     class="btn btn-outline-danger"
                                     @click="deleteDocument(doc)"
                                     :title="

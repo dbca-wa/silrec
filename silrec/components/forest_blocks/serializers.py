@@ -587,10 +587,15 @@ class TreatmentXtraSerializer(serializers.ModelSerializer):
     def get_treatment_info(self, obj):
         """Get basic treatment information"""
         if obj.treatment:
+            cohort_id = None
+            try:
+                cohort_id = obj.treatment.cohort.cohort_id if obj.treatment.cohort else None
+            except Exception:
+                cohort_id = None
             return {
                 'treatment_id': obj.treatment.treatment_id,
                 'task_name': obj.treatment.task.task_name if obj.treatment.task else None,
-                'cohort_id': obj.treatment.cohort.cohort_id if obj.treatment.cohort else None,
+                'cohort_id': cohort_id,
             }
         return None
 
@@ -1440,8 +1445,6 @@ class OperationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'op_id',
-            'silvic_plan_map',
-            'silvic_plan_doc',
             'cohort_count',
             'polygon_count'
         ]

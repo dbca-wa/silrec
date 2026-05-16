@@ -25,7 +25,7 @@ from rest_framework.decorators import action as list_route
 from rest_framework.decorators import renderer_classes
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, BasePermission, SAFE_METHODS
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
@@ -945,7 +945,7 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
 class OperationViewSet(viewsets.ModelViewSet):
     queryset = Operation.objects.all()
     serializer_class = OperationSerializer
-    parser_classes = [MultiPartParser, FormParser]  # To handle file uploads
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # To handle file uploads
     pagination_class = DatatablesPageNumberPagination
     filter_backends = [DatatablesFilterBackend]
 
@@ -973,14 +973,13 @@ class OperationViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    def update(self, request, *args, **kwargs):
-        try:
-            return super().update(request, *args, **kwargs)
-        except Exception as e:
-            print(f"Error in OperationViewSet.update: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
+    def perform_update(self, serializer):
+        # BinaryField is read-only in DRF — handle clearing directly
+        for field in ('silvic_plan_map', 'silvic_plan_doc'):
+            val = self.request.data.get(field)
+            if val is None or val == '':
+                setattr(serializer.instance, field, None)
+        serializer.save()
 
     @action(detail=False, methods=['get'])
     def by_cohort(self, request):
@@ -1080,6 +1079,3 @@ class TestOperationUpdate(views.APIView):
                 return Response({"error": "Operation not found"}, status=404)
 
         return Response({"error": "No operation ID provided"}, status=400)
-
-
-

@@ -542,13 +542,24 @@ export default {
                 console.log('Saving treatment data:', this.treatmentData);
                 console.log('URL:', url, 'Method:', method);
 
+                // Strip FK fields that shouldn't be changed via edit
+                const dataToSend = { ...this.treatmentData };
+                delete dataToSend.prescription;
+                delete dataToSend.prescription_id;
+                delete dataToSend.cohort;
+                delete dataToSend.treatment_extras_count;
+                delete dataToSend.status_choices;
+                delete dataToSend.cohort_info;
+                delete dataToSend.task_name;
+                delete dataToSend.task_description;
+
                 const response = await fetch(url, {
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': this.getCSRFToken(),
                     },
-                    body: JSON.stringify(this.treatmentData),
+                    body: JSON.stringify(dataToSend),
                 });
 
                 console.log('Response status:', response.status);

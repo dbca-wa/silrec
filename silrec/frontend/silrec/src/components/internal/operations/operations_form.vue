@@ -3,18 +3,27 @@
         <div v-if="$route.query.debug?.toLowerCase() === 'true'">
             src/components/internal/operations/operations_form.vue
         </div>
+
+        <div
+            v-if="operationNotFound && !readOnly"
+            class="alert alert-info py-2 px-3 mb-3"
+        >
+            <i class="bi bi-info-circle"></i>
+            The operation linked to this cohort (ID {{ operationId }}) was not
+            found in the database. You can create a new one below.
+        </div>
+
         <form @submit.prevent="saveOperation">
             <div class="row">
                 <div class="col-md-4">
                     <div class="form-group mb-3">
-                        <label for="feaId" class="form-label">FEA ID *</label>
+                        <label for="feaId" class="form-label">FEA ID</label>
                         <input
                             id="feaId"
                             v-model="operationData.fea_id"
                             type="text"
                             class="form-control"
-                            :readonly="readOnly || !isNew"
-                            required
+                            :readonly="readOnly"
                             maxlength="20"
                             placeholder="Enter FEA ID (from polygon zfea_id)"
                         />
@@ -58,7 +67,7 @@
             <div class="row mt-3">
                 <div class="col-md-6">
                     <div class="card">
-                        <div class="card-header bg-light">
+                        <div class="card-header">
                             <h6 class="mb-0">Silvicultural Plan Map</h6>
                         </div>
                         <div class="card-body">
@@ -72,13 +81,13 @@
                                 <div
                                     class="d-flex justify-content-between align-items-center"
                                 >
-                                    <span class="text-muted">
+                                    <span class="text-muted" :title="fullMapFileName">
                                         <i
                                             class="bi bi-file-earmark-image me-1"
                                         ></i>
-                                        Map file attached
+                                        {{ mapFileName }}
                                     </span>
-                                    <div>
+                                    <div class="d-flex align-items-center gap-1">
                                         <a
                                             v-if="
                                                 operationData.silvic_plan_map &&
@@ -89,7 +98,7 @@
                                                 operationData.silvic_plan_map
                                             "
                                             target="_blank"
-                                            class="btn btn-sm btn-outline-info me-1"
+                                            class="btn btn-sm btn-outline-info"
                                             title="View Map"
                                         >
                                             <i class="bi bi-eye"></i> View
@@ -97,12 +106,11 @@
                                         <button
                                             v-if="!readOnly"
                                             type="button"
-                                            class="btn btn-sm btn-outline-warning"
-                                            @click="showMapUpload = true"
-                                            title="Replace Map"
+                                            class="btn btn-sm btn-link text-danger p-0"
+                                            @click="clearAttachedMap"
+                                            title="Delete Map File"
                                         >
-                                            <i class="bi bi-arrow-repeat"></i>
-                                            Replace
+                                            <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -149,7 +157,7 @@
                                             class="btn btn-sm btn-outline-danger ms-2"
                                             @click="clearMapFile"
                                         >
-                                            <i class="bi bi-x"></i>
+                                            <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -177,7 +185,7 @@
 
                 <div class="col-md-6">
                     <div class="card">
-                        <div class="card-header bg-light">
+                        <div class="card-header">
                             <h6 class="mb-0">Silvicultural Plan Document</h6>
                         </div>
                         <div class="card-body">
@@ -191,13 +199,13 @@
                                 <div
                                     class="d-flex justify-content-between align-items-center"
                                 >
-                                    <span class="text-muted">
+                                    <span class="text-muted" :title="fullDocFileName">
                                         <i
                                             class="bi bi-file-earmark-text me-1"
                                         ></i>
-                                        Document file attached
+                                        {{ docFileName }}
                                     </span>
-                                    <div>
+                                    <div class="d-flex align-items-center gap-1">
                                         <a
                                             v-if="
                                                 operationData.silvic_plan_doc &&
@@ -208,7 +216,7 @@
                                                 operationData.silvic_plan_doc
                                             "
                                             target="_blank"
-                                            class="btn btn-sm btn-outline-info me-1"
+                                            class="btn btn-sm btn-outline-info"
                                             title="View Document"
                                         >
                                             <i class="bi bi-eye"></i> View
@@ -216,12 +224,11 @@
                                         <button
                                             v-if="!readOnly"
                                             type="button"
-                                            class="btn btn-sm btn-outline-warning"
-                                            @click="showDocUpload = true"
-                                            title="Replace Document"
+                                            class="btn btn-sm btn-link text-danger p-0"
+                                            @click="clearAttachedDoc"
+                                            title="Delete Document File"
                                         >
-                                            <i class="bi bi-arrow-repeat"></i>
-                                            Replace
+                                            <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -269,7 +276,7 @@
                                             class="btn btn-sm btn-outline-danger ms-2"
                                             @click="clearDocFile"
                                         >
-                                            <i class="bi bi-x"></i>
+                                            <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -367,11 +374,32 @@ export default {
             showMapUpload: false,
             showDocUpload: false,
             isEditing: false,
+            operationNotFound: false,
         };
     },
     computed: {
         isNew() {
             return !this.operationId;
+        },
+        fullMapFileName() {
+            if (!this.operationData.silvic_plan_map) return '';
+            const url = this.operationData.silvic_plan_map;
+            return url.split('/').pop() || url.split('\\').pop() || url;
+        },
+        mapFileName() {
+            if (!this.operationData.silvic_plan_map) return 'No file attached';
+            const name = this.fullMapFileName;
+            return name.length > 30 ? name.substring(0, 27) + '...' : name;
+        },
+        fullDocFileName() {
+            if (!this.operationData.silvic_plan_doc) return '';
+            const url = this.operationData.silvic_plan_doc;
+            return url.split('/').pop() || url.split('\\').pop() || url;
+        },
+        docFileName() {
+            if (!this.operationData.silvic_plan_doc) return 'No file attached';
+            const name = this.fullDocFileName;
+            return name.length > 30 ? name.substring(0, 27) + '...' : name;
         },
     },
     methods: {
@@ -381,6 +409,18 @@ export default {
                     const response = await fetch(
                         `${api_endpoints.operations}${this.operationId}/`
                     );
+                    if (response.status === 404) {
+                        // Operation not found — allow user to create one
+                        console.log(
+                            'Operation not found for id:',
+                            this.operationId,
+                            '— opening empty form for creation'
+                        );
+                        this.operationNotFound = true;
+                        this.isEditing = false;
+                        this.resetOperationData();
+                        return;
+                    }
                     if (!response.ok) {
                         throw new Error(
                             `HTTP error! status: ${response.status}`
@@ -389,7 +429,14 @@ export default {
                     const data = await response.json();
                     this.operationData = { ...data };
                     this.isEditing = true;
+                    this.operationNotFound = false;
                 } catch (error) {
+                    if (error.message && error.message.includes('404')) {
+                        this.operationNotFound = true;
+                        this.isEditing = false;
+                        this.resetOperationData();
+                        return;
+                    }
                     console.error('Error loading operation data:', error);
                     await swal.fire({
                         icon: 'error',
@@ -402,6 +449,7 @@ export default {
                 // For new operation, use provided FEA ID
                 this.operationData.fea_id = this.feaId || '';
                 this.isEditing = false;
+                this.operationNotFound = false;
             }
         },
 
@@ -470,6 +518,80 @@ export default {
             }
         },
 
+        async clearAttachedMap() {
+            const result = await swal.fire({
+                icon: 'warning',
+                title: 'Delete Map File?',
+                text: 'Are you sure you want to delete the attached map file?',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#d33',
+            });
+            if (!result.isConfirmed) return;
+            try {
+                const response = await fetch(
+                    `${api_endpoints.operations}${this.operationId}/`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken(),
+                        },
+                        body: JSON.stringify({ silvic_plan_map: null }),
+                    }
+                );
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                this.operationData = { ...data };
+                await swal.fire({
+                    icon: 'success', title: 'Deleted!',
+                    text: 'Map file deleted successfully',
+                    timer: 2000, showConfirmButton: false,
+                });
+            } catch (error) {
+                console.error('Error deleting map file:', error);
+                await swal.fire({ icon: 'error', title: 'Delete Failed', text: error.message, confirmButtonText: 'OK' });
+            }
+        },
+
+        async clearAttachedDoc() {
+            const result = await swal.fire({
+                icon: 'warning',
+                title: 'Delete Document File?',
+                text: 'Are you sure you want to delete the attached document file?',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#d33',
+            });
+            if (!result.isConfirmed) return;
+            try {
+                const response = await fetch(
+                    `${api_endpoints.operations}${this.operationId}/`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken(),
+                        },
+                        body: JSON.stringify({ silvic_plan_doc: null }),
+                    }
+                );
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                this.operationData = { ...data };
+                await swal.fire({
+                    icon: 'success', title: 'Deleted!',
+                    text: 'Document file deleted successfully',
+                    timer: 2000, showConfirmButton: false,
+                });
+            } catch (error) {
+                console.error('Error deleting document file:', error);
+                await swal.fire({ icon: 'error', title: 'Delete Failed', text: error.message, confirmButtonText: 'OK' });
+            }
+        },
+
         cancelMapUpload() {
             this.showMapUpload = false;
             this.clearMapFile();
@@ -478,6 +600,22 @@ export default {
         cancelDocUpload() {
             this.showDocUpload = false;
             this.clearDocFile();
+        },
+
+        resetOperationData() {
+            this.operationData = {
+                fea_id: this.feaId || '',
+                das_id: null,
+                plan_release: '',
+                silvic_plan_map: null,
+                silvic_plan_doc: null,
+                silvic_plan_map_file: null,
+                silvic_plan_doc_file: null,
+            };
+            this.mapFilePreview = null;
+            this.docFilePreview = null;
+            this.showMapUpload = false;
+            this.showDocUpload = false;
         },
 
         async saveOperation() {
@@ -525,7 +663,7 @@ export default {
                 }
 
                 let url, method;
-                if (this.operationId) {
+                if (this.operationId && !this.operationNotFound) {
                     url = `${api_endpoints.operations}${this.operationId}/`;
                     method = 'PUT';
                 } else {
@@ -587,15 +725,15 @@ export default {
         },
 
         validateForm() {
-            if (!this.operationData.fea_id) {
-                swal.fire({
-                    icon: 'error',
-                    title: 'Validation Error',
-                    text: 'FEA ID is required',
-                    confirmButtonText: 'OK',
-                });
-                return false;
-            }
+//            if (!this.operationData.fea_id) {
+//                swal.fire({
+//                    icon: 'error',
+//                    title: 'Validation Error',
+//                    text: 'FEA ID is required',
+//                    confirmButtonText: 'OK',
+//                });
+//                return false;
+//            }
 
             return true;
         },
@@ -683,15 +821,18 @@ export default {
     },
     mounted() {
         this.loadOperationData();
-        this.loadCohortPolygonFEA();
+        if (!this.operationId) {
+            this.loadCohortPolygonFEA();
+        }
     },
     watch: {
         operationId: {
             handler(newVal) {
                 if (newVal) {
+                    this.operationNotFound = false;
                     this.loadOperationData();
                 } else {
-                    this.resetForm();
+                    this.resetOperationData();
                 }
             },
             immediate: true,
@@ -723,7 +864,7 @@ export default {
 }
 
 .form-control:read-only {
-    background-color: #e9ecef;
+    background-color: #fff;
     opacity: 1;
 }
 
@@ -747,5 +888,13 @@ export default {
 
 .card-body {
     padding: 1rem;
+}
+
+.card {
+    background-color: #fff;
+}
+
+.gap-1 {
+    gap: 0.25rem;
 }
 </style>

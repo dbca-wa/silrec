@@ -27,8 +27,6 @@
         </div>
 
         <div v-if="!loading && !error" class="card">
-            JM2: {{ treatmentId }}<br />
-            JM3: {{ treatmentExtraId }}
             <div class="card-body">
                 <TreatmentExtraForm
                     :treatment-id="treatmentId"

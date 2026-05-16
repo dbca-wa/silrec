@@ -279,21 +279,12 @@
             />
         </FormSection>
 
-        <!-- Debug Snapshot Toggle -->
-        <SnapshotDebugToggle
-            v-if="$route.query.debug?.toLowerCase() === 'true'"
-            :proposal-id="proposalId"
-            :user-id="currentUserId"
-            :show-debug="true"
-            ref="snapshotDebugToggle"
-        />
     </div>
 </template>
 
 <script>
 import FormSection from '@/components/forms/section_toggle.vue';
 import MapComponent from '@/components/common/component_map.vue';
-import SnapshotDebugToggle from '@/components/common/SnapshotDebugToggle.vue';
 import { v4 as uuid } from 'uuid';
 import Swal from 'sweetalert2';
 import moment from 'moment';
@@ -311,7 +302,6 @@ export default {
     components: {
         FormSection,
         MapComponent,
-        SnapshotDebugToggle,
     },
     props: {
         proposal: {
@@ -720,11 +710,6 @@ export default {
             return this.workflowOptions
                 ? this.workflowOptions.locked_by_lodgement
                 : null;
-        },
-        isSilrecAdmin: function () {
-            return this.currentUser &&
-                this.currentUser.groups &&
-                this.currentUser.groups.includes('Silrec Admin');
         },
         processBtnEnabled: function () {
             return (

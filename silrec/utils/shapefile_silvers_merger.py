@@ -28,7 +28,6 @@ from silrec.components.lookups.models import ObjectiveLkp
 from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
 from silrec.components.proposals.models import Proposal
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
-from silrec.utils.snapshot_utils import SnapshotManager
 
 import logging
 logger = logging.getLogger(__name__)
@@ -58,9 +57,6 @@ class ShapefileSliversMerger():
         self.gdf_shpfile = None if skip_shapefile else self.get_shapefile(gdf_shpfile)
         self.threshold = threshold
         self.user_id = user_id
-        self._snapshot_mgr = SnapshotManager()
-        self._n_tup_baseline = None  # set by capture_mod_stats()
-        self._row_baseline = None    # set by capture_baseline()
 
     def get_shapefile(self, gdf_shpfile):
         if gdf_shpfile is None:
@@ -164,185 +160,6 @@ class ShapefileSliversMerger():
         merged_clean = merged_buffered.buffer(-buffer_distance)
 
         return gpd.GeoDataFrame([1], geometry=[merged_clean], crs=gdf.crs)
-
-    # ------------------------------------------------------------------ #
-    #  Postgres-driven dirty-table detection & row-level baseline        #
-    # ------------------------------------------------------------------ #
-
-    def capture_mod_stats(self):
-        """
-        Snapshot Postgres n_tup_mod counters for all user tables.
-
-        After running create_gdf(), call diff_mod_stats() to get the
-        list of tables whose modification counter advanced.
-
-        Returns
-        -------
-        dict : {schema.table: n_tup_ins+n_tup_upd+n_tup_del, ...}
-        """
-        self._n_tup_baseline = self._snapshot_mgr.detect_dirtied_tables()
-        return self._n_tup_baseline
-
-    def diff_mod_stats(self):
-        """
-        Compare current n_tup_mod counters against the baseline
-        captured by capture_mod_stats().
-
-        Returns
-        -------
-        list of str : schema-qualified table names that were dirtied.
-        """
-        if self._n_tup_baseline is None:
-            raise RuntimeError('Call capture_mod_stats() before diff_mod_stats().')
-        return self._snapshot_mgr.diff_dirtied_tables(self._n_tup_baseline)
-
-    def capture_baseline(self):
-        """
-        Dump every row from every user table that has a non-zero
-        n_tup_mod counter *right now*.  Call this before create_gdf()
-        to get the initial state of tables that were already touched
-        in this session.
-
-        Use this when you want row-level before/after data, not just
-        a list of table names.
-
-        Returns
-        -------
-        dict : {'tables': {tbl_name: [row_dict, ...], ...},
-                'n_tup_mod': {schema.tbl: int, ...}}
-        """
-        self._row_baseline = self._snapshot_mgr.capture_baseline()
-        return self._row_baseline
-
-    # ------------------------------------------------------------------ #
-    #  Temp-table baseline for cross-request keep/revert of              #
-    #  silrec.polygon / silrec.cohort / silrec.assign_cht_to_ply         #
-    # ------------------------------------------------------------------ #
-
-    BASELINE_TABLES = ['silrec.polygon', 'silrec.cohort', 'silrec.assign_cht_to_ply']
-    BACKUP_TABLES  = ['silrec.baseline_polygon', 'silrec.baseline_cohort', 'silrec.baseline_assign_cht_to_ply']
-
-    def _checksum_silrec_tables(self, cursor, tables=None):
-        pk_map = {
-            'silrec.polygon':                     'polygon_id',
-            'silrec.cohort':                      'cohort_id',
-            'silrec.assign_cht_to_ply':           'cht2ply_id',
-            'silrec.baseline_polygon':            'polygon_id',
-            'silrec.baseline_cohort':             'cohort_id',
-            'silrec.baseline_assign_cht_to_ply':  'cht2ply_id',
-        }
-        result = {}
-        for tbl in (tables or self.BASELINE_TABLES):
-            pk = pk_map[tbl]
-            cursor.execute(f"""
-                SELECT COUNT(*), MD5(string_agg(CAST(t.* AS text), ',' ORDER BY {pk}))
-                FROM {tbl} t
-            """)
-            cnt, chk = cursor.fetchone()
-            result[tbl] = (cnt, chk)
-        return result
-
-    def create_savepoint(self, sp_id=None):
-        """
-        Copy every row from silrec.polygon, silrec.cohort, and
-        silrec.assign_cht_to_ply into corresponding silrec.baseline_*
-        backup tables.
-
-        The backup tables are created on first call (if they don't
-        exist), then truncated and repopulated.  They persist in the
-        DB across HTTP requests so the revert decision can be made
-        later.
-
-        Returns
-        -------
-        dict : integrity checksums of the backup tables
-               {table_name: (row_count, md5_hex), ...}
-        """
-        with connection.cursor() as cursor:
-            for src, dst in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {dst} (LIKE {src} INCLUDING ALL)
-                """)
-                cursor.execute(f'TRUNCATE TABLE {dst}')
-                cursor.execute(f'INSERT INTO {dst} SELECT * FROM {src}')
-            checksums = self._checksum_silrec_tables(cursor, self.BACKUP_TABLES)
-
-        self._savepoint_checksums = checksums
-        logger.info('Baseline backed up.  Checksums: %s', checksums)
-        return checksums
-
-    def revert_savepoint(self):
-        """
-        Restore silrec.polygon, silrec.cohort, and
-        silrec.assign_cht_to_ply from the silrec.baseline_* backup
-        tables.
-
-        Disables triggers during restore to avoid FK issues.
-        Verifies data integrity by computing MD5 checksums of the
-        backup tables before restore and comparing against the
-        restored live tables afterwards.
-
-        Returns
-        -------
-        dict : {'success': bool, 'checksums_match': bool,
-                'tables': {table: {row_count_before, row_count_after,
-                                   checksum_before, checksum_after, match}}}
-        """
-        # Capture checksums of backup tables and restore in one transaction
-        with connection.cursor() as cursor:
-            before = self._checksum_silrec_tables(cursor, self.BACKUP_TABLES)
-
-            for dst in reversed(self.BASELINE_TABLES):
-                cursor.execute(f'TRUNCATE TABLE {dst} CASCADE')
-            for dst, src in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
-                cursor.execute(f'INSERT INTO {dst} SELECT * FROM {src}')
-
-            after = self._checksum_silrec_tables(cursor, self.BASELINE_TABLES)
-
-
-
-        all_ok = True
-        all_checksums_ok = True
-        all_row_counts_ok = True
-        tables_report = {}
-        for tbl, bak in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
-            b_cnt, b_chk = before.get(bak, (0, ''))
-            a_cnt, a_chk = after.get(tbl, (0, ''))
-            row_match = (b_cnt == a_cnt)
-            chk_match = (b_chk == a_chk)
-            full_match = row_match and chk_match
-            if not full_match:
-                all_ok = False
-            if not chk_match:
-                all_checksums_ok = False
-            if not row_match:
-                all_row_counts_ok = False
-            tables_report[tbl] = {
-                'row_count_before': b_cnt,
-                'row_count_after':  a_cnt,
-                'row_match':        row_match,
-                'checksum_before':  b_chk,
-                'checksum_after':   a_chk,
-                'checksum_match':   chk_match,
-                'match':            full_match,
-            }
-
-        logger.info('Revert complete.  All row counts OK: %s, all checksums OK: %s',
-                     all_row_counts_ok, all_checksums_ok)
-        return {
-            'success':           all_ok,
-            'checksums_match':   all_checksums_ok,
-            'row_counts_match':  all_row_counts_ok,
-            'tables':            tables_report,
-        }
-
-    def keep_savepoint(self):
-        """Drop the silrec.baseline_* backup tables.  Changes are kept."""
-        with connection.cursor() as cursor:
-            for tbl in self.BACKUP_TABLES:
-                cursor.execute(f'DROP TABLE IF EXISTS {tbl} CASCADE')
-        logger.info('Backup tables dropped (changes kept).')
-        return {'success': True, 'action': 'keep'}
 
     def create_gdf(self, savepoint_callback=None):
         '''

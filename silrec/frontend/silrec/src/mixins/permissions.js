@@ -25,6 +25,13 @@ export default {
                 this.currentUser.groups.includes('Reviewer')
             );
         },
+        isSilrecAdmin() {
+            return (
+                this.currentUser &&
+                this.currentUser.groups &&
+                this.currentUser.groups.includes('Silrec Admin')
+            );
+        },
     },
     methods: {
         canEditForStatus(processingStatus) {

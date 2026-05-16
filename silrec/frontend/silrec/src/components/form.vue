@@ -132,7 +132,7 @@
                             <button
                                 class="btn keep-btn"
                                 :class="keepBtnClass"
-                                @click="keepProcessing"
+                                @click="openKeepDialog"
                                 :disabled="keepBtnDisabled"
                                 :title="keepBtnTitle"
                                 style="min-width: 100px;"
@@ -699,7 +699,7 @@ export default {
         },
         shapefileDisabled: function () {
             if (this.isReadOnlyUser) return true;
-            if (!this.isOperatorUser && !this.isAssessorUser) return true;
+            if (!this.isAssessorUser) return true;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return true;
             return (
@@ -1626,6 +1626,40 @@ export default {
                     }
                 }, 500);
             }
+        },
+
+        openKeepDialog: function () {
+            Swal.fire({
+                title: 'Keep Changes',
+                html:
+                    '<div style="text-align: left;">' +
+                    '<p style="font-size: 0.9em; color: #6c757d; margin-bottom: 10px;">' +
+                    'This will write all processing results to the database and move the proposal to <strong>With Assessor</strong> status.' +
+                    '</p>' +
+                    '<p>Are you sure you want to keep these changes?</p>' +
+                    '<p style="font-weight: bold; color: #dc3545;">This action cannot be undone via the Revert button!</p>' +
+                    '<p>This will:</p>' +
+                    '<ul style="margin-top: 5px;">' +
+                    '<li>Write polygon, cohort, and assignment records to the database</li>' +
+                    '<li>Move the proposal to With Assessor status</li>' +
+                    '<li>Send a notification email</li>' +
+                    '</ul>' +
+                    '</div>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Keep Changes',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return this.keepProcessing();
+                },
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    // Success message already shown in keep method
+                }
+            });
         },
 
         keepProcessing: async function () {

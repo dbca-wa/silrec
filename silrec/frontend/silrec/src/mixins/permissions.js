@@ -1,7 +1,5 @@
 import { api_endpoints } from '@/utils/hooks';
 
-const OPERATOR_WRITABLE_STATUSES = ['draft', 'processing_shapefile'];
-
 export default {
     data() {
         return {
@@ -12,9 +10,6 @@ export default {
     computed: {
         isReadOnlyUser() {
             return this.currentUser && this.currentUser.is_readonly_user;
-        },
-        isOperatorUser() {
-            return this.currentUser && this.currentUser.is_operator_user;
         },
         isAssessorUser() {
             return (
@@ -34,8 +29,8 @@ export default {
     methods: {
         canEditForStatus(processingStatus) {
             if (this.isReadOnlyUser) return false;
-            if (this.isOperatorUser) {
-                return OPERATOR_WRITABLE_STATUSES.includes(processingStatus);
+            if (this.isReviewerUser) {
+                return processingStatus === 'with_reviewer';
             }
             return true;
         },

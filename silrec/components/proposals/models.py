@@ -334,13 +334,7 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
             'draft': {
                 'to_processing_shapefile': {
                     'target': 'processing_shapefile',
-                    'allowed_groups': ['Operator', 'Assessor'],  # Users who can send to processing_shapefile
-                }
-            },
-            'draft': {
-                'to_processing_shapefile': {
-                    'target': 'processing_shapefile',
-                    'allowed_groups': ['Operator', 'Assessor'],
+                    'allowed_groups': ['Assessor'],
                 }
             },
             'processing_shapefile': {
@@ -2303,6 +2297,3 @@ register(TextSearchFieldDisplay, follow=['created_by'])
 register(ShapefileAttributeConfig, follow=['application_type'])
 register(ShapefileProcessing, follow=['proposal', 'user'])
 register(FormValidationRule, follow=[])
-
-
-

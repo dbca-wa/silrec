@@ -83,6 +83,7 @@
                     <div class="col-md-6 text-start">
                         <div class="workflow-buttons">
                             <!-- Draft status buttons -->
+			    <!--
                             <template
                                 v-if="
                                     proposal.processing_status ===
@@ -105,6 +106,7 @@
                                     Send to Assessor
                                 </button>
                             </template>
+			    -->
 
                             <!-- With Assessor status buttons -->
                             <template
@@ -128,6 +130,7 @@
                                 >
                                     Send to Reviewer
                                 </button>
+				<!--
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-secondary me-2"
@@ -143,6 +146,7 @@
                                 >
                                     Return to Draft
                                 </button>
+				-->
                             </template>
 
                             <!-- With Reviewer status buttons -->
@@ -435,9 +439,6 @@ export default {
             if (this.isReadOnlyUser) {
                 return false;
             }
-            if (this.isOperatorUser && this.proposal) {
-                return this.canEditForStatus(this.proposal.processing_status);
-            }
             return true;
             let display = false;
 
@@ -611,9 +612,6 @@ export default {
         readonly: function () {
             if (this.isReadOnlyUser) {
                 return true;
-            }
-            if (this.isOperatorUser && this.proposal) {
-                return !this.canEditForStatus(this.proposal.processing_status);
             }
             return !(
                 this.proposal.added_internally && this.proposal.assigned_officer
@@ -2059,7 +2057,7 @@ export default {
                                 <label for="comment" style="font-weight: bold;">
                                     Comment <span style="color: red;">*</span>:
                                 </label>
-                                <textarea id="comment" class="swal2-textarea" rows="3" 
+                                <textarea id="comment" class="swal2-textarea" rows="3"
                                     placeholder="Please provide a reason for this status change..."
                                     required></textarea>
                                 <small class="text-muted" style="color: #dc3545;">This field is required</small>

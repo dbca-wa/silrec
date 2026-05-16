@@ -445,7 +445,7 @@ export default {
             return !this.isReadOnlyUser;
         },
         showFormActions() {
-            return this.canEdit && !this.isOperatorUser;
+            return this.canEdit;
         },
         debug: function () {
             if (this.$route.query.debug) {

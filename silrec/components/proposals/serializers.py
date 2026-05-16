@@ -431,7 +431,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             groups = list(user.groups.values_list('name', flat=True))
             if 'Silrec Admin' in groups:
                 return True
-            if 'Operator' in groups or 'Assessor' in groups:
+            if 'Silrec Admin' in groups or 'Assessor' in groups:
                 return True
             return False
         except Exception:

@@ -131,6 +131,15 @@
                                         "
                                     ></i>
                                 </button>
+                                <button
+                                    v-if="readOnly"
+                                    type="button"
+                                    class="btn btn-outline-info"
+                                    @click="editDocument(doc)"
+                                    title="View Document"
+                                >
+                                    <i class="bi bi-eye"></i> View
+                                </button>
                             </div>
                         </td>
                     </tr>

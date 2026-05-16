@@ -288,8 +288,8 @@
                     <!-- Add Custom WHERE Clause Button -->
                     <!--
           <div class="mb-3">
-            <button 
-              type="button" 
+            <button
+              type="button"
               class="btn btn-outline-secondary btn-sm"
               @click="addCustomClause"
               v-if="selectedReport?.report_type === 'custom'"
@@ -456,7 +456,7 @@
                 </div>
 
                 <!-- Action Buttons -->
-                <div v-if="!isReadOnlyUser" class="d-flex gap-2">
+                <div v-if="!isReadOnlyUser || isReviewerUser" class="d-flex gap-2">
                     <button
                         type="button"
                         class="btn btn-primary"

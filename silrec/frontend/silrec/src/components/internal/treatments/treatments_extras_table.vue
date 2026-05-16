@@ -3,7 +3,6 @@
         <div v-if="$route.query.debug?.toLowerCase() === 'true'">
             src/components/internal/treatments/treatments_extras_table.vue
         </div>
-        JM4 {{ treatmentId }}
         <div v-if="loading" class="text-center p-3">
             <div class="spinner-border spinner-border-sm" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -32,7 +31,7 @@
                         <th>Stocking Rate</th>
                         <th>Species Assessed</th>
                         <th>Assessment Type</th>
-                        <th v-if="!readOnly">Actions</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -73,22 +72,27 @@
                             </span>
                             <span v-else class="text-muted">-</span>
                         </td>
-                        <td v-if="!readOnly" class="action-column">
-                            <router-link
-                                :to="`/internal/treatment/${treatmentId}/treatment-extra/${extra.treatment_xtra_id}`"
-                                class="btn btn-sm btn-outline-primary me-1"
-                                title="Edit Details"
-                            >
-                                <i class="bi bi-pencil"></i>
-                            </router-link>
-                            <button
-                                class="btn btn-sm btn-outline-danger"
-                                type="button"
-                                @click="deleteExtra(extra.treatment_xtra_id)"
-                                title="Delete Details"
-                            >
-                                <i class="bi bi-trash"></i>
-                            </button>
+                        <td class="action-column">
+                            <div class="d-flex gap-1">
+                                <router-link
+                                    :to="`/internal/treatment/${treatmentId}/treatment-extra/${extra.treatment_xtra_id}`"
+                                    class="btn btn-sm"
+                                    :class="readOnly ? 'btn-outline-info' : 'btn-outline-primary me-1'"
+                                    :title="readOnly ? 'View Details' : 'Edit Details'"
+                                >
+                                    <i :class="readOnly ? 'bi bi-eye' : 'bi bi-pencil'"></i>
+                                    {{ readOnly ? ' View' : '' }}
+                                </router-link>
+                                <button
+                                    v-if="!readOnly"
+                                    class="btn btn-sm btn-outline-danger"
+                                    type="button"
+                                    @click="deleteExtra(extra.treatment_xtra_id)"
+                                    title="Delete Details"
+                                >
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>

@@ -14,7 +14,7 @@
                         <th>Action Complete</th>
                         <th>Created By</th>
                         <th>Created On</th>
-                        <th v-if="!readOnly">Actions</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -34,9 +34,10 @@
                         </td>
                         <td>{{ comment.created_by }}</td>
                         <td>{{ formatDate(comment.created_on) }}</td>
-                        <td v-if="!readOnly">
+                        <td>
                             <div class="btn-group btn-group-sm">
                                 <button
+                                    v-if="!readOnly"
                                     type="button"
                                     class="btn btn-outline-primary"
                                     @click="editComment(comment)"
@@ -45,12 +46,22 @@
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <button
+                                    v-if="!readOnly"
                                     type="button"
                                     class="btn btn-outline-danger"
                                     @click="deleteComment(comment)"
                                     title="Delete Comment"
                                 >
                                     <i class="bi bi-trash"></i>
+                                </button>
+                                <button
+                                    v-if="readOnly"
+                                    type="button"
+                                    class="btn btn-outline-info"
+                                    @click="editComment(comment)"
+                                    title="View Comment"
+                                >
+                                    <i class="bi bi-eye"></i> View
                                 </button>
                             </div>
                         </td>

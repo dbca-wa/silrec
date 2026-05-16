@@ -37,6 +37,7 @@
                         <td v-if="!readOnly">
                             <div class="btn-group btn-group-sm">
                                 <button
+                                    type="button"
                                     class="btn btn-outline-primary"
                                     @click="editComment(comment)"
                                     title="Edit Comment"
@@ -44,6 +45,7 @@
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <button
+                                    type="button"
                                     class="btn btn-outline-danger"
                                     @click="deleteComment(comment)"
                                     title="Delete Comment"

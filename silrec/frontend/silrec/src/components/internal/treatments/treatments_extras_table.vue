@@ -75,7 +75,7 @@
                         </td>
                         <td v-if="!readOnly" class="action-column">
                             <router-link
-                                :to="`/internal/treatment/${treatment_id}/treatment-extra/${extra.treatment_xtra_id}`"
+                                :to="`/internal/treatment/${treatmentId}/treatment-extra/${extra.treatment_xtra_id}`"
                                 class="btn btn-sm btn-outline-primary me-1"
                                 title="Edit Details"
                             >
@@ -83,6 +83,7 @@
                             </router-link>
                             <button
                                 class="btn btn-sm btn-outline-danger"
+                                type="button"
                                 @click="deleteExtra(extra.treatment_xtra_id)"
                                 title="Delete Details"
                             >
@@ -96,7 +97,7 @@
             <!-- Add Extra Button -->
             <!--
       <div v-if="!readOnly && treatmentId" class="mt-3">
-        <router-link 
+        <router-link
           :to="`/internal/treatment/${treatmentId}/extra/new`"
           class="btn btn-outline-primary btn-sm"
         >
@@ -212,6 +213,7 @@ export default {
             }
 
             try {
+                console.log('Deleting treatment extra:', treatmentExtraId);
                 const response = await fetch(
                     `${api_endpoints.treatment_extras}${treatmentExtraId}/`,
                     {
@@ -226,10 +228,14 @@ export default {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
+                console.log('Delete response OK, removing from local array');
+
                 // Remove from local array
                 this.treatmentExtras = this.treatmentExtras.filter(
                     (extra) => extra.treatment_xtra_id !== treatmentExtraId
                 );
+
+                console.log('Local array now has', this.treatmentExtras.length, 'items');
 
                 this.$emit('extra-updated');
 

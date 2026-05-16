@@ -436,6 +436,12 @@ export default {
             if (this.extraData) {
                 // Editing existing extra
                 this.formData = { ...this.extraData };
+                // Trim whitespace from legacy DB padding
+                for (const key of Object.keys(this.formData)) {
+                    if (typeof this.formData[key] === 'string') {
+                        this.formData[key] = this.formData[key].trim();
+                    }
+                }
             } else {
                 // Creating new extra - reset form
                 this.formData = {

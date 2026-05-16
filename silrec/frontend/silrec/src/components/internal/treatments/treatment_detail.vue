@@ -43,7 +43,7 @@
 <script>
 import TreatmentForm from './treatments_form.vue';
 import { api_endpoints } from '@/utils/hooks';
-import permissionsMixin from '@/mixins/permissions';
+import permissionsMixin from '@/mixins/permissions.js';
 
 export default {
     name: 'TreatmentDetail',

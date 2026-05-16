@@ -155,9 +155,9 @@
         <div class="card">
           <div class="card-header bg-light">
             <h6 class="mb-0">
-              <button 
-                class="btn btn-link btn-sm text-decoration-none" 
-                type="button" 
+              <button
+                class="btn btn-link btn-sm text-decoration-none"
+                type="button"
                 @click="togglePrescriptionCollapse"
               >
                 <i class="bi" :class="prescriptionCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
@@ -165,12 +165,12 @@
               </button>
             </h6>
           </div>
-          
+
           <div v-if="!prescriptionCollapsed" class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <span class="text-muted">Prescribed tasks and timing for this treatment</span>
-              <button 
-                v-if="!treatmentData.prescription && !readOnly" 
+              <button
+                v-if="!treatmentData.prescription && !readOnly"
                 type="button"
                 class="btn btn-outline-primary btn-sm"
                 @click="showNewPrescriptionForm"
@@ -178,7 +178,7 @@
                 <i class="bi bi-plus"></i> Add New Prescription
               </button>
             </div>
-            
+
             <PrescriptionForm
               v-if="treatmentData.prescription || showPrescriptionForm"
               :prescription-id="treatmentData.prescription"
@@ -239,9 +239,8 @@
                             @extra-updated="refreshExtras"
                         />
                     </div>
-                </div>
             </div>
-        </form>
+        </div>
 
         <!-- Silviculturist Comments Section -->
         <div class="mt-4" v-if="treatmentId && !isNew">
@@ -369,6 +368,7 @@
                 Cancel
             </button>
         </div>
+        </form>
     </div>
 </template>
 
@@ -394,7 +394,7 @@ export default {
         },
         cohortId: {
             type: [Number, String],
-            required: true,
+            default: null,
         },
         readOnly: {
             type: Boolean,

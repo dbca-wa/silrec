@@ -546,12 +546,15 @@ export default {
                 const dataToSend = { ...this.treatmentData };
                 delete dataToSend.prescription;
                 delete dataToSend.prescription_id;
-                delete dataToSend.cohort;
                 delete dataToSend.treatment_extras_count;
                 delete dataToSend.status_choices;
                 delete dataToSend.cohort_info;
                 delete dataToSend.task_name;
                 delete dataToSend.task_description;
+                // Only strip cohort on PUT (edit), keep it on POST (create)
+                if (method === 'PUT') {
+                    delete dataToSend.cohort;
+                }
 
                 const response = await fetch(url, {
                     method: method,

@@ -439,6 +439,10 @@ export default {
             if (this.isReadOnlyUser) {
                 return false;
             }
+            // Non-reviewer users should not see workflow buttons in with_reviewer status
+            if (this.proposal && this.proposal.processing_status === 'with_reviewer') {
+                return false;
+            }
             return true;
             let display = false;
 

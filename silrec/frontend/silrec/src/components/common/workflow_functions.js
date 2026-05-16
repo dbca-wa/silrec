@@ -73,7 +73,7 @@ export async function recallReferral(api_endpoint, _id, user) {
             }
         })
         .then(async (response) => {
-            vm.switchStatus(response.processing_status_id); // 'with_assessor'
+            vm.switchStatus(response.processing_status_id); // 'with_operator'
             if (typeof vm['table'] !== 'undefined') {
                 // Reload the Show Referrals Popover table if exists
                 vm.table.ajax.reload();

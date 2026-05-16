@@ -69,7 +69,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
     #applicant = serializers.SerializerMethodField()
     submitter_obj = UserSerializerSimple()
     #groups = serializers.SerializerMethodField(read_only=True)
-    #allowed_assessors = EmailUserSerializer(many=True)
+    #allowed_operators = EmailUserSerializer(many=True)
     #details_url = serializers.SerializerMethodField(read_only=True)
     details_url = serializers.SerializerMethodField(read_only=True)
     readonly = serializers.SerializerMethodField(read_only=True)
@@ -90,7 +90,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "model_name",
-            #"allowed_assessors",
+            #"allowed_operators",
             "application_type",
             "proposal_type",
             "title",
@@ -216,7 +216,7 @@ class ProposalSerializer(BaseProposalSerializer):
     processing_status_id = serializers.SerializerMethodField(read_only=True)
     # Had to add assessor mode and lodgement versions for this serializer to work for
     # external user that is a referral
-    assessor_mode = serializers.SerializerMethodField(read_only=True)
+    operator_mode = serializers.SerializerMethodField(read_only=True)
     details_url = serializers.SerializerMethodField(read_only=True)
     shapefile_name = serializers.SerializerMethodField(read_only=True)
     latest_transition_comment = serializers.CharField(read_only=True)
@@ -237,7 +237,7 @@ class ProposalSerializer(BaseProposalSerializer):
         fields = (
             "id",
             "model_name",
-            #"allowed_assessors",
+            #"allowed_operators",
             "application_type",
             "proposal_type",
             "title",
@@ -249,7 +249,7 @@ class ProposalSerializer(BaseProposalSerializer):
             "lodgement_number",
             "details_url",
             "readonly",
-            "assessor_mode",
+            "operator_mode",
             "processing_status_id",
             "shapefile_name",
             "latest_transition_comment",
@@ -289,7 +289,7 @@ class ProposalSerializer(BaseProposalSerializer):
     def get_processing_status_id(self, obj):
         return obj.get_processing_status_display()
 
-    def get_assessor_mode(self, obj):
+    def get_operator_mode(self, obj):
         return True
 
     def get_readonly(self, obj):
@@ -383,7 +383,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             #"can_user_edit",
             #"can_user_view",
             #"can_officer_process",
-            #"allowed_assessors",
+            #"allowed_operators",
             "proposal_type",
             "accessing_user_can_process",
             #"groups",
@@ -431,7 +431,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             groups = list(user.groups.values_list('name', flat=True))
             if 'Silrec Admin' in groups:
                 return True
-            if 'Silrec Admin' in groups or 'Assessor' in groups:
+            if 'Silrec Admin' in groups or 'Operator' in groups:
                 return True
             return False
         except Exception:

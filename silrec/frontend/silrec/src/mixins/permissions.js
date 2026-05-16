@@ -11,11 +11,11 @@ export default {
         isReadOnlyUser() {
             return this.currentUser && this.currentUser.is_readonly_user;
         },
-        isAssessorUser() {
+        isOperatorUser() {
             return (
                 this.currentUser &&
                 this.currentUser.groups &&
-                this.currentUser.groups.includes('Assessor')
+                this.currentUser.groups.includes('Operator')
             );
         },
         isReviewerUser() {

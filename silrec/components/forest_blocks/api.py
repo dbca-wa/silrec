@@ -143,7 +143,7 @@ class SurveyAssessmentDocumentViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve', 'create', 'update', 'partial_update']:
             permission_classes = [IsAuthenticated]
         else:
-            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
 
 #    @action(detail=True, methods=['get'])
@@ -533,9 +533,9 @@ class IsOfficer(BasePermission):
     def has_permission(self, request, view):
         return True
 
-class IsAssessor(BasePermission):
+class IsOperator(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.groups.filter(name='Assessor').exists()
+        return request.user.is_authenticated and request.user.groups.filter(name='Operator').exists()
 
 class IsReviewer(BasePermission):
     def has_permission(self, request, view):
@@ -568,7 +568,7 @@ class CohortViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         else:
-            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
 
 
@@ -735,7 +735,7 @@ class TreatmentViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         else:
-            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
 
         return [permission() for permission in permission_classes]
 
@@ -749,7 +749,7 @@ class TreatmentXtraViewSet(viewsets.ModelViewSet):
 #        if self.action in ['list', 'retrieve', 'update', 'partial_update']:
 #            permission_classes = [IsAuthenticated]
 #        else:
-#            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+#            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
 #        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
@@ -768,7 +768,7 @@ class PrescriptionViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         else:
-            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
@@ -795,7 +795,7 @@ class SilviculturistCommentViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         else:
-            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
         return [permission() for permission in permission_classes]
 
 
@@ -953,7 +953,7 @@ class OperationViewSet(viewsets.ModelViewSet):
 #        if self.action in ['list', 'retrieve', 'create', 'update', 'partial_update']:
 #            permission_classes = [IsAuthenticated]
 #        else:
-#            permission_classes = [IsAuthenticated & (IsAssessor | IsReviewer | IsSilrecAdmin)]
+#            permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
 #        return [permission() for permission in permission_classes]
 
     def get_queryset(self):

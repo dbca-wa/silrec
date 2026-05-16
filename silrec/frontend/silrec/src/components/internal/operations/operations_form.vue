@@ -375,6 +375,7 @@ export default {
             showDocUpload: false,
             isEditing: false,
             operationNotFound: false,
+            validationRules: [],
         };
     },
     computed: {
@@ -725,15 +726,28 @@ export default {
         },
 
         validateForm() {
-//            if (!this.operationData.fea_id) {
-//                swal.fire({
-//                    icon: 'error',
-//                    title: 'Validation Error',
-//                    text: 'FEA ID is required',
-//                    confirmButtonText: 'OK',
-//                });
-//                return false;
-//            }
+            for (const rule of this.validationRules) {
+                if (!rule.is_active) continue;
+
+                if (rule.is_required) {
+                    const value = this.operationData[rule.field_name];
+                    if (
+                        value === null ||
+                        value === undefined ||
+                        value === '' ||
+                        (typeof value === 'string' && value.trim() === '')
+                    ) {
+                        const label = rule.field_label || rule.field_name;
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Validation Error',
+                            text: `${label} is required`,
+                            confirmButtonText: 'OK',
+                        });
+                        return false;
+                    }
+                }
+            }
 
             return true;
         },
@@ -818,12 +832,25 @@ export default {
             }
             return cookieValue;
         },
+
+        async fetchValidationRules() {
+            try {
+                const url = `${api_endpoints.form_validation_rules}?model=${encodeURIComponent('forest_blocks.Operation')}`;
+                const response = await fetch(url);
+                if (response.ok) {
+                    this.validationRules = await response.json();
+                }
+            } catch (error) {
+                console.error('Failed to fetch validation rules:', error);
+            }
+        },
     },
     mounted() {
         this.loadOperationData();
         if (!this.operationId) {
             this.loadCohortPolygonFEA();
         }
+        this.fetchValidationRules();
     },
     watch: {
         operationId: {

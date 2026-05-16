@@ -168,7 +168,7 @@ class HelpView(LoginRequiredMixin, TemplateView):
 
         if self.request.user.is_authenticated:
             application_type = kwargs.get('application_type', None)
-            if kwargs.get('help_type', None)=='assessor':
+            if kwargs.get('help_type', None)=='operator':
                 if is_internal(self.request):
                     qs = HelpPage.objects.filter(application_type__name__icontains=application_type, help_type=HelpPage.HELP_TEXT_INTERNAL).order_by('-version')
                     context['help'] = qs.first()

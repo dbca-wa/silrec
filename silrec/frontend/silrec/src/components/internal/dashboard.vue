@@ -109,7 +109,7 @@ export default {
             /*
             if (this.accessing_user) {
                 return (
-                    this.accessing_user.is_assessor ||
+                    this.accessing_user.is_operator ||
                     this.accessing_user.is_approver ||
                     this.accessing_user.is_finance_officer
                 );

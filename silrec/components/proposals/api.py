@@ -259,7 +259,7 @@ class ProposalPaginatedViewSet(viewsets.ReadOnlyModelViewSet):
                  Proposal.PROCESSING_STATUS_DISCARDED,
                  Proposal.PROCESSING_STATUS_TEMP,
              ])
-#        if is_assessor(self.request) or is_approver(self.request):
+#        if is_operator(self.request) or is_approver(self.request):
 #            target_email_user_id = self.request.query_params.get(
 #                "target_email_user_id", None
 #            )
@@ -465,14 +465,14 @@ class ProposalViewSet(UserActionLoggingViewset):
 
             # Define forward and backward transitions
             forward_transitions = {
-                'with_assessor': ['draft'],  # from draft to with_assessor
-                'with_reviewer': ['with_assessor'],  # from with_assessor to with_reviewer
+                'with_operator': ['draft'],  # from draft to with_operator
+                'with_reviewer': ['with_operator'],  # from with_operator to with_reviewer
                 'review_completed': ['with_reviewer']  # from with_reviewer to review_completed
             }
 
             backward_transitions = {
-                'draft': ['with_assessor'],  # from with_assessor to draft
-                'with_assessor': ['with_reviewer', 'review_completed'],  # from with_reviewer or review_completed to with_assessor
+                'draft': ['with_operator'],  # from with_operator to draft
+                'with_operator': ['with_reviewer', 'review_completed'],  # from with_reviewer or review_completed to with_operator
                 'with_reviewer': ['review_completed']  # from review_completed to with_reviewer
             }
 
@@ -507,9 +507,9 @@ class ProposalViewSet(UserActionLoggingViewset):
                 prev_status = proposal.prev_processing_status
                 new_status = proposal.processing_status
 
-                if prev_status == 'processing_shapefile' and new_status == 'with_assessor':
+                if prev_status == 'processing_shapefile' and new_status == 'with_operator':
                     send_submit_email_notification(request, proposal)
-                elif prev_status == 'with_assessor' and new_status == 'with_reviewer':
+                elif prev_status == 'with_operator' and new_status == 'with_reviewer':
                     send_reviewer_email_notification(request, proposal)
                 elif prev_status == 'with_reviewer' and new_status == 'review_completed':
                     send_review_completed_email_notification(request, proposal)
@@ -543,7 +543,7 @@ class ProposalViewSet(UserActionLoggingViewset):
         """
         Get available workflow actions for the current user (GET),
         or perform a transition (POST).
-        POST expects: {'transition': 'to_assessor'}
+        POST expects: {'transition': 'to_operator'}
         """
         proposal = self.get_object()
         current_status = proposal.processing_status
@@ -600,16 +600,16 @@ class ProposalViewSet(UserActionLoggingViewset):
                 {'key': 'to_processing_shapefile', 'label': 'Process Shapefile', 'target': 'processing_shapefile'},
             ],
             'processing_shapefile': [
-                {'key': 'to_assessor', 'label': 'Send to Assessor', 'target': 'with_assessor'},
-                {'key': 'keep', 'label': 'Keep', 'target': 'with_assessor'},
+                {'key': 'to_operator', 'label': 'Send to Operator', 'target': 'with_operator'},
+                {'key': 'keep', 'label': 'Keep', 'target': 'with_operator'},
             ],
-            'with_assessor': [
+            'with_operator': [
                 {'key': 'to_reviewer', 'label': 'Send to Reviewer', 'target': 'with_reviewer'},
                 {'key': 'to_draft', 'label': 'Return to Draft', 'target': 'draft'}
             ],
             'with_reviewer': [
                 {'key': 'to_review_completed', 'label': 'Send to Review Completed', 'target': 'review_completed'},
-                {'key': 'to_assessor', 'label': 'Return to Assessor', 'target': 'with_assessor'}
+                {'key': 'to_operator', 'label': 'Return to Operator', 'target': 'with_operator'}
             ],
             'review_completed': [
                 {'key': 'to_reviewer', 'label': 'Return to Reviewer', 'target': 'with_reviewer'}
@@ -646,7 +646,7 @@ class ProposalViewSet(UserActionLoggingViewset):
             proposal.save()
 
             # After Keep: write shapefile attributes to DB tables per target_db_field config
-            if current_status == 'processing_shapefile' and target_status == 'with_assessor':
+            if current_status == 'processing_shapefile' and target_status == 'with_operator':
                 try:
                     from silrec.components.proposals.service import write_shapefile_attributes_to_db
                     write_shapefile_attributes_to_db(proposal)
@@ -656,10 +656,10 @@ class ProposalViewSet(UserActionLoggingViewset):
                         exc_info=True
                     )
 
-            # Send email for keep transition (processing_shapefile -> with_assessor)
+            # Send email for keep transition (processing_shapefile -> with_operator)
             try:
                 from silrec.components.proposals.email import send_submit_email_notification
-                if current_status == 'processing_shapefile' and target_status == 'with_assessor':
+                if current_status == 'processing_shapefile' and target_status == 'with_operator':
                     send_submit_email_notification(request, proposal)
             except Exception as e:
                 logger.error(f"Error sending keep/transition email for proposal {proposal.id}: {str(e)}")
@@ -1031,7 +1031,7 @@ class ProposalViewSet(UserActionLoggingViewset):
 #    @basic_exception_handler
 #    def assign_to(self, request, *args, **kwargs):
 #        instance = self.get_object()
-#        user_id = request.data.get("assessor_id", None)
+#        user_id = request.data.get("operator_id", None)
 #        user = None
 #        if not user_id:
 #            raise serializers.ValidationError("An assessor id is required")
@@ -1059,9 +1059,9 @@ class ProposalViewSet(UserActionLoggingViewset):
 #
 #    @detail_route(methods=["PATCH"], detail=True)
 #    @basic_exception_handler
-#    def back_to_assessor(self, request, *args, **kwargs):
+#    def back_to_operator(self, request, *args, **kwargs):
 #        instance = self.get_object()
-#        instance.processing_status = Proposal.PROCESSING_STATUS_WITH_ASSESSOR
+#        instance.processing_status = Proposal.PROCESSING_STATUS_WITH_OPERATOR
 #        # Reset fields related to the propose approve / decline so that the assessor must
 #        # make a new proposal to approve or deline (since the last one was rejected)
 #        instance.proposed_decline_status = False
@@ -1081,8 +1081,8 @@ class ProposalViewSet(UserActionLoggingViewset):
 #            raise serializers.ValidationError("Status is required")
 #        else:
 #            if status not in [
-#                Proposal.PROCESSING_STATUS_WITH_ASSESSOR,
-#                Proposal.PROCESSING_STATUS_WITH_ASSESSOR_CONDITIONS,
+#                Proposal.PROCESSING_STATUS_WITH_OPERATOR,
+#                Proposal.PROCESSING_STATUS_WITH_OPERATOR_CONDITIONS,
 #                Proposal.PROCESSING_STATUS_WITH_APPROVER,
 #                Proposal.PROCESSING_STATUS_WITH_REFERRAL,
 #            ]:
@@ -1096,7 +1096,7 @@ class ProposalViewSet(UserActionLoggingViewset):
 #    @basic_exception_handler
 #    def reissue_approval(self, request, *args, **kwargs):
 #        instance = self.get_object()
-#        if not is_assessor(request):
+#        if not is_operator(request):
 #            raise PermissionDenied(
 #                "Assessor permissions are required to reissue approval"
 #            )
@@ -1250,7 +1250,7 @@ class ProposalViewSet(UserActionLoggingViewset):
 #    @detail_route(methods=["POST"], detail=True)
 #    @renderer_classes((JSONRenderer,))
 #    @basic_exception_handler
-#    def assessor_save(self, request, *args, **kwargs):
+#    def operator_save(self, request, *args, **kwargs):
 #        instance = self.get_object()
 #        save_assessor_data(instance, request, self)
 #

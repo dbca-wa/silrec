@@ -1669,9 +1669,9 @@ class OperationSerializer(serializers.ModelSerializer):
         return representation
 
     def validate_fea_id(self, value):
-        """Validate FEA ID"""
-        if not value or len(value.strip()) == 0:
-            raise serializers.ValidationError("FEA ID is required")
+        """Validate FEA ID — model has blank=True, null=True so allow empty"""
+        if value is None or (isinstance(value, str) and value.strip() == ''):
+            return value
         return value.strip()
 
     def validate_das_id(self, value):

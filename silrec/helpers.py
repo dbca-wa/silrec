@@ -32,7 +32,7 @@ def belongs_to(user, group_name):
     return belongs_to_value
 
 
-VALID_GROUPS = ['User', 'Operator', 'Assessor', 'Reviewer', 'Silrec Admin']
+VALID_GROUPS = ['User', 'Operator', 'Reviewer', 'Silrec Admin']
 
 
 def has_access(user):
@@ -78,4 +78,3 @@ def is_internal(request):
 def get_all_officers():
     #return EmailUser.objects.filter(groups__name=settings.ADMIN_GROUP)
     return None
-

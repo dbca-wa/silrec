@@ -239,7 +239,7 @@
                             :context="approval"
                             :proposal-ids="[-1]"
                             :feature-collection="approval.geometry_objs"
-                            style-by="assessor"
+                            style-by="operator"
                             :filterable="false"
                             :drawable="false"
                             :editable="true"

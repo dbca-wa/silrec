@@ -7,8 +7,8 @@ export default {
     },
     ROLES: {
         GROUP_NAME_ASSESSOR: {
-            ID: 'proposal_assessor_group',
-            TEXT: 'Proposal Assessor Group',
+            ID: 'proposal_operator_group',
+            TEXT: 'Proposal Operator Group',
         },
         GROUP_NAME_APPROVER: {
             ID: 'proposal_approver_group',
@@ -27,10 +27,10 @@ export default {
             ID: 'amendment_required',
             TEXT: 'Amendment Required',
         },
-        WITH_ASSESSOR: { ID: 'with_assessor', TEXT: 'With Assessor' },
-        WITH_ASSESSOR_CONDITIONS: {
-            ID: 'with_assessor_conditions',
-            TEXT: 'With Assessor (Conditions)',
+        WITH_OPERATOR: { ID: 'with_operator', TEXT: 'With Operator' },
+        WITH_OPERATOR_CONDITIONS: {
+            ID: 'with_operator_conditions',
+            TEXT: 'With Operator (Conditions)',
         },
         WITH_APPROVER: { ID: 'with_approver', TEXT: 'With Approver' },
         WITH_REFERRAL: { ID: 'with_referral', TEXT: 'With Referral' },
@@ -69,7 +69,7 @@ export default {
     COMPLIANCE_PROCESSING_STATUS: {
         DUE: { ID: 'due', TEXT: 'Due' },
         FUTURE: { ID: 'future', TEXT: 'Future' },
-        WITH_ASSESSOR: { ID: 'with_assessor', TEXT: 'With Assessor' },
+        WITH_OPERATOR: { ID: 'with_operator', TEXT: 'With Operator' },
         WITH_REFERRAL: { ID: 'with_referral', TEXT: 'With Referral' },
         APPROVED: { ID: 'approved', TEXT: 'Approved' },
         DISCARDED: { ID: 'discarded', TEXT: 'Discarded' },
@@ -78,7 +78,7 @@ export default {
     COMPLIANCE_CUSTOMER_STATUS: {
         DUE: { ID: 'due', TEXT: 'Due' },
         FUTURE: { ID: 'future', TEXT: 'Future' },
-        WITH_ASSESSOR: { ID: 'with_assessor', TEXT: 'Under Review' },
+        WITH_OPERATOR: { ID: 'with_operator', TEXT: 'Under Review' },
         WITH_REFERRAL: { ID: 'with_referral', TEXT: 'Under Review' },
         APPROVED: { ID: 'approved', TEXT: 'Approved' },
         DISCARDED: { ID: 'discarded', TEXT: 'Discarded' },

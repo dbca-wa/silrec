@@ -37,7 +37,7 @@ def system_base_url(context):
     return 'https://' + SITE_PREFIX + '.' + SITE_DOMAIN + os.sep
 
 @register.simple_tag()
-def is_assessor():
+def is_operator():
     return True
 
 @register.simple_tag()
@@ -64,4 +64,3 @@ def basket_total_price(lines):
         total += line['price_incl_tax'] * line['quantity']
     return "{:.2f}".format(round(total, 2))
 '''
-

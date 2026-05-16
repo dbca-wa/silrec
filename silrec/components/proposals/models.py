@@ -214,9 +214,9 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
     PROCESSING_STATUS_DRAFT = "draft"
     PROCESSING_STATUS_PROCESSING_SHAPEFILE = "processing_shapefile"
     PROCESSING_STATUS_AMENDMENT_REQUIRED = "amendment_required"
-    PROCESSING_STATUS_WITH_ASSESSOR = "with_assessor"
-    PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS = "with_assessor_treatments"
-    PROCESSING_STATUS_WITH_ASSESSOR_TASKS = "with_assessor_tasks"
+    PROCESSING_STATUS_WITH_OPERATOR = "with_operator"
+    PROCESSING_STATUS_WITH_OPERATOR_TREATMENTS = "with_operator_treatments"
+    PROCESSING_STATUS_WITH_OPERATOR_TASKS = "with_operator_tasks"
     PROCESSING_STATUS_WITH_REVIEWER = "with_reviewer"
     PROCESSING_STATUS_REVIEW_COMPLETED = "review_completed"
     PROCESSING_STATUS_DECLINED = "declined"
@@ -226,9 +226,9 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
         (PROCESSING_STATUS_DRAFT, "Draft"),
         (PROCESSING_STATUS_PROCESSING_SHAPEFILE, "Processing Shapefile"),
         (PROCESSING_STATUS_AMENDMENT_REQUIRED, "Amendment Required"),
-        (PROCESSING_STATUS_WITH_ASSESSOR, "With Assessor"),
-        (PROCESSING_STATUS_WITH_ASSESSOR_TREATMENTS, "With Assessor (Treatments)"),
-        (PROCESSING_STATUS_WITH_ASSESSOR_TASKS, "With Assessor (Tasks)"),
+        (PROCESSING_STATUS_WITH_OPERATOR, "With Operator"),
+        (PROCESSING_STATUS_WITH_OPERATOR_TREATMENTS, "With Operator (Treatments)"),
+        (PROCESSING_STATUS_WITH_OPERATOR_TASKS, "With Operator (Tasks)"),
         (PROCESSING_STATUS_WITH_REVIEWER, "With Reviewer"),
         (PROCESSING_STATUS_REVIEW_COMPLETED, "Review Completed"),
         (PROCESSING_STATUS_DECLINED, "Declined"),
@@ -334,29 +334,29 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
             'draft': {
                 'to_processing_shapefile': {
                     'target': 'processing_shapefile',
-                    'allowed_groups': ['Assessor'],
+                    'allowed_groups': ['Operator'],
                 }
             },
             'processing_shapefile': {
-                'to_assessor': {
-                    'target': 'with_assessor',
-                    'allowed_groups': ['Assessor'],
+                'to_operator': {
+                    'target': 'with_operator',
+                    'allowed_groups': ['Operator'],
                 },
                 'keep': {
-                    'target': 'with_assessor',
-                    'allowed_groups': ['Assessor'],
+                    'target': 'with_operator',
+                    'allowed_groups': ['Operator'],
                 },
             },
-            'with_assessor': {
+            'with_operator': {
                 'to_reviewer': {
                     'target': 'with_reviewer',
-                    #'allowed_groups': ['Silrec Admin', 'Assessor'],  # Users who can send to reviewer
-                    'allowed_groups': ['Assessor'],  # Users who can send to reviewer
+                    #'allowed_groups': ['Silrec Admin', 'Operator'],  # Users who can send to reviewer
+                    'allowed_groups': ['Operator'],  # Users who can send to reviewer
                 },
                 'to_draft': {
                     'target': 'draft',
-                    #'allowed_groups': ['Silrec Admin', 'Assessor'],  # Users who can return to draft
-                    'allowed_groups': ['Assessor'],  # Users who can return to draft
+                    #'allowed_groups': ['Silrec Admin', 'Operator'],  # Users who can return to draft
+                    'allowed_groups': ['Operator'],  # Users who can return to draft
                 }
             },
             'with_reviewer': {
@@ -364,8 +364,8 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
                     'target': 'review_completed',
                     'allowed_groups': ['Reviewer'],
                 },
-                'to_assessor': {
-                    'target': 'with_assessor',
+                'to_operator': {
+                    'target': 'with_operator',
                     'allowed_groups': ['Reviewer'],
                 }
             },

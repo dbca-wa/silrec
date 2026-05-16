@@ -786,21 +786,25 @@ export default {
                 // Save Operation Details first if the form is visible and editable
                 const opForm = this.$refs.operationForm;
                 if (opForm && !opForm.readOnly && opForm.showActions) {
-                    try {
-                        const opResult = await opForm.saveOperation();
-                        if (opResult && opResult.op_id) {
-                            this.cohortData.op_id = opResult.op_id;
+                    // Skip save if FEA ID is empty (operation not ready)
+                    const feaVal = opForm.operationData && opForm.operationData.fea_id;
+                    if (feaVal && feaVal.trim()) {
+                        try {
+                            const opResult = await opForm.saveOperation();
+                            if (opResult && opResult.op_id) {
+                                this.cohortData.op_id = opResult.op_id;
+                            }
+                        } catch (error) {
+                            console.error('Error saving operation:', error);
+                            await swal.fire({
+                                icon: 'error',
+                                title: 'Operation Save Failed',
+                                text: error.message || 'Failed to save operation details',
+                                confirmButtonText: 'OK',
+                            });
+                            this.saving = false;
+                            return false;
                         }
-                    } catch (error) {
-                        console.error('Error saving operation:', error);
-                        await swal.fire({
-                            icon: 'error',
-                            title: 'Operation Save Failed',
-                            text: error.message || 'Failed to save operation details',
-                            confirmButtonText: 'OK',
-                        });
-                        this.saving = false;
-                        return false;
                     }
                 }
 

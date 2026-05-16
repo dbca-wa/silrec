@@ -18,7 +18,7 @@
                 <div class="row">
                     <div class="col-sm-12">
                         <button
-                            v-if="hasAssessorMode || isReferrerCanEdit"
+                            v-if="hasOperatorMode || isReferrerCanEdit"
                             style="margin-bottom: 10px"
                             class="btn btn-primary float-end"
                             @click.prevent="addRequirement()"
@@ -181,10 +181,10 @@ export default {
                         data: 'id',
                         mRender: function (data, type, full) {
                             let links = '';
-                            if (vm.hasAssessorMode || vm.isReferrer) {
+                            if (vm.hasOperatorMode || vm.isReferrer) {
                                 // Whether the current user can edit/delete a referral
                                 let show_action_btns =
-                                    vm.hasAssessorMode ||
+                                    vm.hasOperatorMode ||
                                     (vm.isReferrerCanEdit &&
                                         full.can_referral_edit);
                                 // Whether a referral has been completed, but can still be viewed
@@ -192,7 +192,7 @@ export default {
                                     vm.isReferrer &&
                                     !vm.isReferrerCanEdit &&
                                     full.can_referral_edit;
-                                // Assessors can edit and/or delete all proposed requirements
+                                // Operators can edit and/or delete all proposed requirements
                                 // Referral parties can only edit or delete their own requirements
                                 if (show_action_btns) {
                                     links += `<a href='#' class="editRequirement" data-id="${full.id}">Edit</a><br/>`;
@@ -209,7 +209,7 @@ export default {
                         data: 'id',
                         mRender: function (data, type, full) {
                             let links = '';
-                            if (vm.proposal.assessor_mode.has_assessor_mode) {
+                            if (vm.proposal.operator_mode.has_operator_mode) {
                                 links += `<a class="dtMoveUp" data-id="${full.id}" href='#'><i class="fa fa-angle-up fa-2x"></i></a><br/>`;
                                 links += `<a class="dtMoveDown" data-id="${full.id}" href='#'><i class="fa fa-angle-down fa-2x"></i></a><br/>`;
                             }
@@ -230,14 +230,14 @@ export default {
         datatableId: function () {
             return 'requirements-datatable';
         },
-        hasAssessorMode() {
-            return this.proposal.assessor_mode.has_assessor_mode;
+        hasOperatorMode() {
+            return this.proposal.operator_mode.has_operator_mode;
         },
         isReferrer() {
-            return this.proposal.assessor_mode.is_referee;
+            return this.proposal.operator_mode.is_referee;
         },
         isReferrerCanEdit() {
-            return this.proposal.assessor_mode.referee_can_edit;
+            return this.proposal.operator_mode.referee_can_edit;
         },
         conditionsMissingDates() {
             return (
@@ -253,13 +253,13 @@ export default {
         },
     },
     watch: {
-        hasAssessorMode() {
+        hasOperatorMode() {
             // reload the table
             this.$refs.requirements_datatable.vmDataTable.ajax.reload();
         },
     },
     mounted: async function () {
-        if (this.profile.is_assessor) {
+        if (this.profile.is_operator) {
             await this.fetchRequirements();
         }
         this.$nextTick(() => {

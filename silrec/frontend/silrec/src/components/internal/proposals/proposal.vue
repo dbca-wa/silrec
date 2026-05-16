@@ -100,19 +100,19 @@
                                 <button
                                     v-else
                                     class="btn btn-primary me-2"
-                                    @click="sendToAssessor"
-                                    :disabled="!canSendToAssessor"
+                                    @click="sendToOperator"
+                                    :disabled="!canSendToOperator"
                                 >
-                                    Send to Assessor
+                                    Send to Operator
                                 </button>
                             </template>
 			    -->
 
-                            <!-- With Assessor status buttons -->
+                            <!-- With Operator status buttons -->
                             <template
                                 v-if="
                                     proposal.processing_status ===
-                                    'with_assessor'
+                                    'with_operator'
                                 "
                             >
                                 <BootstrapButtonSpinner
@@ -181,10 +181,10 @@
                                 <button
                                     v-else
                                     class="btn btn-secondary me-2"
-                                    @click="returnToAssessor"
-                                    :disabled="!canReturnToAssessor"
+                                    @click="returnToOperator"
+                                    :disabled="!canReturnToOperator"
                                 >
-                                    Return to Assessor
+                                    Return to Operator
                                 </button>
                             </template>
 
@@ -373,10 +373,10 @@ export default {
         // Watch for status changes to clear the comment from UI when moving forward
         'proposal.processing_status': {
             handler(newStatus, oldStatus) {
-                // If moving to a forward status (with_assessor, with_reviewer, review_completed)
+                // If moving to a forward status (with_operator, with_reviewer, review_completed)
                 // and not from a backward transition, we can clear the UI comment
                 const forwardStatuses = [
-                    'with_assessor',
+                    'with_operator',
                     'with_reviewer',
                     'review_completed',
                 ];
@@ -398,8 +398,8 @@ export default {
         },
         collapseAssessmentComments: function () {
             return ![
-                constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID,
-                constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID,
+                constants.PROPOSAL_STATUS.WITH_OPERATOR.ID,
+                constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.ID,
                 constants.PROPOSAL_STATUS.WITH_APPROVER.ID,
                 constants.PROPOSAL_STATUS.WITH_REFERRAL.ID,
             ].includes(this.proposal.processing_status_id);
@@ -415,8 +415,8 @@ export default {
             let canEdit = false;
             if (
                 [
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID,
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.ID,
                 ].includes(this.proposal.processing_status_id)
             ) {
                 if (
@@ -448,8 +448,8 @@ export default {
 
             if (
                 [
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID,
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.ID,
                 ].includes(this.proposal.processing_status_id)
             ) {
                 if (
@@ -536,11 +536,11 @@ export default {
         proposal_form_url: function () {
             if (
                 [
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID,
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.ID,
                 ].includes(this.proposal.processing_status_id)
             ) {
-                return `/api/proposal/${this.proposal.id}/assessor_save.json`;
+                return `/api/proposal/${this.proposal.id}/operator_save.json`;
             } else if (
                 [constants.PROPOSAL_STATUS.WITH_REFERRAL.ID].includes(
                     this.proposal.processing_status_id
@@ -605,7 +605,7 @@ export default {
             let ret_val =
                 (this.profile &&
                     this.proposal.processing_status_id ==
-                        constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS
+                        constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS
                             .ID) ||
                 ((this.proposal.processing_status_id ==
                     constants.PROPOSAL_STATUS.WITH_APPROVER.ID ||
@@ -645,26 +645,26 @@ export default {
         },
         canAssess: function () {
             return (
-                this.proposal && this.proposal.assessor_mode.assessor_can_assess
+                this.proposal && this.proposal.operator_mode.operator_can_assess
             );
         },
         isReferee: function () {
-            return this.proposal && this.proposal.assessor_mode.is_referee;
+            return this.proposal && this.proposal.operator_mode.is_referee;
         },
-        hasAssessorMode: function () {
+        hasOperatorMode: function () {
             return this.proposal &&
-                this.proposal.assessor_mode.has_assessor_mode
+                this.proposal.operator_mode.has_operator_mode
                 ? true
                 : false;
         },
         canAction: function () {
-            return this.proposal.assessor_mode.assessor_can_assess;
+            return this.proposal.operator_mode.operator_can_assess;
         },
         canSeeSubmission: function () {
             return (
                 this.proposal &&
                 ![
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.TEXT,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.TEXT,
                 ].includes(this.proposal.processing_status)
             );
         },
@@ -706,8 +706,8 @@ export default {
                     constants.PROPOSAL_TYPE.TRANSFER.code &&
                 this.proposal.approval &&
                 [
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID,
-                    constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR.ID,
+                    constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.ID,
                     constants.PROPOSAL_STATUS.WITH_APPROVER.ID,
                 ].includes(this.proposal.processing_status_id)
             );
@@ -719,19 +719,19 @@ export default {
             return (
                 this.proposal &&
                 this.profile &&
-                (this.profile.is_assessor || this.profile.is_approver)
+                (this.profile.is_operator || this.profile.is_approver)
             );
         },
 
-        // Check if user can send to assessor (draft -> with_assessor)
-        canSendToAssessor() {
+        // Check if user can send to assessor (draft -> with_operator)
+        canSendToOperator() {
             const transition = this.workflowOptions.available_transitions.find(
-                (t) => t.target === 'with_assessor'
+                (t) => t.target === 'with_operator'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
 
-        // Check if user can send to reviewer (with_assessor -> with_reviewer)
+        // Check if user can send to reviewer (with_operator -> with_reviewer)
         canSendToReviewer() {
             const transition = this.workflowOptions.available_transitions.find(
                 (t) => t.target === 'with_reviewer'
@@ -742,7 +742,7 @@ export default {
             return !this.savingProposal && !this.transitioning && !!transition;
         },
 
-        // Check if user can return to draft (with_assessor -> draft)
+        // Check if user can return to draft (with_operator -> draft)
         canReturnToDraft() {
             const transition = this.workflowOptions.available_transitions.find(
                 (t) => t.target === 'draft'
@@ -758,10 +758,10 @@ export default {
             return !this.savingProposal && !this.transitioning && !!transition;
         },
 
-        // Check if user can return to assessor (with_reviewer -> with_assessor)
-        canReturnToAssessor() {
+        // Check if user can return to assessor (with_reviewer -> with_operator)
+        canReturnToOperator() {
             const transition = this.workflowOptions.available_transitions.find(
-                (t) => t.target === 'with_assessor'
+                (t) => t.target === 'with_operator'
             );
             return !this.savingProposal && !this.transitioning && !!transition;
         },
@@ -778,7 +778,7 @@ export default {
         isBackwardStatus() {
             return (
                 this.proposal &&
-                ['draft', 'with_assessor', 'with_reviewer'].includes(
+                ['draft', 'with_operator', 'with_reviewer'].includes(
                     this.proposal.processing_status
                 )
             );
@@ -820,10 +820,10 @@ export default {
         isBackwardTransition(targetStatus) {
             const current = this.proposal.processing_status;
             // Return to Draft
-            if (current === 'with_assessor' && targetStatus === 'draft')
+            if (current === 'with_operator' && targetStatus === 'draft')
                 return true;
-            // Return to Assessor
-            if (current === 'with_reviewer' && targetStatus === 'with_assessor')
+            // Return to Operator
+            if (current === 'with_reviewer' && targetStatus === 'with_operator')
                 return true;
             // Return to Reviewer
             if (
@@ -1095,7 +1095,7 @@ export default {
         },
         completeReferral: async function (referral_text) {
             let vm = this;
-            vm.checkAssessorData();
+            vm.checkOperatorData();
             swal.fire({
                 title: 'Complete Referral',
                 text: 'Are you sure you want to complete this referral?',
@@ -1148,7 +1148,7 @@ export default {
         ) {
             let vm = this;
             this.savingProposal = true;
-            vm.checkAssessorData();
+            vm.checkOperatorData();
             try {
                 let payload = { proposal: this.proposal };
                 // When in Entering Conditions status ApplicationForm might not be there
@@ -1164,7 +1164,7 @@ export default {
                     this.proposal.proposal_type.code ==
                         constants.PROPOSAL_TYPE.MIGRATION.code &&
                     this.proposal.processing_status_id ==
-                        constants.PROPOSAL_STATUS.WITH_ASSESSOR.ID
+                        constants.PROPOSAL_STATUS.WITH_OPERATOR.ID
                 ) {
                     if (
                         this.proposal.groups.find(
@@ -1236,7 +1236,7 @@ export default {
                 console.error(err);
             }
         },
-        checkAssessorData: function () {
+        checkOperatorData: function () {
             //check assessor boxes and clear value of hidden assessor boxes so it won't get printed on approval pdf.
             //select all fields including hidden fields
             var all_fields = $(
@@ -1245,9 +1245,9 @@ export default {
             all_fields.each(function () {
                 var ele = null;
                 //check the fields which has assessor boxes.
-                ele = $('[name=' + this.name + '-Assessor]');
+                ele = $('[name=' + this.name + '-Operator]');
                 if (ele.length > 0) {
-                    let visiblity = $('[name=' + this.name + '-Assessor]').is(
+                    let visiblity = $('[name=' + this.name + '-Operator]').is(
                         ':visible'
                     );
                     if (!visiblity) {
@@ -1366,7 +1366,7 @@ export default {
             });
 
             vm.switchStatus(
-                constants.PROPOSAL_STATUS.WITH_ASSESSOR_CONDITIONS.ID
+                constants.PROPOSAL_STATUS.WITH_OPERATOR_CONDITIONS.ID
             );
             vm.showingProposal = false;
         },
@@ -1699,14 +1699,14 @@ export default {
                     this.proposal.assigned_approver != 'undefined'
                         ? false
                         : true;
-                data = { assessor_id: this.proposal.assigned_approver };
+                data = { operator_id: this.proposal.assigned_approver };
             } else {
                 unassign =
                     this.proposal.assigned_officer != null &&
                     this.proposal.assigned_officer != 'undefined'
                         ? false
                         : true;
-                data = { assessor_id: this.proposal.assigned_officer };
+                data = { operator_id: this.proposal.assigned_officer };
             }
 
             let endpoint = 'unassign';
@@ -1749,11 +1749,11 @@ export default {
                     });
                 });
         },
-        backToAssessor: async function () {
+        backToOperator: async function () {
             fetch(
                 helpers.add_endpoint_json(
                     api_endpoints.proposal,
-                    this.proposal.id + '/back_to_assessor'
+                    this.proposal.id + '/back_to_operator'
                 ),
                 {
                     method: 'PATCH',
@@ -1813,15 +1813,15 @@ export default {
                         this.initialiseAssignedOfficerSelect(true);
                         this.updateAssignedOfficerSelect();
                     });
-                    //if approver is pushing back proposal to Assessor then navigate the approver back to dashboard page
+                    //if approver is pushing back proposal to Operator then navigate the approver back to dashboard page
                     if (
                         this.proposal.processing_status_id ==
                             constants.PROPOSAL_STATUS.WITH_APPROVER.ID &&
                         (new_status ==
                             constants.PROPOSAL_STATUS
-                                .WITH_ASSESSOR_CONDITIONS ||
+                                .WITH_OPERATOR_CONDITIONS ||
                             new_status ==
-                                constants.PROPOSAL_STATUS.WITH_ASSESSOR)
+                                constants.PROPOSAL_STATUS.WITH_OPERATOR)
                     ) {
                         this.$router.push({ path: '/internal' });
                     }
@@ -2252,11 +2252,11 @@ export default {
         },
 
         // Specific transition methods
-        async sendToAssessor() {
+        async sendToOperator() {
             await this.transitionStatus(
-                'with_assessor',
-                'Are you sure you want to send this proposal to the Assessor?',
-                'Proposal sent to Assessor successfully!'
+                'with_operator',
+                'Are you sure you want to send this proposal to the Operator?',
+                'Proposal sent to Operator successfully!'
             );
         },
 
@@ -2284,11 +2284,11 @@ export default {
             );
         },
 
-        async returnToAssessor() {
+        async returnToOperator() {
             await this.transitionStatus(
-                'with_assessor',
-                'Are you sure you want to return this proposal to Assessor?',
-                'Proposal returned to Assessor successfully!'
+                'with_operator',
+                'Are you sure you want to return this proposal to Operator?',
+                'Proposal returned to Operator successfully!'
             );
         },
 

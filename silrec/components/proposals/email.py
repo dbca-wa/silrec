@@ -30,11 +30,11 @@ def get_sender_user():
         sender_user = User.objects.get(email__icontains=sender)
     return sender_user
 
-def get_assessor_recipients():
+def get_operator_recipients():
     try:
-        emails = Group.objects.get(name='Assessor').user_set.all().values_list('email', flat=True)
+        emails = Group.objects.get(name='Operator').user_set.all().values_list('email', flat=True)
     except Exception as e:
-        raise Exception (f'{e}: No email recipients found for Assessor - possibly No Group called "Assessor" defined or assigned to user(s)')
+        raise Exception (f'{e}: No email recipients found for Operator - possibly No Group called "Operator" defined or assigned to user(s)')
     return list(emails)
 
 def get_fmb_sharepoint_url():
@@ -88,7 +88,7 @@ def send_submit_email_notification(request, proposal):
     try:
         url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
         if "-internal" not in url:
-            # add it. This email is for internal staff (assessors)
+            # add it. This email is for internal staff (operators)
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
@@ -96,15 +96,15 @@ def send_submit_email_notification(request, proposal):
     context = {
         'proposal': proposal,
         'url': url,
-        'greeting': 'Assessor',
-        'assessor_footer': True,
+        'greeting': 'Operator',
+        'operator_footer': True,
         'FMB': get_fmb_sharepoint_url(),
         'comment': proposal.latest_transition_comment or '',
     }
 
-    #msg = email.send(proposal.assessor_recipients, context=context)
+    #msg = email.send(proposal.operator_recipients, context=context)
     #import ipdb; ipdb.set_trace()
-    msg = email.send(get_assessor_recipients(), context=context)
+    msg = email.send(get_operator_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)
     return msg
@@ -114,7 +114,7 @@ def send_reviewer_email_notification(request, proposal):
     try:
         url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
         if "-internal" not in url:
-            # add it. This email is for internal staff (assessors)
+            # add it. This email is for internal staff (operators)
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
@@ -127,7 +127,7 @@ def send_reviewer_email_notification(request, proposal):
         'FMB': get_fmb_sharepoint_url(),
     }
 
-    msg = email.send(get_assessor_recipients(), context=context)
+    msg = email.send(get_operator_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)
     return msg
@@ -137,7 +137,7 @@ def send_review_completed_email_notification(request, proposal):
     try:
         url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
         if "-internal" not in url:
-            # add it. This email is for internal staff (assessors)
+            # add it. This email is for internal staff (operators)
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
@@ -150,7 +150,7 @@ def send_review_completed_email_notification(request, proposal):
         'FMB': get_fmb_sharepoint_url(),
     }
 
-    msg = email.send(get_assessor_recipients(), context=context)
+    msg = email.send(get_operator_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)
     return msg
@@ -160,7 +160,7 @@ def send_returned_email_notification(request, proposal):
     try:
         url = request.build_absolute_uri(reverse('internal-proposal-detail',kwargs={'proposal_pk': proposal.id}))
         if "-internal" not in url:
-            # add it. This email is for internal staff (assessors)
+            # add it. This email is for internal staff (operators)
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
@@ -168,13 +168,13 @@ def send_returned_email_notification(request, proposal):
     context = {
         'proposal': proposal,
         'url': url,
-        'greeting': 'Assessor',
-        'assessor_footer': True,
+        'greeting': 'Operator',
+        'operator_footer': True,
         'FMB': get_fmb_sharepoint_url(),
         'comment': proposal.latest_transition_comment or '',
     }
 
-    msg = email.send(get_assessor_recipients(), context=context)
+    msg = email.send(get_operator_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)
     return msg
@@ -271,4 +271,3 @@ def _log_proposal_email(email_message, proposal, sender=None):
 #    email_entry = EmailUserLogEntry.objects.create(**kwargs)
 #
 #    return email_entry
-

@@ -257,7 +257,7 @@
                 :additionalFieldsConfig="additionalFieldsConfig"
                 @update-processed-geometry="handleProcessedGeometryUpdate"
                 @refresh-datatable="refreshPolygonCohortTable"
-                style-by="assessor"
+                style-by="operator"
                 :filterable="false"
                 :drawable="is_internal || !leaseLicence"
                 :editable="true"
@@ -350,7 +350,7 @@ export default {
             type: Boolean,
             default: false,
         },
-        hasAssessorMode: {
+        hasOperatorMode: {
             type: Boolean,
             default: false,
         },
@@ -699,7 +699,7 @@ export default {
         },
         shapefileDisabled: function () {
             if (this.isReadOnlyUser) return true;
-            if (!this.isAssessorUser) return true;
+            if (!this.isOperatorUser) return true;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return true;
             return (
@@ -1634,14 +1634,14 @@ export default {
                 html:
                     '<div style="text-align: left;">' +
                     '<p style="font-size: 0.9em; color: #6c757d; margin-bottom: 10px;">' +
-                    'This will write all processing results to the database and move the proposal to <strong>With Assessor</strong> status.' +
+                    'This will write all processing results to the database and move the proposal to <strong>With Operator</strong> status.' +
                     '</p>' +
                     '<p>Are you sure you want to keep these changes?</p>' +
                     '<p style="font-weight: bold; color: #dc3545;">This action cannot be undone via the Revert button!</p>' +
                     '<p>This will:</p>' +
                     '<ul style="margin-top: 5px;">' +
                     '<li>Write polygon, cohort, and assignment records to the database</li>' +
-                    '<li>Move the proposal to With Assessor status</li>' +
+                    '<li>Move the proposal to With Operator status</li>' +
                     '<li>Send a notification email</li>' +
                     '</ul>' +
                     '</div>',
@@ -1683,14 +1683,14 @@ export default {
                     throw new Error(data.error || 'Keep action failed');
                 }
                 if (data.success && data.proposal) {
-                    data.proposal.processing_status = 'with_assessor';
-                    data.proposal.processing_status_id = 'With Assessor';
+                    data.proposal.processing_status = 'with_operator';
+                    data.proposal.processing_status_id = 'With Operator';
                     this.$emit('refreshFromResponse', data.proposal);
                     this.fetchWorkflowOptions();
                     Swal.fire({
                         icon: 'success',
                         title: 'Changes Kept',
-                        text: 'Proposal moved to With Assessor status.',
+                        text: 'Proposal moved to With Operator status.',
                         timer: 2000,
                         showConfirmButton: false,
                     });

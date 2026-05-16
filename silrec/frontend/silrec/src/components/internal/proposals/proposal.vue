@@ -215,7 +215,6 @@
                     </div>
 
                     <!-- Right side - Save buttons -->
-		    <!--
                     <div class="col-md-6 text-end">
                         <BootstrapButtonSpinner
                             v-if="savingProposal"
@@ -249,7 +248,6 @@
                             Save and Continue
                         </button>
                     </div>
-		    -->
                 </div>
             </div>
         </div>

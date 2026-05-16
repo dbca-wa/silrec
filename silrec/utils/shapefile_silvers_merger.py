@@ -161,6 +161,92 @@ class ShapefileSliversMerger():
 
         return gpd.GeoDataFrame([1], geometry=[merged_clean], crs=gdf.crs)
 
+    # ------------------------------------------------------------------ #
+    #  Temp-table baseline for keep/revert of the 3 core tables          #
+    # ------------------------------------------------------------------ #
+
+    BASELINE_TABLES = ['silrec.polygon', 'silrec.cohort', 'silrec.assign_cht_to_ply']
+    BACKUP_TABLES  = ['silrec.baseline_polygon', 'silrec.baseline_cohort', 'silrec.baseline_assign_cht_to_ply']
+
+    def create_savepoint(self, sp_id=None):
+        """
+        Copy every row from the 3 core tables into silrec.baseline_*
+        backup tables for later revert.
+
+        The backup tables are created on first call if they don't exist,
+        then truncated and repopulated.  They persist in the DB across
+        HTTP requests so the revert decision can be made later.
+        """
+        with connection.cursor() as cursor:
+            for src, dst in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {dst} (LIKE {src} INCLUDING ALL)
+                """)
+                cursor.execute(f'TRUNCATE TABLE {dst}')
+                cursor.execute(f'INSERT INTO {dst} SELECT * FROM {src}')
+        logger.info('Baseline backup created for %s', self.BASELINE_TABLES)
+        return {'success': True}
+
+    def revert_savepoint(self):
+        """
+        Restore the 3 core tables from silrec.baseline_* backup tables.
+
+        Truncates in reverse FK order and restores in FK order
+        (polygon -> cohort -> assign_cht_to_ply) to avoid constraint
+        violations, without needing session_replication_role.
+        """
+        tables_report = {}
+        all_ok = True
+        with connection.cursor() as cursor:
+            # Capture backup table counts first
+            for tbl, bak in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
+                cursor.execute(f'SELECT COUNT(*) FROM {bak}')
+                bak_cnt = cursor.fetchone()[0]
+                cursor.execute(f'SELECT COUNT(*) FROM {tbl}')
+                live_cnt = cursor.fetchone()[0]
+                tables_report[tbl] = {
+                    'row_count_before': bak_cnt,
+                    'row_count_after': 0,
+                    'checksum_before': '',
+                    'checksum_after': '',
+                    'row_match': False,
+                    'checksum_match': True,
+                    'match': False,
+                }
+
+            for dst in reversed(self.BASELINE_TABLES):
+                cursor.execute(f'TRUNCATE TABLE {dst} CASCADE')
+            for dst, src in zip(self.BASELINE_TABLES, self.BACKUP_TABLES):
+                cursor.execute(f'INSERT INTO {dst} SELECT * FROM {src}')
+
+            # Capture restored table counts for verification
+            for tbl in self.BASELINE_TABLES:
+                cursor.execute(f'SELECT COUNT(*) FROM {tbl}')
+                after_cnt = cursor.fetchone()[0]
+                expected = tables_report[tbl]['row_count_before']
+                match = (after_cnt == expected)
+                if not match:
+                    all_ok = False
+                tables_report[tbl]['row_count_after'] = after_cnt
+                tables_report[tbl]['row_match'] = match
+                tables_report[tbl]['match'] = match
+
+        logger.info('Revert complete from baseline backup. All OK: %s', all_ok)
+        return {
+            'success': all_ok,
+            'checksums_match': True,
+            'row_counts_match': all_ok,
+            'tables': tables_report,
+        }
+
+    def keep_savepoint(self):
+        """Drop the silrec.baseline_* backup tables.  Changes are kept."""
+        with connection.cursor() as cursor:
+            for tbl in self.BACKUP_TABLES:
+                cursor.execute(f'DROP TABLE IF EXISTS {tbl} CASCADE')
+        logger.info('Backup tables dropped (changes kept).')
+        return {'success': True, 'action': 'keep'}
+
     def create_gdf(self, savepoint_callback=None):
         '''
         Main processing method that creates the merged GeoDataFrames

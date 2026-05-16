@@ -4024,21 +4024,14 @@ class RevertShapefileProcessingView(APIView):
                 )
                 sv_result = ssm.revert_savepoint()
 
-                # Row counts matching is the real check — checksum may
-                # differ if tables have auto-generated timestamp columns
-                if not sv_result.get('row_counts_match', False):
+                if not sv_result.get('success', False):
                     return Response({
                         'success': False,
-                        'error': 'Savepoint revert failed — row counts do not match',
+                        'error': 'Savepoint revert failed',
                         'details': sv_result,
                     }, status=status.HTTP_400_BAD_REQUEST)
 
                 warnings_list = []
-                if not sv_result['checksums_match']:
-                    logger.info(
-                        'Revert row counts OK but checksums differ for proposal %s',
-                        proposal_id
-                    )
 
                 proposal.refresh_from_db()
                 proposal.processing_status = Proposal.PROCESSING_STATUS_DRAFT

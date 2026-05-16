@@ -340,33 +340,33 @@ class Proposal(RevisionedMixin, DirtyFieldsMixin):
             'processing_shapefile': {
                 'to_operator': {
                     'target': 'with_operator',
-                    'allowed_groups': ['Operator'],
+                    'allowed_groups': ['Operator','Silrec Admin'],
                 },
                 'keep': {
                     'target': 'with_operator',
-                    'allowed_groups': ['Operator'],
+                    'allowed_groups': ['Operator','Silrec Admin'],
                 },
             },
             'with_operator': {
                 'to_reviewer': {
                     'target': 'with_reviewer',
                     #'allowed_groups': ['Silrec Admin', 'Operator'],  # Users who can send to reviewer
-                    'allowed_groups': ['Operator'],  # Users who can send to reviewer
+                    'allowed_groups': ['Operator','Silrec Admin'],  # Users who can send to reviewer
                 },
                 'to_draft': {
                     'target': 'draft',
                     #'allowed_groups': ['Silrec Admin', 'Operator'],  # Users who can return to draft
-                    'allowed_groups': ['Operator'],  # Users who can return to draft
+                    'allowed_groups': ['Operator','Silrec Admin'],  # I dont believe can happen in practice, especially after Keep has been actioned
                 }
             },
             'with_reviewer': {
                 'to_review_completed': {
                     'target': 'review_completed',
-                    'allowed_groups': ['Reviewer'],
+                    'allowed_groups': ['Reviewer','Silrec Admin'],
                 },
                 'to_operator': {
                     'target': 'with_operator',
-                    'allowed_groups': ['Reviewer'],
+                    'allowed_groups': ['Reviewer','Silrec Admin'],
                 }
             },
             'review_completed': {

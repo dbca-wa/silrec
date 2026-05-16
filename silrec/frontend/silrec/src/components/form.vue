@@ -681,7 +681,7 @@ export default {
         // Only show shapefile actions in draft or processing_shapefile status
         showShapefileActions: function () {
             if (this.isReadOnlyUser) return false;
-            if (this.isReviewerUser && !this.isSilrecAdmin) return false;
+            if (this.isReviewerUser && !this.isOperatorUser && !this.isSilrecAdmin) return false;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return false;
             const s = this.workflowOptions.current_status;

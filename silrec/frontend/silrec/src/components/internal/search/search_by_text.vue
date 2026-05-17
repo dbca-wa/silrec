@@ -380,7 +380,7 @@
 <script>
 import datatable from '@/utils/vue/datatable.vue';
 import { v4 as uuid } from 'uuid';
-import { api_endpoints, constants } from '@/utils/hooks';
+import { api_endpoints, constants, helpers } from '@/utils/hooks';
 import CollapsibleFilters from '@/components/forms/collapsible_component.vue';
 import $ from 'jquery';
 import 'select2/dist/css/select2.min.css';
@@ -1287,24 +1287,71 @@ export default {
             // Reload fields for 'all' model
             this.loadFieldsForModel('all');
 
-            // Clear datatable if it exists
+            // Clear datatable without triggering a server request
             if (
                 this.$refs.search_datatable &&
                 this.$refs.search_datatable.vmDataTable
             ) {
                 this.$refs.search_datatable.vmDataTable.clear();
-                this.$refs.search_datatable.vmDataTable.draw();
             }
         },
 
-        exportResults() {
-            // Export functionality would go here
-            swal.fire({
-                title: 'Export Results',
-                text: 'Export functionality will be implemented soon.',
-                icon: 'info',
-                confirmButtonText: 'OK',
-            });
+        async exportResults() {
+            const vm = this;
+            if (!this.searchText || this.searchText.length < 2) return;
+
+            try {
+                const response = await fetch(api_endpoints.search_by_text, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': helpers.getCookie('csrftoken') },
+                    body: JSON.stringify({
+                        search_text: this.searchText,
+                        model: this.selectedModel,
+                        match_type: this.matchType,
+                        date_from: this.filterDateFrom || null,
+                        date_to: this.filterDateTo || null,
+                        case_sensitive: this.caseSensitive,
+                        fields: this.selectedFields,
+                        start: 0,
+                        length: 50000,
+                    }),
+                });
+                if (!response.ok) throw new Error('Export failed');
+
+                const json = await response.json();
+                const rows = json.data || [];
+
+                if (!rows.length) {
+                    swal.fire({ title: 'No Data', text: 'No records to export.', icon: 'info', confirmButtonText: 'OK' });
+                    return;
+                }
+
+                const headers = ['Model', 'ID', 'Field Found', 'Text Preview', 'Created On', 'Created By', 'Details'];
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(r => [
+                        `"${(r.model_display || '').replace(/"/g, '""')}"`,
+                        r.record_id,
+                        `"${(r.field_display || r.field_found || '').replace(/"/g, '""')}"`,
+                        `"${(r.text_preview || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+                        `"${r.created_on || ''}"`,
+                        `"${(r.created_by || '').replace(/"/g, '""')}"`,
+                        `"${(r.details || '').replace(/"/g, '""').replace(/<br\/>/g, '; ')}"`,
+                    ].join(','))
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `search_export_${this.searchText}_${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                swal.fire({ title: 'Export Error', text: e.message, icon: 'error', confirmButtonText: 'OK' });
+            }
         },
 
         destroySelect2() {

@@ -681,6 +681,11 @@ class TextSearchRequestSerializer(serializers.Serializer):
         return data
 
 
+class TextSearchExportSerializer(TextSearchRequestSerializer):
+    """Serializer for text search export requests — allows larger page size"""
+    length = serializers.IntegerField(required=False, default=50000, min_value=1, max_value=50000)
+
+
 class TextSearchSimpleSerializer(serializers.Serializer):
     """Simplified serializer for quick search (GET requests)"""
     search_text = serializers.CharField(min_length=2, required=True)

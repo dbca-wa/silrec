@@ -2,11 +2,13 @@
     <div class="container" id="SearchDashboard">
         <h1 class="my-4">Search</h1>
 
+	<!--
         <div class="row">
             <div class="col-md-12 mb-4">
                 <SearchByUser />
             </div>
         </div>
+	-->
 
         <div class="row mt-5">
             <div class="col-md-12">

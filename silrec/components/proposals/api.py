@@ -96,6 +96,7 @@ from silrec.components.proposals.serializers import (
     ProposalTypeSerializer,
     SQLReportSerializer,
     TextSearchRequestSerializer,
+    TextSearchExportSerializer,
     TextSearchResultSerializer,
     TextSearchSimpleSerializer,
     TextSearchFieldDisplaySerializer,
@@ -2071,7 +2072,8 @@ class SearchByTextView(APIView):
             if key in request.query_params:
                 data[key] = request.query_params.get(key)
 
-        serializer = TextSearchRequestSerializer(data=data)
+        # Use export serializer for POST requests to allow larger page sizes
+        serializer = TextSearchExportSerializer(data=data)
 
         if not serializer.is_valid():
             logger.warning(f"Text search validation errors: {serializer.errors}")
@@ -2081,6 +2083,11 @@ class SearchByTextView(APIView):
             )
 
         data = serializer.validated_data
+
+        # Allow larger page size for export (POST) requests
+        length = data.get('length')
+        if length and length > 1000:
+            data['length'] = min(length, 50000)
 
         try:
             results, total_records, filtered_records = self.perform_search(data)

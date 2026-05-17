@@ -8,8 +8,8 @@
 # Required variables (set via env or edit defaults below):
 set -euo pipefail
 
-DB_NAME="${DB_NAME:-silrec_test6}"
-DB_SCRIPT="${DB_SCRIPT:-$HOME/projects/silrec/silrec/utils/silrec_db_create.sql}"
+DB_NAME="${DB_NAME:-silrec_test2}"
+DB_SCRIPT="${DB_SCRIPT:-$HOME/projects/silrec/scripts/silrec_db_create.sql}"
 RESTORE_FILE="${RESTORE_FILE:-$HOME/projects/tmp/silrec_v3_backup_04May2026.sql}"
 REVERT_DUMP_FILE="${REVERT_DUMP_FILE:-$HOME/projects/tmp/silrec_3tables_04May2026_v2.dump}"
 
@@ -65,6 +65,12 @@ else
     echo "WARNING: RESTORE_FILE not found at $RESTORE_FILE — skipping restore"
 fi
 
+PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d $DB_NAME \
+    -c "ALTER TABLE polygon RENAME COLUMN compartmen TO compartment;"
+
+#PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d $DB_NAME \
+#    -c "ALTER TABLE polygon RENAME COLUMN reason_clo TO reason_closed;"
+
 echo "=== 2. Apply migrations ==="
 cd $HOME/projects/silrec
 source venv/bin/activate
@@ -115,9 +121,6 @@ echo "=== 4. Load fixtures ==="
 
 
 echo "=== 5. Dump 3 tables for revert testing ==="
-PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d $DB_NAME \
-    -c "ALTER TABLE polygon RENAME COLUMN compartmen TO compartment;"
-
 PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
     -t silrec.assign_cht_to_ply -t silrec.cohort -t silrec.polygon \
     -Fc -f "$REVERT_DUMP_FILE"

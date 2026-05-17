@@ -655,6 +655,17 @@ class TreatmentDatatablesFilterBackend(DatatablesFilterBackend):
                 changed_by__icontains=filter_operator
             )
 
+        # Filter by Post 2024 only — treatments whose cohort links to an
+        # Operation with plan_period in OP_PLAN_PERIOD.
+        filter_post_2024_only = request.query_params.get('filter_post_2024_only', '')
+        if filter_post_2024_only in ('true', 'True', True):
+            plan_periods = settings.OP_PLAN_PERIOD
+            queryset = queryset.filter(
+                cohort__op_id__in=Operation.objects.filter(
+                    plan_period__in=plan_periods
+                ).values('op_id')
+            )
+
         filtered_count = queryset.count()
 
         # Set counts on the request for the paginator to use
@@ -865,10 +876,17 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         if district:
             queryset = queryset.filter(compartment__district__icontains=district)
 
-        # Filter by post 2024 only
+        # Filter by post 2024 only — polygons whose current cohort links to an
+        # Operation with plan_period in OP_PLAN_PERIOD.
         filter_post_2024_only = self.request.query_params.get('filter_post_2024_only')
         if filter_post_2024_only and filter_post_2024_only.lower() == 'true':
-            queryset = queryset.filter(created_on_dt__year__gte=2024)
+            plan_periods = settings.OP_PLAN_PERIOD
+            queryset = queryset.filter(
+                assignchttoply__cohort__op_id__in=Operation.objects.filter(
+                    plan_period__in=plan_periods
+                ).values('op_id'),
+                assignchttoply__status_current=True
+            ).distinct()
 
         if zfea_id:
             queryset = queryset.filter(zfea_id__icontains=zfea_id)

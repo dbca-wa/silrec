@@ -1105,6 +1105,13 @@ export default {
                 this.onObjectiveClassificationChange();
             },
         },
+        filterPost2024Only: {
+            handler() {
+                if (this.debouncedRefreshData) {
+                    this.debouncedRefreshData();
+                }
+            },
+        },
         isMaximised() {
             // Update map height when maximised state changes
             this.$nextTick(() => {

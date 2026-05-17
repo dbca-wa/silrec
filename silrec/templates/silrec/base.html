@@ -32,6 +32,12 @@
         {% endblock %}
 
         {% block custom_js %}
+            <script id="silrec-settings" type="application/json">
+                {
+                    "showMergePolygonTool": {{ DJANGO_SETTINGS.SHOW_MERGE_POLYGON_TOOL|yesno:"true,false" }},
+                    "showCutPolygonTool": {{ DJANGO_SETTINGS.SHOW_CUT_POLYGON_TOOL|yesno:"true,false" }}
+                }
+            </script>
             <script type="module" src="{% vite_asset_url vue3_entry_script %}?v={{ build_tag }}"></script>
         {% endblock %}
 

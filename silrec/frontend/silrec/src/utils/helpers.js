@@ -639,4 +639,14 @@ export default {
             return result.join('');
         };
     },
+
+    getSilrecSetting: function (key, defaultValue) {
+        const el = document.getElementById('silrec-settings');
+        if (!el) return defaultValue;
+        try {
+            return JSON.parse(el.textContent)[key];
+        } catch {
+            return defaultValue;
+        }
+    },
 };

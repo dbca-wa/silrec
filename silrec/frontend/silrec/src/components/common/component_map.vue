@@ -396,7 +396,7 @@
                 </button>
 
                 <MergePolygonTool
-                    v-if="hasLayer3"
+                    v-if="hasLayer3 && showMergePolygonTool"
                     :map="map"
                     :layer3="layer3"
                     :hasLayer3="hasLayer3"
@@ -408,7 +408,7 @@
                 />
 
                 <CutPolygonTool
-                    v-if="hasLayer3"
+                    v-if="hasLayer3 && showCutPolygonTool"
                     :map="map"
                     :layer3="layer3"
                     :hasLayer3="hasLayer3"
@@ -453,6 +453,7 @@ import * as turf from '@turf/turf';
 import PolygonCohortTable from '@/components/common/table_polygon_cohort.vue';
 import MergePolygonTool from '@/components/common/merge_polygon_tool.vue';
 import CutPolygonTool from '@/components/common/cut_polygon_tool.vue';
+import { helpers } from '@/utils/hooks';
 
 export default {
     name: 'MapComponent',
@@ -586,6 +587,12 @@ export default {
         };
     },
     computed: {
+        showMergePolygonTool() {
+            return helpers.getSilrecSetting('showMergePolygonTool', true);
+        },
+        showCutPolygonTool() {
+            return helpers.getSilrecSetting('showCutPolygonTool', false);
+        },
         getZoomToLayerTitle() {
             if (
                 this.hasLayer4 &&

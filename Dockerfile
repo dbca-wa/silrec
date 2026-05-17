@@ -39,7 +39,7 @@ RUN apt-get clean && \
         libpq-dev patch postgresql-client mtr sqlite3 vim \
         ssh htop graphviz libgraphviz-dev pkg-config \
         run-one virtualenv software-properties-common \
-        npm python3-tk && \
+        npm python3-tk zip unzip && \
     # Install GDAL
     add-apt-repository ppa:ubuntugis/ubuntugis-unstable && \
     apt update && \

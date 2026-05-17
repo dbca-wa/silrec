@@ -205,7 +205,7 @@ class DbDumpListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        dump_dir = os.path.join(settings.BASE_DIR, 'db_dumps')
+        dump_dir = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR)
         dumps = []
         if os.path.isdir(dump_dir):
             for f in sorted(os.listdir(dump_dir), reverse=True):
@@ -220,6 +220,7 @@ class DbDumpListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
                     })
         ctx['dumps'] = dumps
         ctx['dump_dir_exists'] = os.path.isdir(dump_dir)
+        ctx['db_dumps_dir'] = settings.DB_DUMPS_DIR
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -244,7 +245,7 @@ class DbDumpDownloadView(LoginRequiredMixin, UserPassesTestMixin, View):
         # Prevent directory traversal
         if '..' in filename or '/' in filename:
             raise Http404
-        fpath = os.path.join(settings.BASE_DIR, 'db_dumps', filename)
+        fpath = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR, filename)
         if not os.path.isfile(fpath):
             raise Http404
         with open(fpath, 'rb') as f:
@@ -259,3 +260,91 @@ def _human_size_v(b):
             return f'{b:.1f} {unit}'
         b /= 1024
     return f'{b:.1f} TB'
+
+
+class GeneratedReportListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """List and download generated report exports."""
+    template_name = 'silrec/generated_reports.html'
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        report_dir = os.path.join(settings.BASE_DIR, settings.REPORT_EXPORT_DIR)
+        reports = []
+        if os.path.isdir(report_dir):
+            for f in sorted(os.listdir(report_dir), reverse=True):
+                fpath = os.path.join(report_dir, f)
+                if os.path.isfile(fpath) and not f.endswith('.meta'):
+                    size = os.path.getsize(fpath)
+                    mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
+                    # Read companion metadata file for username
+                    user = ''
+                    meta_path = os.path.join(report_dir, f'{f}.meta')
+                    if os.path.isfile(meta_path):
+                        with open(meta_path) as mf:
+                            for line in mf:
+                                if line.startswith('user='):
+                                    user = line.split('=', 1)[1].strip()
+                    reports.append({
+                        'filename': f,
+                        'size': _human_size_v(size),
+                        'modified': mtime.strftime('%Y-%m-%d %H:%M:%S'),
+                        'user': user,
+                    })
+        ctx['reports'] = reports
+        ctx['report_dir_exists'] = os.path.isdir(report_dir)
+        ctx['retention_days'] = settings.REPORT_RETENTION_DAYS
+        ctx['report_export_dir'] = settings.REPORT_EXPORT_DIR
+        ctx['is_silrec_admin'] = self.request.user.groups.filter(name='Silrec Admin').exists()
+        return ctx
+
+
+class GeneratedReportDownloadView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Stream a generated report file for download."""
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def get(self, request, filename):
+        if '..' in filename or '/' in filename:
+            raise Http404
+        fpath = os.path.join(settings.BASE_DIR, settings.REPORT_EXPORT_DIR, filename)
+        if not os.path.isfile(fpath):
+            raise Http404
+        with open(fpath, 'rb') as f:
+            content = f.read()
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        content_types = {
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'csv': 'text/csv',
+            'pdf': 'application/pdf',
+            'shz': 'application/octet-stream',
+            'zip': 'application/zip',
+        }
+        ct = content_types.get(ext, 'application/octet-stream')
+        response = HttpResponse(content, content_type=ct)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+class GeneratedReportDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Delete a generated report file. Only Silrec Admin group."""
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Silrec Admin').exists()
+
+    def post(self, request, filename):
+        if '..' in filename or '/' in filename:
+            raise Http404
+        report_dir = os.path.join(settings.BASE_DIR, settings.REPORT_EXPORT_DIR)
+        fpath = os.path.join(report_dir, filename)
+        if not os.path.isfile(fpath):
+            raise Http404
+        os.remove(fpath)
+        # Remove companion metadata file if it exists
+        meta_path = os.path.join(report_dir, f'{filename}.meta')
+        if os.path.isfile(meta_path):
+            os.remove(meta_path)
+        return JsonResponse({'success': True})

@@ -1,0 +1,118 @@
+{% extends 'silrec/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>Generated Reports</h2>
+            <hr>
+
+            <details class="mb-3" style="font-size: 0.9em;">
+                <summary class="text-muted" style="cursor: pointer;">
+                    <i class="bi bi-info-circle"></i> Retention policy
+                </summary>
+                <div class="alert alert-info py-2 px-3 mt-2 mb-0">
+                    Reports from the last <strong>{{ retention_days }} days</strong> are kept.<br>
+                    Older reports are automatically removed.
+                </div>
+            </details>
+
+            {% if report_dir_exists %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Size</th>
+                            <th>Modified</th>
+                            <th>User</th>
+                            <th>Download</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reports %}
+                        <tr>
+                            <td>{{ r.filename }}</td>
+                            <td>{{ r.size }}</td>
+                            <td>{{ r.modified }}</td>
+                            <td>{{ r.user|default:'' }}</td>
+                            <td>
+                                <a href="{% url 'generated-report-download' r.filename %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                                {% if is_silrec_admin %}
+                                <button class="btn btn-sm btn-outline-danger delete-report-btn" data-filename="{{ r.filename }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-muted">No generated reports found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-info">
+                    <code>{{ report_export_dir }}/</code> directory does not exist yet.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.delete-report-btn');
+    if (!btn) return;
+    var filename = btn.dataset.filename;
+    if (!window.Swal) {
+        if (!confirm('Delete ' + filename + '?')) return;
+        doDelete(filename);
+    } else {
+        window.Swal.fire({
+            title: 'Delete Report?',
+            text: filename,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#d33',
+        }).then(function(result) {
+            if (result.isConfirmed) doDelete(filename);
+        });
+    }
+});
+
+function doDelete(filename) {
+    fetch('{% url "generated-report-delete" "__PLACEHOLDER__" %}'.replace('__PLACEHOLDER__', encodeURIComponent(filename)), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            location.reload();
+        } else if (window.Swal) {
+            window.Swal.fire({ title: 'Delete Failed', text: data.error || 'unknown error', icon: 'error', confirmButtonText: 'OK' });
+        } else {
+            alert('Delete failed: ' + (data.error || 'unknown error'));
+        }
+    })
+    .catch(function(err) {
+        if (window.Swal) {
+            window.Swal.fire({ title: 'Error', text: err.message, icon: 'error', confirmButtonText: 'OK' });
+        } else {
+            alert('Request failed: ' + err.message);
+        }
+    });
+}
+</script>
+{% endblock %}

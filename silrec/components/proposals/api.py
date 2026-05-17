@@ -1553,17 +1553,24 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
             df = pd.DataFrame(rows, columns=columns)
             print(df.iloc[0])
 
+            # Save a copy to the generated reports directory
+            body = None
+            ext = None
+
             # Export based on format
             if export_format == 'excel':
-                return self.export_excel(df, report.name)
+                body = self._build_excel(df)
+                ext = 'xlsx'
             elif export_format == 'csv':
-                return self.export_csv(df, report.name)
+                body = self._build_csv(df)
+                ext = 'csv'
             elif export_format == 'pdf':
-                return self.export_pdf(df, report.name, processed_parameters)
+                body = self._build_pdf(df, report.name, processed_parameters)
+                ext = 'pdf'
             elif export_format == 'shapefile':
-                return self.export_shapefile(df, report.name)
+                body = self._build_shapefile(df)
+                ext = 'shz'
             else:
-                # Return JSON as fallback
                 data = df.to_dict('records')
                 return Response({
                     'report_name': report.name,
@@ -1574,6 +1581,26 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                     'columns': columns,
                     'row_count': len(rows)
                 })
+
+            if body is not None:
+                import re as _re
+                date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+                safe_name = _re.sub(r'[^\w-]', '_', report.name).strip('_')
+                username = request.user.email if request.user.is_authenticated and request.user.email else (request.user.username if request.user.is_authenticated else 'anonymous')
+                download_filename = f'{safe_name}_{date_str}.{ext}'
+                self._save_generated_report(body, ext, download_filename, username)
+
+            # Return the file as a download response
+            content_types = {
+                'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'csv': 'text/csv',
+                'pdf': 'application/pdf',
+                'shz': 'application/octet-stream',
+            }
+            filename = f'{report.name}.{ext}'
+            response = HttpResponse(body, content_type=content_types.get(ext, 'application/octet-stream'))
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
 
         except Exception as e:
             logger.error(f"Error executing report: {str(e)}")
@@ -1730,6 +1757,100 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
 
         user_groups = user.groups.all()
         return report.allowed_groups.filter(id__in=user_groups.values_list('id', flat=True)).exists()
+
+    def _save_generated_report(self, content, extension, filename, username):
+        """Save a copy of a generated report to the reports export directory."""
+        import os
+        report_dir = os.path.join(settings.BASE_DIR, settings.REPORT_EXPORT_DIR)
+        os.makedirs(report_dir, exist_ok=True)
+        fpath = os.path.join(report_dir, filename)
+        mode = 'wb' if isinstance(content, bytes) else 'w'
+        with open(fpath, mode) as f:
+            f.write(content)
+        # Write a companion metadata file with the username
+        meta_path = os.path.join(report_dir, f'{filename}.meta')
+        with open(meta_path, 'w') as f:
+            f.write(f'user={username}')
+        logger.info(f'Saved generated report: {fpath}')
+
+    def _build_excel(self, df):
+        """Build Excel file content as bytes."""
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Report', index=False)
+        output.seek(0)
+        return output.getvalue()
+
+    def _build_csv(self, df):
+        """Build CSV file content as string."""
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        return output.getvalue()
+
+    def _build_pdf(self, df, report_name, parameters):
+        """Build PDF file content as bytes."""
+        from silrec.components.proposals.doctopdf import render_report_pdf
+        from silrec.components.proposals.models import SQLReport
+        report = SQLReport.objects.filter(name=report_name).first()
+        pdf_bytes = None
+        if report:
+            pdf_bytes = render_report_pdf(report, df, parameters)
+        if pdf_bytes:
+            return pdf_bytes
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(50, height - 50, report_name)
+        p.setFont("Helvetica", 10)
+        y = height - 80
+        for _, row in df.head(50).iterrows():
+            text = ' | '.join(str(v) for v in row)
+            p.drawString(50, y, text[:120])
+            y -= 14
+            if y < 40:
+                p.showPage()
+                y = height - 40
+        p.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _build_shapefile(self, df):
+        """Build shapefile content as bytes (zip)."""
+        import tempfile, shutil
+        from shapely import wkb
+        from geopandas import GeoDataFrame
+        tmpdir = tempfile.mkdtemp()
+        shp_path = os.path.join(tmpdir, 'export.shp')
+        try:
+            gdf = GeoDataFrame(df) if isinstance(df, pd.DataFrame) and not isinstance(df, GeoDataFrame) else df.copy()
+            # Find the geometry column — it may contain hex WKB strings
+            geom_col = None
+            for col in ('geom', 'geometry', 'the_geom', 'wkb_geometry'):
+                if col in gdf.columns:
+                    geom_col = col
+                    break
+            if geom_col is not None:
+                # Decode hex WKB strings to Shapely geometry objects
+                gdf[geom_col] = gdf[geom_col].apply(
+                    lambda v: wkb.loads(v, hex=True) if isinstance(v, str) and v else v
+                )
+                gdf = gdf.rename(columns={geom_col: 'geometry'})
+                gdf = gdf.set_geometry('geometry')
+            if gdf.geometry.isna().all():
+                gdf = gdf.drop(columns=['geometry'])
+            if 'geometry' in gdf.columns:
+                gdf.to_file(shp_path, driver='ESRI Shapefile')
+            else:
+                gdf.to_csv(os.path.join(tmpdir, 'export.csv'), index=False)
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for f in os.listdir(tmpdir):
+                    zf.write(os.path.join(tmpdir, f), f)
+            zip_buf.seek(0)
+            return zip_buf.getvalue()
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     def export_excel(self, df, report_name):
         """Export DataFrame to Excel"""

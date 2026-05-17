@@ -437,3 +437,7 @@ TEMPLATE_HEADER_LOGO = "/static/silrec/img/logo-park-stay-trunc.gif"
 
 SHAPEFILE_PROCESSING_STORE = env('SHAPEFILE_PROCESSING_STORE', 'protected_media/shapefile_processing')
 SHAPEFILE_EXPORT_KEEP = env('SHAPEFILE_EXPORT_KEEP', 10)
+
+REPORT_EXPORT_DIR = env('REPORT_EXPORT_DIR', 'file_exports/generated_reports')
+DB_DUMPS_DIR = env('DB_DUMPS_DIR', 'file_exports/db_dumps')
+REPORT_RETENTION_DAYS = env('REPORT_RETENTION_DAYS', 20)

@@ -16,7 +16,7 @@ data_store/
 archive/
 protected_media/
 _proposals/
-db_dumps/
+file_exports/
 AGENTS.md
 main.js
 main.css

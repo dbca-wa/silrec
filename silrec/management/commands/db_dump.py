@@ -121,7 +121,7 @@ def _past_n_months(n, now):
 class Command(BaseCommand):
     help = (
         'pg_dump the database as silrec_yyyymmddThhmmss.sql.zip, '
-        'save to BASE_DIR/db_dumps/, apply retention policy.'
+        'save to file_exports/db_dumps/, apply retention policy.'
 
 	    '- Retention policy (configurable via --keep-days and --keep-monthly):'
 		'   - Keeps dumps from the last 14 days'
@@ -155,7 +155,7 @@ class Command(BaseCommand):
         keep_days = options['keep_days']
         keep_monthly = options['keep_monthly']
 
-        dump_dir = os.path.join(settings.BASE_DIR, 'db_dumps')
+        dump_dir = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR)
         os.makedirs(dump_dir, exist_ok=True)
 
         # ---- Retention ----

@@ -25,6 +25,11 @@ import TreatmentsDash from '@/components/internal/treatments/dashboard.vue';
 import ComponentMap2 from '@/components/common/component_map2.vue';
 import OperationDetails from '@/components/internal/operations/operation_details.vue';
 import Reports from '@/components/internal/reports/report_generator.vue';
+import PrescriptionDetail from '@/components/internal/prescriptions/prescription_detail.vue';
+import PolygonDetail from '@/components/internal/polygons/polygon_detail.vue';
+import TreatmentExtraDetailPage from '@/components/internal/treatments/treatment_extra_detail_page.vue';
+import SilviculturistCommentDetail from '@/components/internal/silviculturist_comments/silviculturist_comment_detail.vue';
+import SurveyDocumentDetail from '@/components/internal/survey_documents/survey_document_detail.vue';
 
 export default {
     path: '/internal',
@@ -119,5 +124,35 @@ export default {
         //            props: true,
         //            //meta: { requiresAuth: true }
         //        }
+        {
+            path: 'prescription/:prescriptionId',
+            name: 'prescription-detail',
+            component: PrescriptionDetail,
+            props: true,
+        },
+        {
+            path: 'polygon/:polygonId',
+            name: 'polygon-detail',
+            component: PolygonDetail,
+            props: true,
+        },
+        {
+            path: 'treatment-extra/:treatmentExtraId',
+            name: 'treatment-extra-detail-page',
+            component: TreatmentExtraDetailPage,
+            props: true,
+        },
+        {
+            path: 'silviculturist-comment/:commentId',
+            name: 'silviculturist-comment-detail',
+            component: SilviculturistCommentDetail,
+            props: true,
+        },
+        {
+            path: 'survey-document/:documentId',
+            name: 'survey-document-detail',
+            component: SurveyDocumentDetail,
+            props: true,
+        },
     ],
 };

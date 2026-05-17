@@ -2298,6 +2298,15 @@ class SearchByTextView(APIView):
                 'detail_fields': ['compartment', 'polygon_name'],
                 'url_pattern': '/internal/polygon/{id}/'
             },
+            'treatment_xtra': {
+                'model': 'forest_blocks.Treatmentxtra',
+                'display_name': 'Treatment Extras',
+                'search_fields': ['zresult_standard'],
+                'date_field': 'treatment__created_on',
+                'id_field': 'treatment_xtra_id',
+                'detail_fields': [],
+                'url_pattern': '/internal/treatment-extra/{id}/'
+            },
             'cohort': {
                 'model': 'forest_blocks.Cohort',
                 'display_name': 'Cohorts',
@@ -2305,7 +2314,7 @@ class SearchByTextView(APIView):
                 'date_field': 'created_on',
                 'id_field': 'cohort_id',
                 'detail_fields': [],
-                'url_pattern': '/internal/cohort/{id}/'
+                'url_pattern': '/internal/cohorts/{id}/'
             },
             'treatment': {
                 'model': 'forest_blocks.Treatment',
@@ -2323,7 +2332,7 @@ class SearchByTextView(APIView):
                 'date_field': 'treatment__created_on',
                 'id_field': 'treatment_xtra_id',
                 'detail_fields': [],
-                'url_pattern': '/internal/treatment-extra/{id}/'
+                'url_pattern': '/internal/treatment/{treatment_id}/treatment-extra/{id}/'
             },
             'survey_assessment_document': {
                 'model': 'forest_blocks.SurveyAssessmentDocument',
@@ -2351,6 +2360,15 @@ class SearchByTextView(APIView):
                 'id_field': 'prescription_id',
                 'detail_fields': [],
                 'url_pattern': '/internal/prescription/{id}/'
+            },
+            'polygon': {
+                'model': 'forest_blocks.Polygon',
+                'display_name': 'Polygons',
+                'search_fields': ['name'],
+                'date_field': 'created_on',
+                'id_field': 'polygon_id',
+                'detail_fields': ['compartment', 'polygon_name'],
+                'url_pattern': '/internal/'
             }
         }
 

@@ -20,7 +20,7 @@ ENV NOTIFICATION_EMAIL='jawaid.mushtaq@dbca.wa.gov.au'
 ENV NON_PROD_EMAIL='jawaid.mushtaq@dbca.wa.gov.au'
 ENV PRODUCTION_EMAIL=False
 ENV EMAIL_INSTANCE='DEV'
-ENV SECRET_KEY="ThisisNotRealKey"
+ENV SECRET_KEY="<ThisisNotRealKey>"
 ENV SITE_PREFIX='silrec-dev'
 ENV SITE_DOMAIN='dbca.wa.gov.au'
 ENV OSCAR_SHOP_NAME='Forest Management Branch'
@@ -101,4 +101,3 @@ RUN touch /app/.env && \
 EXPOSE 8080
 HEALTHCHECK --interval=1m --timeout=5s --start-period=10s --retries=3 CMD ["wget", "-q", "-O", "-", "http://localhost:8080/"]
 CMD ["/startup.sh"]
-

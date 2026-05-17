@@ -1183,6 +1183,9 @@ export default {
                 // For subsequent searches, just reload the existing datatable
                 const table = this.$refs.search_datatable.vmDataTable;
 
+                // Reset to page 1
+                table.page('first');
+
                 // Clear and reload with new parameters
                 table.clear();
                 table.ajax.reload(null, false, (json) => {

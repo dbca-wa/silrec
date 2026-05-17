@@ -2247,6 +2247,9 @@ class SearchByTextView(APIView):
                     'detail_fields': db_config.detail_fields or [],
                     'url_pattern': db_config.url_pattern,
                 }
+
+            if not config:
+                config = self.get_default_model_config()
         except Exception as e:
             logger.warning(f"Error loading model config from DB: {e}")
             # Fallback to default configuration if DB is not ready
@@ -2287,7 +2290,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/proposal/{id}/'
             },
             'polygon': {
-                'model': 'silrec.Polygon',
+                'model': 'forest_blocks.Polygon',
                 'display_name': 'Polygons',
                 'search_fields': ['name'],
                 'date_field': 'created_on',
@@ -2296,7 +2299,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/polygon/{id}/'
             },
             'cohort': {
-                'model': 'silrec.Cohort',
+                'model': 'forest_blocks.Cohort',
                 'display_name': 'Cohorts',
                 'search_fields': ['comments', 'obj_code', 'species'],
                 'date_field': 'created_on',
@@ -2305,7 +2308,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/cohort/{id}/'
             },
             'treatment': {
-                'model': 'silrec.Treatment',
+                'model': 'forest_blocks.Treatment',
                 'display_name': 'Treatments',
                 'search_fields': ['results', 'reference'],
                 'date_field': 'created_on',
@@ -2314,7 +2317,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/treatment/{id}/'
             },
             'treatment_xtra': {
-                'model': 'silrec.Treatmentxtra',
+                'model': 'forest_blocks.Treatmentxtra',
                 'display_name': 'Treatment Extras',
                 'search_fields': ['zresult_standard'],
                 'date_field': 'treatment__created_on',
@@ -2323,7 +2326,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/treatment-extra/{id}/'
             },
             'survey_assessment_document': {
-                'model': 'silrec.SurveyAssessmentDocument',
+                'model': 'forest_blocks.SurveyAssessmentDocument',
                 'display_name': 'Survey Documents',
                 'search_fields': ['description', 'title'],
                 'date_field': 'created_on',
@@ -2332,7 +2335,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/survey-document/{id}/'
             },
             'silviculturist_comment': {
-                'model': 'silrec.SilviculturistComment',
+                'model': 'forest_blocks.SilviculturistComment',
                 'display_name': 'Silviculturist Comments',
                 'search_fields': ['comment'],
                 'date_field': 'created_on',
@@ -2341,7 +2344,7 @@ class SearchByTextView(APIView):
                 'url_pattern': '/internal/silviculturist-comment/{id}/'
             },
             'prescription': {
-                'model': 'silrec.Prescription',
+                'model': 'forest_blocks.Prescription',
                 'display_name': 'Prescriptions',
                 'search_fields': ['comment'],
                 'date_field': 'task__created_on',
@@ -2412,6 +2415,10 @@ class SearchByTextView(APIView):
                 app_label, model_name = config['model'].split('.')
                 model_class = apps.get_model(app_label, model_name)
 
+                if model_class is None:
+                    logger.warning(f"Text search: model '{config['model']}' not found (app_label={app_label}, model_name={model_name})")
+                    continue
+
                 # Build the queryset
                 queryset = model_class.objects.all()
 
@@ -2435,21 +2442,24 @@ class SearchByTextView(APIView):
                         queryset = queryset.filter(**{f"{date_field}__lt": date_to_plus_one})
 
                 # Get total records count for this model
-                total_records += queryset.count()
+                total_count = queryset.count()
+                total_records += total_count
 
                 # Build search conditions
                 search_conditions = Q()
 
-                # Determine which fields to search in this model
+                # Determine which fields to search in this model.
+                # When searching a specific model, restrict to user-selected fields.
+                # When searching 'all', use the model's full search_fields config
+                # to ensure all relevant data is found.
                 model_search_fields = []
-                if fields_filter:
-                    # Only search fields that are both in the model and in the filter
+                if model_filter != 'all' and fields_filter:
                     model_search_fields = [f for f in fields_filter if f in config['search_fields']]
                 else:
                     model_search_fields = config['search_fields']
 
-                # Add config search fields if not present
-                #model_search_fields = set(config.get('search_fields', []) + list(model_search_fields))
+                logger.info(f'{model_name}: total_count={total_count}, search_fields={model_search_fields}')
+
                 if not model_search_fields:
                     continue
 
@@ -2490,9 +2500,19 @@ class SearchByTextView(APIView):
                 filtered_records += filtered_count
                 logger.info(f'{model_name}({filtered_count}) - Search Conditions: {search_conditions}')
 
-                # Process results (with limit for performance)
-                max_results_per_model = 1000  # Limit results per model for performance
-                for obj in queryset[:max_results_per_model]:
+                # When searching a single model, paginate at the DB level
+                # using the DataTables start/length directly.
+                # For 'all' models, fetch all results (no cap) since the
+                # in-memory pagination at the end handles slicing.
+                if model_filter != 'all' and length:
+                    db_limit = length
+                    db_offset = start
+                    queryset = queryset[db_offset:db_offset + db_limit]
+                else:
+                    # 'all' mode: collect everything across models
+                    pass
+
+                for obj in queryset:
                     # Find which field(s) contain the search text
                     matching_fields = []
 
@@ -2619,8 +2639,21 @@ class SearchByTextView(APIView):
             else datetime.min
         ), reverse=True)
 
-        # Apply pagination
-        if start < len(all_results):
+        # Use the full DB-level filtered count for single-model searches
+        # (since pagination happened at the DB level).
+        # For multi-model ('all') searches, use the in-memory result count.
+        if model_filter == 'all':
+            total_records = len(all_results)
+            filtered_records = len(all_results)
+        else:
+            total_records = filtered_records
+            filtered_records = filtered_records
+
+        # Apply pagination (only for multi-model searches where results
+        # were not already paginated at the DB level).
+        if model_filter != 'all':
+            paginated_results = all_results
+        elif start < len(all_results):
             end = min(start + length, len(all_results))
             paginated_results = all_results[start:end]
         else:

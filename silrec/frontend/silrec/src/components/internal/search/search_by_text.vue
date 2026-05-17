@@ -717,7 +717,8 @@ export default {
                             date_from: vm.filterDateFrom,
                             date_to: vm.filterDateTo,
                             case_sensitive: vm.caseSensitive,
-                            fields: vm.selectedFields, // This will be serialized as array
+                            fields: vm.selectedFields,
+                            filter_post_2024_only: vm.filterPost2024Only,
                             draw: d.draw,
                             start: d.start,
                             length: d.length,
@@ -1312,6 +1313,7 @@ export default {
                         date_to: this.filterDateTo || null,
                         case_sensitive: this.caseSensitive,
                         fields: this.selectedFields,
+                        filter_post_2024_only: this.filterPost2024Only,
                         start: 0,
                         length: 50000,
                     }),
@@ -1405,13 +1407,16 @@ export default {
 
     watch: {
         selectedFields(newVal, oldVal) {
-            // If all fields were selected and one gets deselected, update the "Select All" checkbox
             if (
                 oldVal &&
                 oldVal.length === this.availableFields.length &&
                 newVal.length < oldVal.length
             ) {
-                // The "Select All" checkbox will automatically update due to computed property
+            }
+        },
+        filterPost2024Only() {
+            if (this.searchPerformed && this.searchText && this.searchText.length >= 2) {
+                this.searchRecords();
             }
         },
     },

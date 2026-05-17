@@ -39,6 +39,7 @@ import json
 import pandas as pd
 
 from silrec.components.proposals.models import Proposal
+from silrec.components.forest_blocks.models import Operation
 
 
 def _get_processing_lock_info(exclude_proposal_id=None):
@@ -2407,6 +2408,7 @@ class SearchByTextView(APIView):
         case_sensitive = params.get('case_sensitive', False)
         model_filter = params.get('model', 'all')
         fields_filter = params.get('fields', [])
+        filter_post_2024_only = params.get('filter_post_2024_only', False)
 
         # Pagination parameters
         start = params.get('start', 0)
@@ -2469,6 +2471,20 @@ class SearchByTextView(APIView):
                 # Get total records count for this model
                 total_count = queryset.count()
                 total_records += total_count
+
+                # Apply post-2024 filter — restrict to records linked to
+                # Operations with plan_period in OP_PLAN_PERIOD.
+                if filter_post_2024_only:
+                    plan_periods = settings.OP_PLAN_PERIOD
+                    op_ids = list(Operation.objects.filter(
+                        plan_period__in=plan_periods
+                    ).values_list('op_id', flat=True))
+                    if model_key == 'cohort':
+                        queryset = queryset.filter(op_id__in=op_ids)
+                    elif model_key == 'treatment':
+                        queryset = queryset.filter(cohort__op_id__in=op_ids)
+                    elif model_key == 'treatment_xtra':
+                        queryset = queryset.filter(treatment__cohort__op_id__in=op_ids)
 
                 # Build search conditions
                 search_conditions = Q()

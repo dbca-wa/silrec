@@ -647,6 +647,9 @@ class TextSearchRequestSerializer(serializers.Serializer):
     )
     search_terms = serializers.CharField(required=False, default='', allow_blank=True)
 
+    # Custom filters
+    filter_post_2024_only = serializers.BooleanField(required=False, default=False)
+
     # Datatable parameters
     draw = serializers.IntegerField(required=False, default=1, min_value=0)
     start = serializers.IntegerField(required=False, default=0, min_value=0)

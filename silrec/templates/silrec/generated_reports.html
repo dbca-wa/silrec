@@ -32,7 +32,7 @@
                     <tbody>
                         {% for r in reports %}
                         <tr>
-                            <td>{{ r.filename }}</td>
+                            <td title="{{ r.filename }}">{{ r.filename|truncatechars:75 }}</td>
                             <td>{{ r.size }}</td>
                             <td>{{ r.modified }}</td>
                             <td>{{ r.user|default:'' }}</td>

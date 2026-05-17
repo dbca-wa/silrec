@@ -4,4 +4,7 @@
 <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin</a></li>
 <li><a class="dropdown-item" href="{% url 'db-dump-list' %}">DB Exports</a></li>
 {% endif %}
+{% can_view_reports as can_view_reports_flag %}
+{% if can_view_reports_flag %}
 <li><a class="dropdown-item" href="{% url 'generated-report-list' %}">Generated Reports</a></li>
+{% endif %}

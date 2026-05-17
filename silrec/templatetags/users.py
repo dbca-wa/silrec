@@ -34,6 +34,13 @@ def has_access(context):
     request = context['request']
     return silrec_helpers.has_access(request.user)
 
+@register.simple_tag(takes_context=True)
+def can_view_reports(context):
+    request = context['request']
+    if request.user.is_superuser:
+        return True
+    return request.user.groups.filter(name__in=['Operator', 'Reviewer', 'Silrec Admin']).exists()
+
 @register.simple_tag()
 def _system_maintenance_due():
     return False
@@ -50,5 +57,3 @@ def system_maintenance_due():
             # display time in local timezone
             return '{0} - {1} (Duration: {2} mins)'.format(obj.start_date.astimezone(tz=tz).strftime(TIME_FORMAT), obj.end_date.astimezone(tz=tz).strftime(TIME_FORMAT), obj.duration())
     return False
-
-

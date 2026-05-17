@@ -201,45 +201,9 @@ class DbDumpListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'silrec/db_dumps.html'
 
     def test_func(self):
-        return self.request.user.is_staff
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        dump_dir = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR)
-        dumps = []
-        if os.path.isdir(dump_dir):
-            for f in sorted(os.listdir(dump_dir), reverse=True):
-                fpath = os.path.join(dump_dir, f)
-                if os.path.isfile(fpath) and f.endswith('.sql.zip'):
-                    size = os.path.getsize(fpath)
-                    mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
-                    dumps.append({
-                        'filename': f,
-                        'size': _human_size_v(size),
-                        'modified': mtime.strftime('%Y-%m-%d %H:%M:%S'),
-                    })
-        ctx['dumps'] = dumps
-        ctx['dump_dir_exists'] = os.path.isdir(dump_dir)
-        ctx['db_dumps_dir'] = settings.DB_DUMPS_DIR
-        return ctx
-
-    def post(self, request, *args, **kwargs):
-        """Trigger a new dump via the management command."""
-        from io import StringIO
-        out = StringIO()
-        try:
-            call_command('db_dump', stdout=out, stderr=out)
-            output = out.getvalue()
-            return JsonResponse({'success': True, 'output': output})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-
-class DbDumpDownloadView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Stream a dump file for download."""
-
-    def test_func(self):
-        return self.request.user.is_staff
+        if self.request.user.is_superuser:
+            return True
+        return self.request.user.groups.filter(name__in=['Operator', 'Reviewer', 'Silrec Admin']).exists()
 
     def get(self, request, filename):
         # Prevent directory traversal
@@ -262,24 +226,43 @@ def _human_size_v(b):
     return f'{b:.1f} TB'
 
 
+class DbDumpDownloadView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Stream a dump file for download."""
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def get(self, request, filename):
+        if '..' in filename or '/' in filename:
+            raise Http404
+        fpath = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR, filename)
+        if not os.path.isfile(fpath):
+            raise Http404
+        with open(fpath, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+
 class GeneratedReportListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """List and download generated report exports."""
     template_name = 'silrec/generated_reports.html'
 
     def test_func(self):
-        return self.request.user.is_staff
+        if self.request.user.is_superuser:
+            return True
+        return self.request.user.groups.filter(name__in=['Operator', 'Reviewer', 'Silrec Admin']).exists()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         report_dir = os.path.join(settings.BASE_DIR, settings.REPORT_EXPORT_DIR)
         reports = []
         if os.path.isdir(report_dir):
-            for f in sorted(os.listdir(report_dir), reverse=True):
+            for f in os.listdir(report_dir):
                 fpath = os.path.join(report_dir, f)
                 if os.path.isfile(fpath) and not f.endswith('.meta'):
                     size = os.path.getsize(fpath)
                     mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
-                    # Read companion metadata file for username
                     user = ''
                     meta_path = os.path.join(report_dir, f'{f}.meta')
                     if os.path.isfile(meta_path):
@@ -292,7 +275,9 @@ class GeneratedReportListView(LoginRequiredMixin, UserPassesTestMixin, TemplateV
                         'size': _human_size_v(size),
                         'modified': mtime.strftime('%Y-%m-%d %H:%M:%S'),
                         'user': user,
+                        'mtime': mtime,
                     })
+            reports.sort(key=lambda r: r['mtime'], reverse=True)
         ctx['reports'] = reports
         ctx['report_dir_exists'] = os.path.isdir(report_dir)
         ctx['retention_days'] = settings.REPORT_RETENTION_DAYS

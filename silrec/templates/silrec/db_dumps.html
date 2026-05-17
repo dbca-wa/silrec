@@ -43,7 +43,7 @@
                     <tbody>
                         {% for d in dumps %}
                         <tr>
-                            <td>{{ d.filename }}</td>
+                            <td title="{{ d.filename }}">{{ d.filename|truncatechars:75 }}</td>
                             <td>{{ d.size }}</td>
                             <td>{{ d.modified }}</td>
                             <td>

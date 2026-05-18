@@ -22,7 +22,8 @@
 
         <div class="row">
             <h3>
-                {{ proposal.lodgement_number }} -
+                {{ proposal.lodgement_number }}
+		<!--
                 {{
                     proposal.application_type
                         ? proposal.application_type.name
@@ -34,6 +35,7 @@
                         ? proposal.proposal_type.description
                         : null
                 }}
+		-->
             </h3>
             <h5>Status: {{ proposal.processing_status_id }}</h5>
 

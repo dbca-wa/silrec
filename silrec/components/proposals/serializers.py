@@ -62,28 +62,12 @@ class BaseProposalSerializer(serializers.ModelSerializer):
     model_name = serializers.CharField(read_only=True)
     proposal_type = ProposalTypeSerializer()
     application_type = ApplicationTypeSerializer()
-    #accessing_user_roles = serializers.SerializerMethodField()
-    #proposalgeometry = ProposalGeometrySerializer(many=True, read_only=True)
-    #applicant = serializers.SerializerMethodField()
     lodgement_date_display = serializers.SerializerMethodField()
-    #applicant = serializers.SerializerMethodField()
     submitter_obj = UserSerializerSimple()
-    #groups = serializers.SerializerMethodField(read_only=True)
-    #allowed_operators = EmailUserSerializer(many=True)
-    #details_url = serializers.SerializerMethodField(read_only=True)
     details_url = serializers.SerializerMethodField(read_only=True)
     readonly = serializers.SerializerMethodField(read_only=True)
     shapefile_name = serializers.SerializerMethodField(read_only=True)
-    #approval = serializers.SerializerMethodField(read_only=True, allow_null=True)
-    # Gis data fields
-#    identifiers = serializers.SerializerMethodField()
-#    names = serializers.SerializerMethodField()
-#    acts = serializers.SerializerMethodField()
-#    tenures = serializers.SerializerMethodField()
-#    categories = serializers.SerializerMethodField()
-#    regions = serializers.SerializerMethodField()
-#    districts = serializers.SerializerMethodField()
-#    lgas = serializers.SerializerMethodField()
+    processing_status = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Proposal
@@ -177,8 +161,7 @@ class BaseProposalSerializer(serializers.ModelSerializer):
             return None
 
     def get_processing_status(self, obj):
-        #return obj.get_processing_status_display()
-        return obj.processing_status
+        return obj.get_processing_status_display()
 
 #    def get_accessing_user_roles(self, proposal):
 #        request = self.context.get("request")
@@ -414,7 +397,7 @@ class ListProposalSerializer(BaseProposalSerializer):
             return ""
 
     def get_processing_status_id(self, obj):
-        return obj.processing_status
+        return obj.get_processing_status_display()
 
     def get_proposalgeometry(self, obj):
         # TODO - JM

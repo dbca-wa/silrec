@@ -7,7 +7,7 @@ import copy
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import CharField, F, Func, Q, Value
+from django.db.models import Case, CharField, F, Func, IntegerField, Q, Value, When
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
@@ -254,29 +254,20 @@ class ProposalPaginatedViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-#        if not is_internal(self.request) and not is_customer(self.request):
-#            return Proposal.objects.none()
 
         qs = Proposal.objects.exclude(processing_status__in=[
                  Proposal.PROCESSING_STATUS_DISCARDED,
                  Proposal.PROCESSING_STATUS_TEMP,
              ])
-#        if is_operator(self.request) or is_approver(self.request):
-#            target_email_user_id = self.request.query_params.get(
-#                "target_email_user_id", None
-#            )
-#            if (
-#                target_email_user_id
-#                and target_email_user_id.isnumeric()
-#                and int(target_email_user_id) > 0
-#            ):
-#                qs = qs.filter(submitter=target_email_user_id)
-#        elif is_finance_officer(self.request):
-#            qs = qs.filter(
-#                processing_status=Proposal.PROCESSING_STATUS_APPROVED_EDITING_INVOICING
-#            )
-#        else:
-#            qs = Proposal.objects.none()
+
+        # Annotate locked flag so locked proposals sort first
+        qs = qs.annotate(
+            is_locked_order=Case(
+                When(processing_status='processing_shapefile', then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by('is_locked_order', '-lodgement_number')
 
         return qs
 

@@ -416,6 +416,9 @@ export default {
                 searchable: true,
                 visible: true,
                 render: function (row, type, full) {
+                    if (full.processing_status === 'Processing Shapefile') {
+                        return 'Processing Shapefile (<span style="color:red">lock</span>)';
+                    }
                     return full.processing_status;
                 },
                 name: 'processing_status',

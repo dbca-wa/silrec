@@ -205,17 +205,27 @@ class DbDumpListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             return True
         return self.request.user.groups.filter(name__in=['Operator', 'Reviewer', 'Silrec Admin']).exists()
 
-    def get(self, request, filename):
-        # Prevent directory traversal
-        if '..' in filename or '/' in filename:
-            raise Http404
-        fpath = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR, filename)
-        if not os.path.isfile(fpath):
-            raise Http404
-        with open(fpath, 'rb') as f:
-            response = HttpResponse(f.read(), content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            return response
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        dump_dir = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR)
+        dumps = []
+        if os.path.isdir(dump_dir):
+            for f in os.listdir(dump_dir):
+                fpath = os.path.join(dump_dir, f)
+                if os.path.isfile(fpath) and f.endswith('.sql.zip'):
+                    size = os.path.getsize(fpath)
+                    mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
+                    dumps.append({
+                        'filename': f,
+                        'size': _human_size_v(size),
+                        'modified': mtime.strftime('%Y-%m-%d %H:%M:%S'),
+                        'mtime': mtime,
+                    })
+            dumps.sort(key=lambda d: d['mtime'], reverse=True)
+        ctx['dumps'] = dumps
+        ctx['dump_dir_exists'] = os.path.isdir(dump_dir)
+        ctx['db_dumps_dir'] = settings.DB_DUMPS_DIR
+        return ctx
 
 
 def _human_size_v(b):

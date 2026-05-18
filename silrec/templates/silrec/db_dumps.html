@@ -25,6 +25,7 @@
             <div class="mb-3">
                 <button id="create-dump-btn" class="btn btn-primary" onclick="createDump()">
                     <i class="bi bi-cloud-arrow-down"></i> Create New DB Export
+                    <span id="dump-spinner" class="spinner-border spinner-border-sm ms-2" style="display:none;" role="status"></span>
                 </button>
                 <span id="dump-status" class="ms-3" style="display:none;"></span>
             </div>
@@ -37,7 +38,7 @@
                             <th>Filename</th>
                             <th>Size</th>
                             <th>Modified</th>
-                            <th>Download</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -50,6 +51,11 @@
                                 <a href="{% url 'db-dump-download' d.filename %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-download"></i> Download
                                 </a>
+                                {% if is_superuser %}
+                                <button class="btn btn-sm btn-outline-danger delete-dump-btn" data-filename="{{ d.filename }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
@@ -77,8 +83,10 @@
 <script>
 function createDump() {
     var btn = document.getElementById('create-dump-btn');
+    var spinner = document.getElementById('dump-spinner');
     var status = document.getElementById('dump-status');
     btn.disabled = true;
+    spinner.style.display = 'inline-block';
     status.style.display = 'inline';
     status.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting database...';
     status.className = 'ms-3 text-info';
@@ -92,6 +100,7 @@ function createDump() {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
+        spinner.style.display = 'none';
         if (data.success) {
             status.innerHTML = '<i class="bi bi-check-circle"></i> Dump created — reloading...';
             status.className = 'ms-3 text-success';
@@ -103,9 +112,59 @@ function createDump() {
         }
     })
     .catch(function(err) {
+        spinner.style.display = 'none';
         status.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Request failed: ' + err.message;
         status.className = 'ms-3 text-danger';
         btn.disabled = false;
+    });
+}
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.delete-dump-btn');
+    if (!btn) return;
+    var filename = btn.dataset.filename;
+    if (!window.Swal) {
+        if (!confirm('Delete ' + filename + '?')) return;
+        doDeleteDump(filename);
+    } else {
+        window.Swal.fire({
+            title: 'Delete Dump?',
+            text: filename,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#d33',
+        }).then(function(result) {
+            if (result.isConfirmed) doDeleteDump(filename);
+        });
+    }
+});
+
+function doDeleteDump(filename) {
+    fetch('{% url "db-dump-delete" "__PLACEHOLDER__" %}'.replace('__PLACEHOLDER__', encodeURIComponent(filename)), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            location.reload();
+        } else if (window.Swal) {
+            window.Swal.fire({ title: 'Delete Failed', text: data.error || 'unknown error', icon: 'error', confirmButtonText: 'OK' });
+        } else {
+            alert('Delete failed: ' + (data.error || 'unknown error'));
+        }
+    })
+    .catch(function(err) {
+        if (window.Swal) {
+            window.Swal.fire({ title: 'Error', text: err.message, icon: 'error', confirmButtonText: 'OK' });
+        } else {
+            alert('Request failed: ' + err.message);
+        }
     });
 }
 </script>

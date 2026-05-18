@@ -225,7 +225,18 @@ class DbDumpListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         ctx['dumps'] = dumps
         ctx['dump_dir_exists'] = os.path.isdir(dump_dir)
         ctx['db_dumps_dir'] = settings.DB_DUMPS_DIR
+        ctx['is_superuser'] = self.request.user.is_superuser
         return ctx
+
+    def post(self, request, *args, **kwargs):
+        from io import StringIO
+        out = StringIO()
+        try:
+            call_command('db_dump', stdout=out, stderr=out)
+            output = out.getvalue()
+            return JsonResponse({'success': True, 'output': output})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
 
 
 def _human_size_v(b):
@@ -252,6 +263,23 @@ class DbDumpDownloadView(LoginRequiredMixin, UserPassesTestMixin, View):
             response = HttpResponse(f.read(), content_type='application/zip')
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
+
+
+class DbDumpDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Delete a db dump file. Only superuser."""
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def post(self, request, filename):
+        if '..' in filename or '/' in filename:
+            raise Http404
+        dump_dir = os.path.join(settings.BASE_DIR, settings.DB_DUMPS_DIR)
+        fpath = os.path.join(dump_dir, filename)
+        if not os.path.isfile(fpath):
+            raise Http404
+        os.remove(fpath)
+        return JsonResponse({'success': True})
 
 
 class GeneratedReportListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):

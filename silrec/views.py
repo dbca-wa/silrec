@@ -229,14 +229,16 @@ class DbDumpListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         return ctx
 
     def post(self, request, *args, **kwargs):
-        from io import StringIO
-        out = StringIO()
-        try:
-            call_command('db_dump', stdout=out, stderr=out)
-            output = out.getvalue()
-            return JsonResponse({'success': True, 'output': output})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+        import threading
+        def run_dump():
+            from io import StringIO
+            try:
+                call_command('db_dump')
+            except Exception:
+                pass
+        t = threading.Thread(target=run_dump, daemon=True)
+        t.start()
+        return JsonResponse({'success': True})
 
 
 def _human_size_v(b):

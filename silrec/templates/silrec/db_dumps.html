@@ -81,15 +81,44 @@
 {% block extra_js %}
 {% if request.user.is_superuser %}
 <script>
+// Lock to prevent repeated clicks — persists for 10 minutes via localStorage
+(function() {
+    var lockKey = 'silrec_db_export_locked';
+    var lockUntil = localStorage.getItem(lockKey);
+    if (lockUntil && Date.now() < parseInt(lockUntil, 10)) {
+        var btn = document.getElementById('create-dump-btn');
+        var status = document.getElementById('dump-status');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+        if (status) {
+            status.style.display = 'inline';
+            status.innerHTML = '<i class="bi bi-hourglass-split"></i> DB Export is running on the server. Refresh in 10 mins.';
+            status.className = 'ms-3 text-info';
+        }
+    }
+})();
+
 function createDump() {
+    var lockKey = 'silrec_db_export_locked';
+    var lockUntil = localStorage.getItem(lockKey);
+    if (lockUntil && Date.now() < parseInt(lockUntil, 10)) return;
+
     var btn = document.getElementById('create-dump-btn');
     var spinner = document.getElementById('dump-spinner');
     var status = document.getElementById('dump-status');
     btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
     spinner.style.display = 'inline-block';
     status.style.display = 'inline';
-    status.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting database...';
+    status.innerHTML = '<i class="bi bi-hourglass-split"></i> DB Export is running on the server. Refresh in 10 mins.';
     status.className = 'ms-3 text-info';
+
+    // Lock for 10 minutes
+    localStorage.setItem(lockKey, Date.now() + 10 * 60 * 1000);
 
     fetch('', {
         method: 'POST',
@@ -98,24 +127,11 @@ function createDump() {
             'Content-Type': 'application/json',
         },
     })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+    .then(function(r) {
         spinner.style.display = 'none';
-        if (data.success) {
-            status.innerHTML = '<i class="bi bi-check-circle"></i> Dump created — reloading...';
-            status.className = 'ms-3 text-success';
-            setTimeout(function() { location.reload(); }, 1000);
-        } else {
-            status.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Failed: ' + (data.error || 'unknown error');
-            status.className = 'ms-3 text-danger';
-            btn.disabled = false;
-        }
     })
     .catch(function(err) {
         spinner.style.display = 'none';
-        status.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Request failed: ' + err.message;
-        status.className = 'ms-3 text-danger';
-        btn.disabled = false;
     });
 }
 

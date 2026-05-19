@@ -59,26 +59,26 @@ def get_fmb_sharepoint_url():
 
 
 class SubmitSendNotificationEmail(TemplateEmailBase):
-    subject = 'A new Proposal has been submitted.'
+    subject = f'{settings.SYSTEM_NAME_SHORT}: A new Proposal has been submitted.'
     html_template = 'silrec/emails/proposals/send_submit_notification.html'
     #txt_template = 'silrec/emails/proposals/send_submit_notification.txt'
     txt_template = None
 
 
 class ReviewerSendNotificationEmail(TemplateEmailBase):
-    subject = 'Proposal has been updated for review.'
+    subject = f'{settings.SYSTEM_NAME_SHORT}: Proposal has been updated for review.'
     html_template = 'silrec/emails/proposals/send_review_notification.html'
     txt_template = None
 
 
 class ReviewCompletedSendNotificationEmail(TemplateEmailBase):
-    subject = 'Proposal review have been completed.'
+    subject = f'{settings.SYSTEM_NAME_SHORT}: Proposal review have been completed.'
     html_template = 'silrec/emails/proposals/send_review_completed_notification.html'
     txt_template = None
 
 
 class ReturnedSendNotificationEmail(TemplateEmailBase):
-    subject = 'Proposal has been returned for further details.'
+    subject = f'{settings.SYSTEM_NAME_SHORT}: Proposal has been returned for further details.'
     html_template = 'silrec/emails/proposals/send_returned_notification.html'
     txt_template = None
 

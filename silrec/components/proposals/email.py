@@ -92,7 +92,7 @@ def send_submit_email_notification(request, proposal):
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
-            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+            url = f'{settings.SITE_URL}/internal/proposal/{proposal.id}'
     context = {
         'proposal': proposal,
         'url': url,
@@ -118,7 +118,7 @@ def send_reviewer_email_notification(request, proposal):
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
-            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+            url = f'{settings.SITE_URL}/internal/proposal/{proposal.id}'
     context = {
         'proposal': proposal,
         'url': url,
@@ -141,7 +141,7 @@ def send_review_completed_email_notification(request, proposal):
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
-            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+            url = f'{settings.SITE_URL}/internal/proposal/{proposal.id}'
     context = {
         'proposal': proposal,
         'url': url,
@@ -164,7 +164,7 @@ def send_returned_email_notification(request, proposal):
             url = '-internal.{}'.format(settings.SITE_DOMAIN).join(url.split('.' + settings.SITE_DOMAIN))
     except Exception as e:
             # for testing, eg. send_submit_email_notification(request=None, proposal=p)
-            url = f'{settings.SITE_URL}/internal/proposal/proposal.id'
+            url = f'{settings.SITE_URL}/internal/proposal/{proposal.id}'
     context = {
         'proposal': proposal,
         'url': url,

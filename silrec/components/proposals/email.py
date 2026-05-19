@@ -145,7 +145,7 @@ def send_review_completed_email_notification(request, proposal):
     context = {
         'proposal': proposal,
         'url': url,
-        'greeting': 'Review Completed',
+        'greeting': 'Silrec Officer',
         'review_completed_footer': True,
         'FMB': get_fmb_sharepoint_url(),
     }
@@ -168,7 +168,7 @@ def send_returned_email_notification(request, proposal):
     context = {
         'proposal': proposal,
         'url': url,
-        'greeting': 'Operator',
+        'greeting': 'Silrec Officer',
         'operator_footer': True,
         'FMB': get_fmb_sharepoint_url(),
         'comment': proposal.latest_transition_comment or '',

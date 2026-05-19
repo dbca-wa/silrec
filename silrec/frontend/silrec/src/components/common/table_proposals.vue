@@ -416,10 +416,10 @@ export default {
                 searchable: true,
                 visible: true,
                 render: function (row, type, full) {
-                    if (full.processing_status === 'Processing Shapefile') {
-                        return 'Processing Shapefile (<span style="color:red">lock</span>)';
+                    if (full.processing_status === 'processing_shapefile') {
+                        return 'Processing Shapefile (<span style="color:red">locked</span>)';
                     }
-                    return full.processing_status;
+                    return full.processing_status_id || full.processing_status;
                 },
                 name: 'processing_status',
             };

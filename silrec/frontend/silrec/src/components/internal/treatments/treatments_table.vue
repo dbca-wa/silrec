@@ -966,9 +966,18 @@ export default {
             },
         },
     },
-    mounted() {
-        this.loadLookups();
-        this.$nextTick(() => this.updateFilterIconColor());
+    async mounted() {
+        await this.loadLookups();
+        this.$nextTick(() => {
+            this.updateFilterIconColor();
+            if (this.cohortId) {
+                const dt = this.$refs.treatments_datatable?.vmDataTable;
+                if (dt) {
+                    dt.page('first');
+                    dt.ajax.reload(null, false);
+                }
+            }
+        });
     },
 };
 </script>

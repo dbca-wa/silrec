@@ -1828,6 +1828,7 @@ class SQLReportViewSet(viewsets.ReadOnlyModelViewSet):
                 )
                 gdf = gdf.rename(columns={geom_col: 'geometry'})
                 gdf = gdf.set_geometry('geometry')
+                gdf = gdf.set_crs(settings.CRS_GDA94, allow_override=True)
             if gdf.geometry.isna().all():
                 gdf = gdf.drop(columns=['geometry'])
             if 'geometry' in gdf.columns:

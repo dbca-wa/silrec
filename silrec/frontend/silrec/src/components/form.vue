@@ -1125,6 +1125,23 @@ export default {
                         this.uploadingShapefile = false;
                         return;
                     }
+                    if (data.error === 'max_polygons_exceeded') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Too Many Polygons',
+                            html:
+                                '<div style="text-align: left;">' +
+                                '<p>The shapefile contains <strong>' + data.feature_count + '</strong> polygons, ' +
+                                'which exceeds the maximum of <strong>' + data.max_polygons + '</strong>.</p>' +
+                                '<p style="margin-top: 12px;">Please reduce the number of polygons and try again.</p>' +
+                                '</div>',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6',
+                        });
+                        this.clearFileInput();
+                        this.uploadingShapefile = false;
+                        return;
+                    }
                     if (data.type_errors) {
                         const typeList = data.type_errors
                             .map(function (msg) {

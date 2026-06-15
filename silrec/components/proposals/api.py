@@ -3092,6 +3092,24 @@ class ShapefileUploadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Check polygon count limit
+            from django.conf import settings
+            max_polygons = settings.MAX_SHAPEFILE_POLYGONS
+            if result['feature_count'] > max_polygons:
+                return Response(
+                    {
+                        'error': 'max_polygons_exceeded',
+                        'feature_count': result['feature_count'],
+                        'max_polygons': max_polygons,
+                        'details': [
+                            f'The uploaded shapefile contains {result["feature_count"]} polygons, '
+                            f'which exceeds the maximum of {max_polygons}. '
+                            f'Please reduce the number of polygons and try again.'
+                        ],
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Validate mandatory shapefile attributes (case-insensitive) and data types
             import geopandas as gpd
             import numpy as np

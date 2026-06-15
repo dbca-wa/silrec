@@ -1412,27 +1412,14 @@ export default {
                 return;
             }
 
+            const defaultThreshold = helpers.getSilrecSetting('sliverAreaLengthThreshold', 5.0);
+
             Swal.fire({
                 title: 'Process Shapefile',
                 html: `
                     <div style="padding: 5px 0;">
-                        <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
-                            <label for="threshold" style="font-weight: bold; min-width: 120px; text-align: right;">Threshold Value:</label>
-                            <div style="flex: 1;">
-                                <input
-                                    type="number"
-                                    id="threshold"
-                                    class="swal2-input"
-                                    value="5.0"
-                                    min="0.1"
-                                    max="100"
-                                    step="0.1"
-                                    style="width: 100%; margin: 0;"
-                                >
-                            </div>
-                        </div>
-                        <div style="font-size: 0.85em; color: #6c757d; text-align: left; margin-top: 5px; padding-left: 130px;">
-                            Higher values remove more sliver polygons. Default is 5.0.
+                        <div style="font-size: 0.85em; color: #6c757d; text-align: center; margin-bottom: 10px;">
+                            Sliver Area/Length Threshold: <strong>${defaultThreshold}</strong>
                         </div>
                     </div>
                 `,
@@ -1444,22 +1431,7 @@ export default {
                 cancelButtonColor: '#6c757d',
                 showLoaderOnConfirm: true,
                 preConfirm: () => {
-                    const threshold =
-                        document.getElementById('threshold').value;
-                    const thresholdValue = parseFloat(threshold);
-
-                    if (
-                        isNaN(thresholdValue) ||
-                        thresholdValue < 0.1 ||
-                        thresholdValue > 100
-                    ) {
-                        Swal.showValidationMessage(
-                            'Threshold must be between 0.1 and 100'
-                        );
-                        return false;
-                    }
-
-                    return { threshold: thresholdValue };
+                    return { threshold: defaultThreshold };
                 },
             }).then((result) => {
                 if (result.isConfirmed && result.value) {

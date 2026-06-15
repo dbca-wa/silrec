@@ -173,24 +173,19 @@ admin.site.unregister(Group)
 
 @admin.register(User)
 class UserAdminSuperuser(UserAdmin):
+    change_user_password_template = None
+
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
         if not request.user.is_superuser:
             fieldsets = [
-                (title, {k: v for k, v in opts.items() if 'is_superuser' not in (v if isinstance(v, list) else [])})
-                for title, opts in fieldsets
-            ]
-            fieldsets = [
-                (title, {k: (v if isinstance(v, list) else v) for k, v in opts.items() if not (isinstance(k, str) and k == 'fields') or 'is_superuser' not in (v if isinstance(v, list) else [v])})
-                for title, opts in fieldsets
-            ]
-            fieldsets = [
                 (title, {
-                    k: ([f for f in v if f != 'is_superuser'] if k == 'fields' else v)
+                    k: ([f for f in v if f not in ('is_superuser', 'password', 'user_permissions')] if k == 'fields' else v)
                     for k, v in opts.items()
                 })
                 for title, opts in fieldsets
             ]
+            fieldsets = [(t, o) for t, o in fieldsets if any(o.get('fields', []))]
         return fieldsets
 
     def get_form(self, request, obj=None, **kwargs):
@@ -198,6 +193,13 @@ class UserAdminSuperuser(UserAdmin):
         if not request.user.is_superuser:
             form.base_fields.pop('is_superuser', None)
         return form
+
+    def user_change_password(self, request, id, form_url=''):
+        from django.http import HttpResponseRedirect
+        from django.contrib import messages
+        messages.error(request, 'Password changes are not available.')
+        return HttpResponseRedirect('..')
+
 
 @admin.register(Group)
 class GroupAdminSuperuser(GroupAdmin):

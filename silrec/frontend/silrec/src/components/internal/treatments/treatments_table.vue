@@ -348,7 +348,7 @@ export default {
             filterCompleteDateTo: '',
             filterMachine: '',
             filterOperator: '',
-            filterPost2024Only: true,
+            filterPost2024Only: false,
 
             lookups: {
                 tasksWithClassification: null,

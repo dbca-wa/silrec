@@ -32,6 +32,9 @@ class ProposalTypeAdmin(admin.ModelAdmin):
 class SimpleProposalAdmin(admin.ModelAdmin):
     list_display = ['id', 'lodgement_number', 'title']
 
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
 # Register if not already registered
 if not admin.site.is_registered(models.Proposal):
     admin.site.register(models.Proposal, SimpleProposalAdmin)
@@ -228,6 +231,7 @@ class CloneReportForm(forms.Form):
 class SQLReportAdmin(admin.ModelAdmin):
     form = SQLReportAdminForm
     list_display = ['name', 'report_type', 'is_active', 'current_template_version', 'created_on', 'preview_sql']
+
     list_filter = ['report_type', 'is_active', 'created_on']
     search_fields = ['name', 'description', 'base_sql']
     filter_horizontal = ['allowed_groups']
@@ -495,6 +499,9 @@ class TextSearchModelConfigAdmin(admin.ModelAdmin):
     search_fields = ['key', 'display_name', 'model_name']
     list_editable = ['is_active', 'order']
 
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('key', 'display_name', 'model_name', 'is_active', 'order')
@@ -531,6 +538,9 @@ class TextSearchFieldDisplayAdmin(admin.ModelAdmin):
     list_filter = ['is_active']
     search_fields = ['field_name', 'display_name', 'description']
     list_editable = ['display_name', 'is_active', 'order']
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
 
     fieldsets = (
         ('Basic Information', {
@@ -742,6 +752,9 @@ class RequestMetricsAdmin(admin.ModelAdmin):
     date_hierarchy = 'timestamp'
     inlines = [AuditLogInline]                # Add the inline here
 
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
     # Permission overrides
     def has_add_permission(self, request):
         return False
@@ -824,6 +837,9 @@ class AuditLogAdmin(admin.ModelAdmin):
     Provides rich display of changes, filtering by table/operation/user,
     and links to related proposal and user records via RequestMetrics.
     """
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
     change_form_template = "admin/silrec/auditlog/change_form.html"
 
     list_display = [
@@ -1133,6 +1149,9 @@ class ShapefileProcessingRunAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status', 'started_at', 'user']
     search_fields = ['proposal__lodgement_number', 'user__username']
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
     readonly_fields = [
         'started_at', 'completed_at', 'metadata_display',
         'request_metrics_link', 'audit_logs_link', 'progress_display', 'duration_display'
@@ -1746,6 +1765,9 @@ class SavepointRecordAdmin(admin.ModelAdmin):
         'id', 'processing_run_link', 'iteration', 'polygon_index',
         'action_colored', 'created_at', 'affected_records_count'
     ]
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
     list_filter = ['action', 'created_at', 'processing_run__proposal']
     search_fields = [
         'processing_run__proposal__lodgement_number',
@@ -1846,4 +1868,3 @@ class SavepointRecordAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
-

@@ -5,6 +5,7 @@ from django.contrib.gis.db.models.fields import GeometryField
 from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
+from django.contrib.auth.admin import GroupAdmin
 
 from django.db.models import Q, Max
 
@@ -168,6 +169,25 @@ class FormValidationRuleAdmin(admin.ModelAdmin):
             },
         )
 
+admin.site.unregister(Group)
+
+@admin.register(Group)
+class GroupAdminSuperuser(GroupAdmin):
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
 ##@admin.register(models.EmailUser)
 #@admin.register(EmailUser)
 #class EmailUserAdmin(admin.ModelAdmin):
@@ -181,4 +201,3 @@ class FormValidationRuleAdmin(admin.ModelAdmin):
 #        return None
 #    def has_delete_permission(self, request, obj=None):
 #        return None
-

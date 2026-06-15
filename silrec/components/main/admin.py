@@ -30,4 +30,5 @@ class ApplicationTypeAdmin(admin.ModelAdmin):
     ordering = ("order",)
     readonly_fields = ["name"]
 
-
+    def has_module_permission(self, request):
+        return request.user.is_superuser

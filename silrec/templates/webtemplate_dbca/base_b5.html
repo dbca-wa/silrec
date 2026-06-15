@@ -10,7 +10,7 @@
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-         
+
         {% block header_js %}
 	    <script src="/static/common_addons/node_modules/jquery/dist/jquery.js?ver={{ GIT_COMMIT_HASH }}"></script>
 	    <script src="/static/common_addons/node_modules/moment/min/moment.min.js?ver={{ GIT_COMMIT_HASH }}"></script>
@@ -30,7 +30,7 @@
 	    <link rel="stylesheet" type="text/css" href="/static/common_addons/node_modules/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css?ver={{ GIT_COMMIT_HASH }}"/>
 
 	{% endblock %}
-         
+
         {% block extra_js %}
         {% endblock %}
 
@@ -76,23 +76,23 @@
                                                      <button type="button" class="btn btn-sm btn-secondary">
                                                               Notification 1 <span class="badge bg-danger">14</span>
                                                      </button>
-                                    
+
                                             </li>
-                                    
+
                                             <li>
                                                      <button type="button" class="btn btn-sm btn-secondary">
                                                               Notification 2 <span class="badge bg-danger">4</span>
                                                      </button>
-                                    
+
                                             </li>
                                             <li>
                                                      <button type="button" class="btn btn-sm btn-secondary">
                                                               Notification 3 <span class="badge bg-danger">8</span>
                                                      </button>
-                                    
+
                                             </li>
                                             {% endblock %}
-                                    
+
                                     </ul>
                                     </div>
                               </div>
@@ -117,7 +117,7 @@
                                        </div>
 				       <div class="col-lg-9">
 					     <h1 id="site-title hide-sm" class="site-logo" style="color: white; text-align: left">
-                                                  {{ SYSTEM_NAME }} 
+                                                  {{ SYSTEM_NAME }}
 					     </h1>
 				       </div>
                                </div>
@@ -150,21 +150,24 @@
                                                 <ul class="navbar-nav navbar-right" id="navbarTogglerTopRight" >
                                                   {% block menu_items_right %}
                                                   {% if request.user.is_authenticated %}
-                                                 <li class="nav-item">
-                                                     <a class="nav-link" href="#">
-                                                     Welcome
-                                                     <strong>
-                                                         {% if request.user.first_name %}
-                                                             {{ request.user.first_name }}
-                                                         {% elif request.user.last_name %}
-                                                             {{ request.user.last_name }}
-                                                         {% else %}
-                                                             {{ request.user.email }}
-                                                         {% endif %}
-                                                     </strong>
-                                                     </a>
-                                                 </li>
-                    
+                                                  <li class="nav-item">
+                                                      <a class="nav-link" href="#"
+                                                         data-bs-toggle="tooltip"
+                                                         data-bs-placement="bottom"
+                                                         title="{{ request.user.groups.all|join:', ' }}">
+                                                      Welcome
+                                                      <strong>
+                                                          {% if request.user.first_name %}
+                                                              {{ request.user.first_name }}
+                                                          {% elif request.user.last_name %}
+                                                              {{ request.user.last_name }}
+                                                          {% else %}
+                                                              {{ request.user.email }}
+                                                          {% endif %}
+                                                      </strong>
+                                                      </a>
+                                                  </li>
+
                                                  <li class="nav-item dropdown">
                                                    <a class="nav-link dropdown-toggle" href="#" id="navbarScrollingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                                      Options
@@ -200,7 +203,7 @@
                                       </div>
                                   </div>
                               </div>
-                    
+
                     </div>
 
 
@@ -220,14 +223,14 @@
         {% block messages %}
             <div class="container">
                 <div class="row">
-                    <div class="col-md-12">                        
+                    <div class="col-md-12">
 			  <BR>
 			  {% for message in messages %}
-			  <div class="alert {{ message.tags }} alert-dismissible shadow fade show" role="alert">      
+			  <div class="alert {{ message.tags }} alert-dismissible shadow fade show" role="alert">
 			      {{ message | safe }}
 			      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 			  </div>
-			  {% endfor %}		    
+			  {% endfor %}
                     </div>
                 </div>
             </div>
@@ -238,6 +241,12 @@
         {% endblock %}
 	{% block footer_js%}
 	<script src="/static/js/base_bs5_common_after.js?ver={{ GIT_COMMIT_HASH }}"></script>
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+	    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+	    tooltipTriggerList.map(function(el) { return new bootstrap.Tooltip(el); });
+	});
+	</script>
 	{% endblock %}
         {% block custom_js %}
         {% endblock %}

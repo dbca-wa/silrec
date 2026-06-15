@@ -3,9 +3,8 @@ from django.contrib.gis.db import models
 from django.contrib.gis.db.models.fields import GeometryField
 
 from django.contrib.admin import AdminSite
-from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.models import Group
-from django.contrib.auth.admin import GroupAdmin
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from django.contrib.auth.models import User, Group
 
 from django.db.models import Q, Max
 
@@ -169,7 +168,36 @@ class FormValidationRuleAdmin(admin.ModelAdmin):
             },
         )
 
+admin.site.unregister(User)
 admin.site.unregister(Group)
+
+@admin.register(User)
+class UserAdminSuperuser(UserAdmin):
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not request.user.is_superuser:
+            fieldsets = [
+                (title, {k: v for k, v in opts.items() if 'is_superuser' not in (v if isinstance(v, list) else [])})
+                for title, opts in fieldsets
+            ]
+            fieldsets = [
+                (title, {k: (v if isinstance(v, list) else v) for k, v in opts.items() if not (isinstance(k, str) and k == 'fields') or 'is_superuser' not in (v if isinstance(v, list) else [v])})
+                for title, opts in fieldsets
+            ]
+            fieldsets = [
+                (title, {
+                    k: ([f for f in v if f != 'is_superuser'] if k == 'fields' else v)
+                    for k, v in opts.items()
+                })
+                for title, opts in fieldsets
+            ]
+        return fieldsets
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if not request.user.is_superuser:
+            form.base_fields.pop('is_superuser', None)
+        return form
 
 @admin.register(Group)
 class GroupAdminSuperuser(GroupAdmin):

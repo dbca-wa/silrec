@@ -69,13 +69,25 @@ export default {
             path: 'proposal/:proposal_id/cohorts/:cohortId/polygon/:polygonId',
             name: 'cohort-detail',
             component: CohortDetail,
-            props: true,
+            props: function (route) {
+                return {
+                    proposal_id: route.params.proposal_id,
+                    cohortId: route.params.cohortId,
+                    polygonId: route.params.polygonId,
+                    readOnly: route.query.readonly === 'true',
+                };
+            },
         },
         {
             path: 'cohorts/:cohortId',
             name: 'cohort-detail-simple',
             component: CohortDetail,
-            props: true,
+            props: function (route) {
+                return {
+                    cohortId: route.params.cohortId,
+                    readOnly: route.query.readonly === 'true',
+                };
+            },
         },
         {
             path: 'treatment/:treatmentId',

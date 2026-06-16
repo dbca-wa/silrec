@@ -140,11 +140,16 @@ export default {
             type: Boolean,
             default: false,
         },
+        processingStatus: {
+            type: String,
+            default: null,
+        },
     },
     data() {
         return {
             datatable_id: 'polygon-cohort-table-' + uuid(),
             tableVisible: this.initialVisible,
+            reviewCompleted: this.processingStatus === 'review_completed',
 
             // Filters
             filterPolygonName: '',
@@ -152,6 +157,19 @@ export default {
             filterSpecies: '',
             filterMinArea: '',
         };
+    },
+    watch: {
+        processingStatus: function (val) {
+            this.reviewCompleted = val === 'review_completed';
+        },
+        reviewCompleted: function () {
+            this.$nextTick(function () {
+                var dt = this.$refs.polygon_cohort_datatable;
+                if (dt && dt.vmDataTable) {
+                    dt.vmDataTable.draw(false);
+                }
+            });
+        },
     },
     computed: {
         dtHeaders() {
@@ -341,9 +359,11 @@ export default {
                                     ? row.assigned_cohorts[0].cohort
                                     : null;
 
+                            const isReadonly = vm.readonly || vm.reviewCompleted;
+
                             if (cohortId) {
-                                if (vm.readonly) {
-                                    actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-info me-1" title="View Cohort">
+                                if (isReadonly) {
+                                    actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}?readonly=true" class="btn btn-sm btn-outline-info me-1" title="View Cohort">
                                     <i class="bi bi-eye"></i> View</a>`;
                                 } else {
                                     actions += `<a href="${row.proposal_id}/cohorts/${cohortId}/polygon/${data}" class="btn btn-sm btn-outline-primary me-1" title="Edit Cohort">

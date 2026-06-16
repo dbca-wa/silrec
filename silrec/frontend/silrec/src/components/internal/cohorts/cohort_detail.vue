@@ -412,6 +412,10 @@ export default {
             type: [Number, String],
             default: null,
         },
+        readOnly: {
+            type: Boolean,
+            default: false,
+        },
     },
     data() {
         return {
@@ -442,6 +446,7 @@ export default {
     },
     computed: {
         canEdit() {
+            if (this.readOnly) return false;
             return !this.isReadOnlyUser;
         },
         showFormActions() {

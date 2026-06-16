@@ -428,6 +428,7 @@
                 :proposalId="currentProposalId"
                 :initialVisible="showDataTable"
                 :readonly="polygonCohortReadonly"
+                :processingStatus="processingStatus"
                 @polygon-selected="onPolygonSelected"
                 @zoom-to-polygon="onZoomToPolygon"
             />
@@ -494,6 +495,10 @@ export default {
         polygonCohortReadonly: {
             type: Boolean,
             default: false,
+        },
+        processingStatus: {
+            type: String,
+            default: null,
         },
     },
     emits: [

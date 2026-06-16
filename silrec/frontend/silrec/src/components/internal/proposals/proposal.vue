@@ -210,7 +210,7 @@
                                     @click="returnToReviewer"
                                     :disabled="!canReturnToReviewer"
                                 >
-                                    Return to Reviewer
+                                    Return to Reviewer (Unlock)
                                 </button>
                             </template>
                         </div>

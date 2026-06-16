@@ -264,7 +264,7 @@
                 :navbar-buttons-disabled="navbarButtonsDisabled"
                 :saving-features="savingInProgress"
                 level="internal"
-                :polygon-cohort-readonly="isReadOnlyUser || (proposal && proposal.processing_status === 'review_completed')"
+                :polygon-cohort-readonly="isReadOnlyUser || (proposal && (proposal.processing_status === 'review_completed' || proposal.processing_status === 'with_reviewer'))"
                 :processing-status="proposal ? proposal.processing_status : null"
                 :map-info-text="
                     is_internal

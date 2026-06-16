@@ -149,7 +149,7 @@ export default {
         return {
             datatable_id: 'polygon-cohort-table-' + uuid(),
             tableVisible: this.initialVisible,
-            reviewCompleted: this.processingStatus === 'review_completed',
+            isReadonlyStatus: this.processingStatus === 'review_completed' || this.processingStatus === 'with_reviewer',
 
             // Filters
             filterPolygonName: '',
@@ -160,9 +160,9 @@ export default {
     },
     watch: {
         processingStatus: function (val) {
-            this.reviewCompleted = val === 'review_completed';
+            this.isReadonlyStatus = val === 'review_completed' || val === 'with_reviewer';
         },
-        reviewCompleted: function () {
+        isReadonlyStatus: function () {
             this.$nextTick(function () {
                 var dt = this.$refs.polygon_cohort_datatable;
                 if (dt && dt.vmDataTable) {
@@ -359,7 +359,7 @@ export default {
                                     ? row.assigned_cohorts[0].cohort
                                     : null;
 
-                            const isReadonly = vm.readonly || vm.reviewCompleted;
+                            const isReadonly = vm.readonly || vm.isReadonlyStatus;
 
                             if (cohortId) {
                                 if (isReadonly) {

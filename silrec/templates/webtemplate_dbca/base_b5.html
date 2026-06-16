@@ -154,7 +154,7 @@
                                                       <a class="nav-link" href="#"
                                                          data-bs-toggle="tooltip"
                                                          data-bs-placement="bottom"
-                                                         title="{{ request.user.groups.all|join:', ' }}">
+                                                          title="{% if request.user.is_superuser %}&#10003; {% endif %}{{ request.user.groups.all|join:', ' }}">
                                                       Welcome
                                                       <strong>
                                                           {% if request.user.first_name %}

@@ -64,8 +64,9 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(
                         f'Created user {first_name} {last_name} ({email})'
                     ))
-                user.groups.add(group)
-                self.stdout.write(f'  → added to group "{group_name}"')
+
+                    user.groups.add(group)
+                    self.stdout.write(f'  → added to group "{group_name}"')
 
     def _remove_users(self):
         for group_name, people in USERS.items():

@@ -23,7 +23,7 @@ from silrec.components.proposals import api as proposal_api
 
 from silrec.components.forest_blocks import views as forest_blocks_views
 
-from silrec.views import DbDumpListView, DbDumpDownloadView, DbDumpDeleteView, GeneratedReportListView, GeneratedReportDownloadView, GeneratedReportDeleteView
+from silrec.views import DbDumpListView, DbDumpDownloadView, DbDumpDeleteView, GeneratedReportListView, GeneratedReportDownloadView, GeneratedReportDeleteView, SilrecDocView
 
 # API patterns
 router = routers.DefaultRouter()
@@ -225,6 +225,11 @@ urlpatterns += [
     re_path(r'^mgt-commands/db-dumps/$', DbDumpListView.as_view(), name='db-dump-list'),
     re_path(r'^mgt-commands/db-dumps/download/(?P<filename>.+)$', DbDumpDownloadView.as_view(), name='db-dump-download'),
     re_path(r'^mgt-commands/db-dumps/delete/(?P<filename>.+)$', DbDumpDeleteView.as_view(), name='db-dump-delete'),
+]
+
+# Docs
+urlpatterns += [
+    re_path(r'^docs/(?P<doc_name>.+)$', SilrecDocView.as_view(), name='silrec-doc'),
 ]
 
 # Generated reports

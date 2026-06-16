@@ -354,6 +354,24 @@ class GeneratedReportDownloadView(LoginRequiredMixin, UserPassesTestMixin, View)
         return response
 
 
+class SilrecDocView(LoginRequiredMixin, View):
+    """Serve a docx file for download."""
+
+    def get(self, request, doc_name):
+        if '..' in doc_name or '/' in doc_name:
+            raise Http404
+        fpath = os.path.join(settings.BASE_DIR, 'silrec', 'templates', 'docs', doc_name)
+        if not os.path.isfile(fpath):
+            raise Http404
+        with open(fpath, 'rb') as f:
+            response = HttpResponse(
+                f.read(),
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{doc_name}"'
+            return response
+
+
 class GeneratedReportDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
     """Delete a generated report file. Only Silrec Admin group."""
 

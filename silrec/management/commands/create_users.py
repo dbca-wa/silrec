@@ -36,12 +36,38 @@ class Command(BaseCommand):
             action='store_true',
             help='Remove users defined in USERS instead of creating them',
         )
+        parser.add_argument(
+            '--list',
+            action='store_true',
+            help='List all users with groups, staff, active status',
+        )
 
     def handle(self, *args, **options):
-        if options['remove']:
+        if options['list']:
+            self._list_users()
+        elif options['remove']:
             self._remove_users()
         else:
             self._create_users()
+
+    def _list_users(self):
+        GROUP_ORDER = {'Silrec Admin': 0, 'Reviewer': 1, 'Operator': 2, 'User': 3}
+
+        def sort_key(u):
+            groups = list(u.groups.values_list('name', flat=True))
+            g = next((g for g in groups if g in GROUP_ORDER), None)
+            return (GROUP_ORDER.get(g, 9), g or 'z', u.username)
+
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            f'{"Username":35} {"Staff":6} {"Active":6} {"Superuser":10} {"Groups"}'
+        ))
+        self.stdout.write('-' * 120)
+        for u in sorted(User.objects.all(), key=sort_key):
+            groups = ', '.join(u.groups.values_list('name', flat=True)) or '-'
+            self.stdout.write(
+                f'{u.username:35} {str(u.is_staff):6} {str(u.is_active):6} '
+                f'{str(u.is_superuser):10} {groups}'
+            )
 
     def _create_users(self):
         for group_name, people in USERS.items():

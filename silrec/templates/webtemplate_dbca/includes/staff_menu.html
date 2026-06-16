@@ -8,5 +8,10 @@
 {% if can_view_reports_flag %}
 <li><a class="dropdown-item" href="{% url 'generated-report-list' %}">Generated Reports</a></li>
 {% endif %}
-<li><a class="dropdown-item" href="{% url 'silrec-doc' 'silrec_demo.docx' %}" target="_blank">Silrec Demo Doc</a></li>
-<li><a class="dropdown-item" href="{% url 'silrec-doc' 'silrec_workflow.docx' %}" target="_blank">Silrec Workflow Doc</a></li>
+<li class="dropdown dropend">
+    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside" onclick="event.stopPropagation();">Documents</a>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'silrec-doc' 'silrec_demo.docx' %}" target="_blank">Silrec Demo Doc</a></li>
+        <li><a class="dropdown-item" href="{% url 'silrec-doc' 'silrec_workflow.docx' %}" target="_blank">Silrec Workflow Doc</a></li>
+    </ul>
+</li>

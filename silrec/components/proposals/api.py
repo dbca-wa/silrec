@@ -3196,6 +3196,7 @@ class ShapefileUploadView(APIView):
                 )
 
             # Wrap all DB writes in a transaction so any failure triggers a rollback
+            saved_docs = []
             with transaction.atomic():
                 # Delete existing shapefile if it exists
                 if existing_shapefile:
@@ -3224,6 +3225,15 @@ class ShapefileUploadView(APIView):
 
         except Exception as e:
             logger.error(f"Error processing shapefile: {str(e)}", exc_info=True)
+            # Clean up any uploaded shapefile files from disk if they were saved
+            try:
+                stale = ShapefileDocument.objects.filter(proposal_id=proposal_id)
+                for doc in stale:
+                    if doc._file:
+                        doc._file.delete(save=False)
+                    doc.delete()
+            except Exception:
+                pass
             return Response(
                 {'error': f'Error processing shapefile: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

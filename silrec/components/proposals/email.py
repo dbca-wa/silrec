@@ -37,6 +37,14 @@ def get_operator_recipients():
         raise Exception (f'{e}: No email recipients found for Operator - possibly No Group called "Operator" defined or assigned to user(s)')
     return list(emails)
 
+def get_reviewer_recipients():
+    try:
+        emails = Group.objects.get(name='Reviewer').user_set.all().values_list('email', flat=True)
+    except Exception as e:
+        raise Exception (f'{e}: No email recipients found for Reviewer - possibly No Group called "Reviewer" defined or assigned to user(s)')
+    return list(emails)
+
+
 def get_fmb_sharepoint_url():
     sharepoint_url = ''
     try:
@@ -127,7 +135,7 @@ def send_reviewer_email_notification(request, proposal):
         'FMB': get_fmb_sharepoint_url(),
     }
 
-    msg = email.send(get_operator_recipients(), context=context)
+    msg = email.send(get_reviewer_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)
     return msg
@@ -150,7 +158,7 @@ def send_review_completed_email_notification(request, proposal):
         'FMB': get_fmb_sharepoint_url(),
     }
 
-    msg = email.send(get_operator_recipients(), context=context)
+    msg = email.send(get_reviewer_recipients(), context=context)
     sender = get_sender_user()
     _log_proposal_email(msg, proposal, sender=sender)
     return msg

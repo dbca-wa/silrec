@@ -469,7 +469,7 @@ class SearchByUserView(APIView):
                     'display_name': 'Cohorts',
                     'date_field': 'created_on',
                     'id_field': 'cohort_id',
-                    'url_pattern': '/internal/cohort/{id}/'
+                    'url_pattern': '/internal/cohorts/{id}/'
                 },
                 'treatment': {
                     'model': 'silrec.Treatment',

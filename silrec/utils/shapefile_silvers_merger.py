@@ -294,11 +294,13 @@ class ShapefileSliversMerger():
 
                         target_ba = float(self.gdf_single.iloc[0].target_ba_)
                         #import ipdb; ipdb.set_trace()
-                        obj_code = self.gdf_single.iloc[0].obj_code
                         try:
+                            obj_code = self.gdf_single.iloc[0].obj_code
                             obj_code_lkp = ObjectiveLkp.objects.get(obj_code__contains=obj_code)
                         except Exception as e:
-                            raise Exception(f'Objective Code not found: {obj_code}')
+                            obj_code = 'JCROP1'
+                            obj_code_lkp = ObjectiveLkp.objects.get(obj_code__contains=obj_code)
+                            #raise Exception(f'Objective Code not found: {obj_code}')
                         op_id = 1
                         year = 2024
                         regen_method = ' %'  # non-null FK req'd
@@ -526,6 +528,7 @@ class ShapefileSliversMerger():
         geoms = gdf['geometry'].tolist()
 
         merged_geoms = []
+        kept_indices = []
         used = set()
 
         for i in range(len(geoms)):
@@ -546,7 +549,9 @@ class ShapefileSliversMerger():
                         used.add(j)
 
             merged_geoms.append(current_geom)
+            kept_indices.append(i)
 
+        gdf = gdf.iloc[kept_indices].copy()
         gdf['geometry'] = merged_geoms
 
         return gdf

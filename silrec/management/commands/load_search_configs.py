@@ -36,7 +36,7 @@ class Command(BaseCommand):
             },
             {
                 'key': 'polygon',
-                'model_name': 'silrec.Polygon',
+                'model_name': 'forest_blocks.Polygon',
                 'display_name': 'Polygons',
                 'search_fields': 'name',
                 'date_field': 'created_on',
@@ -48,19 +48,19 @@ class Command(BaseCommand):
             },
             {
                 'key': 'cohort',
-                'model_name': 'silrec.Cohort',
+                'model_name': 'forest_blocks.Cohort',
                 'display_name': 'Cohorts',
                 'search_fields': 'comments,obj_code,species',
                 'date_field': 'created_on',
                 'id_field': 'cohort_id',
                 'detail_fields': [],
-                'url_pattern': '/internal/cohort/{id}/',
+                'url_pattern': '/internal/cohorts/{id}/',
                 'is_active': True,
                 'order': 3
             },
             {
                 'key': 'treatment',
-                'model_name': 'silrec.Treatment',
+                'model_name': 'forest_blocks.Treatment',
                 'display_name': 'Treatments',
                 'search_fields': 'results,reference',
                 'date_field': 'created_on',
@@ -72,7 +72,7 @@ class Command(BaseCommand):
             },
             {
                 'key': 'treatment_xtra',
-                'model_name': 'silrec.Treatmentxtra',
+                'model_name': 'forest_blocks.Treatmentxtra',
                 'display_name': 'Treatment Extras',
                 'search_fields': 'zresult_standard',
                 'date_field': 'treatment__created_on',
@@ -84,7 +84,7 @@ class Command(BaseCommand):
             },
             {
                 'key': 'survey_assessment_document',
-                'model_name': 'silrec.SurveyAssessmentDocument',
+                'model_name': 'forest_blocks.SurveyAssessmentDocument',
                 'display_name': 'Survey Documents',
                 'search_fields': 'description,title',
                 'date_field': 'created_on',
@@ -96,7 +96,7 @@ class Command(BaseCommand):
             },
             {
                 'key': 'silviculturist_comment',
-                'model_name': 'silrec.SilviculturistComment',
+                'model_name': 'forest_blocks.SilviculturistComment',
                 'display_name': 'Silviculturist Comments',
                 'search_fields': 'comment',
                 'date_field': 'created_on',
@@ -108,7 +108,7 @@ class Command(BaseCommand):
             },
             {
                 'key': 'prescription',
-                'model_name': 'silrec.Prescription',
+                'model_name': 'forest_blocks.Prescription',
                 'display_name': 'Prescriptions',
                 'search_fields': 'comment',
                 'date_field': 'task__created_on',
@@ -179,4 +179,3 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS('Successfully loaded initial search configurations!')
         )
-

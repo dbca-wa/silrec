@@ -3493,7 +3493,17 @@ class ShapefileUploadView(APIView):
         if fixed_count > 0:
             warnings.append(f"Fixed {fixed_count} invalid geometries")
 
-        # Convert to GeoJSON
+        # Convert to GeoJSON with safe serialization
+        import pandas as pd
+        for col in gdf.select_dtypes(include=['datetime64', 'datetimetz']).columns:
+            gdf[col] = gdf[col].astype(str)
+        for col in gdf.select_dtypes(include=['object']).columns:
+            try:
+                gdf[col] = gdf[col].apply(
+                    lambda x: str(x) if isinstance(x, (pd.Timestamp, pd.Period)) else x
+                )
+            except Exception:
+                pass
         geojson_str = gdf.to_json()
         geojson = json.loads(geojson_str)
 

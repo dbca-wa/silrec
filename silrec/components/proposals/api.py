@@ -3195,19 +3195,21 @@ class ShapefileUploadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Delete existing shapefile if it exists
-            if existing_shapefile:
-                self.delete_existing_shapefile(proposal)
+            # Wrap all DB writes in a transaction so any failure triggers a rollback
+            with transaction.atomic():
+                # Delete existing shapefile if it exists
+                if existing_shapefile:
+                    self.delete_existing_shapefile(proposal)
 
-            # Save the new shapefile components
-            self.save_shapefile_components(proposal, request.FILES, result)
+                # Save the new shapefile components
+                self.save_shapefile_components(proposal, request.FILES, result)
 
-            # Save GeoJSON to proposal
-            proposal.shapefile_json = result['geojson']
-            proposal.geojson_data_processed = None  # Clear processed data
-            proposal.geojson_data_processed_iters = None
-            proposal.processing_status=Proposal.PROCESSING_STATUS_DRAFT
-            proposal.save()
+                # Save GeoJSON to proposal
+                proposal.shapefile_json = result['geojson']
+                proposal.geojson_data_processed = None  # Clear processed data
+                proposal.geojson_data_processed_iters = None
+                proposal.processing_status=Proposal.PROCESSING_STATUS_DRAFT
+                proposal.save()
 
             # Serialize and return the updated proposal
             serializer = ProposalSerializer(proposal, context={'request': request})

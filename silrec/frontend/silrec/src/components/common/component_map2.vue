@@ -391,6 +391,130 @@
                             </div>
                         </div>
 
+                        <!-- District Filter -->
+                        <div class="col-md-2">
+                            <label for="filterDistrict" class="form-label"
+                                >District</label
+                            >
+                            <div class="dropdown" ref="districtDropdown">
+                                <button
+                                    class="form-select form-select-sm text-start dropdown-toggle"
+                                    type="button"
+                                    @click="toggleDropdown('district')"
+                                    :class="{ 'text-muted': !filters.district }"
+                                >
+                                    {{ getDistrictDisplayText }}
+                                </button>
+                                <div
+                                    class="dropdown-menu p-2"
+                                    :class="{ show: dropdowns.district }"
+                                    style="
+                                        width: 100%;
+                                        max-height: 300px;
+                                        overflow-y: auto;
+                                    "
+                                >
+                                    <div class="mb-2">
+                                        <input
+                                            v-model="districtSearch"
+                                            type="text"
+                                            class="form-control form-control-sm"
+                                            placeholder="Search districts..."
+                                            @input="filterDistrictOptions"
+                                            @click.stop
+                                        />
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    <button
+                                        class="dropdown-item small"
+                                        :class="{ active: !filters.district }"
+                                        @click="selectDistrict('')"
+                                    >
+                                        All Districts
+                                    </button>
+                                    <button
+                                        v-for="district in filteredDistricts"
+                                        :key="district"
+                                        class="dropdown-item small"
+                                        :class="{
+                                            active:
+                                                filters.district === district,
+                                        }"
+                                        @click="selectDistrict(district)"
+                                    >
+                                        {{ district }}
+                                    </button>
+                                    <div
+                                        v-if="filteredDistricts.length === 0"
+                                        class="dropdown-item text-muted small"
+                                    >
+                                        No districts found
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Block Filter -->
+                        <div class="col-md-2">
+                            <label for="filterBlock" class="form-label"
+                                >Block</label
+                            >
+                            <div class="dropdown" ref="blockDropdown">
+                                <button
+                                    class="form-select form-select-sm text-start dropdown-toggle"
+                                    type="button"
+                                    @click="toggleDropdown('block')"
+                                    :class="{ 'text-muted': !filters.block }"
+                                >
+                                    {{ getBlockDisplayText }}
+                                </button>
+                                <div
+                                    class="dropdown-menu p-2"
+                                    :class="{ show: dropdowns.block }"
+                                    style="
+                                        width: 100%;
+                                        max-height: 300px;
+                                        overflow-y: auto;
+                                    "
+                                >
+                                    <div class="mb-2">
+                                        <input
+                                            v-model="blockSearch"
+                                            type="text"
+                                            class="form-control form-control-sm"
+                                            placeholder="Search blocks..."
+                                            @input="filterBlockOptions"
+                                            @click.stop
+                                        />
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    <button
+                                        class="dropdown-item small"
+                                        :class="{ active: !filters.block }"
+                                        @click="selectBlock('')"
+                                    >
+                                        All Blocks
+                                    </button>
+                                    <button
+                                        v-for="block in filteredBlocks"
+                                        :key="block"
+                                        class="dropdown-item small"
+                                        :class="{
+                                            active: filters.block === block,
+                                        }"
+                                        @click="selectBlock(block)"
+                                    >
+                                        {{ block }}
+                                    </button>
+                                    <div
+                                        v-if="filteredBlocks.length === 0"
+                                        class="dropdown-item text-muted small"
+                                    >
+                                        No blocks found
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Compartment Filter -->
                         <div class="col-md-2">
                             <label for="filterCompartment" class="form-label"
@@ -461,130 +585,8 @@
                             </div>
                         </div>
 
-                        <!-- Block Filter -->
-                        <div class="col-md-2">
-                            <label for="filterBlock" class="form-label"
-                                >Block</label
-                            >
-                            <div class="dropdown" ref="blockDropdown">
-                                <button
-                                    class="form-select form-select-sm text-start dropdown-toggle"
-                                    type="button"
-                                    @click="toggleDropdown('block')"
-                                    :class="{ 'text-muted': !filters.block }"
-                                >
-                                    {{ getBlockDisplayText }}
-                                </button>
-                                <div
-                                    class="dropdown-menu p-2"
-                                    :class="{ show: dropdowns.block }"
-                                    style="
-                                        width: 100%;
-                                        max-height: 300px;
-                                        overflow-y: auto;
-                                    "
-                                >
-                                    <div class="mb-2">
-                                        <input
-                                            v-model="blockSearch"
-                                            type="text"
-                                            class="form-control form-control-sm"
-                                            placeholder="Search blocks..."
-                                            @input="filterBlockOptions"
-                                            @click.stop
-                                        />
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item small"
-                                        :class="{ active: !filters.block }"
-                                        @click="selectBlock('')"
-                                    >
-                                        All Blocks
-                                    </button>
-                                    <button
-                                        v-for="block in filteredBlocks"
-                                        :key="block"
-                                        class="dropdown-item small"
-                                        :class="{
-                                            active: filters.block === block,
-                                        }"
-                                        @click="selectBlock(block)"
-                                    >
-                                        {{ block }}
-                                    </button>
-                                    <div
-                                        v-if="filteredBlocks.length === 0"
-                                        class="dropdown-item text-muted small"
-                                    >
-                                        No blocks found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- District Filter -->
-                        <div class="col-md-2">
-                            <label for="filterDistrict" class="form-label"
-                                >District</label
-                            >
-                            <div class="dropdown" ref="districtDropdown">
-                                <button
-                                    class="form-select form-select-sm text-start dropdown-toggle"
-                                    type="button"
-                                    @click="toggleDropdown('district')"
-                                    :class="{ 'text-muted': !filters.district }"
-                                >
-                                    {{ getDistrictDisplayText }}
-                                </button>
-                                <div
-                                    class="dropdown-menu p-2"
-                                    :class="{ show: dropdowns.district }"
-                                    style="
-                                        width: 100%;
-                                        max-height: 300px;
-                                        overflow-y: auto;
-                                    "
-                                >
-                                    <div class="mb-2">
-                                        <input
-                                            v-model="districtSearch"
-                                            type="text"
-                                            class="form-control form-control-sm"
-                                            placeholder="Search districts..."
-                                            @input="filterDistrictOptions"
-                                            @click.stop
-                                        />
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item small"
-                                        :class="{ active: !filters.district }"
-                                        @click="selectDistrict('')"
-                                    >
-                                        All Districts
-                                    </button>
-                                    <button
-                                        v-for="district in filteredDistricts"
-                                        :key="district"
-                                        class="dropdown-item small"
-                                        :class="{
-                                            active:
-                                                filters.district === district,
-                                        }"
-                                        @click="selectDistrict(district)"
-                                    >
-                                        {{ district }}
-                                    </button>
-                                    <div
-                                        v-if="filteredDistricts.length === 0"
-                                        class="dropdown-item text-muted small"
-                                    >
-                                        No districts found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+
                     </div>
 
                     <!-- Rest of the filters (FEA ID, Treatment Status, Date Filters) -->

@@ -126,7 +126,11 @@
             </div>
 
             <!-- Feature info popup -->
-            <div v-if="selectedFeature" class="feature-popup">
+            <div
+                v-if="selectedFeature"
+                class="feature-popup"
+                :style="popupStyle"
+            >
                 <div class="popup-header">
                     <h3>Feature Details</h3>
                     <button @click="closeFeaturePopup" class="close-btn">
@@ -135,7 +139,7 @@
                 </div>
                 <div class="feature-content">
                     <!-- Basic attributes table -->
-                    <table class="feature-table basic-attributes compact">
+                    <table class="feature-table basic-attributes">
                         <tbody>
                             <tr v-for="field in displayFields" :key="field.key">
                                 <th class="field-label">{{ field.label }}:</th>
@@ -152,7 +156,7 @@
                     </table>
 
                     <!-- Information icon toggle -->
-                    <div class="info-toggle-section compact">
+                    <div class="info-toggle-section">
                         <button
                             class="info-toggle-btn"
                             @click="showAdditionalInfo = !showAdditionalInfo"
@@ -182,26 +186,31 @@
                         </button>
                     </div>
 
-                    <!-- Additional attributes in multi-column layout -->
+                    <!-- Additional attributes in table layout -->
                     <div
                         v-if="showAdditionalInfo && additionalFields.length > 0"
-                        class="additional-attributes compact"
+                        class="additional-attributes"
                     >
-                        <h4 class="additional-title">Additional Information</h4>
-                        <div class="attributes-grid">
-                            <div
-                                v-for="field in additionalFields"
-                                :key="field.key"
-                                class="attribute-item"
-                            >
-                                <span class="attribute-label"
-                                    >{{ field.label }}:</span
+                        <table class="feature-table basic-attributes">
+                            <tbody>
+                                <tr
+                                    v-for="field in additionalFields"
+                                    :key="field.key"
                                 >
-                                <span class="attribute-value">{{
-                                    getFeatureValue(selectedFeature, field.key)
-                                }}</span>
-                            </div>
-                        </div>
+                                    <th class="field-label">
+                                        {{ field.label }}:
+                                    </th>
+                                    <td class="field-value">
+                                        {{
+                                            getFeatureValue(
+                                                selectedFeature,
+                                                field.key
+                                            )
+                                        }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -525,6 +534,7 @@ export default {
             selectInteraction: null,
             showAdditionalInfo: false,
             isMaximised: false,
+            mapHeight: 600, // Default map height (matches .map-container)
             geometryCollections: [],
             selectedGeometryIndex: null,
             highlightStyle: new Style({
@@ -576,14 +586,15 @@ export default {
                 { key: 'Block', label: 'Block' },
                 { key: 'Compno', label: 'Comp No' },
                 { key: 'fea_id', label: 'FEA ID' },
-                { key: 'area_ha', label: 'Area (ha)' },
+                { key: 'Area', label: 'Area (ha)' },
                 { key: 'obj_code', label: 'Objective Code' },
-                { key: 'resid_ba_m2ha', label: 'Residual BA (m²/ha)' },
-                { key: 'target_ba_m2ha', label: 'Target BA (m²/ha)' },
                 { key: 'species', label: 'Species' },
+                { key: 'target_ba_m2ha', label: 'Target BA (m²/ha)' },
+                { key: 'resid_ba_m2ha', label: 'Residual BA (m²/ha)' },
             ],
             additionalFields: [
-                { key: 'region', label: 'Region' },
+                { key: 'Region', label: 'Region' },
+                { key: 'district', label: 'District' },
                 { key: 'op_date', label: 'Operation Date (year)' },
                 { key: 'regen_date', label: 'Regeneration Date (year)' },
                 { key: 'resid_spha', label: 'Residual SPHA' },
@@ -597,6 +608,14 @@ export default {
         },
         showCutPolygonTool() {
             return helpers.getSilrecSetting('showCutPolygonTool', false);
+        },
+        popupStyle() {
+            // Calculate max height based on map container height
+            const maxHeight = this.mapHeight * 0.8; // 80% of map height
+            return {
+                'max-height': `${maxHeight}px`,
+                'overflow-y': 'auto',
+            };
         },
         getZoomToLayerTitle() {
             if (
@@ -1485,39 +1504,86 @@ export default {
 
         // Add this method to safely extract feature values
         getFeatureValue(feature, key) {
-            if (!feature) return '';
+            if (!feature) return 'N/A';
 
             // Check if the property exists directly on the feature
-            const value = feature.get(key);
-            if (value !== undefined) return value;
+            let value = feature.get(key);
 
             // Check in properties object (common in GeoJSON)
-            const properties = feature.get('properties');
-            if (properties && properties[key] !== undefined) {
-                return properties[key];
-            }
-
-            // Check for nested properties with different naming conventions
-            const alternativeKeys = [
-                key.toLowerCase(),
-                key.replace(/_/g, ''),
-                key.replace(/_/g, ' '),
-                key.toUpperCase(),
-            ];
-
-            for (const altKey of alternativeKeys) {
-                // Check direct
-                const directValue = feature.get(altKey);
-                if (directValue !== undefined) return directValue;
-
-                // Check in properties
-                if (properties && properties[altKey] !== undefined) {
-                    return properties[altKey];
+            if (value === undefined || value === null) {
+                const properties = feature.get('properties');
+                if (properties && properties[key] !== undefined) {
+                    value = properties[key];
                 }
             }
 
-            // Return empty string if not found
-            return '';
+            // Check for nested properties with different naming conventions
+            if (value === undefined || value === null) {
+                const alternativeKeys = [
+                    key.toLowerCase(),
+                    key.replace(/_/g, ''),
+                    key.replace(/_/g, ' '),
+                    key.toUpperCase(),
+                ];
+
+                const properties = feature.get('properties');
+
+                for (const altKey of alternativeKeys) {
+                    // Check direct
+                    const directValue = feature.get(altKey);
+                    if (directValue !== undefined && directValue !== null) {
+                        value = directValue;
+                        break;
+                    }
+
+                    // Check in properties
+                    if (
+                        properties &&
+                        properties[altKey] !== undefined &&
+                        properties[altKey] !== null
+                    ) {
+                        value = properties[altKey];
+                        break;
+                    }
+                }
+            }
+
+            return this.formatFeatureValue(key, value);
+        },
+
+        formatFeatureValue(key, value) {
+            if (value === undefined || value === null || value === '') {
+                return 'N/A';
+            }
+
+            // Date fields may be ISO strings or epoch millis (from pandas/gdf)
+            if (
+                typeof key === 'string' &&
+                (key.includes('date') || key.endsWith('_on'))
+            ) {
+                const year = this.parseFeatureYear(value);
+                if (year !== null) return year;
+            }
+
+            if (typeof value === 'number') {
+                return value.toFixed(2);
+            }
+
+            return value;
+        },
+
+        parseFeatureYear(value) {
+            try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear().toString();
+                    // Sentinel used for "no operation" dates.
+                    return year === '9999' ? null : year;
+                }
+            } catch (e) {
+                // fall through
+            }
+            return null;
         },
 
         // In component_map.vue, update the clearCutSelection method:
@@ -1607,8 +1673,7 @@ export default {
     transform: scale(1.05);
 }
 
-.layer-control-popup,
-.feature-popup {
+.layer-control-popup {
     position: absolute;
     top: 50px;
     right: 50px;
@@ -1622,6 +1687,22 @@ export default {
     max-width: 400px;
 }
 
+/* Compact Feature Popup Styles (mirrors component_map2.vue) */
+.feature-popup {
+    position: absolute;
+    top: 50px;
+    right: 10px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 260px;
+    max-width: 320px;
+    /* max-height and overflow-y are now set dynamically */
+}
+
 .popup-header {
     display: flex;
     justify-content: space-between;
@@ -1633,16 +1714,18 @@ export default {
 
 .popup-header h3 {
     margin: 0;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
 }
 
 .close-btn {
     background: none;
     border: none;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
     color: #666;
+    padding: 2px;
+    line-height: 1;
 }
 
 .close-btn:hover {
@@ -1713,43 +1796,46 @@ export default {
 }
 
 .feature-content {
-    font-size: 13px;
+    font-size: 12px;
 }
 
-/* Compact table styles */
-.feature-table.basic-attributes.compact {
+.feature-table.basic-attributes {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
-.feature-table.basic-attributes.compact th,
-.feature-table.basic-attributes.compact td {
-    padding: 2px 6px;
+.feature-table.basic-attributes th,
+.feature-table.basic-attributes td {
+    padding: 3px 6px;
     text-align: left;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #f0f0f0;
     line-height: 1.2;
 }
 
-.feature-table.basic-attributes.compact th {
+.feature-table.basic-attributes th {
     font-weight: 600;
     color: #555;
     white-space: nowrap;
     padding-right: 10px;
-    width: 45%;
-    font-size: 12px;
+    width: 40%;
+    font-size: 11px;
 }
 
-.feature-table.basic-attributes.compact td {
+.feature-table.basic-attributes td {
     color: #333;
     word-break: break-word;
-    font-size: 12px;
+    font-size: 11px;
 }
 
-/* Compact info toggle */
-.info-toggle-section.compact {
-    margin: 8px 0;
-    padding: 6px 0;
+.feature-table.basic-attributes tr:last-child th,
+.feature-table.basic-attributes tr:last-child td {
+    border-bottom: none;
+}
+
+.info-toggle-section {
+    margin: 10px 0;
+    padding: 8px 0;
     border-top: 1px solid #eee;
     border-bottom: 1px solid #eee;
 }
@@ -1762,10 +1848,12 @@ export default {
     border: none;
     color: #007bff;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 3px 6px;
     border-radius: 3px;
     transition: all 0.2s;
-    font-size: 12px;
+    font-size: 11px;
+    width: 100%;
+    justify-content: center;
 }
 
 .info-toggle-btn:hover {
@@ -1776,52 +1864,29 @@ export default {
     font-weight: 500;
 }
 
-/* Compact additional attributes */
-.additional-attributes.compact {
-    margin-top: 8px;
-    padding-top: 8px;
+.additional-attributes {
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid #eee;
 }
 
-.additional-attributes.compact .additional-title {
-    margin: 0 0 8px 0;
-    font-size: 12px;
-    font-weight: 600;
-    color: #555;
+/* Custom scrollbar for the popup */
+.feature-popup::-webkit-scrollbar {
+    width: 6px;
 }
 
-.additional-attributes.compact .attributes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 4px;
-}
-
-.additional-attributes.compact .attribute-item {
-    display: flex;
-    flex-direction: column;
-    padding: 4px;
-    background: #f8f9fa;
+.feature-popup::-webkit-scrollbar-track {
+    background: #f1f1f1;
     border-radius: 3px;
-    border: 1px solid #e9ecef;
-    min-height: auto;
 }
 
-.additional-attributes.compact .attribute-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 1px;
-    line-height: 1.1;
+.feature-popup::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
 }
 
-.additional-attributes.compact .attribute-value {
-    font-size: 11px;
-    color: #333;
-    font-weight: 500;
-    word-break: break-word;
-    line-height: 1.2;
+.feature-popup::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 
 .geometry-item-header {

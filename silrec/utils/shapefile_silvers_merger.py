@@ -12,6 +12,7 @@ from shapely import from_wkb
 import json
 import os
 from copy import deepcopy
+from datetime import datetime, date
 
 import reversion
 
@@ -25,7 +26,13 @@ from silrec.utils.write_polygons_to_db import write_polygons_to_db
 from silrec.utils.write_cohort_to_db import write_cohort_to_db, save_cht_new_to_db
 
 from silrec.components.lookups.models import ObjectiveLkp
-from silrec.components.forest_blocks.models import Polygon, Cohort, AssignChtToPly
+from silrec.components.forest_blocks.models import (
+    Polygon,
+    Cohort,
+    AssignChtToPly,
+    Compartments,
+    Operation,
+)
 from silrec.components.proposals.models import Proposal
 from silrec.utils.create_audit_log import RequestMetrics, AuditLogger
 
@@ -556,10 +563,192 @@ class ShapefileSliversMerger():
 
         return gdf
 
+    # Display attributes joined onto the processed GeoJSON features so the map
+    # "Feature Details" popup can render real values without extra lookups.
+    #
+    # ``DISPLAY_FIELDS`` maps the output property name to the lookup family:
+    #   'cohort'      -> from Cohort (and Operation for fea_id)
+    #   'compartment' -> from Compartments
+    # We emit both the processed-style keys (block/compartment/district) and the
+    # legacy popup keys (Block/Compno) so raw-shapefile, processed and iteration
+    # layers share a consistent property schema.
+    COHORT_DISPLAY_FIELDS = [
+        'fea_id', 'obj_code', 'species',
+        'target_ba_m2ha', 'resid_ba_m2ha', 'resid_spha', 'target_spha',
+        'op_id', 'op_date', 'regen_date', 'complete_date',
+    ]
+    COMPARTMENT_DISPLAY_FIELDS = ['block', 'district', 'region']
+
+    def enrich_gdf_with_display_fields(self, gdf):
+        """Attach polygon/cohort display attributes to a processed GeoDataFrame.
+
+        Joins on the new cohort id (``cht_id_new``) and compartment, adding the
+        display columns. This is additive and defensive: if the lookup fails for
+        any reason the gdf is returned unchanged so shapefile processing is
+        never impacted.
+        """
+        if gdf is None or len(gdf) == 0:
+            return gdf
+
+        try:
+            gdf = gdf.copy()
+
+            # --- Cohort + Operation attributes keyed by cohort id ---
+            cohort_ids = []
+            if 'cht_id_new' in gdf.columns:
+                cohort_ids = [
+                    int(c) for c in pd.to_numeric(
+                        gdf['cht_id_new'], errors='coerce'
+                    ).dropna().unique() if int(c) > 0
+                ]
+
+            cohort_data = {}
+            if cohort_ids:
+                cohorts = Cohort.objects.filter(cohort_id__in=cohort_ids)
+                op_ids = [
+                    c.op_id for c in cohorts if c.op_id
+                ]
+                operations = {
+                    op.op_id: op
+                    for op in Operation.objects.filter(op_id__in=op_ids)
+                }
+
+                for cohort in cohorts:
+                    operation = operations.get(cohort.op_id)
+                    cohort_data[cohort.cohort_id] = {
+                        'obj_code': (cohort.obj_code or '').strip() or None,
+                        'species': (cohort.species or '').strip() or None,
+                        'target_ba_m2ha': cohort.target_ba_m2ha,
+                        'resid_ba_m2ha': cohort.resid_ba_m2ha,
+                        'resid_spha': cohort.resid_spha,
+                        'target_spha': cohort.target_spha,
+                        'op_date': cohort.op_date,
+                        'regen_date': cohort.regen_date,
+                        'complete_date': cohort.complete_date,
+                        'op_id': cohort.op_id,
+                        'fea_id': (operation.fea_id or '').strip() or None if operation else None,
+                    }
+
+            # --- Compartment attributes keyed by compartment code ---
+            compartment_codes = []
+            if 'compartment' in gdf.columns:
+                compartment_codes = [
+                    str(c).strip() for c in gdf['compartment'].dropna().unique()
+                    if str(c).strip()
+                ]
+
+            compartment_data = {}
+            if compartment_codes:
+                for comp in Compartments.objects.filter(
+                    compartment__in=compartment_codes
+                ):
+                    compartment_data[str(comp.compartment).strip()] = {
+                        'block': (comp.block or '').strip() or None,
+                        'district': (comp.district or '').strip() or None,
+                        'region': (comp.region or '').strip() or None,
+                    }
+
+            # --- Apply joins, preserving any existing column values ---
+            def to_json_safe(value):
+                """Coerce a value so pandas/geopandas to_json can serialize it."""
+                if value is None:
+                    return None
+                if isinstance(value, float) and pd.isna(value):
+                    return None
+                if isinstance(value, pd.Timestamp):
+                    return None if pd.isna(value) else value.isoformat()
+                if isinstance(value, (np.datetime64,)):
+                    ts = pd.Timestamp(value)
+                    return None if pd.isna(ts) else ts.isoformat()
+                if isinstance(value, datetime):
+                    return value.isoformat()
+                if isinstance(value, date):
+                    return value.isoformat()
+                if isinstance(value, np.generic):
+                    return value.item()
+                return value
+
+            def assign_column(field, new_values):
+                """Set column, preferring populated new values, preserving old."""
+                if field in gdf.columns:
+                    existing = gdf[field].tolist()
+                    gdf[field] = [
+                        new if new is not None else old
+                        for new, old in zip(new_values, existing)
+                    ]
+                else:
+                    gdf[field] = new_values
+
+            if 'cht_id_new' in gdf.columns:
+                normalized_cht = pd.to_numeric(
+                    gdf['cht_id_new'], errors='coerce'
+                ).fillna(0).astype(int).tolist()
+
+                for field in self.COHORT_DISPLAY_FIELDS:
+                    new_values = [
+                        to_json_safe(cohort_data.get(cid, {}).get(field))
+                        for cid in normalized_cht
+                    ]
+                    assign_column(field, new_values)
+
+            if 'compartment' in gdf.columns:
+                normalized_comp = [
+                    str(c).strip() if c is not None else ''
+                    for c in gdf['compartment'].tolist()
+                ]
+                for field in self.COMPARTMENT_DISPLAY_FIELDS:
+                    new_values = [
+                        to_json_safe(compartment_data.get(c, {}).get(field))
+                        for c in normalized_comp
+                    ]
+                    assign_column(field, new_values)
+
+                # Legacy popup keys mirroring the raw shapefile schema.
+                assign_column(
+                    'Block',
+                    [compartment_data.get(c, {}).get('block') for c in normalized_comp],
+                )
+                assign_column('Compno', normalized_comp)
+                assign_column(
+                    'Region',
+                    [compartment_data.get(c, {}).get('region') for c in normalized_comp],
+                )
+
+            # ``area_ha`` is the processed column; the raw shapefile exposes it
+            # as ``Area``. Emit both so every layer has a consistent schema.
+            if 'area_ha' in gdf.columns and 'Area' not in gdf.columns:
+                gdf['Area'] = gdf['area_ha']
+
+            # Pandas may re-infer date-like object columns as datetime64, which
+            # geopandas to_json() cannot serialize. Force them back to object.
+            for field in ('op_date', 'regen_date', 'complete_date'):
+                if field in gdf.columns:
+                    gdf[field] = gdf[field].astype(object)
+
+            return gdf
+
+        except Exception as e:
+            # Never let popup enrichment break the processing pipeline.
+            logger.warning(
+                'Display-field enrichment skipped for proposal %s: %s',
+                self.proposal_id, e
+            )
+            return gdf
+
     def prep_proposal_data(self, list_state):
         '''
             Creates Data Structure for input to model Proposal
         '''
+        # Enrich the combined result in-place so the caller (which reads
+        # list_state[0]['GDF_RESULT_COMBINED'] for geojson_data_processed)
+        # gets the display attributes too.
+        if 'GDF_RESULT_COMBINED' in list_state[0]:
+            list_state[0]['GDF_RESULT_COMBINED'] = (
+                self.enrich_gdf_with_display_fields(
+                    list_state[0]['GDF_RESULT_COMBINED']
+                )
+            )
+
         geom_data = {}
         for i in range(1, len(list_state)): # ignore index 0 - base data
             gdf_hist = list_state[i]['GDF_HIST']
@@ -567,6 +756,8 @@ class ShapefileSliversMerger():
             gdf_result = list_state[i]['GDF_RESULT']
             gdf_cht_init = list_state[i]['GDF_CHT_INIT']
             gdf_cht_new = list_state[i]['GDF_CHT_NEW']
+
+            gdf_result = self.enrich_gdf_with_display_fields(gdf_result)
 
             geojson = json.loads(gdf_result.to_crs(settings.CRS).to_json())
             geojson['cht_init'] = gdf_cht_init.to_json()

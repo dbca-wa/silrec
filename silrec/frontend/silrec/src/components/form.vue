@@ -411,15 +411,22 @@ export default {
             //owsQuery: owsQuery,
             //validateFeature: validateFeature,
             displayFieldsConfig: [
-                { key: 'name', label: 'Name' },
                 { key: 'Block', label: 'Block' },
                 { key: 'Compno', label: 'Comp No' },
+                { key: 'fea_id', label: 'FEA ID' },
+                { key: 'Area', label: 'Area (ha)' },
+                { key: 'obj_code', label: 'Objective Code' },
+                { key: 'species', label: 'Species' },
+                { key: 'target_ba_m2ha', label: 'Target BA (m²/ha)' },
+                { key: 'resid_ba_m2ha', label: 'Residual BA (m²/ha)' },
             ],
             additionalFieldsConfig: [
                 { key: 'Region', label: 'Region' },
-                { key: 'fea_id', label: 'Feature ID' },
-                { key: 'Area', label: 'Area' },
-                { key: 'Ops_status', label: 'Status' },
+                { key: 'district', label: 'District' },
+                { key: 'op_date', label: 'Operation Date (year)' },
+                { key: 'regen_date', label: 'Regeneration Date (year)' },
+                { key: 'resid_spha', label: 'Residual SPHA' },
+                { key: 'target_spha', label: 'Target SPHA' },
             ],
 
             // Shapefile upload states

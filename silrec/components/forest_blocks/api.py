@@ -913,8 +913,87 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    # Map DataTables column names (sent as columns[i][name]) to an ordering
+    # expression. Multi-valued relations are aggregated with Min() so a polygon
+    # is not duplicated across rows when sorted by e.g. obj_code.
+    ORDERING_FIELDS = {
+        'polygon_id': 'polygon_id',
+        'name': 'name',
+        'compartment__compartment': 'compartment__compartment',
+        'area_ha': 'area_ha',
+        'zfea_id': 'zfea_id',
+        'assignchttoply__cohort__obj_code': 'assignchttoply__cohort__obj_code',
+        'assignchttoply__cohort__species': 'assignchttoply__cohort__species',
+        'assignchttoply__cohort__target_ba_m2ha': 'assignchttoply__cohort__target_ba_m2ha',
+        'assignchttoply__cohort__resid_ba_m2ha': 'assignchttoply__cohort__resid_ba_m2ha',
+        'assignchttoply__cohort__treatment__status': 'assignchttoply__cohort__treatment__status',
+        'created_on': 'created_on',
+    }
+    AGGREGATED_ORDERING_FIELDS = {
+        'assignchttoply__cohort__obj_code',
+        'assignchttoply__cohort__species',
+        'assignchttoply__cohort__target_ba_m2ha',
+        'assignchttoply__cohort__resid_ba_m2ha',
+        'assignchttoply__cohort__treatment__status',
+    }
+
+    def get_ordering(self, request):
+        """Build an ordering list from the DataTables order[i][column] params.
+
+        DataTables sends the column index and direction; we resolve the index to
+        the column name configured in the Vue component (columns[i][name]).
+        """
+        columns = {}
+        i = 0
+        while True:
+            name = request.query_params.get('columns[%d][name]' % i)
+            data = request.query_params.get('columns[%d][data]' % i)
+            if name is None and data is None:
+                break
+            columns[i] = name or data
+            i += 1
+
+        ordering = []
+        i = 0
+        while True:
+            idx = request.query_params.get('order[%d][column]' % i)
+            if idx is None:
+                break
+            direction = request.query_params.get('order[%d][dir]' % i, 'asc')
+            field_name = columns.get(int(idx))
+            field = self.ORDERING_FIELDS.get(field_name)
+            if field:
+                ordering.append(('-' if direction == 'desc' else '') + field)
+            i += 1
+
+        return ordering
+
+    def apply_ordering(self, queryset, request):
+        """Apply DataTables ordering, aggregating multi-valued relations."""
+        ordering = self.get_ordering(request)
+        if not ordering:
+            return queryset
+
+        annotations = {}
+        order_by = []
+        for field in ordering:
+            desc = field.startswith('-')
+            name = field[1:] if desc else field
+            if name in self.AGGREGATED_ORDERING_FIELDS:
+                annotation = 'order_%s' % name.replace('__', '_')
+                annotations[annotation] = Min(name)
+                order_by.append(('-' if desc else '') + annotation)
+            else:
+                order_by.append(field)
+
+        if annotations:
+            queryset = queryset.annotate(**annotations)
+
+        return queryset.order_by(*order_by)
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.apply_ordering(queryset, request)
 
         # Apply pagination
         page = self.paginate_queryset(queryset)

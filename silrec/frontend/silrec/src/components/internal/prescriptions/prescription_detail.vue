@@ -22,7 +22,9 @@
                     <dd class="col-sm-9">{{ prescription.prescription_id }}</dd>
 
                     <dt class="col-sm-3">Objective Code</dt>
-                    <dd class="col-sm-9">{{ prescription.obj_code || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ prescription.obj_code || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Task</dt>
                     <dd class="col-sm-9">{{ prescription.task || 'N/A' }}</dd>
@@ -34,16 +36,24 @@
                     <dd class="col-sm-9">{{ prescription.year }}</dd>
 
                     <dt class="col-sm-3">Mandatory</dt>
-                    <dd class="col-sm-9">{{ prescription.mandatory ? 'Yes' : 'No' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ prescription.mandatory ? 'Yes' : 'No' }}
+                    </dd>
 
                     <dt class="col-sm-3">Comment</dt>
-                    <dd class="col-sm-9">{{ prescription.comment || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ prescription.comment || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Effective From</dt>
-                    <dd class="col-sm-9">{{ prescription.effective_from || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ prescription.effective_from || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Effective To</dt>
-                    <dd class="col-sm-9">{{ prescription.effective_to || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ prescription.effective_to || 'N/A' }}
+                    </dd>
                 </dl>
             </div>
         </div>
@@ -79,7 +89,8 @@ export default {
                 const response = await fetch(
                     `${api_endpoints.prescriptions}${this.prescriptionId}/`
                 );
-                if (!response.ok) throw new Error('Failed to load prescription');
+                if (!response.ok)
+                    throw new Error('Failed to load prescription');
                 this.prescription = await response.json();
             } catch (e) {
                 this.error = e.message;

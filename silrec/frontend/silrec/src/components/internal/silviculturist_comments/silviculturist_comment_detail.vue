@@ -28,19 +28,27 @@
                     <dd class="col-sm-9">{{ comment.scope || 'N/A' }}</dd>
 
                     <dt class="col-sm-3">Required Action</dt>
-                    <dd class="col-sm-9">{{ comment.required_action || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ comment.required_action || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Action Complete</dt>
-                    <dd class="col-sm-9">{{ comment.action_complete ? 'Yes' : 'No' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ comment.action_complete ? 'Yes' : 'No' }}
+                    </dd>
 
                     <dt class="col-sm-3">Treatment</dt>
                     <dd class="col-sm-9">{{ comment.treatment || 'N/A' }}</dd>
 
                     <dt class="col-sm-3">Easting</dt>
-                    <dd class="col-sm-9">{{ comment.easting_note_taken || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ comment.easting_note_taken || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Northing</dt>
-                    <dd class="col-sm-9">{{ comment.northing_note_taken || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ comment.northing_note_taken || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Created On</dt>
                     <dd class="col-sm-9">{{ comment.created_on || 'N/A' }}</dd>

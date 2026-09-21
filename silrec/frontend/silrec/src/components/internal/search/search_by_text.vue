@@ -1304,7 +1304,10 @@ export default {
             try {
                 const response = await fetch(api_endpoints.search_by_text, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': helpers.getCookie('csrftoken') },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': helpers.getCookie('csrftoken'),
+                    },
                     body: JSON.stringify({
                         search_text: this.searchText,
                         model: this.selectedModel,
@@ -1324,25 +1327,42 @@ export default {
                 const rows = json.data || [];
 
                 if (!rows.length) {
-                    swal.fire({ title: 'No Data', text: 'No records to export.', icon: 'info', confirmButtonText: 'OK' });
+                    swal.fire({
+                        title: 'No Data',
+                        text: 'No records to export.',
+                        icon: 'info',
+                        confirmButtonText: 'OK',
+                    });
                     return;
                 }
 
-                const headers = ['Model', 'ID', 'Field Found', 'Text Preview', 'Created On', 'Created By', 'Details'];
+                const headers = [
+                    'Model',
+                    'ID',
+                    'Field Found',
+                    'Text Preview',
+                    'Created On',
+                    'Created By',
+                    'Details',
+                ];
                 const csvContent = [
                     headers.join(','),
-                    ...rows.map(r => [
-                        `"${(r.model_display || '').replace(/"/g, '""')}"`,
-                        r.record_id,
-                        `"${(r.field_display || r.field_found || '').replace(/"/g, '""')}"`,
-                        `"${(r.text_preview || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-                        `"${r.created_on || ''}"`,
-                        `"${(r.created_by || '').replace(/"/g, '""')}"`,
-                        `"${(r.details || '').replace(/"/g, '""').replace(/<br\/>/g, '; ')}"`,
-                    ].join(','))
+                    ...rows.map((r) =>
+                        [
+                            `"${(r.model_display || '').replace(/"/g, '""')}"`,
+                            r.record_id,
+                            `"${(r.field_display || r.field_found || '').replace(/"/g, '""')}"`,
+                            `"${(r.text_preview || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+                            `"${r.created_on || ''}"`,
+                            `"${(r.created_by || '').replace(/"/g, '""')}"`,
+                            `"${(r.details || '').replace(/"/g, '""').replace(/<br\/>/g, '; ')}"`,
+                        ].join(',')
+                    ),
                 ].join('\n');
 
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const blob = new Blob([csvContent], {
+                    type: 'text/csv;charset=utf-8;',
+                });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1352,7 +1372,12 @@ export default {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             } catch (e) {
-                swal.fire({ title: 'Export Error', text: e.message, icon: 'error', confirmButtonText: 'OK' });
+                swal.fire({
+                    title: 'Export Error',
+                    text: e.message,
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                });
             }
         },
 
@@ -1415,7 +1440,11 @@ export default {
             }
         },
         filterPost2024Only() {
-            if (this.searchPerformed && this.searchText && this.searchText.length >= 2) {
+            if (
+                this.searchPerformed &&
+                this.searchText &&
+                this.searchText.length >= 2
+            ) {
                 this.searchRecords();
             }
         },

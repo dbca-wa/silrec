@@ -239,135 +239,135 @@
                             @extra-updated="refreshExtras"
                         />
                     </div>
-            </div>
-        </div>
-
-        <!-- Silviculturist Comments Section -->
-        <div class="mt-4" v-if="treatmentId && !isNew">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">
-                        <button
-                            class="btn btn-link btn-sm text-decoration-none"
-                            type="button"
-                            @click="toggleCommentsCollapse"
-                        >
-                            <i
-                                class="bi"
-                                :class="
-                                    commentsCollapsed
-                                        ? 'bi-chevron-down'
-                                        : 'bi-chevron-up'
-                                "
-                            ></i>
-                            Silviculturist Comments
-                        </button>
-                    </h6>
                 </div>
+            </div>
 
-                <div v-if="!commentsCollapsed" class="card-body">
-                    <div
-                        class="d-flex justify-content-between align-items-center mb-3"
-                    >
-                        <span class="text-muted"
-                            >Comments and observations from
-                            silviculturists</span
-                        >
-                        <button
-                            v-if="!readOnly && showActions"
-                            type="button"
-                            class="btn btn-outline-primary btn-sm"
-                            @click="addNewComment"
-                        >
-                            <i class="bi bi-plus"></i> Add New Silviculturist
-                            Comment
-                        </button>
+            <!-- Silviculturist Comments Section -->
+            <div class="mt-4" v-if="treatmentId && !isNew">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <button
+                                class="btn btn-link btn-sm text-decoration-none"
+                                type="button"
+                                @click="toggleCommentsCollapse"
+                            >
+                                <i
+                                    class="bi"
+                                    :class="
+                                        commentsCollapsed
+                                            ? 'bi-chevron-down'
+                                            : 'bi-chevron-up'
+                                    "
+                                ></i>
+                                Silviculturist Comments
+                            </button>
+                        </h6>
                     </div>
 
-                    <SilviculturistComment
-                        ref="silviculturistComment"
-                        :treatment-id="treatmentId"
-                        :read-only="readOnly || !showActions"
-                        @comment-updated="refreshComments"
-                    />
+                    <div v-if="!commentsCollapsed" class="card-body">
+                        <div
+                            class="d-flex justify-content-between align-items-center mb-3"
+                        >
+                            <span class="text-muted"
+                                >Comments and observations from
+                                silviculturists</span
+                            >
+                            <button
+                                v-if="!readOnly && showActions"
+                                type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                @click="addNewComment"
+                            >
+                                <i class="bi bi-plus"></i> Add New
+                                Silviculturist Comment
+                            </button>
+                        </div>
+
+                        <SilviculturistComment
+                            ref="silviculturistComment"
+                            :treatment-id="treatmentId"
+                            :read-only="readOnly || !showActions"
+                            @comment-updated="refreshComments"
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Survey/Assessment Section -->
-        <div class="mt-4" v-if="treatmentId && !isNew">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">
-                        <button
-                            class="btn btn-link btn-sm text-decoration-none"
-                            type="button"
-                            @click="toggleSurveyCollapse"
-                        >
-                            <i
-                                class="bi"
-                                :class="
-                                    surveyCollapsed
-                                        ? 'bi-chevron-down'
-                                        : 'bi-chevron-up'
-                                "
-                            ></i>
-                            Survey/Assessment Documents
-                        </button>
-                    </h6>
-                </div>
-
-                <div v-if="!surveyCollapsed" class="card-body">
-                    <div
-                        class="d-flex justify-content-between align-items-center mb-3"
-                    >
-                        <span class="text-muted"
-                            >Upload documents, images, or add URLs for surveys
-                            and assessments</span
-                        >
-                        <button
-                            v-if="!readOnly && showActions"
-                            type="button"
-                            class="btn btn-outline-primary btn-sm"
-                            @click="addNewDocument"
-                        >
-                            <i class="bi bi-plus"></i> Add Document/URL
-                        </button>
+            <!-- Survey/Assessment Section -->
+            <div class="mt-4" v-if="treatmentId && !isNew">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <button
+                                class="btn btn-link btn-sm text-decoration-none"
+                                type="button"
+                                @click="toggleSurveyCollapse"
+                            >
+                                <i
+                                    class="bi"
+                                    :class="
+                                        surveyCollapsed
+                                            ? 'bi-chevron-down'
+                                            : 'bi-chevron-up'
+                                    "
+                                ></i>
+                                Survey/Assessment Documents
+                            </button>
+                        </h6>
                     </div>
 
-                    <SurveyAssessment
-                        ref="surveyAssessment"
-                        :treatment-id="treatmentId"
-                        :read-only="readOnly || !showActions"
-                        @document-updated="refreshDocuments"
-                    />
+                    <div v-if="!surveyCollapsed" class="card-body">
+                        <div
+                            class="d-flex justify-content-between align-items-center mb-3"
+                        >
+                            <span class="text-muted"
+                                >Upload documents, images, or add URLs for
+                                surveys and assessments</span
+                            >
+                            <button
+                                v-if="!readOnly && showActions"
+                                type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                @click="addNewDocument"
+                            >
+                                <i class="bi bi-plus"></i> Add Document/URL
+                            </button>
+                        </div>
+
+                        <SurveyAssessment
+                            ref="surveyAssessment"
+                            :treatment-id="treatmentId"
+                            :read-only="readOnly || !showActions"
+                            @document-updated="refreshDocuments"
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div v-if="!readOnly && showActions" class="mt-4">
-            <button
-                type="submit"
-                class="btn btn-primary me-2"
-                :disabled="saving"
-            >
-                <span
-                    v-if="saving"
-                    class="spinner-border spinner-border-sm me-1"
-                ></span>
-                {{
-                    saving
-                        ? 'Saving...'
-                        : treatmentId
-                          ? 'Update Treatment'
-                          : 'Save Treatment'
-                }}
-            </button>
-            <button type="button" class="btn btn-secondary" @click="cancel">
-                Cancel
-            </button>
-        </div>
+            <!-- Action Buttons -->
+            <div v-if="!readOnly && showActions" class="mt-4">
+                <button
+                    type="submit"
+                    class="btn btn-primary me-2"
+                    :disabled="saving"
+                >
+                    <span
+                        v-if="saving"
+                        class="spinner-border spinner-border-sm me-1"
+                    ></span>
+                    {{
+                        saving
+                            ? 'Saving...'
+                            : treatmentId
+                              ? 'Update Treatment'
+                              : 'Save Treatment'
+                    }}
+                </button>
+                <button type="button" class="btn btn-secondary" @click="cancel">
+                    Cancel
+                </button>
+            </div>
         </form>
     </div>
 </template>

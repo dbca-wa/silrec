@@ -4,690 +4,725 @@
         <div v-if="$route.query.debug?.toLowerCase() === 'true'">
             src/components/common/component_map2.vue
         </div>
-        <FormSection
-            :form-collapse="false"
-            label="Map"
-            index="map_search_map"
-        >
+        <FormSection :form-collapse="false" label="Map" index="map_search_map">
             <div class="map-container" :class="{ maximised: isMaximised }">
-            <div ref="mapContainer" class="map"></div>
+                <div ref="mapContainer" class="map"></div>
 
-            <!-- Feature info popup -->
-            <div
-                v-if="selectedFeature"
-                class="feature-popup"
-                :style="popupStyle"
-            >
-                <div class="popup-header">
-                    <h3>Feature Details</h3>
-                    <button @click="closeFeaturePopup" class="close-btn">
-                        ×
-                    </button>
-                </div>
-                <div class="feature-content">
-                    <!-- Basic attributes table -->
-                    <table class="feature-table basic-attributes">
-                        <tbody>
-                            <tr>
-                                <th class="field-label">Block:</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'compartment_details.block'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="field-label">Comp No.:</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'compartment_details.compartment'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="field-label">FEA ID:</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'zfea_id'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="field-label">Area (ha):</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'area_ha'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="field-label">Objective Code:</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'primary_cohort.obj_code'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="field-label">Target BA:</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'primary_cohort.target_ba_m2ha'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="field-label">Species:</th>
-                                <td class="field-value">
-                                    {{
-                                        getFeatureValue(
-                                            selectedFeature,
-                                            'primary_cohort.species'
-                                        )
-                                    }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Information icon toggle -->
-                    <div class="info-toggle-section">
-                        <button
-                            class="info-toggle-btn"
-                            @click="showAdditionalInfo = !showAdditionalInfo"
-                            :title="
-                                showAdditionalInfo
-                                    ? 'Hide additional details'
-                                    : 'Show additional details'
-                            "
-                        >
-                            <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                            >
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
-                                />
-                            </svg>
-                            <span class="toggle-text">
-                                {{
-                                    showAdditionalInfo
-                                        ? 'Less details'
-                                        : 'More details...'
-                                }}
-                            </span>
+                <!-- Feature info popup -->
+                <div
+                    v-if="selectedFeature"
+                    class="feature-popup"
+                    :style="popupStyle"
+                >
+                    <div class="popup-header">
+                        <h3>Feature Details</h3>
+                        <button @click="closeFeaturePopup" class="close-btn">
+                            ×
                         </button>
                     </div>
-
-                    <!-- Additional attributes in table layout -->
-                    <div
-                        v-if="showAdditionalInfo"
-                        class="additional-attributes"
-                    >
+                    <div class="feature-content">
+                        <!-- Basic attributes table -->
                         <table class="feature-table basic-attributes">
                             <tbody>
                                 <tr>
-                                    <th class="field-label">Region:</th>
+                                    <th class="field-label">Block:</th>
                                     <td class="field-value">
                                         {{
                                             getFeatureValue(
                                                 selectedFeature,
-                                                'compartment_details.region'
+                                                'compartment_details.block'
                                             )
                                         }}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th class="field-label">Operation Date:</th>
-                                    <td class="field-value">
-                                        {{
-                                            getFeatureYear(
-                                                selectedFeature,
-                                                'primary_cohort.op_date'
-                                            )
-                                        }}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th class="field-label">
-                                        Regeneration Date:
-                                    </th>
-                                    <td class="field-value">
-                                        {{
-                                            getFeatureYear(
-                                                selectedFeature,
-                                                'primary_cohort.regen_date'
-                                            )
-                                        }}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th class="field-label">Residual SPHA:</th>
+                                    <th class="field-label">Comp No.:</th>
                                     <td class="field-value">
                                         {{
                                             getFeatureValue(
                                                 selectedFeature,
-                                                'primary_cohort.resid_spha'
+                                                'compartment_details.compartment'
                                             )
                                         }}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th class="field-label">Target SPHA:</th>
+                                    <th class="field-label">FEA ID:</th>
                                     <td class="field-value">
                                         {{
                                             getFeatureValue(
                                                 selectedFeature,
-                                                'primary_cohort.target_spha'
+                                                'zfea_id'
+                                            )
+                                        }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="field-label">Area (ha):</th>
+                                    <td class="field-value">
+                                        {{
+                                            getFeatureValue(
+                                                selectedFeature,
+                                                'area_ha'
+                                            )
+                                        }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="field-label">Objective Code:</th>
+                                    <td class="field-value">
+                                        {{
+                                            getFeatureValue(
+                                                selectedFeature,
+                                                'primary_cohort.obj_code'
+                                            )
+                                        }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="field-label">Target BA:</th>
+                                    <td class="field-value">
+                                        {{
+                                            getFeatureValue(
+                                                selectedFeature,
+                                                'primary_cohort.target_ba_m2ha'
+                                            )
+                                        }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="field-label">Species:</th>
+                                    <td class="field-value">
+                                        {{
+                                            getFeatureValue(
+                                                selectedFeature,
+                                                'primary_cohort.species'
                                             )
                                         }}
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Map control buttons -->
-            <div class="map-controls">
-                <button
-                    class="control-btn maximise-btn"
-                    @click="toggleMaximise"
-                    :title="isMaximised ? 'Minimise map' : 'Maximise map'"
-                >
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                    >
-                        <path
-                            v-if="!isMaximised"
-                            d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
-                        />
-                        <path
-                            v-if="isMaximised"
-                            d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
-                        />
-                    </svg>
-                </button>
-
-                <button
-                    class="control-btn zoom-to-layer-btn"
-                    @click="zoomToActiveLayer"
-                    :title="getZoomToLayerTitle"
-                >
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                    >
-                        <path
-                            d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
-                        />
-                        <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- New DataTable Section -->
-        <div class="datatable-container mt-4">
-            <div class="card">
-                <div
-                    class="card-header bg-primary text-white d-flex justify-content-between align-items-center"
-                >
-                    <h5 class="mb-0">Search Polygons</h5>
-                    <div>
-                        <button
-                            class="btn btn-sm btn-light me-2"
-                            @click="toggleTable"
-                            :title="tableVisible ? 'Hide table' : 'Show table'"
-                        >
-                            <i
-                                class="bi"
-                                :class="
-                                    tableVisible ? 'bi-eye-slash' : 'bi-eye'
+                        <!-- Information icon toggle -->
+                        <div class="info-toggle-section">
+                            <button
+                                class="info-toggle-btn"
+                                @click="
+                                    showAdditionalInfo = !showAdditionalInfo
                                 "
-                            ></i>
-                            {{ tableVisible ? 'Hide Table' : 'Show Table' }}
-                        </button>
-                        <button
-                            class="btn btn-sm btn-light"
-                            @click="refreshData"
-                            title="Refresh data"
+                                :title="
+                                    showAdditionalInfo
+                                        ? 'Hide additional details'
+                                        : 'Show additional details'
+                                "
+                            >
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                >
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                                    />
+                                </svg>
+                                <span class="toggle-text">
+                                    {{
+                                        showAdditionalInfo
+                                            ? 'Less details'
+                                            : 'More details...'
+                                    }}
+                                </span>
+                            </button>
+                        </div>
+
+                        <!-- Additional attributes in table layout -->
+                        <div
+                            v-if="showAdditionalInfo"
+                            class="additional-attributes"
                         >
-                            <i class="bi bi-arrow-clockwise"></i>
-                            Refresh
-                        </button>
+                            <table class="feature-table basic-attributes">
+                                <tbody>
+                                    <tr>
+                                        <th class="field-label">Region:</th>
+                                        <td class="field-value">
+                                            {{
+                                                getFeatureValue(
+                                                    selectedFeature,
+                                                    'compartment_details.region'
+                                                )
+                                            }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="field-label">
+                                            Operation Date:
+                                        </th>
+                                        <td class="field-value">
+                                            {{
+                                                getFeatureYear(
+                                                    selectedFeature,
+                                                    'primary_cohort.op_date'
+                                                )
+                                            }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="field-label">
+                                            Regeneration Date:
+                                        </th>
+                                        <td class="field-value">
+                                            {{
+                                                getFeatureYear(
+                                                    selectedFeature,
+                                                    'primary_cohort.regen_date'
+                                                )
+                                            }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="field-label">
+                                            Residual SPHA:
+                                        </th>
+                                        <td class="field-value">
+                                            {{
+                                                getFeatureValue(
+                                                    selectedFeature,
+                                                    'primary_cohort.resid_spha'
+                                                )
+                                            }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="field-label">
+                                            Target SPHA:
+                                        </th>
+                                        <td class="field-value">
+                                            {{
+                                                getFeatureValue(
+                                                    selectedFeature,
+                                                    'primary_cohort.target_spha'
+                                                )
+                                            }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div v-if="tableVisible" class="card-body">
-                    <!-- Updated Filters with Chained Objective Classification and Objective Code -->
-                    <div class="row mb-3">
-                        <!-- Objective Classification Filter (Parent) -->
-                        <div class="col-md-2">
-                            <label
-                                for="filterObjClassification"
-                                class="form-label"
-                                >Objective Classification</label
-                            >
-                            <select
-                                v-model="filterObjClassificationId"
-                                class="form-select form-select-sm"
-                                id="filterObjClassification"
-                                @change="onObjectiveClassificationChange"
-                            >
-                                <option value="all">All Classifications</option>
-                                <option
-                                    v-for="classification in objectiveClassifications"
-                                    :key="classification.id"
-                                    :value="classification.id"
-                                >
-                                    {{ classification.obj_class }} -
-                                    {{ classification.description }}
-                                </option>
-                            </select>
-                        </div>
+                <!-- Map control buttons -->
+                <div class="map-controls">
+                    <button
+                        class="control-btn maximise-btn"
+                        @click="toggleMaximise"
+                        :title="isMaximised ? 'Minimise map' : 'Maximise map'"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                        >
+                            <path
+                                v-if="!isMaximised"
+                                d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                            />
+                            <path
+                                v-if="isMaximised"
+                                d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+                            />
+                        </svg>
+                    </button>
 
-                        <!-- Objective Code Filter (Child - dependent on classification) -->
-                        <div class="col-md-2">
-                            <label for="filterObjCode" class="form-label"
-                                >Objective Code</label
+                    <button
+                        class="control-btn zoom-to-layer-btn"
+                        @click="zoomToActiveLayer"
+                        :title="getZoomToLayerTitle"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                        >
+                            <path
+                                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                            />
+                            <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- New DataTable Section -->
+            <div class="datatable-container mt-4">
+                <div class="card">
+                    <div
+                        class="card-header bg-primary text-white d-flex justify-content-between align-items-center"
+                    >
+                        <h5 class="mb-0">Search Polygons</h5>
+                        <div>
+                            <button
+                                class="btn btn-sm btn-light me-2"
+                                @click="toggleTable"
+                                :title="
+                                    tableVisible ? 'Hide table' : 'Show table'
+                                "
                             >
-                            <div class="dropdown" ref="objectiveDropdown">
-                                <button
-                                    class="form-select form-select-sm text-start dropdown-toggle"
-                                    type="button"
-                                    @click="toggleDropdown('objective')"
-                                    :class="{
-                                        'text-muted': !filters.obj_code,
-                                        'bg-light': isObjectiveDisabled,
-                                    }"
-                                    :disabled="isObjectiveDisabled"
-                                >
-                                    {{ getObjectiveDisplayText }}
-                                </button>
-                                <div
-                                    class="dropdown-menu p-2"
-                                    :class="{ show: dropdowns.objective }"
-                                    style="
-                                        width: 100%;
-                                        max-height: 300px;
-                                        overflow-y: auto;
+                                <i
+                                    class="bi"
+                                    :class="
+                                        tableVisible ? 'bi-eye-slash' : 'bi-eye'
                                     "
-                                >
-                                    <div class="mb-2">
-                                        <input
-                                            v-model="objectiveSearch"
-                                            type="text"
-                                            class="form-control form-control-sm"
-                                            placeholder="Search objectives..."
-                                            @input="filterObjectiveOptions"
-                                            @click.stop
-                                        />
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item small"
-                                        :class="{ active: !filters.obj_code }"
-                                        @click="selectObjective('')"
-                                    >
-                                        All Objectives
-                                    </button>
-                                    <button
-                                        v-for="objective in filteredObjectives"
-                                        :key="objective.obj_code"
-                                        class="dropdown-item small text-truncate"
-                                        :class="{
-                                            active:
-                                                filters.obj_code ===
-                                                objective.obj_code,
-                                        }"
-                                        @click="
-                                            selectObjective(objective.obj_code)
-                                        "
-                                        :title="
-                                            objective.obj_code +
-                                            ' - ' +
-                                            objective.description
-                                        "
-                                    >
-                                        <strong>{{
-                                            objective.obj_code
-                                        }}</strong>
-                                        - {{ objective.description }}
-                                    </button>
-                                    <div
-                                        v-if="filteredObjectives.length === 0"
-                                        class="dropdown-item text-muted small"
-                                    >
-                                        No objectives found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- District Filter -->
-                        <div class="col-md-2">
-                            <label for="filterDistrict" class="form-label"
-                                >District</label
+                                ></i>
+                                {{ tableVisible ? 'Hide Table' : 'Show Table' }}
+                            </button>
+                            <button
+                                class="btn btn-sm btn-light"
+                                @click="refreshData"
+                                title="Refresh data"
                             >
-                            <div class="dropdown" ref="districtDropdown">
-                                <button
-                                    class="form-select form-select-sm text-start dropdown-toggle"
-                                    type="button"
-                                    @click="toggleDropdown('district')"
-                                    :class="{ 'text-muted': !filters.district }"
-                                >
-                                    {{ getDistrictDisplayText }}
-                                </button>
-                                <div
-                                    class="dropdown-menu p-2"
-                                    :class="{ show: dropdowns.district }"
-                                    style="
-                                        width: 100%;
-                                        max-height: 300px;
-                                        overflow-y: auto;
-                                    "
-                                >
-                                    <div class="mb-2">
-                                        <input
-                                            v-model="districtSearch"
-                                            type="text"
-                                            class="form-control form-control-sm"
-                                            placeholder="Search districts..."
-                                            @input="filterDistrictOptions"
-                                            @click.stop
-                                        />
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item small"
-                                        :class="{ active: !filters.district }"
-                                        @click="selectDistrict('')"
-                                    >
-                                        All Districts
-                                    </button>
-                                    <button
-                                        v-for="district in filteredDistricts"
-                                        :key="district"
-                                        class="dropdown-item small"
-                                        :class="{
-                                            active:
-                                                filters.district === district,
-                                        }"
-                                        @click="selectDistrict(district)"
-                                    >
-                                        {{ district }}
-                                    </button>
-                                    <div
-                                        v-if="filteredDistricts.length === 0"
-                                        class="dropdown-item text-muted small"
-                                    >
-                                        No districts found
-                                    </div>
-                                </div>
-                            </div>
+                                <i class="bi bi-arrow-clockwise"></i>
+                                Refresh
+                            </button>
                         </div>
-                        <!-- Block Filter -->
-                        <div class="col-md-2">
-                            <label for="filterBlock" class="form-label"
-                                >Block</label
-                            >
-                            <div class="dropdown" ref="blockDropdown">
-                                <button
-                                    class="form-select form-select-sm text-start dropdown-toggle"
-                                    type="button"
-                                    @click="toggleDropdown('block')"
-                                    :class="{ 'text-muted': !filters.block }"
-                                >
-                                    {{ getBlockDisplayText }}
-                                </button>
-                                <div
-                                    class="dropdown-menu p-2"
-                                    :class="{ show: dropdowns.block }"
-                                    style="
-                                        width: 100%;
-                                        max-height: 300px;
-                                        overflow-y: auto;
-                                    "
-                                >
-                                    <div class="mb-2">
-                                        <input
-                                            v-model="blockSearch"
-                                            type="text"
-                                            class="form-control form-control-sm"
-                                            placeholder="Search blocks..."
-                                            @input="filterBlockOptions"
-                                            @click.stop
-                                        />
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item small"
-                                        :class="{ active: !filters.block }"
-                                        @click="selectBlock('')"
-                                    >
-                                        All Blocks
-                                    </button>
-                                    <button
-                                        v-for="block in filteredBlocks"
-                                        :key="block"
-                                        class="dropdown-item small"
-                                        :class="{
-                                            active: filters.block === block,
-                                        }"
-                                        @click="selectBlock(block)"
-                                    >
-                                        {{ block }}
-                                    </button>
-                                    <div
-                                        v-if="filteredBlocks.length === 0"
-                                        class="dropdown-item text-muted small"
-                                    >
-                                        No blocks found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Compartment Filter -->
-                        <div class="col-md-2">
-                            <label for="filterCompartment" class="form-label"
-                                >Compartment</label
-                            >
-                            <div class="dropdown" ref="compartmentDropdown">
-                                <button
-                                    class="form-select form-select-sm text-start dropdown-toggle"
-                                    type="button"
-                                    @click="toggleDropdown('compartment')"
-                                    :class="{
-                                        'text-muted': !filters.compartment,
-                                    }"
-                                >
-                                    {{ getCompartmentDisplayText }}
-                                </button>
-                                <div
-                                    class="dropdown-menu p-2"
-                                    :class="{ show: dropdowns.compartment }"
-                                    style="
-                                        width: 100%;
-                                        max-height: 300px;
-                                        overflow-y: auto;
-                                    "
-                                >
-                                    <div class="mb-2">
-                                        <input
-                                            v-model="compartmentSearch"
-                                            type="text"
-                                            class="form-control form-control-sm"
-                                            placeholder="Search compartments..."
-                                            @input="filterCompartmentOptions"
-                                            @click.stop
-                                        />
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item small"
-                                        :class="{
-                                            active: !filters.compartment,
-                                        }"
-                                        @click="selectCompartment('')"
-                                    >
-                                        All Compartments
-                                    </button>
-                                    <button
-                                        v-for="compartment in filteredCompartments"
-                                        :key="compartment.id"
-                                        class="dropdown-item small"
-                                        :class="{
-                                            active:
-                                                filters.compartment ===
-                                                compartment.id,
-                                        }"
-                                        @click="
-                                            selectCompartment(compartment.id)
-                                        "
-                                    >
-                                        {{ compartment.id }}
-                                    </button>
-                                    <div
-                                        v-if="filteredCompartments.length === 0"
-                                        class="dropdown-item text-muted small"
-                                    >
-                                        No compartments found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-
-
                     </div>
 
-                    <!-- Rest of the filters (FEA ID, Treatment Status, Date Filters) -->
-                    <div class="row mb-3">
-                        <!-- FEA ID Filter -->
-                        <div class="col-md-2">
-                            <label for="filterZfeaId" class="form-label"
-                                >FEA ID</label
-                            >
-                            <input
-                                v-model="filters.zfea_id"
-                                type="text"
-                                class="form-control form-control-sm"
-                                id="filterZfeaId"
-                                placeholder="Filter by FEA ID..."
-                            />
-                        </div>
-
-                        <!-- Treatment Status Filter -->
-                        <div class="col-md-2">
-                            <label
-                                for="filterTreatmentStatus"
-                                class="form-label"
-                                >Treatment Status</label
-                            >
-                            <select
-                                v-model="filters.treatment_status"
-                                class="form-select form-select-sm"
-                                id="filterTreatmentStatus"
-                            >
-                                <option value="">All Status</option>
-                                <option value="P">Planned</option>
-                                <option value="D">Completed</option>
-                                <option value="C">Cancelled</option>
-                                <option value="F">Failed</option>
-                                <option value="W">Written Off</option>
-                                <option value="X">Not Required</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2"></div>
-
-                        <!-- Date Filters -->
-                        <div class="col-md-2">
-                            <label for="filterCreatedFrom" class="form-label"
-                                >Created From</label
-                            >
-                            <input
-                                v-model="filters.created_from"
-                                type="date"
-                                class="form-control form-control-sm"
-                                id="filterCreatedFrom"
-                            />
-                        </div>
-                        <div class="col-md-2">
-                            <label for="filterCreatedTo" class="form-label"
-                                >Created To</label
-                            >
-                            <input
-                                v-model="filters.created_to"
-                                type="date"
-                                class="form-control form-control-sm"
-                                id="filterCreatedTo"
-                            />
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group">
+                    <div v-if="tableVisible" class="card-body">
+                        <!-- Updated Filters with Chained Objective Classification and Objective Code -->
+                        <div class="row mb-3">
+                            <!-- Objective Classification Filter (Parent) -->
+                            <div class="col-md-2">
                                 <label
-                                    for="post_2024_only"
-                                    class="form-check-label"
+                                    for="filterObjClassification"
+                                    class="form-label"
+                                    >Objective Classification</label
                                 >
-                                    <br />
-                                    <div>
-                                        <input
-                                            id="post_2024_only"
-                                            v-model="filterPost2024Only"
-                                            type="checkbox"
-                                            class="form-check-input me-2"
-                                            checked
-                                        />
-                                        Post 2024 only
+                                <select
+                                    v-model="filterObjClassificationId"
+                                    class="form-select form-select-sm"
+                                    id="filterObjClassification"
+                                    @change="onObjectiveClassificationChange"
+                                >
+                                    <option value="all">
+                                        All Classifications
+                                    </option>
+                                    <option
+                                        v-for="classification in objectiveClassifications"
+                                        :key="classification.id"
+                                        :value="classification.id"
+                                    >
+                                        {{ classification.obj_class }} -
+                                        {{ classification.description }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Objective Code Filter (Child - dependent on classification) -->
+                            <div class="col-md-2">
+                                <label for="filterObjCode" class="form-label"
+                                    >Objective Code</label
+                                >
+                                <div class="dropdown" ref="objectiveDropdown">
+                                    <button
+                                        class="form-select form-select-sm text-start dropdown-toggle"
+                                        type="button"
+                                        @click="toggleDropdown('objective')"
+                                        :class="{
+                                            'text-muted': !filters.obj_code,
+                                            'bg-light': isObjectiveDisabled,
+                                        }"
+                                        :disabled="isObjectiveDisabled"
+                                    >
+                                        {{ getObjectiveDisplayText }}
+                                    </button>
+                                    <div
+                                        class="dropdown-menu p-2"
+                                        :class="{ show: dropdowns.objective }"
+                                        style="
+                                            width: 100%;
+                                            max-height: 300px;
+                                            overflow-y: auto;
+                                        "
+                                    >
+                                        <div class="mb-2">
+                                            <input
+                                                v-model="objectiveSearch"
+                                                type="text"
+                                                class="form-control form-control-sm"
+                                                placeholder="Search objectives..."
+                                                @input="filterObjectiveOptions"
+                                                @click.stop
+                                            />
+                                        </div>
+                                        <div class="dropdown-divider"></div>
+                                        <button
+                                            class="dropdown-item small"
+                                            :class="{
+                                                active: !filters.obj_code,
+                                            }"
+                                            @click="selectObjective('')"
+                                        >
+                                            All Objectives
+                                        </button>
+                                        <button
+                                            v-for="objective in filteredObjectives"
+                                            :key="objective.obj_code"
+                                            class="dropdown-item small text-truncate"
+                                            :class="{
+                                                active:
+                                                    filters.obj_code ===
+                                                    objective.obj_code,
+                                            }"
+                                            @click="
+                                                selectObjective(
+                                                    objective.obj_code
+                                                )
+                                            "
+                                            :title="
+                                                objective.obj_code +
+                                                ' - ' +
+                                                objective.description
+                                            "
+                                        >
+                                            <strong>{{
+                                                objective.obj_code
+                                            }}</strong>
+                                            - {{ objective.description }}
+                                        </button>
+                                        <div
+                                            v-if="
+                                                filteredObjectives.length === 0
+                                            "
+                                            class="dropdown-item text-muted small"
+                                        >
+                                            No objectives found
+                                        </div>
                                     </div>
-                                </label>
+                                </div>
+                            </div>
+
+                            <!-- District Filter -->
+                            <div class="col-md-2">
+                                <label for="filterDistrict" class="form-label"
+                                    >District</label
+                                >
+                                <div class="dropdown" ref="districtDropdown">
+                                    <button
+                                        class="form-select form-select-sm text-start dropdown-toggle"
+                                        type="button"
+                                        @click="toggleDropdown('district')"
+                                        :class="{
+                                            'text-muted': !filters.district,
+                                        }"
+                                    >
+                                        {{ getDistrictDisplayText }}
+                                    </button>
+                                    <div
+                                        class="dropdown-menu p-2"
+                                        :class="{ show: dropdowns.district }"
+                                        style="
+                                            width: 100%;
+                                            max-height: 300px;
+                                            overflow-y: auto;
+                                        "
+                                    >
+                                        <div class="mb-2">
+                                            <input
+                                                v-model="districtSearch"
+                                                type="text"
+                                                class="form-control form-control-sm"
+                                                placeholder="Search districts..."
+                                                @input="filterDistrictOptions"
+                                                @click.stop
+                                            />
+                                        </div>
+                                        <div class="dropdown-divider"></div>
+                                        <button
+                                            class="dropdown-item small"
+                                            :class="{
+                                                active: !filters.district,
+                                            }"
+                                            @click="selectDistrict('')"
+                                        >
+                                            All Districts
+                                        </button>
+                                        <button
+                                            v-for="district in filteredDistricts"
+                                            :key="district"
+                                            class="dropdown-item small"
+                                            :class="{
+                                                active:
+                                                    filters.district ===
+                                                    district,
+                                            }"
+                                            @click="selectDistrict(district)"
+                                        >
+                                            {{ district }}
+                                        </button>
+                                        <div
+                                            v-if="
+                                                filteredDistricts.length === 0
+                                            "
+                                            class="dropdown-item text-muted small"
+                                        >
+                                            No districts found
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Block Filter -->
+                            <div class="col-md-2">
+                                <label for="filterBlock" class="form-label"
+                                    >Block</label
+                                >
+                                <div class="dropdown" ref="blockDropdown">
+                                    <button
+                                        class="form-select form-select-sm text-start dropdown-toggle"
+                                        type="button"
+                                        @click="toggleDropdown('block')"
+                                        :class="{
+                                            'text-muted': !filters.block,
+                                            'bg-light': isBlockDisabled,
+                                        }"
+                                        :disabled="isBlockDisabled"
+                                    >
+                                        {{ getBlockDisplayText }}
+                                    </button>
+                                    <div
+                                        class="dropdown-menu p-2"
+                                        :class="{ show: dropdowns.block }"
+                                        style="
+                                            width: 100%;
+                                            max-height: 300px;
+                                            overflow-y: auto;
+                                        "
+                                    >
+                                        <div class="mb-2">
+                                            <input
+                                                v-model="blockSearch"
+                                                type="text"
+                                                class="form-control form-control-sm"
+                                                placeholder="Search blocks..."
+                                                @input="filterBlockOptions"
+                                                @click.stop
+                                            />
+                                        </div>
+                                        <div class="dropdown-divider"></div>
+                                        <button
+                                            class="dropdown-item small"
+                                            :class="{ active: !filters.block }"
+                                            @click="selectBlock('')"
+                                        >
+                                            All Blocks
+                                        </button>
+                                        <button
+                                            v-for="block in filteredBlocks"
+                                            :key="block"
+                                            class="dropdown-item small"
+                                            :class="{
+                                                active: filters.block === block,
+                                            }"
+                                            @click="selectBlock(block)"
+                                        >
+                                            {{ block }}
+                                        </button>
+                                        <div
+                                            v-if="filteredBlocks.length === 0"
+                                            class="dropdown-item text-muted small"
+                                        >
+                                            No blocks found
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Compartment Filter -->
+                            <div class="col-md-2">
+                                <label
+                                    for="filterCompartment"
+                                    class="form-label"
+                                    >Compartment</label
+                                >
+                                <div class="dropdown" ref="compartmentDropdown">
+                                    <button
+                                        class="form-select form-select-sm text-start dropdown-toggle"
+                                        type="button"
+                                        @click="toggleDropdown('compartment')"
+                                        :class="{
+                                            'text-muted': !filters.compartment,
+                                            'bg-light': isCompartmentDisabled,
+                                        }"
+                                        :disabled="isCompartmentDisabled"
+                                    >
+                                        {{ getCompartmentDisplayText }}
+                                    </button>
+                                    <div
+                                        class="dropdown-menu p-2"
+                                        :class="{ show: dropdowns.compartment }"
+                                        style="
+                                            width: 100%;
+                                            max-height: 300px;
+                                            overflow-y: auto;
+                                        "
+                                    >
+                                        <div class="mb-2">
+                                            <input
+                                                v-model="compartmentSearch"
+                                                type="text"
+                                                class="form-control form-control-sm"
+                                                placeholder="Search compartments..."
+                                                @input="
+                                                    filterCompartmentOptions
+                                                "
+                                                @click.stop
+                                            />
+                                        </div>
+                                        <div class="dropdown-divider"></div>
+                                        <button
+                                            class="dropdown-item small"
+                                            :class="{
+                                                active: !filters.compartment,
+                                            }"
+                                            @click="selectCompartment('')"
+                                        >
+                                            All Compartments
+                                        </button>
+                                        <button
+                                            v-for="compartment in filteredCompartments"
+                                            :key="compartment.id"
+                                            class="dropdown-item small"
+                                            :class="{
+                                                active:
+                                                    filters.compartment ===
+                                                    compartment.id,
+                                            }"
+                                            @click="
+                                                selectCompartment(
+                                                    compartment.id
+                                                )
+                                            "
+                                        >
+                                            {{ compartment.id }}
+                                        </button>
+                                        <div
+                                            v-if="
+                                                filteredCompartments.length ===
+                                                0
+                                            "
+                                            class="dropdown-item text-muted small"
+                                        >
+                                            No compartments found
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- DataTable -->
-                    <div class="row">
-                        <div class="col-12">
-                            <datatable
-                                :id="datatable_id"
-                                ref="polygon_datatable"
-                                :dt-options="dtOptions"
-                                :dt-headers="dtHeaders"
-                            />
+                        <!-- Rest of the filters (FEA ID, Treatment Status, Date Filters) -->
+                        <div class="row mb-3">
+                            <!-- FEA ID Filter -->
+                            <div class="col-md-2">
+                                <label for="filterZfeaId" class="form-label"
+                                    >FEA ID</label
+                                >
+                                <input
+                                    v-model="filters.zfea_id"
+                                    type="text"
+                                    class="form-control form-control-sm"
+                                    id="filterZfeaId"
+                                    placeholder="Filter by FEA ID..."
+                                />
+                            </div>
+
+                            <!-- Treatment Status Filter -->
+                            <div class="col-md-2">
+                                <label
+                                    for="filterTreatmentStatus"
+                                    class="form-label"
+                                    >Treatment Status</label
+                                >
+                                <select
+                                    v-model="filters.treatment_status"
+                                    class="form-select form-select-sm"
+                                    id="filterTreatmentStatus"
+                                >
+                                    <option value="">All Status</option>
+                                    <option value="P">Planned</option>
+                                    <option value="D">Completed</option>
+                                    <option value="C">Cancelled</option>
+                                    <option value="F">Failed</option>
+                                    <option value="W">Written Off</option>
+                                    <option value="X">Not Required</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2"></div>
+
+                            <!-- Date Filters -->
+                            <div class="col-md-2">
+                                <label
+                                    for="filterCreatedFrom"
+                                    class="form-label"
+                                    >Created From</label
+                                >
+                                <input
+                                    v-model="filters.created_from"
+                                    type="date"
+                                    class="form-control form-control-sm"
+                                    id="filterCreatedFrom"
+                                />
+                            </div>
+                            <div class="col-md-2">
+                                <label for="filterCreatedTo" class="form-label"
+                                    >Created To</label
+                                >
+                                <input
+                                    v-model="filters.created_to"
+                                    type="date"
+                                    class="form-control form-control-sm"
+                                    id="filterCreatedTo"
+                                />
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label
+                                        for="post_2024_only"
+                                        class="form-check-label"
+                                    >
+                                        <br />
+                                        <div>
+                                            <input
+                                                id="post_2024_only"
+                                                v-model="filterPost2024Only"
+                                                type="checkbox"
+                                                class="form-check-input me-2"
+                                                checked
+                                            />
+                                            Post 2024 only
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DataTable -->
+                        <div class="row">
+                            <div class="col-12">
+                                <datatable
+                                    :id="datatable_id"
+                                    ref="polygon_datatable"
+                                    :dt-options="dtOptions"
+                                    :dt-headers="dtHeaders"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </FormSection>
     </div>
 </template>
@@ -874,14 +909,71 @@ export default {
         },
 
         getCompartmentDisplayText() {
+            if (this.isCompartmentDisabled) {
+                return 'Select block first';
+            }
             return this.filters.compartment || 'All Compartments';
         },
         getBlockDisplayText() {
+            if (this.isBlockDisabled) {
+                return 'Select district first';
+            }
             return this.filters.block || 'All Blocks';
         },
         getDistrictDisplayText() {
             return this.filters.district || 'All Districts';
         },
+
+        // Normalized compartment rows (trailing spaces stripped) used to derive
+        // the district -> block -> compartment hierarchy on the client.
+        normalizedCompartments() {
+            return (this.lookupData.compartments || []).map((comp) => ({
+                id: comp.id,
+                block: (comp.block || '').trim(),
+                district: (comp.district || '').trim(),
+            }));
+        },
+
+        // Districts that actually have at least one compartment.
+        districtOptions() {
+            const districts = this.normalizedCompartments
+                .map((comp) => comp.district)
+                .filter((district) => district);
+            return [...new Set(districts)].sort();
+        },
+
+        // Blocks belonging to the selected district (all blocks when unset).
+        blockOptions() {
+            const source = this.filters.district
+                ? this.normalizedCompartments.filter(
+                      (comp) => comp.district === this.filters.district
+                  )
+                : this.normalizedCompartments;
+            const blocks = source.map((comp) => comp.block).filter((b) => b);
+            return [...new Set(blocks)].sort();
+        },
+
+        // Compartments matching the selected district and/or block.
+        compartmentOptions() {
+            return this.normalizedCompartments
+                .filter(
+                    (comp) =>
+                        (!this.filters.district ||
+                            comp.district === this.filters.district) &&
+                        (!this.filters.block ||
+                            comp.block === this.filters.block)
+                )
+                .map((comp) => ({ id: comp.id }));
+        },
+
+        isBlockDisabled() {
+            return !this.filters.district;
+        },
+
+        isCompartmentDisabled() {
+            return !this.filters.block;
+        },
+
         popupStyle() {
             // Calculate max height based on map container height
             const maxHeight = this.mapHeight * 0.8; // 80% of map height
@@ -932,12 +1024,12 @@ export default {
                         d.filter_post_2024_only = vm.filterPost2024Only;
 
                         // Only search if at least one filter is provided
-                        const hasFilters = Object.values(vm.filters).some(
-                            (val) => val !== ''
-                        ) || (
-                            vm.filterObjClassificationId &&
-                            vm.filterObjClassificationId !== 'all'
-                        );
+                        const hasFilters =
+                            Object.values(vm.filters).some(
+                                (val) => val !== ''
+                            ) ||
+                            (vm.filterObjClassificationId &&
+                                vm.filterObjClassificationId !== 'all');
                         if (!hasFilters) {
                             // Return empty result if no filters
                             d.return_empty = true;
@@ -1427,10 +1519,10 @@ export default {
                 // Initialize filtered objectives
                 this.updateFilteredObjectives();
 
-                // Initialize other filtered options
-                this.filteredCompartments = this.lookupData.compartments || [];
-                this.filteredBlocks = this.lookupData.blocks || [];
-                this.filteredDistricts = this.lookupData.districts || [];
+                // Initialize chained district/block/compartment options
+                this.filterDistrictOptions();
+                this.filterBlockOptions();
+                this.filterCompartmentOptions();
             } catch (error) {
                 console.error('Error loading lookup data:', error);
                 await swal.fire({
@@ -1496,20 +1588,34 @@ export default {
             this.compartmentSearch = '';
             this.filterCompartmentOptions();
             this.closeAllDropdowns();
+            this.refreshData();
         },
 
         selectBlock(value) {
             this.filters.block = value;
             this.blockSearch = '';
+            // Reset child compartment when block changes.
+            this.filters.compartment = '';
+            this.compartmentSearch = '';
             this.filterBlockOptions();
+            this.filterCompartmentOptions();
             this.closeAllDropdowns();
+            this.refreshData();
         },
 
         selectDistrict(value) {
             this.filters.district = value;
             this.districtSearch = '';
+            // Reset children when district changes.
+            this.filters.block = '';
+            this.blockSearch = '';
+            this.filters.compartment = '';
+            this.compartmentSearch = '';
             this.filterDistrictOptions();
+            this.filterBlockOptions();
+            this.filterCompartmentOptions();
             this.closeAllDropdowns();
+            this.refreshData();
         },
 
         // Filtering methods
@@ -1533,42 +1639,43 @@ export default {
         },
 
         filterCompartmentOptions() {
-            if (!this.compartmentSearch) {
-                this.filteredCompartments = this.lookupData.compartments || [];
-                return;
+            let options = this.compartmentOptions;
+
+            if (this.compartmentSearch) {
+                const searchTerm = this.compartmentSearch.toLowerCase();
+                options = options.filter(
+                    (comp) =>
+                        comp.id && comp.id.toLowerCase().includes(searchTerm)
+                );
             }
 
-            const searchTerm = this.compartmentSearch.toLowerCase();
-            this.filteredCompartments = (
-                this.lookupData.compartments || []
-            ).filter(
-                (comp) => comp.id && comp.id.toLowerCase().includes(searchTerm)
-            );
+            this.filteredCompartments = options;
         },
 
         filterBlockOptions() {
-            if (!this.blockSearch) {
-                this.filteredBlocks = this.lookupData.blocks || [];
-                return;
+            let options = this.blockOptions;
+
+            if (this.blockSearch) {
+                const searchTerm = this.blockSearch.toLowerCase();
+                options = options.filter((block) =>
+                    block.toLowerCase().includes(searchTerm)
+                );
             }
 
-            const searchTerm = this.blockSearch.toLowerCase();
-            this.filteredBlocks = (this.lookupData.blocks || []).filter(
-                (block) => block && block.toLowerCase().includes(searchTerm)
-            );
+            this.filteredBlocks = options;
         },
 
         filterDistrictOptions() {
-            if (!this.districtSearch) {
-                this.filteredDistricts = this.lookupData.districts || [];
-                return;
+            let options = this.districtOptions;
+
+            if (this.districtSearch) {
+                const searchTerm = this.districtSearch.toLowerCase();
+                options = options.filter((district) =>
+                    district.toLowerCase().includes(searchTerm)
+                );
             }
 
-            const searchTerm = this.districtSearch.toLowerCase();
-            this.filteredDistricts = (this.lookupData.districts || []).filter(
-                (district) =>
-                    district && district.toLowerCase().includes(searchTerm)
-            );
+            this.filteredDistricts = options;
         },
 
         // DataTable methods

@@ -792,7 +792,8 @@ export default {
                 const opForm = this.$refs.operationForm;
                 if (opForm && !opForm.readOnly && opForm.showActions) {
                     // Skip save if FEA ID is empty (operation not ready)
-                    const feaVal = opForm.operationData && opForm.operationData.fea_id;
+                    const feaVal =
+                        opForm.operationData && opForm.operationData.fea_id;
                     if (feaVal && feaVal.trim()) {
                         try {
                             const opResult = await opForm.saveOperation();
@@ -804,7 +805,9 @@ export default {
                             await swal.fire({
                                 icon: 'error',
                                 title: 'Operation Save Failed',
-                                text: error.message || 'Failed to save operation details',
+                                text:
+                                    error.message ||
+                                    'Failed to save operation details',
                                 confirmButtonText: 'OK',
                             });
                             this.saving = false;

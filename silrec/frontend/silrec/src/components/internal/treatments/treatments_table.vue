@@ -20,294 +20,323 @@
                 </div>
             </div>
             <div class="card-body">
-
-        <div class="filters-wrapper mb-3">
-            <CollapsibleFilters
-                ref="collapsible_filters"
-                component_title="Treatment Filters"
-                class="mb-2"
-                :collapsed="false"
-                :filter_warning_icon="filterWarningIcon"
-                @created="collapsible_component_mounted"
-            >
-                <div class="row mt-1 p-2">
-                    <!-- Task Classification Filter (Parent) -->
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterTaskClassification"
-                                >Task Classification</label
-                            >
-                            <select
-                                v-model="filterTaskClassificationId"
-                                class="form-select"
-                                id="filterTaskClassification"
-                                @change="onTaskClassificationChange"
-                            >
-                                <option value="all">All Classifications</option>
-                                <option
-                                    v-for="classification in taskClassifications"
-                                    :key="classification.id"
-                                    :value="classification.id"
-                                >
-                                    {{ classification.task_class }} -
-                                    {{ classification.description }}
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Task Filter (Child - dependent on classification) -->
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterTask">Task</label>
-                            <div class="searchable-select">
-                                <input
-                                    id="filterTask"
-                                    v-model="taskSearch"
-                                    type="text"
-                                    class="form-control"
-                                    :placeholder="taskPlaceholder"
-                                    :disabled="isTaskDisabled"
-                                    @focus="onTaskFocus"
-                                    @blur="onTaskBlur"
-                                    @input="filterTasks"
-                                />
-                                <div
-                                    v-if="showTaskDropdown"
-                                    class="dropdown-options"
-                                >
-                                    <div
-                                        class="dropdown-option all-tasks-option"
-                                        @mousedown="selectAllTasks"
+                <div class="filters-wrapper mb-3">
+                    <CollapsibleFilters
+                        ref="collapsible_filters"
+                        component_title="Treatment Filters"
+                        class="mb-2"
+                        :collapsed="false"
+                        :filter_warning_icon="filterWarningIcon"
+                        @created="collapsible_component_mounted"
+                    >
+                        <div class="row mt-1 p-2">
+                            <!-- Task Classification Filter (Parent) -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterTaskClassification"
+                                        >Task Classification</label
                                     >
-                                        <strong>All Tasks</strong>
-                                    </div>
-                                    <div
-                                        v-for="task in filteredTasks"
-                                        :key="task.id"
-                                        class="dropdown-option"
-                                        @mousedown="selectTask(task)"
+                                    <select
+                                        v-model="filterTaskClassificationId"
+                                        class="form-select"
+                                        id="filterTaskClassification"
+                                        @change="onTaskClassificationChange"
                                     >
-                                        <strong>{{ task.task }}</strong> -
-                                        {{ task.task_name || 'No description' }}
-                                    </div>
-                                    <div
-                                        v-if="
-                                            filteredTasks.length === 0 &&
-                                            taskSearch !== '' &&
-                                            taskSearch !== 'All Tasks'
-                                        "
-                                        class="dropdown-option no-results"
-                                    >
-                                        No tasks found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mt-1 p-2">
-                    <!-- Status Filter -->
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterStatus">Status</label>
-                            <div class="searchable-select">
-                                <input
-                                    id="filterStatus"
-                                    v-model="statusSearch"
-                                    type="text"
-                                    class="form-control"
-                                    :placeholder="statusPlaceholder"
-                                    @focus="onStatusFocus"
-                                    @blur="onStatusBlur"
-                                    @input="filterStatuses"
-                                />
-                                <div
-                                    v-if="showStatusDropdown"
-                                    class="dropdown-options"
-                                >
-                                    <div
-                                        class="dropdown-option"
-                                        @mousedown="
-                                            selectStatus({
-                                                status: 'all',
-                                                name: 'All Status',
-                                            })
-                                        "
-                                    >
-                                        All Status
-                                    </div>
-                                    <div
-                                        v-for="status in filteredStatuses"
-                                        :key="status.id"
-                                        class="dropdown-option"
-                                        @mousedown="selectStatus(status)"
-                                    >
-                                        <strong>{{ status.status }}</strong> -
-                                        {{ status.name || 'No description' }}
-                                    </div>
-                                    <div
-                                        v-if="filteredStatuses.length === 0"
-                                        class="dropdown-option no-results"
-                                    >
-                                        No statuses found
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterPlanYear">Planned Year</label>
-                            <input
-                                v-model="filterPlanYear"
-                                type="number"
-                                class="form-control"
-                                id="filterPlanYear"
-                                placeholder="Year..."
-                                min="2000"
-                                :max="new Date().getFullYear() + 10"
-                            />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterPlanMonth">Planned Month</label>
-                            <select
-                                v-model="filterPlanMonth"
-                                class="form-select"
-                                id="filterPlanMonth"
-                            >
-                                <option value="all">All Months</option>
-                                <option value="1">January</option>
-                                <option value="2">February</option>
-                                <option value="3">March</option>
-                                <option value="4">April</option>
-                                <option value="5">May</option>
-                                <option value="6">June</option>
-                                <option value="7">July</option>
-                                <option value="8">August</option>
-                                <option value="9">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterCompleteDateFrom"
-                                >Complete Date From</label
-                            >
-                            <input
-                                v-model="filterCompleteDateFrom"
-                                type="date"
-                                class="form-control"
-                                id="filterCompleteDateFrom"
-                            />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterCompleteDateTo"
-                                >Complete Date To</label
-                            >
-                            <input
-                                v-model="filterCompleteDateTo"
-                                type="date"
-                                class="form-control"
-                                id="filterCompleteDateTo"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Machine Filter -->
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filterMachine">Machine</label>
-                            <div class="searchable-select">
-                                <input
-                                    id="filterMachine"
-                                    v-model="machineSearch"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Type to search machines..."
-                                    @focus="showMachineDropdown = true"
-                                    @blur="onMachineBlur"
-                                    @input="filterMachines"
-                                />
-                                <div
-                                    v-if="showMachineDropdown"
-                                    class="dropdown-options"
-                                >
-                                    <div
-                                        v-for="machine in filteredMachines"
-                                        :key="machine.id"
-                                        class="dropdown-option"
-                                        @mousedown="selectMachine(machine)"
-                                    >
-                                        <strong
-                                            >{{ machine.manufacturer }}
-                                            {{ machine.model }}</strong
+                                        <option value="all">
+                                            All Classifications
+                                        </option>
+                                        <option
+                                            v-for="classification in taskClassifications"
+                                            :key="classification.id"
+                                            :value="classification.id"
                                         >
-                                        -
-                                        {{ machine.machine_type || 'No type' }}
-                                    </div>
-                                    <div
-                                        v-if="filteredMachines.length === 0"
-                                        class="dropdown-option no-results"
-                                    >
-                                        No machines found
+                                            {{ classification.task_class }} -
+                                            {{ classification.description }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Task Filter (Child - dependent on classification) -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterTask">Task</label>
+                                    <div class="searchable-select">
+                                        <input
+                                            id="filterTask"
+                                            v-model="taskSearch"
+                                            type="text"
+                                            class="form-control"
+                                            :placeholder="taskPlaceholder"
+                                            :disabled="isTaskDisabled"
+                                            @focus="onTaskFocus"
+                                            @blur="onTaskBlur"
+                                            @input="filterTasks"
+                                        />
+                                        <div
+                                            v-if="showTaskDropdown"
+                                            class="dropdown-options"
+                                        >
+                                            <div
+                                                class="dropdown-option all-tasks-option"
+                                                @mousedown="selectAllTasks"
+                                            >
+                                                <strong>All Tasks</strong>
+                                            </div>
+                                            <div
+                                                v-for="task in filteredTasks"
+                                                :key="task.id"
+                                                class="dropdown-option"
+                                                @mousedown="selectTask(task)"
+                                            >
+                                                <strong>{{ task.task }}</strong>
+                                                -
+                                                {{
+                                                    task.task_name ||
+                                                    'No description'
+                                                }}
+                                            </div>
+                                            <div
+                                                v-if="
+                                                    filteredTasks.length ===
+                                                        0 &&
+                                                    taskSearch !== '' &&
+                                                    taskSearch !== 'All Tasks'
+                                                "
+                                                class="dropdown-option no-results"
+                                            >
+                                                No tasks found
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label
-                                for="post_2024_only"
-                                class="form-check-label"
-                            >
-                                <br />
-                                <div>
-                                    <input
-                                        id="post_2024_only"
-                                        v-model="filterPost2024Only"
-                                        type="checkbox"
-                                        class="form-check-input me-2"
-                                        checked
-                                    />
-                                    Post 2024 only
+                        <div class="row mt-1 p-2">
+                            <!-- Status Filter -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterStatus">Status</label>
+                                    <div class="searchable-select">
+                                        <input
+                                            id="filterStatus"
+                                            v-model="statusSearch"
+                                            type="text"
+                                            class="form-control"
+                                            :placeholder="statusPlaceholder"
+                                            @focus="onStatusFocus"
+                                            @blur="onStatusBlur"
+                                            @input="filterStatuses"
+                                        />
+                                        <div
+                                            v-if="showStatusDropdown"
+                                            class="dropdown-options"
+                                        >
+                                            <div
+                                                class="dropdown-option"
+                                                @mousedown="
+                                                    selectStatus({
+                                                        status: 'all',
+                                                        name: 'All Status',
+                                                    })
+                                                "
+                                            >
+                                                All Status
+                                            </div>
+                                            <div
+                                                v-for="status in filteredStatuses"
+                                                :key="status.id"
+                                                class="dropdown-option"
+                                                @mousedown="
+                                                    selectStatus(status)
+                                                "
+                                            >
+                                                <strong>{{
+                                                    status.status
+                                                }}</strong>
+                                                -
+                                                {{
+                                                    status.name ||
+                                                    'No description'
+                                                }}
+                                            </div>
+                                            <div
+                                                v-if="
+                                                    filteredStatuses.length ===
+                                                    0
+                                                "
+                                                class="dropdown-option no-results"
+                                            >
+                                                No statuses found
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-md-12 text-end">
-                        <button
-                            class="btn btn-sm btn-outline-secondary me-2"
-                            @click="clearFilters"
-                        >
-                            Clear Filters
-                        </button>
-                    </div>
-                </div>
-            </CollapsibleFilters>
-        </div>
+                            </div>
 
-        <div class="table-wrapper">
-            <datatable
-                :id="datatableId"
-                ref="treatments_datatable"
-                :dt-options="dtOptions"
-                :dt-headers="dtHeaders"
-            />
-        </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterPlanYear"
+                                        >Planned Year</label
+                                    >
+                                    <input
+                                        v-model="filterPlanYear"
+                                        type="number"
+                                        class="form-control"
+                                        id="filterPlanYear"
+                                        placeholder="Year..."
+                                        min="2000"
+                                        :max="new Date().getFullYear() + 10"
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterPlanMonth"
+                                        >Planned Month</label
+                                    >
+                                    <select
+                                        v-model="filterPlanMonth"
+                                        class="form-select"
+                                        id="filterPlanMonth"
+                                    >
+                                        <option value="all">All Months</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row p-2">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterCompleteDateFrom"
+                                        >Complete Date From</label
+                                    >
+                                    <input
+                                        v-model="filterCompleteDateFrom"
+                                        type="date"
+                                        class="form-control"
+                                        id="filterCompleteDateFrom"
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterCompleteDateTo"
+                                        >Complete Date To</label
+                                    >
+                                    <input
+                                        v-model="filterCompleteDateTo"
+                                        type="date"
+                                        class="form-control"
+                                        id="filterCompleteDateTo"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Machine Filter -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="filterMachine">Machine</label>
+                                    <div class="searchable-select">
+                                        <input
+                                            id="filterMachine"
+                                            v-model="machineSearch"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="Type to search machines..."
+                                            @focus="showMachineDropdown = true"
+                                            @blur="onMachineBlur"
+                                            @input="filterMachines"
+                                        />
+                                        <div
+                                            v-if="showMachineDropdown"
+                                            class="dropdown-options"
+                                        >
+                                            <div
+                                                v-for="machine in filteredMachines"
+                                                :key="machine.id"
+                                                class="dropdown-option"
+                                                @mousedown="
+                                                    selectMachine(machine)
+                                                "
+                                            >
+                                                <strong
+                                                    >{{ machine.manufacturer }}
+                                                    {{ machine.model }}</strong
+                                                >
+                                                -
+                                                {{
+                                                    machine.machine_type ||
+                                                    'No type'
+                                                }}
+                                            </div>
+                                            <div
+                                                v-if="
+                                                    filteredMachines.length ===
+                                                    0
+                                                "
+                                                class="dropdown-option no-results"
+                                            >
+                                                No machines found
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label
+                                        for="post_2024_only"
+                                        class="form-check-label"
+                                    >
+                                        <br />
+                                        <div>
+                                            <input
+                                                id="post_2024_only"
+                                                v-model="filterPost2024Only"
+                                                type="checkbox"
+                                                class="form-check-input me-2"
+                                                checked
+                                            />
+                                            Post 2024 only
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row p-2">
+                            <div class="col-md-12 text-end">
+                                <button
+                                    class="btn btn-sm btn-outline-secondary me-2"
+                                    @click="clearFilters"
+                                >
+                                    Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </CollapsibleFilters>
+                </div>
+
+                <div class="table-wrapper">
+                    <datatable
+                        :id="datatableId"
+                        ref="treatments_datatable"
+                        :dt-options="dtOptions"
+                        :dt-headers="dtHeaders"
+                    />
+                </div>
             </div>
         </div>
     </div>

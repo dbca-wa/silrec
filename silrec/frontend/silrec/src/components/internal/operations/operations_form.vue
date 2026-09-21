@@ -81,13 +81,18 @@
                                 <div
                                     class="d-flex justify-content-between align-items-center"
                                 >
-                                    <span class="text-muted" :title="fullMapFileName">
+                                    <span
+                                        class="text-muted"
+                                        :title="fullMapFileName"
+                                    >
                                         <i
                                             class="bi bi-file-earmark-image me-1"
                                         ></i>
                                         {{ mapFileName }}
                                     </span>
-                                    <div class="d-flex align-items-center gap-1">
+                                    <div
+                                        class="d-flex align-items-center gap-1"
+                                    >
                                         <a
                                             v-if="
                                                 operationData.silvic_plan_map &&
@@ -199,13 +204,18 @@
                                 <div
                                     class="d-flex justify-content-between align-items-center"
                                 >
-                                    <span class="text-muted" :title="fullDocFileName">
+                                    <span
+                                        class="text-muted"
+                                        :title="fullDocFileName"
+                                    >
                                         <i
                                             class="bi bi-file-earmark-text me-1"
                                         ></i>
                                         {{ docFileName }}
                                     </span>
-                                    <div class="d-flex align-items-center gap-1">
+                                    <div
+                                        class="d-flex align-items-center gap-1"
+                                    >
                                         <a
                                             v-if="
                                                 operationData.silvic_plan_doc &&
@@ -542,17 +552,25 @@ export default {
                         body: JSON.stringify({ silvic_plan_map: null }),
                     }
                 );
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok)
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 this.operationData = { ...data };
                 await swal.fire({
-                    icon: 'success', title: 'Deleted!',
+                    icon: 'success',
+                    title: 'Deleted!',
                     text: 'Map file deleted successfully',
-                    timer: 2000, showConfirmButton: false,
+                    timer: 2000,
+                    showConfirmButton: false,
                 });
             } catch (error) {
                 console.error('Error deleting map file:', error);
-                await swal.fire({ icon: 'error', title: 'Delete Failed', text: error.message, confirmButtonText: 'OK' });
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Delete Failed',
+                    text: error.message,
+                    confirmButtonText: 'OK',
+                });
             }
         },
 
@@ -579,17 +597,25 @@ export default {
                         body: JSON.stringify({ silvic_plan_doc: null }),
                     }
                 );
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok)
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 this.operationData = { ...data };
                 await swal.fire({
-                    icon: 'success', title: 'Deleted!',
+                    icon: 'success',
+                    title: 'Deleted!',
                     text: 'Document file deleted successfully',
-                    timer: 2000, showConfirmButton: false,
+                    timer: 2000,
+                    showConfirmButton: false,
                 });
             } catch (error) {
                 console.error('Error deleting document file:', error);
-                await swal.fire({ icon: 'error', title: 'Delete Failed', text: error.message, confirmButtonText: 'OK' });
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Delete Failed',
+                    text: error.message,
+                    confirmButtonText: 'OK',
+                });
             }
         },
 

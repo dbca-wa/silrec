@@ -23,7 +23,7 @@
         <div class="row">
             <h3>
                 {{ proposal.lodgement_number }}
-		<!--
+                <!--
                 {{
                     proposal.application_type
                         ? proposal.application_type.name
@@ -85,7 +85,7 @@
                     <div class="col-md-6 text-start">
                         <div class="workflow-buttons">
                             <!-- Draft status buttons -->
-			    <!--
+                            <!--
                             <template
                                 v-if="
                                     proposal.processing_status ===
@@ -132,7 +132,7 @@
                                 >
                                     Send to Reviewer
                                 </button>
-				<!--
+                                <!--
                                 <BootstrapButtonSpinner
                                     v-if="transitioning"
                                     class="btn btn-secondary me-2"
@@ -217,7 +217,7 @@
                     </div>
 
                     <!-- Right side - Save buttons -->
-		    <!--
+                    <!--
                     <div class="col-md-6 text-end">
                         <BootstrapButtonSpinner
                             v-if="savingProposal"
@@ -434,7 +434,11 @@ export default {
             return canEdit;
         },
         displaySaveBtns: function () {
-            if (this.isReviewerUser && !this.isOperatorUser && !this.isSilrecAdmin) {
+            if (
+                this.isReviewerUser &&
+                !this.isOperatorUser &&
+                !this.isSilrecAdmin
+            ) {
                 return (
                     this.proposal &&
                     this.proposal.processing_status === 'with_reviewer'

@@ -77,17 +77,33 @@
                                 <router-link
                                     :to="`/internal/treatment/${treatmentId}/treatment-extra/${extra.treatment_xtra_id}`"
                                     class="btn btn-sm"
-                                    :class="readOnly ? 'btn-outline-info' : 'btn-outline-primary me-1'"
-                                    :title="readOnly ? 'View Details' : 'Edit Details'"
+                                    :class="
+                                        readOnly
+                                            ? 'btn-outline-info'
+                                            : 'btn-outline-primary me-1'
+                                    "
+                                    :title="
+                                        readOnly
+                                            ? 'View Details'
+                                            : 'Edit Details'
+                                    "
                                 >
-                                    <i :class="readOnly ? 'bi bi-eye' : 'bi bi-pencil'"></i>
+                                    <i
+                                        :class="
+                                            readOnly
+                                                ? 'bi bi-eye'
+                                                : 'bi bi-pencil'
+                                        "
+                                    ></i>
                                     {{ readOnly ? ' View' : '' }}
                                 </router-link>
                                 <button
                                     v-if="!readOnly"
                                     class="btn btn-sm btn-outline-danger"
                                     type="button"
-                                    @click="deleteExtra(extra.treatment_xtra_id)"
+                                    @click="
+                                        deleteExtra(extra.treatment_xtra_id)
+                                    "
                                     title="Delete Details"
                                 >
                                     <i class="bi bi-trash"></i>
@@ -239,7 +255,11 @@ export default {
                     (extra) => extra.treatment_xtra_id !== treatmentExtraId
                 );
 
-                console.log('Local array now has', this.treatmentExtras.length, 'items');
+                console.log(
+                    'Local array now has',
+                    this.treatmentExtras.length,
+                    'items'
+                );
 
                 this.$emit('extra-updated');
 

@@ -33,7 +33,7 @@
                     >
                         <i class="bi bi-download"></i>
                     </a>
-                        </div>
+                </div>
 
                 <div v-if="showShapefileActions" class="upload-controls">
                     <div class="d-flex align-items-center flex-wrap">
@@ -96,11 +96,12 @@
                         <div
                             v-if="isLocked"
                             class="alert alert-warning py-2 px-3 mb-2 ms-auto d-flex align-items-center gap-2"
-                            style="font-size: 0.9em; width: fit-content;"
+                            style="font-size: 0.9em; width: fit-content"
                         >
                             <i class="bi bi-lock-fill"></i>
                             <span>
-                                Shapefile Processing Not Permitted — locked by proposal
+                                Shapefile Processing Not Permitted — locked by
+                                proposal
                                 <strong>{{ lockedByLodgement }}</strong>
                             </span>
                         </div>
@@ -113,7 +114,7 @@
                                 @click="openRevertDialog"
                                 :disabled="revertBtnDisabled"
                                 :title="revertBtnTitle"
-                                style="min-width: 100px;"
+                                style="min-width: 100px"
                             >
                                 <i
                                     class="bi bi-arrow-counterclockwise me-2"
@@ -135,7 +136,7 @@
                                 @click="openKeepDialog"
                                 :disabled="keepBtnDisabled"
                                 :title="keepBtnTitle"
-                                style="min-width: 100px;"
+                                style="min-width: 100px"
                             >
                                 <i class="bi bi-check-lg me-2"></i>
                                 <span v-if="keepingShapefile">
@@ -155,7 +156,7 @@
                                 @click="openProcessDialog"
                                 :disabled="processBtnDisabled"
                                 :title="processBtnTitle"
-                                style="min-width: 100px;"
+                                style="min-width: 100px"
                             >
                                 <i class="bi bi-gear me-2"></i>
                                 <span v-if="processingShapefile">
@@ -264,8 +265,15 @@
                 :navbar-buttons-disabled="navbarButtonsDisabled"
                 :saving-features="savingInProgress"
                 level="internal"
-                :polygon-cohort-readonly="isReadOnlyUser || (proposal && (proposal.processing_status === 'review_completed' || proposal.processing_status === 'with_reviewer'))"
-                :processing-status="proposal ? proposal.processing_status : null"
+                :polygon-cohort-readonly="
+                    isReadOnlyUser ||
+                    (proposal &&
+                        (proposal.processing_status === 'review_completed' ||
+                            proposal.processing_status === 'with_reviewer'))
+                "
+                :processing-status="
+                    proposal ? proposal.processing_status : null
+                "
                 :map-info-text="
                     is_internal
                         ? ''
@@ -279,7 +287,6 @@
                 @deleted-features="$emit('deleted-features')"
             />
         </FormSection>
-
     </div>
 </template>
 
@@ -682,7 +689,12 @@ export default {
         // Only show shapefile actions in draft or processing_shapefile status
         showShapefileActions: function () {
             if (this.isReadOnlyUser) return false;
-            if (this.isReviewerUser && !this.isOperatorUser && !this.isSilrecAdmin) return false;
+            if (
+                this.isReviewerUser &&
+                !this.isOperatorUser &&
+                !this.isSilrecAdmin
+            )
+                return false;
             if (!this.workflowOptions || !this.workflowOptions.current_status)
                 return false;
             const s = this.workflowOptions.current_status;
@@ -705,7 +717,9 @@ export default {
                 : {};
         },
         isLocked: function () {
-            return this.workflowOptions && this.workflowOptions.is_locked === true;
+            return (
+                this.workflowOptions && this.workflowOptions.is_locked === true
+            );
         },
         lockedByLodgement: function () {
             return this.workflowOptions
@@ -1107,7 +1121,11 @@ export default {
                     if (data.missing_mandatory) {
                         const missingList = data.missing_mandatory
                             .map(function (f) {
-                                return '<li style="margin-left: 20px;"><strong>' + f + '</strong></li>';
+                                return (
+                                    '<li style="margin-left: 20px;"><strong>' +
+                                    f +
+                                    '</strong></li>'
+                                );
                             })
                             .join('');
                         Swal.fire({
@@ -1116,7 +1134,9 @@ export default {
                             html:
                                 '<div style="text-align: left;">' +
                                 '<p>The shapefile is missing the following mandatory attribute(s):</p>' +
-                                '<ul style="margin-top: 8px;">' + missingList + '</ul>' +
+                                '<ul style="margin-top: 8px;">' +
+                                missingList +
+                                '</ul>' +
                                 '<p style="margin-top: 12px;">Please update your shapefile to include these columns and try again.</p>' +
                                 '</div>',
                             confirmButtonText: 'OK',
@@ -1132,8 +1152,12 @@ export default {
                             title: 'Too Many Polygons',
                             html:
                                 '<div style="text-align: left;">' +
-                                '<p>The shapefile contains <strong>' + data.feature_count + '</strong> polygons, ' +
-                                'which exceeds the maximum of <strong>' + data.max_polygons + '</strong>.</p>' +
+                                '<p>The shapefile contains <strong>' +
+                                data.feature_count +
+                                '</strong> polygons, ' +
+                                'which exceeds the maximum of <strong>' +
+                                data.max_polygons +
+                                '</strong>.</p>' +
                                 '<p style="margin-top: 12px;">Please reduce the number of polygons and try again.</p>' +
                                 '</div>',
                             confirmButtonText: 'OK',
@@ -1146,7 +1170,11 @@ export default {
                     if (data.type_errors) {
                         const typeList = data.type_errors
                             .map(function (msg) {
-                                return '<li style="margin-left: 20px;">' + msg + '</li>';
+                                return (
+                                    '<li style="margin-left: 20px;">' +
+                                    msg +
+                                    '</li>'
+                                );
                             })
                             .join('');
                         Swal.fire({
@@ -1155,7 +1183,9 @@ export default {
                             html:
                                 '<div style="text-align: left;">' +
                                 '<p>The shapefile has attributes with incorrect data types:</p>' +
-                                '<ul style="margin-top: 8px;">' + typeList + '</ul>' +
+                                '<ul style="margin-top: 8px;">' +
+                                typeList +
+                                '</ul>' +
                                 '<p style="margin-top: 12px;">Please correct these columns in your shapefile and try again.</p>' +
                                 '</div>',
                             confirmButtonText: 'OK',
@@ -1413,7 +1443,10 @@ export default {
                 return;
             }
 
-            const defaultThreshold = helpers.getSilrecSetting('sliverAreaLengthThreshold', 5.0);
+            const defaultThreshold = helpers.getSilrecSetting(
+                'sliverAreaLengthThreshold',
+                5.0
+            );
 
             Swal.fire({
                 title: 'Process Shapefile',
@@ -1688,15 +1721,20 @@ export default {
         },
 
         openRevertDialog: function () {
-            var isSavepoint = this.workflowOptions &&
+            var isSavepoint =
+                this.workflowOptions &&
                 this.workflowOptions.revert_method === 'savepoint';
-            var methodLabel = isSavepoint ? 'savepoint backup' : 'pg_dump backup';
+            var methodLabel = isSavepoint
+                ? 'savepoint backup'
+                : 'pg_dump backup';
             Swal.fire({
                 title: 'Revert Changes',
                 html:
                     '<div style="text-align: left;">' +
                     '<p style="font-size: 0.9em; color: #6c757d; margin-bottom: 10px;">' +
-                    'This will restore the database from the most recent ' + methodLabel + ' for this proposal.' +
+                    'This will restore the database from the most recent ' +
+                    methodLabel +
+                    ' for this proposal.' +
                     '</p>' +
                     '<p>Are you sure you want to revert all changes made by the last shapefile processing operation?</p>' +
                     '<p style="font-weight: bold; color: #dc3545;">This action cannot be undone!</p>' +
@@ -1729,9 +1767,12 @@ export default {
             this.revertError = null;
 
             // Show processing dialog during the restore
-            var isSavepoint = this.workflowOptions &&
+            var isSavepoint =
+                this.workflowOptions &&
                 this.workflowOptions.revert_method === 'savepoint';
-            var progressTitle = isSavepoint ? 'Reverting via Savepoint' : 'Restoring Database';
+            var progressTitle = isSavepoint
+                ? 'Reverting via Savepoint'
+                : 'Restoring Database';
             var progressHtml = isSavepoint
                 ? 'Restoring baseline tables from savepoint backup. This may take a moment...'
                 : 'Running pg_restore from the pg_dump backup. This may take a moment...';
@@ -1787,11 +1828,24 @@ export default {
                             var t = v.tables[tbl];
                             var rowIcon = t.row_match ? '✅' : '❌';
                             var chkIcon = t.checksum_match ? '✅' : '⚠️';
-                            tableRows += '<tr><td>' + tbl + '</td><td>' + t.row_count_before + '</td><td>' + t.row_count_after + '</td><td>' + rowIcon + '</td><td>' + chkIcon + '</td></tr>';
+                            tableRows +=
+                                '<tr><td>' +
+                                tbl +
+                                '</td><td>' +
+                                t.row_count_before +
+                                '</td><td>' +
+                                t.row_count_after +
+                                '</td><td>' +
+                                rowIcon +
+                                '</td><td>' +
+                                chkIcon +
+                                '</td></tr>';
                         }
                         await Swal.fire({
                             icon: v.success ? 'success' : 'warning',
-                            title: v.success ? 'Revert Verified' : 'Revert Completed with Notes',
+                            title: v.success
+                                ? 'Revert Verified'
+                                : 'Revert Completed with Notes',
                             html: `
                                 <div style="text-align: center;">
                                     <p>${data.message || 'Database reverted via savepoint'}</p>
@@ -1810,7 +1864,9 @@ export default {
                                     </div>
                                 </div>
                             `,
-                            confirmButtonColor: v.success ? '#28a745' : '#ffc107',
+                            confirmButtonColor: v.success
+                                ? '#28a745'
+                                : '#ffc107',
                         });
                     } else if (data.warnings && data.warnings.length > 0) {
                         var v = data.verification;
@@ -1818,11 +1874,22 @@ export default {
                         for (var tbl in v.tables) {
                             var t = v.tables[tbl];
                             var icon = t.match ? '✅' : '❌';
-                            tableRows += '<tr><td>' + tbl + '</td><td>' + t.row_count_before + '</td><td>' + t.row_count_after + '</td><td>' + icon + '</td></tr>';
+                            tableRows +=
+                                '<tr><td>' +
+                                tbl +
+                                '</td><td>' +
+                                t.row_count_before +
+                                '</td><td>' +
+                                t.row_count_after +
+                                '</td><td>' +
+                                icon +
+                                '</td></tr>';
                         }
                         await Swal.fire({
                             icon: v.success ? 'success' : 'error',
-                            title: v.success ? 'Revert Verified' : 'Revert Verification Failed',
+                            title: v.success
+                                ? 'Revert Verified'
+                                : 'Revert Verification Failed',
                             html: `
                                 <div style="text-align: center;">
                                     <p>${data.message || 'Database reverted via savepoint'}</p>
@@ -1840,7 +1907,9 @@ export default {
                                     </div>
                                 </div>
                             `,
-                            confirmButtonColor: v.success ? '#28a745' : '#dc3545',
+                            confirmButtonColor: v.success
+                                ? '#28a745'
+                                : '#dc3545',
                         });
                     } else {
                         await Swal.fire({

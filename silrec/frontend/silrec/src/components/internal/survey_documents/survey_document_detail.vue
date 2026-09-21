@@ -37,10 +37,16 @@
                     <dd class="col-sm-9">{{ doc.file_name || 'N/A' }}</dd>
 
                     <dt class="col-sm-3">File Size</dt>
-                    <dd class="col-sm-9">{{ doc.file_size_display || doc.file_size || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{ doc.file_size_display || doc.file_size || 'N/A' }}
+                    </dd>
 
                     <dt class="col-sm-3">Uploaded By</dt>
-                    <dd class="col-sm-9">{{ doc.uploaded_by_display || doc.uploaded_by || 'N/A' }}</dd>
+                    <dd class="col-sm-9">
+                        {{
+                            doc.uploaded_by_display || doc.uploaded_by || 'N/A'
+                        }}
+                    </dd>
 
                     <dt class="col-sm-3">Created On</dt>
                     <dd class="col-sm-9">{{ doc.created_on || 'N/A' }}</dd>

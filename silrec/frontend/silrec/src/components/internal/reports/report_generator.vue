@@ -45,7 +45,7 @@
                                 </div>
                             </div>
                         </div>
-			<!--
+                        <!--
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label
@@ -458,7 +458,10 @@
                 </div>
 
                 <!-- Action Buttons -->
-                <div v-if="!isReadOnlyUser || isReviewerUser" class="d-flex gap-2">
+                <div
+                    v-if="!isReadOnlyUser || isReviewerUser"
+                    class="d-flex gap-2"
+                >
                     <button
                         type="button"
                         class="btn btn-primary"

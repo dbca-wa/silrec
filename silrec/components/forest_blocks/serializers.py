@@ -1242,13 +1242,21 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
     def get_obj_codes(self, obj):
         """Get list of unique objective codes for datatable display"""
         assignments = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
-        obj_codes = list(set(ass.cohort.obj_code for ass in assignments if ass.cohort.obj_code))
+        obj_codes = sorted(set(
+            ass.cohort.obj_code.strip()
+            for ass in assignments
+            if ass.cohort.obj_code and ass.cohort.obj_code.strip()
+        ))
         return ', '.join(obj_codes) if obj_codes else 'N/A'
 
     def get_species_list(self, obj):
         """Get list of unique species for datatable display"""
         assignments = obj.assignchttoply_set.filter(status_current=True).select_related('cohort')
-        species_list = list(set(ass.cohort.species for ass in assignments if ass.cohort.species))
+        species_list = sorted(set(
+            ass.cohort.species.strip()
+            for ass in assignments
+            if ass.cohort.species and ass.cohort.species.strip()
+        ))
         return ', '.join(species_list) if species_list else 'N/A'
 
     def get_treatment_statuses(self, obj):
@@ -1315,11 +1323,15 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
         if assignments and assignments.cohort:
             data['primary_cohort'] = {
                 'cohort_id': assignments.cohort.cohort_id,
-                'obj_code': assignments.cohort.obj_code,
-                'species': assignments.cohort.species,
+                'obj_code': (assignments.cohort.obj_code or '').strip() or None,
+                'species': (assignments.cohort.species or '').strip() or None,
                 'target_ba_m2ha': assignments.cohort.target_ba_m2ha,
                 'resid_ba_m2ha': assignments.cohort.resid_ba_m2ha,
-                'site_quality': assignments.cohort.site_quality
+                'site_quality': (assignments.cohort.site_quality or '').strip() or None,
+                'op_date': assignments.cohort.op_date,
+                'regen_date': assignments.cohort.regen_date,
+                'resid_spha': assignments.cohort.resid_spha,
+                'target_spha': assignments.cohort.target_spha,
             }
         else:
             data['primary_cohort'] = None

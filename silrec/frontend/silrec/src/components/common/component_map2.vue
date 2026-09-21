@@ -52,7 +52,7 @@
                                         {{
                                             getFeatureValue(
                                                 selectedFeature,
-                                                'zfea_id'
+                                                'fea_id'
                                             )
                                         }}
                                     </td>
@@ -1108,7 +1108,9 @@ export default {
                         name: 'assignchttoply__cohort__target_ba_m2ha',
                         orderable: true,
                         render: function (data, type, row) {
-                            return data ? data.toFixed(2) : 'N/A';
+                            return data === null || data === undefined
+                                ? 'N/A'
+                                : Number(data).toFixed(2);
                         },
                     },
                     {
@@ -1116,7 +1118,9 @@ export default {
                         name: 'assignchttoply__cohort__resid_ba_m2ha',
                         orderable: true,
                         render: function (data, type, row) {
-                            return data ? data.toFixed(2) : 'N/A';
+                            return data === null || data === undefined
+                                ? 'N/A'
+                                : Number(data).toFixed(2);
                         },
                     },
                     {
@@ -1353,7 +1357,7 @@ export default {
                     value = value[keys[i]];
                 }
 
-                return value !== undefined && value !== null ? value : 'N/A';
+                return this.formatFeatureValue(value);
             }
 
             // Try different property access methods
@@ -1373,12 +1377,20 @@ export default {
                     : undefined;
             }
 
+            return this.formatFeatureValue(value);
+        },
+
+        formatFeatureValue(value) {
+            if (value === undefined || value === null || value === '') {
+                return 'N/A';
+            }
+
             // Format numbers to 2 decimal places if they are numeric
             if (typeof value === 'number') {
                 return value.toFixed(2);
             }
 
-            return value !== undefined && value !== null ? value : 'N/A';
+            return value;
         },
 
         getFeatureYear(feature, fieldKey) {
@@ -1389,7 +1401,9 @@ export default {
                 // Try to parse the date and extract year
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
-                    return date.getFullYear().toString();
+                    const year = date.getFullYear().toString();
+                    // Sentinel used for "no operation" dates.
+                    return year === '9999' ? 'N/A' : year;
                 }
             } catch (e) {
                 console.warn('Could not parse date:', value);

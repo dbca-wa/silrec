@@ -1177,6 +1177,7 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
     obj_codes = serializers.SerializerMethodField()
     species_list = serializers.SerializerMethodField()
     treatment_statuses = serializers.SerializerMethodField()
+    fea_id = serializers.SerializerMethodField()
 
     # Formatted dates
     created_on_formatted = serializers.SerializerMethodField()
@@ -1200,7 +1201,7 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
             'proposal',
 
             # Computed fields for datatable
-            'obj_codes', 'species_list', 'treatment_statuses',
+            'obj_codes', 'species_list', 'treatment_statuses', 'fea_id',
             'created_on_formatted', 'updated_on_formatted',
 
             # Related data
@@ -1270,6 +1271,24 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
             if treat.status
         ))
         return ', '.join(statuses) if statuses else 'N/A'
+
+    def get_fea_id(self, obj):
+        """Resolve the FEA ID from the polygon's current operation.
+
+        The polygon's own ``zfea_id`` column is legacy/unpopulated; the FEA ID
+        lives on the Operation linked from the current cohort assignment.
+        Falls back to ``zfea_id`` when no operation is available.
+        """
+        for assignment in obj.assignchttoply_set.all():
+            if assignment.status_current and assignment.op_id:
+                operation = assignment.op
+                if operation and operation.fea_id:
+                    return operation.fea_id.strip()
+
+        if obj.zfea_id:
+            return obj.zfea_id.strip()
+
+        return 'N/A'
 
     def get_created_on_formatted(self, obj):
         """Get formatted created date"""

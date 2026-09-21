@@ -874,15 +874,24 @@ export default {
 
         // Objective classification computed properties
         objectiveClassifications() {
-            return (
+            const classifications =
                 this.lookupData.objectives_with_classification
-                    ?.classifications || []
+                    ?.classifications || [];
+            return [...classifications].sort((a, b) =>
+                String(a.obj_class || '').localeCompare(
+                    String(b.obj_class || '')
+                )
             );
         },
 
         allObjectives() {
-            return (
-                this.lookupData.objectives_with_classification?.objectives || []
+            const objectives =
+                this.lookupData.objectives_with_classification?.objectives ||
+                [];
+            return [...objectives].sort((a, b) =>
+                String(a.obj_code || '')
+                    .trim()
+                    .localeCompare(String(b.obj_code || '').trim())
             );
         },
 
@@ -939,7 +948,7 @@ export default {
             const districts = this.normalizedCompartments
                 .map((comp) => comp.district)
                 .filter((district) => district);
-            return [...new Set(districts)].sort();
+            return [...new Set(districts)].sort((a, b) => a.localeCompare(b));
         },
 
         // Blocks belonging to the selected district (all blocks when unset).
@@ -950,7 +959,7 @@ export default {
                   )
                 : this.normalizedCompartments;
             const blocks = source.map((comp) => comp.block).filter((b) => b);
-            return [...new Set(blocks)].sort();
+            return [...new Set(blocks)].sort((a, b) => a.localeCompare(b));
         },
 
         // Compartments matching the selected district and/or block.
@@ -963,7 +972,10 @@ export default {
                         (!this.filters.block ||
                             comp.block === this.filters.block)
                 )
-                .map((comp) => ({ id: comp.id }));
+                .map((comp) => ({ id: comp.id }))
+                .sort((a, b) =>
+                    String(a.id || '').localeCompare(String(b.id || ''))
+                );
         },
 
         isBlockDisabled() {
@@ -1068,8 +1080,8 @@ export default {
                         },
                     },
                     {
-                        data: 'zfea_id',
-                        name: 'zfea_id',
+                        data: 'fea_id',
+                        name: 'fea_id',
                         orderable: true,
                         render: function (data, type, row) {
                             return data || 'N/A';

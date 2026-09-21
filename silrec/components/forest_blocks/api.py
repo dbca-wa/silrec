@@ -824,6 +824,7 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             'compartment',
             'assignchttoply_set',
+            'assignchttoply_set__op',
             'assignchttoply_set__cohort',
             'assignchttoply_set__cohort__treatment_set',
             'assignchttoply_set__cohort__treatment_set__task'
@@ -889,7 +890,12 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
             ).distinct()
 
         if zfea_id:
-            queryset = queryset.filter(zfea_id__icontains=zfea_id)
+            # FEA ID is carried on the current assignment's operation; the
+            # polygon.zfea_id column is legacy/unpopulated. Fall back to it too.
+            queryset = queryset.filter(
+                Q(assignchttoply__op__fea_id__icontains=zfea_id) |
+                Q(zfea_id__icontains=zfea_id)
+            ).distinct()
 
         if treatment_status:
             queryset = queryset.filter(
@@ -922,6 +928,7 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         'compartment__compartment': 'compartment__compartment',
         'area_ha': 'area_ha',
         'zfea_id': 'zfea_id',
+        'fea_id': 'assignchttoply__op__fea_id',
         'assignchttoply__cohort__obj_code': 'assignchttoply__cohort__obj_code',
         'assignchttoply__cohort__species': 'assignchttoply__cohort__species',
         'assignchttoply__cohort__target_ba_m2ha': 'assignchttoply__cohort__target_ba_m2ha',
@@ -930,6 +937,7 @@ class PolygonSearchViewSet(viewsets.ModelViewSet):
         'created_on': 'created_on',
     }
     AGGREGATED_ORDERING_FIELDS = {
+        'assignchttoply__op__fea_id',
         'assignchttoply__cohort__obj_code',
         'assignchttoply__cohort__species',
         'assignchttoply__cohort__target_ba_m2ha',

@@ -1,7 +1,7 @@
 import traceback
 from django.db.models import Q, Min
 from django.db.models.functions import Cast
-from django.db.models import DateTimeField
+from django.db.models import DateTimeField, IntegerField
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import FileResponse
@@ -477,6 +477,36 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
     pagination_class = DatatablesPageNumberPagination
     filter_backends = (DatatablesFilterBackend,)
 
+    # DataTables column name -> ORM ordering expression.
+    ORDERING_FIELDS = {
+        'polygon_id': 'polygon_id',
+        'name': 'name',
+        'zfea_id': 'zfea_id',
+        'area_ha': 'area_ha',
+        'cohort_id': 'assignchttoply__cohort__cohort_id',
+        'obj_code': 'assignchttoply__cohort__obj_code',
+        'target_ba_m2ha': 'assignchttoply__cohort__target_ba_m2ha',
+        'resid_ba_m2ha': 'assignchttoply__cohort__resid_ba_m2ha',
+        'species': 'assignchttoply__cohort__species',
+        'status_current': 'assignchttoply__status_current',
+    }
+
+    # Multi-valued relations are aggregated with Min() so a polygon is not
+    # duplicated across rows when sorted on these columns.
+    AGGREGATED_ORDERING_FIELDS = {
+        'assignchttoply__cohort__cohort_id',
+        'assignchttoply__cohort__obj_code',
+        'assignchttoply__cohort__target_ba_m2ha',
+        'assignchttoply__cohort__resid_ba_m2ha',
+        'assignchttoply__cohort__species',
+        'assignchttoply__status_current',
+    }
+
+    # Boolean relations have no MIN() in Postgres — cast to integer first.
+    BOOLEAN_ORDERING_FIELDS = {
+        'assignchttoply__status_current',
+    }
+
     def get_queryset(self):
         proposal_id = self.request.query_params.get('proposal_id')
         if not proposal_id:
@@ -493,6 +523,73 @@ class PolygonCohortTableViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error in get_queryset: {str(e)}")
             return Polygon.objects.none()
+
+    def get_ordering(self, request):
+        """Resolve DataTables order[i][column] params against column names."""
+        columns = {}
+        i = 0
+        while True:
+            name = request.query_params.get('columns[%d][name]' % i)
+            data = request.query_params.get('columns[%d][data]' % i)
+            if name is None and data is None:
+                break
+            columns[i] = name or data
+            i += 1
+
+        ordering = []
+        i = 0
+        while True:
+            idx = request.query_params.get('order[%d][column]' % i)
+            if idx is None:
+                break
+            direction = request.query_params.get('order[%d][dir]' % i, 'asc')
+            field_name = columns.get(int(idx))
+            field = self.ORDERING_FIELDS.get(field_name)
+            if field:
+                ordering.append(('-' if direction == 'desc' else '') + field)
+            i += 1
+
+        return ordering
+
+    def apply_ordering(self, queryset, request):
+        """Apply DataTables ordering, aggregating multi-valued relations."""
+        ordering = self.get_ordering(request)
+        if not ordering:
+            return queryset
+
+        annotations = {}
+        order_by = []
+        for field in ordering:
+            desc = field.startswith('-')
+            name = field[1:] if desc else field
+            if name in self.AGGREGATED_ORDERING_FIELDS:
+                annotation = 'order_%s' % name.replace('__', '_')
+                if name in self.BOOLEAN_ORDERING_FIELDS:
+                    annotations[annotation] = Min(
+                        Cast(name, output_field=IntegerField())
+                    )
+                else:
+                    annotations[annotation] = Min(name)
+                order_by.append(('-' if desc else '') + annotation)
+            else:
+                order_by.append(field)
+
+        if annotations:
+            queryset = queryset.annotate(**annotations)
+
+        return queryset.order_by(*order_by)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.apply_ordering(queryset, request)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class _PolygonCohortTableViewSet(viewsets.ModelViewSet):
@@ -1582,3 +1679,144 @@ class BulkUpdatePolygonListView(_BulkUpdateBase):
                 return None
             ids.append(int(token))
         return ids or None
+
+
+class BulkUpdateExportTemplateView(_BulkUpdateBase):
+    """Export an .xlsx template — one row per resolved polygon, prefilled with
+    the current cohort / operation form data plus numbered treatment columns."""
+
+    PREFIX_HEADERS = [
+        'polygon_id', 'polygon_name', 'compartment', 'proposal_id', 'cohort_id',
+        'obj_code', 'species', 'regen_method', 'site_quality',
+        'target_ba_m2ha', 'resid_ba_m2ha', 'target_spha', 'resid_spha',
+        'pct_area', 'year_last_cut', 'op_date', 'regen_date', 'regen_date2',
+        'regen_done', 'complete_date', 'herbicide_app_spec', 'vrp',
+        'vrp_tot_area', 'stand', 'extra_info', 'treatments', 'comments',
+        'operation_fea_id', 'operation_das_id', 'operation_plan_release',
+    ]
+
+    TREATMENT_FIELDS = [
+        'task', 'status', 'plan_yr', 'plan_mth', 'pct_area',
+        'complete_date', 'organisation', 'results', 'reference',
+    ]
+
+    def post(self, request):
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        ids, err = self._parse_polygon_ids(request.data.get('polygon_ids'))
+        if err:
+            return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
+
+        polygons, _excluded = self._resolve(ids)
+
+        # Prefetch treatments per cohort and size the numbered treatment columns
+        # to the largest count across the selection (always at least one slot).
+        for item in polygons:
+            item['treatments'] = list(
+                Treatment.objects.filter(cohort=item['cohort']).order_by('treatment_id')
+            )
+        self._n_treatments = max(1, max((len(i['treatments']) for i in polygons), default=1))
+
+        headers = self.PREFIX_HEADERS + self._treatment_headers(self._n_treatments)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Bulk Update'
+        ws.append(headers)
+        for item in polygons:
+            ws.append(self._row_for(item))
+
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+        ws.freeze_panes = 'A2'
+        ws.auto_filter.ref = ws.dimensions
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        data = buf.getvalue()
+        buf.close()
+
+        response = HttpResponse(
+            data,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename="bulk_update_template.xlsx"'
+        return response
+
+    def _treatment_headers(self, n):
+        headers = []
+        for i in range(1, n + 1):
+            for field in self.TREATMENT_FIELDS:
+                headers.append(f'treatment_{i}_{field}')
+        return headers
+
+    def _fmt_dt(self, val):
+        if not val:
+            return ''
+        return val.strftime('%Y-%m-%d %H:%M')
+
+    def _fmt_bool(self, val):
+        if val is None:
+            return ''
+        return 'Yes' if val else 'No'
+
+    def _treatment_values(self, treatment):
+        if treatment is None:
+            return [''] * len(self.TREATMENT_FIELDS)
+        return [
+            treatment.task_id or '',
+            treatment.status or '',
+            treatment.plan_yr,
+            treatment.plan_mth,
+            treatment.pct_area,
+            self._fmt_dt(treatment.complete_date),
+            treatment.organisation or '',
+            treatment.results or '',
+            treatment.reference or '',
+        ]
+
+    def _row_for(self, item):
+        poly, cohort = item['polygon'], item['cohort']
+        op = self._operation_for_cohort(cohort)
+        treatments = item.get('treatments') or []
+
+        row = [
+            poly.polygon_id,
+            poly.name or '',
+            poly.compartment.compartment if poly.compartment else '',
+            poly.proposal_id or '',
+            cohort.cohort_id,
+            cohort.obj_code or '',
+            cohort.species or '',
+            cohort.regen_method_id or '',
+            cohort.site_quality or '',
+            cohort.target_ba_m2ha,
+            cohort.resid_ba_m2ha,
+            cohort.target_spha,
+            cohort.resid_spha,
+            cohort.pct_area,
+            cohort.year_last_cut,
+            self._fmt_dt(cohort.op_date),
+            self._fmt_dt(cohort.regen_date),
+            self._fmt_dt(cohort.regen_date2),
+            self._fmt_bool(cohort.regen_done),
+            self._fmt_dt(cohort.complete_date),
+            cohort.herbicide_app_spec or '',
+            cohort.vrp_id or '',
+            cohort.vrp_tot_area,
+            cohort.stand or '',
+            self._fmt_bool(cohort.extra_info),
+            self._fmt_bool(cohort.treatments),
+            cohort.comments or '',
+            op.fea_id if op else '',
+            op.das_id if op else '',
+            op.plan_release if op else '',
+        ]
+
+        for i in range(self._n_treatments):
+            treatment = treatments[i] if i < len(treatments) else None
+            row.extend(self._treatment_values(treatment))
+
+        return row

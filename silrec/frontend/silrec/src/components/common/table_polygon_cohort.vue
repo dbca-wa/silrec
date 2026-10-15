@@ -248,8 +248,8 @@ export default {
                     // Cohort ID
                     {
                         data: 'assigned_cohorts',
-                        name: 'assigned_cohorts',
-                        orderable: false,
+                        name: 'cohort_id',
+                        orderable: true,
                         render: function (data, type, row) {
                             if (data && data.length > 0) {
                                 return data.map((cht) => cht.cohort).join(', ');
@@ -260,8 +260,8 @@ export default {
                     // Objective Code
                     {
                         data: 'assigned_cohorts',
-                        name: 'assigned_cohorts',
-                        orderable: false,
+                        name: 'obj_code',
+                        orderable: true,
                         render: function (data, type, row) {
                             if (data && data.length > 0) {
                                 return data
@@ -278,8 +278,8 @@ export default {
                     // Target BA
                     {
                         data: 'assigned_cohorts',
-                        name: 'assigned_cohorts',
-                        orderable: false,
+                        name: 'target_ba_m2ha',
+                        orderable: true,
                         render: function (data, type, row) {
                             if (data && data.length > 0) {
                                 return data
@@ -298,8 +298,8 @@ export default {
                     // Residual BA
                     {
                         data: 'assigned_cohorts',
-                        name: 'assigned_cohorts',
-                        orderable: false,
+                        name: 'resid_ba_m2ha',
+                        orderable: true,
                         render: function (data, type, row) {
                             if (data && data.length > 0) {
                                 return data
@@ -318,8 +318,8 @@ export default {
                     // Species
                     {
                         data: 'assigned_cohorts',
-                        name: 'assigned_cohorts',
-                        orderable: false,
+                        name: 'species',
+                        orderable: true,
                         render: function (data, type, row) {
                             if (data && data.length > 0) {
                                 return data
@@ -335,8 +335,8 @@ export default {
                     // Status
                     {
                         data: 'assigned_cohorts',
-                        name: 'assigned_cohorts',
-                        orderable: false,
+                        name: 'status_current',
+                        orderable: true,
                         render: function (data, type, row) {
                             if (data && data.length > 0) {
                                 const statuses = data.map((cht) =>

@@ -40,6 +40,16 @@
                             Select by Polygon IDs
                         </button>
                     </li>
+                    <li class="nav-item">
+                        <button
+                            type="button"
+                            class="nav-link"
+                            :class="{ active: section1Tab === 'excel' }"
+                            @click="section1Tab = 'excel'"
+                        >
+                            Excel Upload
+                        </button>
+                    </li>
                 </ul>
 
                 <!-- Tab: Select by Proposal -->
@@ -254,6 +264,28 @@
                     ></textarea>
                 </div>
 
+                <!-- Tab: Excel Upload -->
+                <div v-show="section1Tab === 'excel'">
+                    <label for="excelUpload" class="form-label">
+                        Upload Excel Spreadsheet
+                    </label>
+                    <input
+                        id="excelUpload"
+                        type="file"
+                        class="form-control"
+                        accept=".xlsx,.xls"
+                        @change="onExcelFileSelected"
+                    />
+                    <div class="form-text mt-1">
+                        Upload the completed bulk-update template (download it
+                        from the "2. Preview" header). Processing of uploaded
+                        spreadsheets is coming soon.
+                    </div>
+                    <div v-if="excelFileName" class="mt-2 small text-muted">
+                        Selected file: {{ excelFileName }}
+                    </div>
+                </div>
+
                 <div class="mt-3 d-flex align-items-center">
                     <button
                         type="button"
@@ -283,13 +315,28 @@
                 class="card-header d-flex justify-content-between align-items-center"
             >
                 <h5 class="mb-0">2. Preview</h5>
-                <span
-                    class="badge"
-                    :class="preview.found ? 'bg-success' : 'bg-danger'"
-                >
-                    {{ preview.found }} of {{ preview.requested }} polygon(s)
-                    will be processed
-                </span>
+                <div class="d-flex align-items-center gap-2">
+                    <span
+                        class="badge"
+                        :class="preview.found ? 'bg-success' : 'bg-danger'"
+                    >
+                        {{ preview.found }} of
+                        {{ preview.requested }} polygon(s) will be processed
+                    </span>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success"
+                        :disabled="exporting || !preview.found"
+                        @click="exportTemplate"
+                    >
+                        <span
+                            v-if="exporting"
+                            class="spinner-border spinner-border-sm me-1"
+                        ></span>
+                        <i v-else class="bi bi-file-earmark-excel me-1"></i>
+                        Export Excel Template
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <table
@@ -1079,6 +1126,9 @@ export default {
                     fields: { fea_id: '', das_id: '', plan_release: '' },
                 },
             },
+            exporting: false,
+            excelFile: null,
+            excelFileName: '',
             applying: false,
             result: null,
         };
@@ -1236,6 +1286,52 @@ export default {
         },
         clearPolygonSelection() {
             this.selectedPolygons = new Set();
+        },
+        async exportTemplate() {
+            this.exporting = true;
+            try {
+                const res = await fetch(
+                    api_endpoints.bulk_update_export_template,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken(),
+                        },
+                        body: JSON.stringify({
+                            polygon_ids: this.combinedPolygonIds,
+                        }),
+                    }
+                );
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || 'Export failed');
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'bulk_update_template.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Export failed',
+                    text: String(e.message || e),
+                });
+            } finally {
+                this.exporting = false;
+            }
+        },
+        onExcelFileSelected(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.excelFile = file;
+                this.excelFileName = file.name;
+            }
         },
         buildPayload() {
             const payload = { polygon_ids: this.combinedPolygonIds };

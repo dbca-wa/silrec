@@ -1304,9 +1304,9 @@ export default {
                     !(payload.treatments.match || {}).status
                 ) {
                     swal.fire({
-                        icon: 'warning',
-                        title: 'Treatment section',
-                        text: 'Update mode requires a task and/or status filter.',
+                        icon: 'error',
+                        title: 'Validation Error',
+                        text: 'Update mode requires a Task and/or Status filter.',
                     });
                     return null;
                 }

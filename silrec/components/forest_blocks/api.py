@@ -38,7 +38,7 @@ import os
 from silrec.helpers import is_customer, is_internal
 from silrec.components.proposals.models import   (
     TextSearchFieldDisplay,
-    TextSearchFieldDisplay,
+    Proposal,
 )
 from silrec.components.lookups.models import ObjectiveLkp
 from silrec.components.forest_blocks.models import   (
@@ -1184,3 +1184,401 @@ class TestOperationUpdate(views.APIView):
                 return Response({"error": "Operation not found"}, status=404)
 
         return Response({"error": "No operation ID provided"}, status=400)
+
+
+# ---------------------------------------------------------------------------
+# Bulk update across a set of polygons (cohort / treatments / operation).
+#
+# Two entry points:
+#   POST /api/bulk-update/preview/  -> resolve polygon ids, return what would
+#                                      be touched (no writes).
+#   POST /api/bulk-update/          -> apply the changes in one transaction.
+# ---------------------------------------------------------------------------
+class _BulkUpdateBase(views.APIView):
+    permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
+
+    # Whitelisted, user-settable fields per entity. Everything else in the
+    # request is dropped so a client cannot reach unrelated columns.
+    COHORT_FIELDS = {
+        'obj_code', 'species', 'regen_method', 'site_quality',
+        'target_ba_m2ha', 'resid_ba_m2ha', 'target_spha', 'resid_spha',
+        'comments', 'op_date', 'pct_area', 'year_last_cut',
+        'regen_date', 'regen_date2', 'regen_done', 'complete_date',
+        'herbicide_app_spec', 'vrp', 'vrp_tot_area', 'stand',
+        'extra_info', 'treatments',
+    }
+    TREATMENT_FIELDS = {
+        'task', 'status', 'plan_yr', 'plan_mth', 'pct_area',
+        'complete_date', 'organisation', 'results', 'reference',
+        'initial_plan_yr', 'can_reschedule',
+    }
+    OPERATION_FIELDS = {
+        'fea_id', 'das_id', 'plan_release', 'plan_period', 'document_date',
+    }
+
+    def _parse_polygon_ids(self, raw):
+        """Accept a list of ints or a comma/space/newline/semicolon string."""
+        if raw is None:
+            return None, 'No polygon ids provided'
+        if isinstance(raw, str):
+            tokens = raw.replace(',', ' ').replace(';', ' ').split()
+        elif isinstance(raw, (list, tuple)):
+            tokens = [str(x).strip() for x in raw]
+        else:
+            return None, 'polygon_ids must be a list or a delimited string'
+
+        ids, seen = [], set()
+        for token in tokens:
+            if not token:
+                continue
+            if not token.isdigit():
+                return None, f"Invalid polygon id: '{token}'"
+            n = int(token)
+            if n not in seen:
+                seen.add(n)
+                ids.append(n)
+
+        if not ids:
+            return None, 'No polygon ids provided'
+        return ids, None
+
+    def _resolve(self, ids):
+        """Resolve ids to proposal-linked polygons that have a current cohort.
+
+        Polygons are restricted to the proposals dashboard drill-down, i.e.
+        they must be linked to a proposal. Polygons without a current cohort
+        (or not proposal-linked / missing) are reported as excluded with a
+        reason.
+        """
+        polygons, excluded = [], []
+        for pid in ids:
+            poly = (Polygon.objects.select_related('compartment', 'proposal')
+                    .filter(polygon_id=pid).first())
+            if poly is None:
+                excluded.append({'polygon_id': pid, 'name': None,
+                                 'reason': 'Polygon not found'})
+                continue
+            if poly.proposal_id is None:
+                excluded.append({'polygon_id': pid, 'name': poly.name,
+                                 'reason': 'Not linked to a proposal (not available in the proposals dashboard)'})
+                continue
+            assignment = (AssignChtToPly.objects
+                          .filter(polygon=poly, status_current=True)
+                          .select_related('cohort')
+                          .order_by('-cht2ply_id').first())
+            if assignment is None or assignment.cohort_id is None:
+                excluded.append({'polygon_id': pid, 'name': poly.name,
+                                 'reason': 'No current cohort assigned'})
+                continue
+            polygons.append({
+                'polygon': poly,
+                'cohort': assignment.cohort,
+                'assignment': assignment,
+            })
+        return polygons, excluded
+
+    def _pick(self, allowed, fields):
+        """Keep only whitelisted keys with a non-empty value."""
+        if not fields:
+            return {}
+        out = {}
+        for key, value in fields.items():
+            if key not in allowed:
+                continue
+            if value is None or value == '':
+                continue
+            out[key] = value
+        return out
+
+    def _operation_for_cohort(self, cohort):
+        if not cohort.op_id:
+            return None
+        return Operation.objects.filter(op_id=cohort.op_id).first()
+
+    def _serializer_errors(self, serializer):
+        errors = []
+        for field, msgs in serializer.errors.items():
+            errors.append(f"{field}: {', '.join(str(m) for m in msgs)}")
+        return errors
+
+
+class BulkUpdatePreviewView(_BulkUpdateBase):
+    def post(self, request):
+        ids, err = self._parse_polygon_ids(request.data.get('polygon_ids'))
+        if err:
+            return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
+
+        polygons, excluded = self._resolve(ids)
+        rows = []
+        for item in polygons:
+            poly, cohort = item['polygon'], item['cohort']
+            op = self._operation_for_cohort(cohort)
+            rows.append({
+                'polygon_id': poly.polygon_id,
+                'name': poly.name,
+                'compartment': poly.compartment.compartment if poly.compartment else None,
+                'proposal_id': poly.proposal_id,
+                'cohort_id': cohort.cohort_id,
+                'obj_code': cohort.obj_code,
+                'species': cohort.species,
+                'treatment_count': Treatment.objects.filter(cohort=cohort).count(),
+                'operation': {'op_id': op.op_id, 'fea_id': op.fea_id} if op else None,
+            })
+
+        return Response({
+            'requested': len(ids),
+            'found': len(rows),
+            'excluded': excluded,
+            'polygons': rows,
+        })
+
+
+class BulkUpdateApplyView(_BulkUpdateBase):
+    def post(self, request):
+        payload = request.data or {}
+        ids, err = self._parse_polygon_ids(payload.get('polygon_ids'))
+        if err:
+            return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
+
+        polygons, excluded = self._resolve(ids)
+
+        cohort_section = payload.get('cohort') or {}
+        treatment_section = payload.get('treatments') or {}
+        operation_section = payload.get('operation') or {}
+
+        # Upfront validation (nothing written yet) so the user sees all errors.
+        problems = self._validate_payload(request, cohort_section, treatment_section, operation_section)
+        if problems:
+            return Response({'error': 'Validation failed', 'details': problems},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        results = []
+        try:
+            with transaction.atomic():
+                for item in polygons:
+                    results.append(self._apply_one(
+                        request, item, cohort_section, treatment_section, operation_section
+                    ))
+        except serializers.ValidationError as exc:
+            return Response({'error': 'Validation failed', 'details': exc.detail},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception('Bulk update failed and was rolled back')
+            return Response(
+                {'error': 'Bulk update failed and was rolled back. No changes were applied.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'applied': len([r for r in results if not r.get('skipped')]),
+            'excluded': excluded,
+            'results': results,
+        })
+
+    def _validate_payload(self, request, cohort_section, treatment_section, operation_section):
+        problems = []
+
+        cohort_fields = self._pick(self.COHORT_FIELDS, cohort_section.get('fields'))
+        if cohort_fields:
+            ser = CohortSerializer(data=cohort_fields, partial=True, context={'request': request})
+            if not ser.is_valid():
+                problems.extend(self._serializer_errors(ser))
+
+        treatment_mode = treatment_section.get('mode', 'create')
+        treatment_fields = self._pick(self.TREATMENT_FIELDS, treatment_section.get('fields'))
+        if treatment_section:
+            if treatment_mode == 'create':
+                task = (treatment_section.get('fields') or {}).get('task')
+                if not task or not str(task).strip():
+                    problems.append('treatments.task: Must select a Task')
+                else:
+                    ser = TreatmentSerializer(
+                        data={**treatment_fields, 'task': task},
+                        context={'request': request},
+                    )
+                    if not ser.is_valid():
+                        problems.extend(self._serializer_errors(ser))
+            elif treatment_mode == 'update':
+                match = treatment_section.get('match') or {}
+                if not (match.get('task') or match.get('status')):
+                    problems.append('treatments.match: update mode requires a task and/or status filter')
+                if treatment_fields:
+                    ser = TreatmentSerializer(data=treatment_fields, partial=True, context={'request': request})
+                    if not ser.is_valid():
+                        problems.extend(self._serializer_errors(ser))
+            else:
+                problems.append(f"treatments.mode: unsupported mode '{treatment_mode}'")
+
+        operation_mode = operation_section.get('mode', 'create')
+        operation_fields = self._pick(self.OPERATION_FIELDS, operation_section.get('fields'))
+        if operation_section:
+            if operation_mode == 'create':
+                fea_id = (operation_section.get('fields') or {}).get('fea_id')
+                if not fea_id or not str(fea_id).strip():
+                    problems.append('operation.fea_id: Must enter an FEA ID')
+                else:
+                    ser = OperationSerializer(data=operation_fields, context={'request': request})
+                    if not ser.is_valid():
+                        problems.extend(self._serializer_errors(ser))
+            elif operation_mode == 'update':
+                if operation_fields:
+                    ser = OperationSerializer(data=operation_fields, partial=True, context={'request': request})
+                    if not ser.is_valid():
+                        problems.extend(self._serializer_errors(ser))
+            else:
+                problems.append(f"operation.mode: unsupported mode '{operation_mode}'")
+
+        return problems
+
+    def _apply_one(self, request, item, cohort_section, treatment_section, operation_section):
+        poly, cohort, assignment = item['polygon'], item['cohort'], item['assignment']
+        result = {
+            'polygon_id': poly.polygon_id,
+            'cohort_id': cohort.cohort_id,
+            'cohort_updated': False,
+            'treatments_created': [],
+            'treatments_updated': [],
+            'operation_created': None,
+            'operation_updated': None,
+            'notes': [],
+            'skipped': False,
+        }
+
+        # Cohort: update the current cohort with the provided fields.
+        cohort_fields = self._pick(self.COHORT_FIELDS, cohort_section.get('fields'))
+        if cohort_fields:
+            ser = CohortSerializer(instance=cohort, data=cohort_fields, partial=True,
+                                   context={'request': request})
+            ser.is_valid(raise_exception=True)
+            ser.save()
+            result['cohort_updated'] = True
+
+        # Treatments.
+        treatment_mode = treatment_section.get('mode', 'create')
+        treatment_fields = self._pick(self.TREATMENT_FIELDS, treatment_section.get('fields'))
+        if treatment_mode == 'create' and (treatment_fields or (treatment_section.get('fields') or {}).get('task')):
+            ser = TreatmentSerializer(
+                data={**treatment_fields, 'cohort': cohort.cohort_id},
+                context={'request': request},
+            )
+            ser.is_valid(raise_exception=True)
+            created = ser.save()
+            result['treatments_created'].append(created.treatment_id)
+        elif treatment_mode == 'update' and treatment_fields:
+            qs = Treatment.objects.filter(cohort=cohort)
+            match = treatment_section.get('match') or {}
+            if match.get('task'):
+                qs = qs.filter(task=match['task'])
+            if match.get('status'):
+                qs = qs.filter(status=match['status'])
+            matched = list(qs)
+            if not matched:
+                result['notes'].append('No treatments matched the update filter')
+            for treatment in matched:
+                ser = TreatmentSerializer(instance=treatment, data=treatment_fields,
+                                          partial=True, context={'request': request})
+                ser.is_valid(raise_exception=True)
+                ser.save()
+                result['treatments_updated'].append(treatment.treatment_id)
+
+        # Operation.
+        operation_mode = operation_section.get('mode', 'create')
+        operation_fields = self._pick(self.OPERATION_FIELDS, operation_section.get('fields'))
+        if operation_mode == 'create' and operation_fields:
+            if cohort.op_id:
+                result['notes'].append(
+                    f"Operation skipped: cohort already has an operation (op_id={cohort.op_id}); use update mode"
+                )
+            else:
+                ser = OperationSerializer(data=operation_fields, context={'request': request})
+                ser.is_valid(raise_exception=True)
+                operation = ser.save()
+                cohort.op_id = operation.op_id
+                cohort.save(update_fields=['op_id'])
+                assignment.op = operation
+                assignment.save(update_fields=['op'])
+                result['operation_created'] = operation.op_id
+        elif operation_mode == 'update' and operation_fields:
+            if not cohort.op_id:
+                result['notes'].append('Operation skipped: cohort has no operation linked')
+            else:
+                operation = self._operation_for_cohort(cohort)
+                if operation is None:
+                    result['notes'].append(
+                        f"Operation skipped: operation (op_id={cohort.op_id}) not found"
+                    )
+                else:
+                    ser = OperationSerializer(instance=operation, data=operation_fields,
+                                              partial=True, context={'request': request})
+                    ser.is_valid(raise_exception=True)
+                    ser.save()
+                    result['operation_updated'] = operation.op_id
+
+        return result
+
+
+class BulkUpdateProposalListView(_BulkUpdateBase):
+    """Paginated, searchable proposal list for the bulk-update checkbox UI."""
+
+    def get(self, request):
+        qs = Proposal.objects.exclude(processing_status__in=[
+            Proposal.PROCESSING_STATUS_DISCARDED,
+            Proposal.PROCESSING_STATUS_TEMP,
+        ]).order_by('-lodgement_number')
+
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            q = Q(lodgement_number__icontains=search)
+            if search.isdigit():
+                q |= Q(id=int(search))
+            qs = qs.filter(q)
+
+        paginator = PageNumberPagination()
+        try:
+            paginator.page_size = int(request.query_params.get('page_size') or 10)
+        except (TypeError, ValueError):
+            paginator.page_size = 10
+        page = paginator.paginate_queryset(qs, request)
+        data = [{'id': p.id, 'lodgement_number': p.lodgement_number} for p in page]
+        return paginator.get_paginated_response(data)
+
+
+class BulkUpdatePolygonListView(_BulkUpdateBase):
+    """Paginated polygon list for selected proposal(s), plus an all-ids mode."""
+
+    def get(self, request):
+        proposal_ids = self._parse_proposal_ids(request.query_params.get('proposal_ids'))
+        if not proposal_ids:
+            return Response({'error': 'proposal_ids is required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Polygon.objects.filter(proposal_id__in=proposal_ids).order_by('polygon_id')
+
+        if request.query_params.get('all_ids') == '1':
+            ids = [int(x) for x in qs.values_list('polygon_id', flat=True)]
+            return Response({'count': len(ids), 'polygon_ids': ids})
+
+        paginator = PageNumberPagination()
+        try:
+            paginator.page_size = int(request.query_params.get('page_size') or 20)
+        except (TypeError, ValueError):
+            paginator.page_size = 20
+        page = paginator.paginate_queryset(qs, request)
+        data = [{'polygon_id': p.polygon_id, 'name': p.name} for p in page]
+        return paginator.get_paginated_response(data)
+
+    def _parse_proposal_ids(self, raw):
+        if not raw:
+            return None
+        if isinstance(raw, (list, tuple)):
+            tokens = [str(x).strip() for x in raw]
+        else:
+            tokens = raw.replace(',', ' ').split()
+        ids = []
+        for token in tokens:
+            if not token:
+                continue
+            if not token.isdigit():
+                return None
+            ids.append(int(token))
+        return ids or None

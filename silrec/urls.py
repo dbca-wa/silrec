@@ -193,6 +193,11 @@ urlpatterns = [
 
     re_path('api/debug-polygon-relations/', forest_blocks_api.DebugPolygonRelationsView.as_view(), name='debug-polygon-relations'),
 
+    re_path(r'^api/bulk-update/preview/$', forest_blocks_api.BulkUpdatePreviewView.as_view(), name='bulk-update-preview'),
+    re_path(r'^api/bulk-update/$', forest_blocks_api.BulkUpdateApplyView.as_view(), name='bulk-update'),
+    re_path(r'^api/bulk-update/proposals/$', forest_blocks_api.BulkUpdateProposalListView.as_view(), name='bulk-update-proposals'),
+    re_path(r'^api/bulk-update/polygons/$', forest_blocks_api.BulkUpdatePolygonListView.as_view(), name='bulk-update-polygons'),
+
     re_path(
         r"^api/shapefile-processings/$",
         proposal_api.ShapefileProcessingListView.as_view(),

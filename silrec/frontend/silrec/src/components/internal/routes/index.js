@@ -30,6 +30,7 @@ import PolygonDetail from '@/components/internal/polygons/polygon_detail.vue';
 import TreatmentExtraDetailPage from '@/components/internal/treatments/treatment_extra_detail_page.vue';
 import SilviculturistCommentDetail from '@/components/internal/silviculturist_comments/silviculturist_comment_detail.vue';
 import SurveyDocumentDetail from '@/components/internal/survey_documents/survey_document_detail.vue';
+import BulkUpdate from '@/components/internal/bulk_update/bulk_update.vue';
 
 export default {
     path: '/internal',
@@ -165,6 +166,11 @@ export default {
             name: 'survey-document-detail',
             component: SurveyDocumentDetail,
             props: true,
+        },
+        {
+            path: 'bulk-update',
+            component: BulkUpdate,
+            name: 'bulk-update',
         },
     ],
 };

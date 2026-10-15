@@ -1317,9 +1317,9 @@ export default {
                     !(payload.operation.fields || {}).fea_id
                 ) {
                     swal.fire({
-                        icon: 'warning',
-                        title: 'Operation section',
-                        text: 'FEA ID is required when creating an operation.',
+                        icon: 'error',
+                        title: 'Validation Error',
+                        text: 'Must enter FEA ID.',
                     });
                     return null;
                 }

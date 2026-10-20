@@ -69,6 +69,14 @@
                         >
                             Search
                         </button>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            @click="clearProposalSelection"
+                            title="Clear selected proposals and polygons"
+                        >
+                            Clear
+                        </button>
                     </div>
 
                     <!-- Paginated proposal checkbox list -->
@@ -262,6 +270,15 @@
                         rows="8"
                         placeholder="e.g. 402346, 402347, 402348"
                     ></textarea>
+                    <div class="mt-2">
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            @click="clearPolygonIds"
+                        >
+                            Clear
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Tab: Excel Upload -->
@@ -526,7 +543,7 @@
                         {{ resolving ? 'Resolving...' : 'Resolve Polygons' }}
                     </button>
                     <span class="ms-3 text-muted"
-                        >Selected: {{ combinedPolygonCount }} polygon(s)</span
+                        >Selected: {{ activePolygonCount }} polygon(s)</span
                     >
                     <span v-if="resolveError" class="text-danger ms-3">{{
                         resolveError
@@ -1278,6 +1295,7 @@ export default {
             section1Tab: 'proposal',
             resolving: false,
             resolved: false,
+            resolvedIds: [],
             resolveError: null,
             preview: { requested: 0, found: 0, excluded: [], polygons: [] },
 
@@ -1374,25 +1392,30 @@ export default {
         selectedProposalsList() {
             return Array.from(this.selectedProposals);
         },
-        combinedPolygonIds() {
-            const ids = new Set(this.selectedPolygons);
-            const text = (this.polygonIdsText || '').trim();
-            if (text) {
-                const tokens = text
-                    .replace(/,/g, ' ')
-                    .replace(/;/g, ' ')
-                    .split(/\s+/);
-                tokens.forEach((t) => {
-                    if (t && /^\d+$/.test(t)) ids.add(parseInt(t, 10));
-                });
+        activePolygonIds() {
+            if (this.section1Tab === 'proposal') {
+                return Array.from(this.selectedPolygons).sort((a, b) => a - b);
             }
-            return Array.from(ids).sort((a, b) => a - b);
+            if (this.section1Tab === 'polygons') {
+                const text = (this.polygonIdsText || '').trim();
+                const ids = new Set();
+                if (text) {
+                    text.replace(/,/g, ' ')
+                        .replace(/;/g, ' ')
+                        .split(/\s+/)
+                        .forEach((t) => {
+                            if (t && /^\d+$/.test(t)) ids.add(parseInt(t, 10));
+                        });
+                }
+                return Array.from(ids).sort((a, b) => a - b);
+            }
+            return [];
         },
-        combinedPolygonCount() {
-            return this.combinedPolygonIds.length;
+        activePolygonCount() {
+            return this.activePolygonIds.length;
         },
         hasAnyPolygons() {
-            return this.combinedPolygonIds.length > 0;
+            return this.activePolygonCount > 0;
         },
         uploadedPolygonIds() {
             if (!this.uploadResult || !this.uploadResult.results) return [];
@@ -1534,7 +1557,7 @@ export default {
                             'X-CSRFToken': this.getCSRFToken(),
                         },
                         body: JSON.stringify({
-                            polygon_ids: this.combinedPolygonIds,
+                            polygon_ids: this.resolvedIds,
                         }),
                     }
                 );
@@ -1585,6 +1608,31 @@ export default {
             this.excelResolving = false;
             const input = this.$refs.excelInput;
             if (input) input.value = '';
+        },
+        clearProposalSelection() {
+            this.selectedProposals = new Set();
+            this.proposalLabels = {};
+            this.selectedPolygons = new Set();
+            this.polygonResults = [];
+            this.polygonCount = 0;
+            this.polygonPage = 1;
+            this.resetResolvedState();
+        },
+        clearPolygonIds() {
+            this.polygonIdsText = '';
+            this.resetResolvedState();
+        },
+        resetResolvedState() {
+            this.resolved = false;
+            this.resolvedIds = [];
+            this.preview = {
+                requested: 0,
+                found: 0,
+                excluded: [],
+                polygons: [],
+            };
+            this.result = null;
+            this.resolveError = null;
         },
         async uploadExcel() {
             if (!this.excelFile) {
@@ -1732,7 +1780,7 @@ export default {
             }
         },
         buildPayload() {
-            const payload = { polygon_ids: this.combinedPolygonIds };
+            const payload = { polygon_ids: this.resolvedIds };
             if (this.sections.cohort.enabled) {
                 const fields = this.clean(this.sections.cohort.fields);
                 if (Object.keys(fields).length) payload.cohort = { fields };
@@ -1820,6 +1868,13 @@ export default {
             }
             return payload;
         },
+        initFromQuery() {
+            const ids = this.$route.query.polygon_ids;
+            if (ids) {
+                this.polygonIdsText = String(ids);
+                this.section1Tab = 'polygons';
+            }
+        },
         async loadLookups() {
             try {
                 const res = await fetch(api_endpoints.combined_lookups);
@@ -1844,11 +1899,13 @@ export default {
             }
         },
         async resolvePolygons() {
-            if (!this.hasAnyPolygons) {
+            const ids = this.activePolygonIds;
+            if (!ids.length) {
                 this.resolveError =
                     'Enter polygon IDs or select polygons from proposals.';
                 return;
             }
+            this.resolvedIds = ids.slice();
             this.resolving = true;
             this.resolveError = null;
             this.resolved = false;
@@ -1861,7 +1918,7 @@ export default {
                         'X-CSRFToken': this.getCSRFToken(),
                     },
                     body: JSON.stringify({
-                        polygon_ids: this.combinedPolygonIds,
+                        polygon_ids: ids,
                     }),
                 });
                 const data = await res.json();
@@ -1889,7 +1946,7 @@ export default {
                         'X-CSRFToken': this.getCSRFToken(),
                     },
                     body: JSON.stringify({
-                        polygon_ids: this.combinedPolygonIds,
+                        polygon_ids: this.resolvedIds,
                     }),
                 });
                 const data = await res.json();
@@ -1974,6 +2031,7 @@ export default {
     mounted() {
         this.loadLookups();
         this.searchProposals(1);
+        this.initFromQuery();
     },
 };
 </script>

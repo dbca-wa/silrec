@@ -281,12 +281,21 @@
                                 {{ tableVisible ? 'Hide Table' : 'Show Table' }}
                             </button>
                             <button
-                                class="btn btn-sm btn-light"
+                                class="btn btn-sm btn-light me-2"
                                 @click="refreshData"
                                 title="Refresh data"
                             >
                                 <i class="bi bi-arrow-clockwise"></i>
                                 Refresh
+                            </button>
+                            <button
+                                class="btn btn-sm btn-light"
+                                :disabled="!filteredPolygonIds.length"
+                                @click="goToBulkUpdate"
+                                title="Open Bulk Update with the filtered polygon IDs"
+                            >
+                                <i class="bi bi-pencil-square"></i>
+                                Bulk Update ({{ filteredPolygonIds.length }})
                             </button>
                         </div>
                     </div>
@@ -867,6 +876,12 @@ export default {
         },
         additionalFields() {
             return this.additionalFieldsConfig || [];
+        },
+        filteredPolygonIds() {
+            const ids = (this.filteredPolygons || [])
+                .map((p) => p.polygon_id)
+                .filter((id) => id !== null && id !== undefined && id !== '');
+            return Array.from(new Set(ids)).sort((a, b) => a - b);
         },
         getZoomToLayerTitle() {
             return 'Zoom to visible features';
@@ -1705,6 +1720,18 @@ export default {
         },
 
         // DataTable methods
+        goToBulkUpdate() {
+            const ids = this.filteredPolygonIds;
+            if (!ids.length) return;
+            const query = { polygon_ids: ids.join(',') };
+            if (this.$router && this.$router.push) {
+                this.$router.push({ name: 'bulk-update', query });
+            } else {
+                window.location.href =
+                    '/internal/bulk-update?polygon_ids=' +
+                    encodeURIComponent(ids.join(','));
+            }
+        },
         toggleTable() {
             this.tableVisible = !this.tableVisible;
             if (this.tableVisible) {

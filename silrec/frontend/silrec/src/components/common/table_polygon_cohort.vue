@@ -177,7 +177,7 @@ export default {
     computed: {
         dtHeaders() {
             return [
-                'ID',
+                'Polygon ID',
                 'Polygon Name',
                 'FEA ID',
                 'Area (ha)',
@@ -215,7 +215,6 @@ export default {
                     {
                         data: 'polygon_id',
                         name: 'polygon_id',
-                        visible: false,
                         orderable: true,
                     },
                     // Polygon Name
@@ -242,7 +241,25 @@ export default {
                         name: 'area_ha',
                         orderable: true,
                         render: function (data, type, row) {
-                            return data ? data.toFixed(2) : 'N/A';
+                            if (
+                                data === null ||
+                                data === undefined ||
+                                data === ''
+                            ) {
+                                return 'N/A';
+                            }
+                            const num = Number(data);
+                            if (!Number.isFinite(num)) return 'N/A';
+                            if (num !== 0 && num.toFixed(2) === '0.00') {
+                                for (let d = 3; d <= 5; d++) {
+                                    if (
+                                        Math.round(num * Math.pow(10, d)) !== 0
+                                    ) {
+                                        return num.toFixed(d);
+                                    }
+                                }
+                            }
+                            return num.toFixed(2);
                         },
                     },
                     // Cohort ID

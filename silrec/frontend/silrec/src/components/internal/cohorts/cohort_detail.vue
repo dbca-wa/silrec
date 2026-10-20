@@ -25,6 +25,84 @@
             </router-link>
         </div>
 
+        <!-- Recent bulk update changes -->
+        <div v-if="bulkChanges" class="alert alert-info mb-4">
+            <h6 class="mb-2">
+                <i class="bi bi-arrow-repeat me-1"></i> Recent bulk update
+                changes
+            </h6>
+            <div
+                v-if="bulkChanges.cohort && bulkChanges.cohort.length"
+                class="small mb-2"
+            >
+                <strong>Changed cohort fields:</strong>
+                <ul class="mb-1 ps-3">
+                    <li v-for="c in bulkChanges.cohort" :key="c.field">
+                        <code>{{ fieldLabel(c.field) }}</code
+                        >: {{ fmtBulk(c.old) }} →
+                        {{ fmtBulk(c.new) }}
+                    </li>
+                </ul>
+            </div>
+            <div
+                v-if="
+                    bulkChanges.treatments_created &&
+                    bulkChanges.treatments_created.length
+                "
+                class="small mb-2"
+            >
+                <strong>New treatments:</strong>
+                <span
+                    class="badge bg-success me-1"
+                    v-for="tid in bulkChanges.treatments_created"
+                    :key="tid"
+                    >#{{ tid }}</span
+                >
+            </div>
+            <div
+                v-if="
+                    bulkChanges.treatments_updated &&
+                    bulkChanges.treatments_updated.length
+                "
+                class="small mb-2"
+            >
+                <strong>Updated treatments:</strong>
+                <ul class="mb-1 ps-3">
+                    <li
+                        v-for="t in bulkChanges.treatments_updated"
+                        :key="t.treatment_id"
+                    >
+                        <span class="badge bg-info me-1"
+                            >#{{ t.treatment_id }}</span
+                        >
+                        <span v-for="c in t.changes" :key="c.field">
+                            <code>{{ fieldLabel(c.field) }}</code
+                            >: {{ fmtBulk(c.old) }} → {{ fmtBulk(c.new) }};
+                        </span>
+                    </li>
+                </ul>
+            </div>
+            <div v-if="bulkChanges.operation_created" class="small mb-2">
+                <strong>New operation:</strong>
+                <span class="badge bg-success"
+                    >#{{ bulkChanges.operation_created }}</span
+                >
+            </div>
+            <div v-if="bulkChanges.operation_updated" class="small">
+                <strong>Updated operation:</strong>
+                <span class="badge bg-info"
+                    >#{{ bulkChanges.operation_updated }}</span
+                >
+                <span
+                    v-for="c in bulkChanges.operation_changes || []"
+                    :key="c.field"
+                >
+                    <code>{{ fieldLabel(c.field) }}</code
+                    >: {{ fmtBulk(c.old) }} → {{ fmtBulk(c.new) }};
+                </span>
+            </div>
+        </div>
+
         <!-- Loading state -->
         <div v-if="loading" class="text-center">
             <div class="spinner-border" role="status">
@@ -386,6 +464,7 @@ import SystemInformation from '@/components/internal/cohorts/system_info_cohort.
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
 import OperationForm from '@/components/internal/operations/operations_form.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
+import { FIELD_LABELS } from '@/utils/fieldLabels';
 import permissionsMixin from '@/mixins/permissions';
 import formValidationMixin from '@/mixins/form_validation';
 
@@ -442,6 +521,7 @@ export default {
             operationDetails: null,
             feaId: '',
             operationFormKey: 0,
+            bulkChanges: null,
         };
     },
     computed: {
@@ -463,6 +543,26 @@ export default {
         },
     },
     methods: {
+        fmtBulk(v) {
+            if (v === null || v === undefined) return '(empty)';
+            return String(v);
+        },
+        fieldLabel(name) {
+            return FIELD_LABELS[name] || name;
+        },
+        parseBulkChanges() {
+            const raw = this.$route.query.bulkchanges;
+            if (!raw) {
+                this.bulkChanges = null;
+                return;
+            }
+            try {
+                this.bulkChanges = JSON.parse(raw);
+            } catch (e) {
+                console.error('Failed to parse bulk changes', e);
+                this.bulkChanges = null;
+            }
+        },
         async loadCohortData() {
             this.loading = true;
             this.error = null;
@@ -934,6 +1034,7 @@ export default {
         this.loadCohortData();
         this.loadUserPermissions();
         this.fetchValidationRules('forest_blocks.Cohort');
+        this.parseBulkChanges();
 
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
     },

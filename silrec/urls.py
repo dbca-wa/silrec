@@ -198,6 +198,7 @@ urlpatterns = [
     re_path(r'^api/bulk-update/proposals/$', forest_blocks_api.BulkUpdateProposalListView.as_view(), name='bulk-update-proposals'),
     re_path(r'^api/bulk-update/polygons/$', forest_blocks_api.BulkUpdatePolygonListView.as_view(), name='bulk-update-polygons'),
     re_path(r'^api/bulk-update/export-template/$', forest_blocks_api.BulkUpdateExportTemplateView.as_view(), name='bulk-update-export-template'),
+    re_path(r'^api/bulk-update/upload/$', forest_blocks_api.BulkUpdateUploadView.as_view(), name='bulk-update-upload'),
 
     re_path(
         r"^api/shapefile-processings/$",

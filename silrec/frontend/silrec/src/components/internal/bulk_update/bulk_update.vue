@@ -271,6 +271,7 @@
                     </label>
                     <input
                         id="excelUpload"
+                        ref="excelInput"
                         type="file"
                         class="form-control"
                         accept=".xlsx,.xls"
@@ -278,15 +279,240 @@
                     />
                     <div class="form-text mt-1">
                         Upload the completed bulk-update template (download it
-                        from the "2. Preview" header). Processing of uploaded
-                        spreadsheets is coming soon.
+                        from the "2. Preview" header). The spreadsheet is
+                        validated before any changes are applied; errors are
+                        reported with their row and column location.
                     </div>
                     <div v-if="excelFileName" class="mt-2 small text-muted">
                         Selected file: {{ excelFileName }}
                     </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            :disabled="uploading || !excelFile"
+                            @click="uploadExcel"
+                        >
+                            <span
+                                v-if="uploading"
+                                class="spinner-border spinner-border-sm me-1"
+                            ></span>
+                            {{
+                                uploading ? 'Uploading...' : 'Upload and Apply'
+                            }}
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            @click="clearExcel"
+                        >
+                            Clear
+                        </button>
+                    </div>
+
+                    <!-- Upload summary + resolve (shown after upload) -->
+                    <div v-if="uploadResult" class="mt-4">
+                        <h6 class="mb-2">
+                            <i class="bi bi-list-check me-1"></i>
+                            Upload summary
+                        </h6>
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Polygon</th>
+                                    <th>Cohort changes</th>
+                                    <th>New treatments</th>
+                                    <th>Updated treatments</th>
+                                    <th>Operation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="r in uploadResult.results"
+                                    :key="r.polygon_id"
+                                >
+                                    <td>
+                                        {{ r.polygon_id }}
+                                        <span class="text-muted small"
+                                            >(cohort {{ r.cohort_id }})</span
+                                        >
+                                    </td>
+                                    <td>
+                                        <div
+                                            v-if="
+                                                r.cohort_changes &&
+                                                r.cohort_changes.length
+                                            "
+                                            class="small"
+                                        >
+                                            <div
+                                                v-for="c in r.cohort_changes"
+                                                :key="c.field"
+                                            >
+                                                <code>{{
+                                                    fieldLabel(c.field)
+                                                }}</code
+                                                >: {{ fmtVal(c.old) }} →
+                                                {{ fmtVal(c.new) }}
+                                            </div>
+                                        </div>
+                                        <span v-else class="text-muted">-</span>
+                                    </td>
+                                    <td>
+                                        <span
+                                            v-for="tid in r.treatments_created"
+                                            :key="tid"
+                                            class="badge bg-success me-1"
+                                            >new #{{ tid }}</span
+                                        >
+                                        <span
+                                            v-if="!r.treatments_created.length"
+                                            class="text-muted"
+                                            >-</span
+                                        >
+                                    </td>
+                                    <td>
+                                        <div
+                                            v-if="
+                                                r.treatment_changes &&
+                                                r.treatment_changes.length
+                                            "
+                                            class="small"
+                                        >
+                                            <div
+                                                v-for="t in r.treatment_changes"
+                                                :key="t.treatment_id"
+                                            >
+                                                <span class="badge bg-info me-1"
+                                                    >#{{ t.treatment_id }}</span
+                                                >
+                                                <span
+                                                    v-for="c in t.changes"
+                                                    :key="c.field"
+                                                >
+                                                    <code>{{
+                                                        fieldLabel(c.field)
+                                                    }}</code
+                                                    >: {{ fmtVal(c.old) }} →
+                                                    {{ fmtVal(c.new) }};
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span v-else class="text-muted">-</span>
+                                    </td>
+                                    <td>
+                                        <div
+                                            v-if="r.operation_created"
+                                            class="small"
+                                        >
+                                            <span class="badge bg-success"
+                                                >new #{{
+                                                    r.operation_created
+                                                }}</span
+                                            >
+                                        </div>
+                                        <div
+                                            v-else-if="r.operation_updated"
+                                            class="small"
+                                        >
+                                            <span class="badge bg-info"
+                                                >updated #{{
+                                                    r.operation_updated
+                                                }}</span
+                                            >
+                                            <span
+                                                v-for="c in r.operation_changes ||
+                                                []"
+                                                :key="c.field"
+                                            >
+                                                <code>{{
+                                                    fieldLabel(c.field)
+                                                }}</code
+                                                >: {{ fmtVal(c.old) }} →
+                                                {{ fmtVal(c.new) }};
+                                            </span>
+                                        </div>
+                                        <span v-else class="text-muted">-</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="d-flex align-items-center mt-2">
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                :disabled="excelResolving"
+                                @click="resolveUploadedPolygons"
+                            >
+                                <span
+                                    v-if="excelResolving"
+                                    class="spinner-border spinner-border-sm me-1"
+                                ></span>
+                                {{
+                                    excelResolving
+                                        ? 'Resolving...'
+                                        : 'Resolve Uploaded Polygons'
+                                }}
+                            </button>
+                        </div>
+
+                        <div v-if="excelPreview" class="mt-3">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Polygon ID</th>
+                                        <th>Name</th>
+                                        <th>Compartment</th>
+                                        <th>Proposal</th>
+                                        <th>Cohort</th>
+                                        <th>Objective</th>
+                                        <th>Species</th>
+                                        <th>Treatments</th>
+                                        <th>Operation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="p in excelPreview.polygons"
+                                        :key="p.polygon_id"
+                                    >
+                                        <td>
+                                            {{ p.polygon_id }}
+                                            <a
+                                                :href="viewLink(p)"
+                                                target="_blank"
+                                                class="text-decoration-none ms-1"
+                                                title="View form (read-only)"
+                                            >
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                        <td>{{ p.name || '-' }}</td>
+                                        <td>{{ p.compartment || '-' }}</td>
+                                        <td>{{ p.proposal_id }}</td>
+                                        <td>{{ p.cohort_id }}</td>
+                                        <td>{{ p.obj_code || '-' }}</td>
+                                        <td>{{ p.species || '-' }}</td>
+                                        <td>{{ p.treatment_count }}</td>
+                                        <td>
+                                            {{
+                                                p.operation
+                                                    ? p.operation.fea_id
+                                                    : '-'
+                                            }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mt-3 d-flex align-items-center">
+                <div
+                    v-if="section1Tab !== 'excel'"
+                    class="mt-3 d-flex align-items-center"
+                >
                     <button
                         type="button"
                         class="btn btn-primary"
@@ -1042,6 +1268,7 @@
 
 <script>
 import { api_endpoints } from '@/utils/hooks';
+import { FIELD_LABELS } from '@/utils/fieldLabels';
 
 export default {
     name: 'BulkUpdate',
@@ -1129,8 +1356,12 @@ export default {
             exporting: false,
             excelFile: null,
             excelFileName: '',
+            uploading: false,
             applying: false,
             result: null,
+            uploadResult: null,
+            excelPreview: null,
+            excelResolving: false,
         };
     },
     computed: {
@@ -1162,6 +1393,10 @@ export default {
         },
         hasAnyPolygons() {
             return this.combinedPolygonIds.length > 0;
+        },
+        uploadedPolygonIds() {
+            if (!this.uploadResult || !this.uploadResult.results) return [];
+            return this.uploadResult.results.map((r) => r.polygon_id);
         },
     },
     methods: {
@@ -1311,7 +1546,13 @@ export default {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'bulk_update_template.xlsx';
+                let filename = 'bulk_update_template.xlsx';
+                const disposition = res.headers.get('Content-Disposition');
+                if (disposition) {
+                    const match = disposition.match(/filename="([^"]+)"/);
+                    if (match) filename = match[1];
+                }
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -1331,6 +1572,163 @@ export default {
             if (file) {
                 this.excelFile = file;
                 this.excelFileName = file.name;
+                // Choosing a (new) file invalidates any previous upload summary.
+                this.uploadResult = null;
+                this.excelPreview = null;
+            }
+        },
+        clearExcel() {
+            this.excelFile = null;
+            this.excelFileName = '';
+            this.uploadResult = null;
+            this.excelPreview = null;
+            this.excelResolving = false;
+            const input = this.$refs.excelInput;
+            if (input) input.value = '';
+        },
+        async uploadExcel() {
+            if (!this.excelFile) {
+                await swal.fire({
+                    icon: 'warning',
+                    title: 'No file selected',
+                    text: 'Select an Excel spreadsheet to upload.',
+                });
+                return;
+            }
+            this.uploading = true;
+            try {
+                const formData = new FormData();
+                formData.append('file', this.excelFile);
+                const res = await fetch(api_endpoints.bulk_update_upload, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': this.getCSRFToken() },
+                    body: formData,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    if (data.errors && data.errors.length) {
+                        await this.showValidationErrors(data.errors);
+                    } else {
+                        const detail =
+                            data.error ||
+                            (data.details
+                                ? JSON.stringify(data.details)
+                                : 'Upload failed');
+                        await swal.fire({
+                            icon: 'error',
+                            title: 'Upload failed',
+                            text: String(detail),
+                        });
+                    }
+                    return;
+                }
+                this.uploadResult = data;
+                this.excelPreview = null;
+                await swal.fire({
+                    icon: 'success',
+                    title: 'Upload complete',
+                    text: `${data.processed} polygon(s) processed.`,
+                });
+            } catch (e) {
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Upload failed',
+                    text: String(e.message || e),
+                });
+            } finally {
+                this.uploading = false;
+            }
+        },
+        showValidationErrors(errors) {
+            const maxRows = 100;
+            const shown = errors.slice(0, maxRows);
+            const escapeHtml = (s) =>
+                String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            const rows = shown
+                .map(
+                    (e) =>
+                        `<tr><td>${escapeHtml(e.row)}</td><td>${escapeHtml(
+                            e.column
+                        )}</td><td>${escapeHtml(e.message)}</td></tr>`
+                )
+                .join('');
+            const extra =
+                errors.length > maxRows
+                    ? `<p class="mt-2 mb-0"><em>...and ${
+                          errors.length - maxRows
+                      } more error(s) not shown.</em></p>`
+                    : '';
+            return swal.fire({
+                icon: 'error',
+                title: 'Validation errors in uploaded file',
+                html:
+                    `<div style="max-height:320px; overflow-y:auto; text-align:left; font-size:0.85rem;">` +
+                    `<table class="table table-sm table-bordered mb-2"><thead><tr>` +
+                    `<th>Row</th><th>Column</th><th>Message</th>` +
+                    `</tr></thead><tbody>${rows}</tbody></table>${extra}</div>`,
+                width: 720,
+                confirmButtonText: 'OK',
+            });
+        },
+        fmtVal(v) {
+            if (v === null || v === undefined) return '(empty)';
+            return String(v);
+        },
+        fieldLabel(name) {
+            return FIELD_LABELS[name] || name;
+        },
+        bulkChangesQuery(polygonId) {
+            if (!this.uploadResult) return '';
+            const r = this.uploadResult.results.find(
+                (x) => x.polygon_id === polygonId
+            );
+            if (!r) return '';
+            const payload = {
+                cohort: r.cohort_changes || [],
+                treatments_created: r.treatments_created || [],
+                treatments_updated: r.treatment_changes || [],
+                operation_created: r.operation_created || null,
+                operation_updated: r.operation_updated || null,
+                operation_changes: r.operation_changes || [],
+            };
+            return encodeURIComponent(JSON.stringify(payload));
+        },
+        viewLink(p) {
+            const base = `/internal/proposal/${p.proposal_id}/cohorts/${p.cohort_id}/polygon/${p.polygon_id}?readonly=true`;
+            const bc = this.bulkChangesQuery(p.polygon_id);
+            return bc ? `${base}&bulkchanges=${bc}` : base;
+        },
+        async resolveUploadedPolygons() {
+            if (!this.uploadedPolygonIds.length) return;
+            this.excelResolving = true;
+            try {
+                const res = await fetch(api_endpoints.bulk_update_preview, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRFToken(),
+                    },
+                    body: JSON.stringify({
+                        polygon_ids: this.uploadedPolygonIds,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Resolve failed');
+                }
+                this.excelPreview = data;
+            } catch (e) {
+                await swal.fire({
+                    icon: 'error',
+                    title: 'Resolve failed',
+                    text: String(e.message || e),
+                });
+            } finally {
+                this.excelResolving = false;
             }
         },
         buildPayload() {

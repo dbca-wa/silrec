@@ -40,7 +40,12 @@ from silrec.components.proposals.models import   (
     TextSearchFieldDisplay,
     Proposal,
 )
-from silrec.components.lookups.models import ObjectiveLkp
+from silrec.components.lookups.models import (
+    ObjectiveLkp,
+    RegenerationMethodsLkp,
+    SpeciesApiLkp,
+    TaskLkp,
+)
 from silrec.components.forest_blocks.models import   (
     Polygon,
     #TmpPolygon,
@@ -1733,6 +1738,12 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
         ws.freeze_panes = 'A2'
         ws.auto_filter.ref = ws.dimensions
 
+        data_end = max(2, len(polygons) + 1)
+        lookups = self._fetch_lookups()
+        self._build_guide_sheet(wb, lookups)
+        lists = self._build_lists_sheet(wb, lookups)
+        self._add_dropdowns(ws, lists, data_end)
+
         buf = io.BytesIO()
         wb.save(buf)
         data = buf.getvalue()
@@ -1742,12 +1753,140 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
             data,
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
-        response['Content-Disposition'] = 'attachment; filename="bulk_update_template.xlsx"'
+        filename = f"bulk_update_template_{timezone.now().strftime('%Y%m%dT%H%M')}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+
+    def _fetch_lookups(self):
+        """Fetch enumerated dropdown values (code, label) from lookup tables."""
+        return {
+            'objectives': list(
+                ObjectiveLkp.objects.values_list('obj_code', 'description').order_by('obj_code')
+            ),
+            'species': list(
+                SpeciesApiLkp.objects.values_list('species', 'short_description').order_by('species')
+            ),
+            'regen_methods': list(
+                RegenerationMethodsLkp.objects.values_list('regen_method', 'description').order_by('regen_method')
+            ),
+            'tasks': list(
+                TaskLkp.objects.values_list('task', 'task_name').order_by('task')
+            ),
+            'statuses': [
+                ('P', 'Planned'),
+                ('D', 'Completed'),
+                ('C', 'Cancelled'),
+                ('F', 'Failed'),
+                ('W', 'Written Off'),
+                ('X', 'Not Required'),
+            ],
+        }
+
+    def _build_lists_sheet(self, wb, lookups):
+        """Hidden sheet holding validation lists (avoids the 255-char inline
+        limit for long lookup lists). Returns {name: formula1 range}."""
+        from openpyxl.utils import get_column_letter
+
+        lists_ws = wb.create_sheet('Lists')
+        lists_ws.sheet_state = 'hidden'
+
+        ranges = {}
+        col = 1
+        for name in ('objectives', 'species', 'regen_methods', 'tasks', 'statuses'):
+            codes = [code for code, _label in lookups[name]]
+            if not codes:
+                codes = [' ']
+            for row_idx, value in enumerate(codes, start=1):
+                lists_ws.cell(row=row_idx, column=col, value=value)
+            letter = get_column_letter(col)
+            ranges[name] = f'Lists!${letter}$1:${letter}${len(codes)}'
+            col += 1
+        return ranges
+
+    def _add_dropdowns(self, ws, lists, data_end):
+        """Add in-cell list dropdowns to the enumerated columns."""
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.datavalidation import DataValidation
+
+        def apply(col_idx, formula1):
+            letter = get_column_letter(col_idx + 1)
+            dv = DataValidation(type='list', formula1=formula1, allow_blank=True)
+            ws.add_data_validation(dv)
+            dv.add(f'{letter}2:{letter}{data_end}')
+
+        # Cohort enumerated fields
+        apply(5, lists['objectives'])      # obj_code
+        apply(6, lists['species'])         # species
+        apply(7, lists['regen_methods'])   # regen_method
+        apply(18, '"Yes,No"')              # regen_done
+        apply(24, '"Yes,No"')              # extra_info
+        apply(25, '"Yes,No"')              # treatments
+
+        # Numbered treatment slots (id + 9 fields each)
+        for i in range(self._n_treatments):
+            base = 30 + i * 10
+            apply(base + 1, lists['tasks'])      # treatment_i_task
+            apply(base + 2, lists['statuses'])   # treatment_i_status
+
+    def _build_guide_sheet(self, wb, lookups):
+        from openpyxl.styles import Font, PatternFill
+
+        guide = wb.create_sheet('Guide')
+        bold = Font(bold=True)
+        title_font = Font(bold=True, size=14)
+        header_fill = PatternFill(start_color='DDEBF7', end_color='DDEBF7', fill_type='solid')
+
+        guide.cell(row=1, column=1, value='Bulk Update Template — How to Use').font = title_font
+
+        lines = [
+            'The "Bulk Update" sheet has one row per polygon, prefilled with current data.',
+            '',
+            'Rules',
+            '- Leave a cell BLANK to keep its current value (only filled cells are updated).',
+            '- Cells with a dropdown (▼) accept only the listed values — pick from the list.',
+            '- Do not edit reference columns: Polygon ID, Name, Compartment, Proposal, Cohort ID, or treatment_N_id.',
+            '- Dates use YYYY-MM-DD HH:MM. Yes/No fields use Yes or No.',
+            '- Treatments are numbered (treatment_1_*, treatment_2_*, ...). Each block holds one treatment.',
+            '  A block with a treatment_N_id updates that existing treatment; a block with no id but a',
+            '  Task adds a new treatment. Leave a block blank to make no treatment changes.',
+            '- Upload the completed file via the "Excel Upload" tab on the Bulk Update page.',
+            '',
+            'Dropdown value reference',
+        ]
+        row = 3
+        for line in lines:
+            guide.cell(row=row, column=1, value=line)
+            row += 1
+
+        refs = [
+            ('Objective (obj_code)', lookups['objectives']),
+            ('Species', lookups['species']),
+            ('Regeneration Method (regen_method)', lookups['regen_methods']),
+            ('Task (treatment_*_task)', lookups['tasks']),
+            ('Treatment Status (treatment_*_status)', lookups['statuses']),
+            ('Yes/No', [('Yes', ''), ('No', '')]),
+        ]
+        for title, values in refs:
+            c1 = guide.cell(row=row, column=1, value=title)
+            c1.font = bold
+            c1.fill = header_fill
+            c2 = guide.cell(row=row, column=2, value='Description')
+            c2.font = bold
+            c2.fill = header_fill
+            row += 1
+            for code, label in values:
+                guide.cell(row=row, column=1, value=code)
+                guide.cell(row=row, column=2, value=label or '')
+                row += 1
+            row += 1
+
+        guide.column_dimensions['A'].width = 45
+        guide.column_dimensions['B'].width = 70
 
     def _treatment_headers(self, n):
         headers = []
         for i in range(1, n + 1):
+            headers.append(f'treatment_{i}_id')
             for field in self.TREATMENT_FIELDS:
                 headers.append(f'treatment_{i}_{field}')
         return headers
@@ -1764,8 +1903,9 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
 
     def _treatment_values(self, treatment):
         if treatment is None:
-            return [''] * len(self.TREATMENT_FIELDS)
+            return [''] + [''] * len(self.TREATMENT_FIELDS)
         return [
+            treatment.treatment_id,
             treatment.task_id or '',
             treatment.status or '',
             treatment.plan_yr,
@@ -1820,3 +1960,445 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
             row.extend(self._treatment_values(treatment))
 
         return row
+
+
+class BulkUpdateUploadError(Exception):
+    """Raised when applying an uploaded template hits validation errors.
+
+    Carries a list of {row, column, message} dicts so the client can report
+    the exact cell location of each problem.
+    """
+
+    def __init__(self, errors):
+        self.errors = errors
+        super().__init__('; '.join(f"{e['row']}:{e['column']} {e['message']}" for e in errors))
+
+
+class BulkUpdateUploadView(_BulkUpdateBase):
+    """Parse and apply an uploaded bulk-update template, reporting per-cell
+    validation errors with their Excel row/column location."""
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    COHORT_FIELD_TYPES = {
+        'obj_code': ('lookup', 'objectives'),
+        'species': ('lookup', 'species'),
+        'regen_method': ('lookup', 'regen_methods'),
+        'site_quality': ('text', None),
+        'target_ba_m2ha': ('float', None),
+        'resid_ba_m2ha': ('float', None),
+        'target_spha': ('int', None),
+        'resid_spha': ('float', None),
+        'pct_area': ('pct', None),
+        'year_last_cut': ('int', None),
+        'op_date': ('date', None),
+        'regen_date': ('date', None),
+        'regen_date2': ('date', None),
+        'regen_done': ('bool', None),
+        'complete_date': ('date', None),
+        'herbicide_app_spec': ('text', None),
+        'vrp': ('int', None),
+        'vrp_tot_area': ('float', None),
+        'stand': ('text', None),
+        'extra_info': ('bool', None),
+        'treatments': ('bool', None),
+        'comments': ('text', None),
+    }
+
+    OPERATION_FIELD_TYPES = {
+        'operation_fea_id': ('fea_id', 'text'),
+        'operation_das_id': ('das_id', 'int'),
+        'operation_plan_release': ('plan_release', 'text'),
+    }
+
+    TREATMENT_FIELDS = [
+        ('task', ('lookup', 'tasks')),
+        ('status', ('lookup', 'statuses')),
+        ('plan_yr', ('int', None)),
+        ('plan_mth', ('month', None)),
+        ('pct_area', ('pct', None)),
+        ('complete_date', ('date', None)),
+        ('organisation', ('text', None)),
+        ('results', ('text', None)),
+        ('reference', ('text', None)),
+    ]
+
+    def post(self, request):
+        import io
+        import re
+        from openpyxl import load_workbook
+
+        uploaded = request.FILES.get('file')
+        if uploaded is None:
+            return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            wb = load_workbook(io.BytesIO(uploaded.read()), data_only=True)
+        except Exception:
+            return Response(
+                {'error': 'Could not read the uploaded file. Upload a valid .xlsx template.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ws = wb['Bulk Update'] if 'Bulk Update' in wb.sheetnames else wb.active
+
+        headers = {}
+        for col_idx, cell in enumerate(ws[1], start=1):
+            if cell.value is not None and str(cell.value).strip():
+                headers[str(cell.value).strip()] = col_idx
+
+        max_treatments = 0
+        for h in headers:
+            m = re.match(r'^treatment_(\d+)_task$', h)
+            if m:
+                max_treatments = max(max_treatments, int(m.group(1)))
+        self._max_treatments = max_treatments
+
+        lookups = self._fetch_lookups()
+        lookup_sets = {k: {code for code, _label in v} for k, v in lookups.items()}
+
+        errors = []
+        parsed_rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            values = [ws.cell(row=row_idx, column=c).value for c in range(1, ws.max_column + 1)]
+            if all(v is None or str(v).strip() == '' for v in values):
+                continue
+
+            row_errors, parsed = self._parse_row(ws, row_idx, headers, lookup_sets)
+            errors.extend(row_errors)
+            if row_errors:
+                continue
+
+            polygons, excluded = self._resolve([parsed['polygon_id']])
+            if not polygons:
+                errors.append({
+                    'row': row_idx,
+                    'column': 'polygon_id',
+                    'message': excluded[0]['reason'] if excluded else 'Polygon not found',
+                })
+                continue
+            bad_treatment = False
+            for block in parsed['treatments']:
+                if 'id' in block and not Treatment.objects.filter(
+                        treatment_id=block['id'], cohort=polygons[0]['cohort']).exists():
+                    errors.append({
+                        'row': row_idx,
+                        'column': block.get('_id_col', 'treatment_id'),
+                        'message': f"Treatment {block['id']} does not belong to cohort {polygons[0]['cohort'].cohort_id}",
+                    })
+                    bad_treatment = True
+            if bad_treatment:
+                continue
+            parsed['item'] = polygons[0]
+            parsed['row'] = row_idx
+            parsed_rows.append(parsed)
+
+        if errors:
+            return Response(
+                {'error': f'{len(errors)} validation error(s) found', 'errors': errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        results = []
+        try:
+            with transaction.atomic():
+                for parsed in parsed_rows:
+                    results.append(self._apply_row(request, parsed))
+        except BulkUpdateUploadError as exc:
+            return Response(
+                {'error': f'{len(exc.errors)} validation error(s) found', 'errors': exc.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except serializers.ValidationError as exc:
+            return Response({'error': 'Validation failed', 'details': exc.detail},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception('Excel upload failed and was rolled back')
+            return Response(
+                {'error': 'Upload failed and was rolled back. No changes were applied.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({'processed': len(results), 'results': results})
+
+    def _fetch_lookups(self):
+        """Fetch enumerated dropdown values (code, label) from lookup tables."""
+        return {
+            'objectives': list(
+                ObjectiveLkp.objects.values_list('obj_code', 'description').order_by('obj_code')
+            ),
+            'species': list(
+                SpeciesApiLkp.objects.values_list('species', 'short_description').order_by('species')
+            ),
+            'regen_methods': list(
+                RegenerationMethodsLkp.objects.values_list('regen_method', 'description').order_by('regen_method')
+            ),
+            'tasks': list(
+                TaskLkp.objects.values_list('task', 'task_name').order_by('task')
+            ),
+            'statuses': [
+                ('P', 'Planned'),
+                ('D', 'Completed'),
+                ('C', 'Cancelled'),
+                ('F', 'Failed'),
+                ('W', 'Written Off'),
+                ('X', 'Not Required'),
+            ],
+        }
+
+    def _parse_row(self, ws, row_idx, headers, lookup_sets):
+        errors = []
+        parsed = {'polygon_id': None, 'cohort_fields': {}, 'operation_fields': {}, 'treatments': []}
+
+        def read(name):
+            col = headers.get(name)
+            return ws.cell(row=row_idx, column=col).value if col else None
+
+        pid, err = self._clean(read('polygon_id'), 'int', None)
+        if err:
+            errors.append(self._err(row_idx, 'polygon_id', err))
+        elif pid is None:
+            errors.append(self._err(row_idx, 'polygon_id', 'Polygon ID is required'))
+        else:
+            parsed['polygon_id'] = pid
+
+        for name, (type_, lookup_name) in self.COHORT_FIELD_TYPES.items():
+            cleaned, err = self._clean(read(name), type_,
+                                       lookup_sets.get(lookup_name) if lookup_name else None)
+            if err:
+                errors.append(self._err(row_idx, name, err))
+            elif cleaned is not None:
+                parsed['cohort_fields'][name] = cleaned
+
+        for col_name, (field_name, type_) in self.OPERATION_FIELD_TYPES.items():
+            cleaned, err = self._clean(read(col_name), type_, None)
+            if err:
+                errors.append(self._err(row_idx, col_name, err))
+            elif cleaned is not None:
+                parsed['operation_fields'][field_name] = cleaned
+
+        for i in range(1, self._max_treatments + 1):
+            block = {'_num': i}
+            tid, err = self._clean(read(f'treatment_{i}_id'), 'int', None)
+            if err:
+                errors.append(self._err(row_idx, f'treatment_{i}_id', err))
+            elif tid is not None:
+                block['id'] = tid
+                block['_id_col'] = f'treatment_{i}_id'
+            for field_name, (type_, lookup_name) in self.TREATMENT_FIELDS:
+                hname = f'treatment_{i}_{field_name}'
+                cleaned, err = self._clean(read(hname), type_,
+                                           lookup_sets.get(lookup_name) if lookup_name else None)
+                if err:
+                    errors.append(self._err(row_idx, hname, err))
+                elif cleaned is not None:
+                    block[field_name] = cleaned
+            has_fields = any(k not in ('id', '_id_col', '_num') for k in block)
+            if block.get('id') is not None:
+                if has_fields:
+                    parsed['treatments'].append(block)
+            elif has_fields:
+                if 'task' not in block:
+                    errors.append(self._err(row_idx, f'treatment_{i}_task',
+                                            'Treatment block has values but no Task'))
+                else:
+                    parsed['treatments'].append(block)
+
+        return errors, parsed
+
+    def _clean(self, value, type_, lookup_set):
+        """Return (cleaned_value, error_message_or_None)."""
+        if value is None or (isinstance(value, str) and value.strip() == ''):
+            return None, None
+        if isinstance(value, str):
+            value = value.strip()
+
+        if type_ == 'text':
+            return value, None
+        if type_ == 'lookup':
+            if value not in lookup_set:
+                return None, f"'{value}' is not a valid option"
+            return value, None
+        if type_ == 'bool':
+            if isinstance(value, bool):
+                return value, None
+            s = str(value).strip().lower()
+            if s in ('yes', 'true', '1'):
+                return True, None
+            if s in ('no', 'false', '0'):
+                return False, None
+            return None, f"'{value}' must be Yes or No"
+        if type_ == 'int':
+            if isinstance(value, bool):
+                return None, 'must be a whole number'
+            if isinstance(value, float) and not value.is_integer():
+                return None, 'must be a whole number'
+            try:
+                return int(value), None
+            except (TypeError, ValueError):
+                return None, f"'{value}' is not a whole number"
+        if type_ == 'float':
+            if isinstance(value, bool):
+                return None, 'must be a number'
+            try:
+                return float(value), None
+            except (TypeError, ValueError):
+                return None, f"'{value}' is not a number"
+        if type_ == 'pct':
+            if isinstance(value, bool):
+                return None, 'must be a whole number between 0 and 100'
+            if isinstance(value, float) and not value.is_integer():
+                return None, 'must be a whole number between 0 and 100'
+            try:
+                n = int(value)
+            except (TypeError, ValueError):
+                return None, f"'{value}' is not a whole number"
+            if n < 0 or n > 100:
+                return None, 'must be between 0 and 100'
+            return n, None
+        if type_ == 'month':
+            if isinstance(value, bool):
+                return None, 'must be a number between 1 and 12'
+            if isinstance(value, float) and not value.is_integer():
+                return None, 'must be a whole number'
+            try:
+                n = int(value)
+            except (TypeError, ValueError):
+                return None, f"'{value}' is not a number"
+            if n < 1 or n > 12:
+                return None, 'must be between 1 and 12'
+            return n, None
+        if type_ == 'date':
+            if isinstance(value, (datetime, date)):
+                return value, None
+            s = str(value).strip()
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    return datetime.strptime(s, fmt), None
+                except ValueError:
+                    continue
+            return None, f"'{s}' is not a valid date (use YYYY-MM-DD or YYYY-MM-DD HH:MM)"
+
+        return value, None
+
+    def _err(self, row_idx, column, message):
+        return {'row': row_idx, 'column': column, 'message': message}
+
+    def _loc_errors(self, row_idx, prefix, detail):
+        """Convert DRF serializer error detail to row/column location errors."""
+        errors = []
+        for field, msgs in (detail or {}).items():
+            if isinstance(msgs, (list, tuple)):
+                msg = '; '.join(str(m) for m in msgs)
+            else:
+                msg = str(msgs)
+            col = f'{prefix}_{field}' if prefix else field
+            errors.append({'row': row_idx, 'column': col, 'message': msg})
+        return errors
+
+    @staticmethod
+    def _display_value(value):
+        """Normalise a value for old/new comparison and display."""
+        if value is None:
+            return None
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        if hasattr(value, '_meta'):  # Django model instance (FK)
+            return value.pk
+        if isinstance(value, (int, float, str, bool)):
+            return value
+        return str(value)
+
+    def _field_changes(self, obj, fields):
+        """Diff the given {field: new_value} against obj's current values."""
+        changes = []
+        for field, new_value in fields.items():
+            old = self._display_value(getattr(obj, field, None))
+            new = self._display_value(new_value)
+            if old != new:
+                changes.append({'field': field, 'old': old, 'new': new})
+        return changes
+
+    def _apply_row(self, request, parsed):
+        item = parsed['item']
+        poly, cohort, assignment = item['polygon'], item['cohort'], item['assignment']
+        row_idx = parsed.get('row')
+        result = {
+            'polygon_id': poly.polygon_id,
+            'cohort_id': cohort.cohort_id,
+            'cohort_updated': False,
+            'cohort_changes': [],
+            'treatments_created': [],
+            'treatments_updated': [],
+            'treatment_changes': [],
+            'operation_created': None,
+            'operation_updated': None,
+            'operation_changes': [],
+        }
+
+        if parsed['cohort_fields']:
+            ser = CohortSerializer(instance=cohort, data=parsed['cohort_fields'],
+                                   partial=True, context={'request': request})
+            if not ser.is_valid():
+                raise BulkUpdateUploadError(self._loc_errors(row_idx, '', ser.errors))
+            result['cohort_changes'] = self._field_changes(cohort, parsed['cohort_fields'])
+            ser.save()
+            result['cohort_updated'] = bool(result['cohort_changes'])
+
+        for block in parsed['treatments']:
+            tid = block.get('id')
+            prefix = f"treatment_{block.get('_num', '?')}"
+            fields = {k: v for k, v in block.items() if k not in ('id', '_id_col', '_num')}
+            if tid is not None:
+                try:
+                    treatment = Treatment.objects.get(treatment_id=tid, cohort=cohort)
+                except Treatment.DoesNotExist:
+                    raise BulkUpdateUploadError([{
+                        'row': row_idx,
+                        'column': block.get('_id_col', 'treatment_id'),
+                        'message': f"Treatment {tid} does not belong to cohort {cohort.cohort_id}",
+                    }])
+                ser = TreatmentSerializer(instance=treatment, data=fields,
+                                          partial=True, context={'request': request})
+                if not ser.is_valid():
+                    raise BulkUpdateUploadError(self._loc_errors(row_idx, prefix, ser.errors))
+                changes = self._field_changes(treatment, fields)
+                treatment = ser.save()
+                result['treatment_changes'].append({'treatment_id': tid, 'changes': changes})
+                result['treatments_updated'].append(treatment.treatment_id)
+            else:
+                ser = TreatmentSerializer(data={**fields, 'cohort': cohort.cohort_id},
+                                          context={'request': request})
+                if not ser.is_valid():
+                    raise BulkUpdateUploadError(self._loc_errors(row_idx, prefix, ser.errors))
+                treatment = ser.save()
+                result['treatments_created'].append(treatment.treatment_id)
+
+        op_fields = parsed['operation_fields']
+        if op_fields:
+            if cohort.op_id:
+                op = self._operation_for_cohort(cohort)
+                if op is not None:
+                    ser = OperationSerializer(instance=op, data=op_fields,
+                                              partial=True, context={'request': request})
+                    if not ser.is_valid():
+                        raise BulkUpdateUploadError(
+                            self._loc_errors(row_idx, 'operation', ser.errors)
+                        )
+                    result['operation_changes'] = self._field_changes(op, op_fields)
+                    ser.save()
+                    result['operation_updated'] = op.op_id
+            else:
+                ser = OperationSerializer(data=op_fields, context={'request': request})
+                if not ser.is_valid():
+                    raise BulkUpdateUploadError(
+                        self._loc_errors(row_idx, 'operation', ser.errors)
+                    )
+                op = ser.save()
+                cohort.op_id = op.op_id
+                cohort.save(update_fields=['op_id'])
+                assignment.op = op
+                assignment.save(update_fields=['op'])
+                result['operation_created'] = op.op_id
+
+        return result

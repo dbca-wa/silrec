@@ -1344,13 +1344,14 @@ class _BulkUpdateBase(views.APIView):
             return None, 'No polygon ids provided'
         return ids, None
 
-    def _resolve(self, ids):
-        """Resolve ids to proposal-linked polygons that have a current cohort.
+    def _resolve(self, ids, require_proposal=True):
+        """Resolve ids to polygons that have a current cohort.
 
-        Polygons are restricted to the proposals dashboard drill-down, i.e.
-        they must be linked to a proposal. Polygons without a current cohort
-        (or not proposal-linked / missing) are reported as excluded with a
-        reason.
+        By default polygons must be linked to a proposal (the proposals
+        dashboard drill-down). The Excel-upload path passes
+        require_proposal=False so unlinked polygons are also accepted.
+        Polygons without a current cohort (or missing) are reported as
+        excluded with a reason.
         """
         polygons, excluded = [], []
         for pid in ids:
@@ -1360,7 +1361,7 @@ class _BulkUpdateBase(views.APIView):
                 excluded.append({'polygon_id': pid, 'name': None,
                                  'reason': 'Polygon not found'})
                 continue
-            if poly.proposal_id is None:
+            if require_proposal and poly.proposal_id is None:
                 excluded.append({'polygon_id': pid, 'name': poly.name,
                                  'reason': 'Not linked to a proposal (not available in the proposals dashboard)'})
                 continue
@@ -1410,7 +1411,8 @@ class BulkUpdatePreviewView(_BulkUpdateBase):
         if err:
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
-        polygons, excluded = self._resolve(ids)
+        require_proposal = request.data.get('require_proposal', True)
+        polygons, excluded = self._resolve(ids, require_proposal=require_proposal)
         rows = []
         for item in polygons:
             poly, cohort = item['polygon'], item['cohort']
@@ -1442,7 +1444,8 @@ class BulkUpdateApplyView(_BulkUpdateBase):
         if err:
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
-        polygons, excluded = self._resolve(ids)
+        require_proposal = payload.get('require_proposal', True)
+        polygons, excluded = self._resolve(ids, require_proposal=require_proposal)
 
         cohort_section = payload.get('cohort') or {}
         treatment_section = payload.get('treatments') or {}
@@ -1714,7 +1717,8 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
         if err:
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
-        polygons, _excluded = self._resolve(ids)
+        require_proposal = request.data.get('require_proposal', True)
+        polygons, _excluded = self._resolve(ids, require_proposal=require_proposal)
 
         # Prefetch treatments per cohort and size the numbered treatment columns
         # to the largest count across the selection (always at least one slot).
@@ -1793,7 +1797,7 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
         ranges = {}
         col = 1
         for name in ('objectives', 'species', 'regen_methods', 'tasks', 'statuses'):
-            codes = [code for code, _label in lookups[name]]
+            codes = [code.strip() for code, _label in lookups[name] if code]
             if not codes:
                 codes = [' ']
             for row_idx, value in enumerate(codes, start=1):
@@ -1901,20 +1905,24 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
             return ''
         return 'Yes' if val else 'No'
 
+    @staticmethod
+    def _str(value):
+        return value.strip() if isinstance(value, str) else value
+
     def _treatment_values(self, treatment):
         if treatment is None:
             return [''] + [''] * len(self.TREATMENT_FIELDS)
         return [
             treatment.treatment_id,
-            treatment.task_id or '',
-            treatment.status or '',
+            self._str(treatment.task_id or ''),
+            self._str(treatment.status or ''),
             treatment.plan_yr,
             treatment.plan_mth,
             treatment.pct_area,
             self._fmt_dt(treatment.complete_date),
-            treatment.organisation or '',
-            treatment.results or '',
-            treatment.reference or '',
+            self._str(treatment.organisation or ''),
+            self._str(treatment.results or ''),
+            self._str(treatment.reference or ''),
         ]
 
     def _row_for(self, item):
@@ -1924,14 +1932,14 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
 
         row = [
             poly.polygon_id,
-            poly.name or '',
-            poly.compartment.compartment if poly.compartment else '',
+            self._str(poly.name or ''),
+            self._str(poly.compartment.compartment if poly.compartment else ''),
             poly.proposal_id or '',
             cohort.cohort_id,
-            cohort.obj_code or '',
-            cohort.species or '',
-            cohort.regen_method_id or '',
-            cohort.site_quality or '',
+            self._str(cohort.obj_code or ''),
+            self._str(cohort.species or ''),
+            self._str(cohort.regen_method_id or ''),
+            self._str(cohort.site_quality or ''),
             cohort.target_ba_m2ha,
             cohort.resid_ba_m2ha,
             cohort.target_spha,
@@ -1943,16 +1951,16 @@ class BulkUpdateExportTemplateView(_BulkUpdateBase):
             self._fmt_dt(cohort.regen_date2),
             self._fmt_bool(cohort.regen_done),
             self._fmt_dt(cohort.complete_date),
-            cohort.herbicide_app_spec or '',
-            cohort.vrp_id or '',
+            self._str(cohort.herbicide_app_spec or ''),
+            self._str(cohort.vrp_id or ''),
             cohort.vrp_tot_area,
-            cohort.stand or '',
+            self._str(cohort.stand or ''),
             self._fmt_bool(cohort.extra_info),
             self._fmt_bool(cohort.treatments),
-            cohort.comments or '',
-            op.fea_id if op else '',
+            self._str(cohort.comments or ''),
+            self._str(op.fea_id if op else ''),
             op.das_id if op else '',
-            op.plan_release if op else '',
+            self._str(op.plan_release if op else ''),
         ]
 
         for i in range(self._n_treatments):
@@ -2055,7 +2063,7 @@ class BulkUpdateUploadView(_BulkUpdateBase):
         self._max_treatments = max_treatments
 
         lookups = self._fetch_lookups()
-        lookup_sets = {k: {code for code, _label in v} for k, v in lookups.items()}
+        lookup_maps = {k: {code.strip(): code for code, _label in v if code} for k, v in lookups.items()}
 
         errors = []
         parsed_rows = []
@@ -2064,12 +2072,14 @@ class BulkUpdateUploadView(_BulkUpdateBase):
             if all(v is None or str(v).strip() == '' for v in values):
                 continue
 
-            row_errors, parsed = self._parse_row(ws, row_idx, headers, lookup_sets)
+            row_errors, parsed = self._parse_row(ws, row_idx, headers, lookup_maps)
             errors.extend(row_errors)
             if row_errors:
                 continue
 
-            polygons, excluded = self._resolve([parsed['polygon_id']])
+            polygons, excluded = self._resolve(
+                [parsed['polygon_id']], require_proposal=False
+            )
             if not polygons:
                 errors.append({
                     'row': row_idx,
@@ -2146,7 +2156,7 @@ class BulkUpdateUploadView(_BulkUpdateBase):
             ],
         }
 
-    def _parse_row(self, ws, row_idx, headers, lookup_sets):
+    def _parse_row(self, ws, row_idx, headers, lookup_maps):
         errors = []
         parsed = {'polygon_id': None, 'cohort_fields': {}, 'operation_fields': {}, 'treatments': []}
 
@@ -2164,7 +2174,7 @@ class BulkUpdateUploadView(_BulkUpdateBase):
 
         for name, (type_, lookup_name) in self.COHORT_FIELD_TYPES.items():
             cleaned, err = self._clean(read(name), type_,
-                                       lookup_sets.get(lookup_name) if lookup_name else None)
+                                       lookup_maps.get(lookup_name) if lookup_name else None)
             if err:
                 errors.append(self._err(row_idx, name, err))
             elif cleaned is not None:
@@ -2188,7 +2198,7 @@ class BulkUpdateUploadView(_BulkUpdateBase):
             for field_name, (type_, lookup_name) in self.TREATMENT_FIELDS:
                 hname = f'treatment_{i}_{field_name}'
                 cleaned, err = self._clean(read(hname), type_,
-                                           lookup_sets.get(lookup_name) if lookup_name else None)
+                                           lookup_maps.get(lookup_name) if lookup_name else None)
                 if err:
                     errors.append(self._err(row_idx, hname, err))
                 elif cleaned is not None:
@@ -2206,7 +2216,7 @@ class BulkUpdateUploadView(_BulkUpdateBase):
 
         return errors, parsed
 
-    def _clean(self, value, type_, lookup_set):
+    def _clean(self, value, type_, lookup_map):
         """Return (cleaned_value, error_message_or_None)."""
         if value is None or (isinstance(value, str) and value.strip() == ''):
             return None, None
@@ -2216,9 +2226,9 @@ class BulkUpdateUploadView(_BulkUpdateBase):
         if type_ == 'text':
             return value, None
         if type_ == 'lookup':
-            if value not in lookup_set:
+            if value not in lookup_map:
                 return None, f"'{value}' is not a valid option"
-            return value, None
+            return lookup_map[value], None
         if type_ == 'bool':
             if isinstance(value, bool):
                 return value, None

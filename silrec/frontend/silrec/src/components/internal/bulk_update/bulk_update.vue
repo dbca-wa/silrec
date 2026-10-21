@@ -1296,6 +1296,7 @@ export default {
             resolving: false,
             resolved: false,
             resolvedIds: [],
+            resolvedRequireProposal: true,
             resolveError: null,
             preview: { requested: 0, found: 0, excluded: [], polygons: [] },
 
@@ -1558,6 +1559,7 @@ export default {
                         },
                         body: JSON.stringify({
                             polygon_ids: this.resolvedIds,
+                            require_proposal: this.resolvedRequireProposal,
                         }),
                     }
                 );
@@ -1625,6 +1627,7 @@ export default {
         resetResolvedState() {
             this.resolved = false;
             this.resolvedIds = [];
+            this.resolvedRequireProposal = true;
             this.preview = {
                 requested: 0,
                 found: 0,
@@ -1762,6 +1765,7 @@ export default {
                     },
                     body: JSON.stringify({
                         polygon_ids: this.uploadedPolygonIds,
+                        require_proposal: false,
                     }),
                 });
                 const data = await res.json();
@@ -1780,7 +1784,10 @@ export default {
             }
         },
         buildPayload() {
-            const payload = { polygon_ids: this.resolvedIds };
+            const payload = {
+                polygon_ids: this.resolvedIds,
+                require_proposal: this.resolvedRequireProposal,
+            };
             if (this.sections.cohort.enabled) {
                 const fields = this.clean(this.sections.cohort.fields);
                 if (Object.keys(fields).length) payload.cohort = { fields };
@@ -1906,6 +1913,7 @@ export default {
                 return;
             }
             this.resolvedIds = ids.slice();
+            this.resolvedRequireProposal = this.section1Tab === 'proposal';
             this.resolving = true;
             this.resolveError = null;
             this.resolved = false;
@@ -1919,6 +1927,7 @@ export default {
                     },
                     body: JSON.stringify({
                         polygon_ids: ids,
+                        require_proposal: this.resolvedRequireProposal,
                     }),
                 });
                 const data = await res.json();
@@ -1947,6 +1956,7 @@ export default {
                     },
                     body: JSON.stringify({
                         polygon_ids: this.resolvedIds,
+                        require_proposal: this.resolvedRequireProposal,
                     }),
                 });
                 const data = await res.json();

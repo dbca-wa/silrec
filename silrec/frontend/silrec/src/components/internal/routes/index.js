@@ -31,6 +31,7 @@ import TreatmentExtraDetailPage from '@/components/internal/treatments/treatment
 import SilviculturistCommentDetail from '@/components/internal/silviculturist_comments/silviculturist_comment_detail.vue';
 import SurveyDocumentDetail from '@/components/internal/survey_documents/survey_document_detail.vue';
 import BulkUpdate from '@/components/internal/bulk_update/bulk_update.vue';
+import ERDiagram from '@/components/internal/er_diagram.vue';
 
 export default {
     path: '/internal',
@@ -171,6 +172,11 @@ export default {
             path: 'bulk-update',
             component: BulkUpdate,
             name: 'bulk-update',
+        },
+        {
+            path: 'er-diagram',
+            component: ERDiagram,
+            name: 'er-diagram',
         },
     ],
 };

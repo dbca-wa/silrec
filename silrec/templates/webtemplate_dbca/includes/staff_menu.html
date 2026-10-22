@@ -8,6 +8,7 @@
 {% if can_view_reports_flag %}
 <li><a class="dropdown-item" href="{% url 'generated-report-list' %}">Generated Reports</a></li>
 <li><a class="dropdown-item" href="/internal/bulk-update">Bulk Update</a></li>
+<li><a class="dropdown-item" href="/internal/er-diagram">ER Diagram</a></li>
 {% endif %}
 <li class="dropdown dropstart">
     <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside" onclick="event.stopPropagation();">Documents</a>

@@ -82,6 +82,7 @@ export default {
     bulk_update_polygons: '/api/bulk-update/polygons/',
     bulk_update_export_template: '/api/bulk-update/export-template/',
     bulk_update_upload: '/api/bulk-update/upload/',
+    er_diagram: '/api/er-diagram/',
     prescriptions: '/api/prescriptions/',
     silviculturist_comments: '/api/silviculturist-comments/',
     polygon_search: '/api/polygon_search/',

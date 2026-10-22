@@ -2412,3 +2412,70 @@ class BulkUpdateUploadView(_BulkUpdateBase):
                 result['operation_created'] = op.op_id
 
         return result
+
+
+class ERDiagramView(APIView):
+    """Return model/field/relationship metadata for the ER diagram viewer.
+
+    Models are grouped by the module that defines them so the front-end can
+    present "Main", "Proposals", "Forest Blocks" and "Lookups" separately
+    even though Main and Proposals both register under the 'silrec' app label.
+    """
+
+    permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
+
+    MODULE_GROUPS = [
+        ('main', 'Main', 'silrec.components.main.models'),
+        ('proposals', 'Proposals', 'silrec.components.proposals.models'),
+        ('forest_blocks', 'Forest Blocks', 'silrec.components.forest_blocks.models'),
+        ('lookups', 'Lookups', 'silrec.components.lookups.models'),
+    ]
+
+    def get(self, request):
+        from collections import defaultdict
+        from django.apps import apps
+
+        by_module = defaultdict(list)
+        for model in apps.get_models():
+            if model._meta.abstract or model._meta.proxy:
+                continue
+            by_module[model.__module__].append(model)
+
+        groups = []
+        for key, display, module in self.MODULE_GROUPS:
+            models = sorted(by_module.get(module, []), key=lambda m: m.__name__.lower())
+            groups.append({
+                'key': key,
+                'name': display,
+                'models': [self._model_info(m) for m in models],
+            })
+        return Response({'groups': groups})
+
+    def _model_info(self, model):
+        fields = []
+        for field in model._meta.fields:
+            info = {
+                'name': field.name,
+                'type': field.__class__.__name__,
+                'pk': bool(field.primary_key),
+            }
+            if field.is_relation and field.related_model is not None:
+                info['related_model'] = field.related_model.__name__
+                info['relation'] = 'o2o' if field.one_to_one else 'fk'
+            fields.append(info)
+        for field in model._meta.many_to_many:
+            info = {
+                'name': field.name,
+                'type': 'ManyToManyField',
+                'pk': False,
+                'relation': 'm2m',
+            }
+            if field.related_model is not None:
+                info['related_model'] = field.related_model.__name__
+            fields.append(info)
+        return {
+            'name': model.__name__,
+            'verbose_name': str(model._meta.verbose_name),
+            'db_table': model._meta.db_table,
+            'fields': fields,
+        }

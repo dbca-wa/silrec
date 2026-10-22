@@ -121,6 +121,36 @@
                                     title="Zoom"
                                 />
                             </div>
+                            <div class="px-2 pt-2">
+                                <div class="position-relative">
+                                    <input
+                                        v-model="searchText"
+                                        type="text"
+                                        class="form-control form-control-sm"
+                                        placeholder="Search & focus table…"
+                                        @focus="onSearchFocus"
+                                        @input="searchOpen = true"
+                                        @blur="onSearchBlur"
+                                    />
+                                    <ul
+                                        v-if="
+                                            searchOpen &&
+                                            filteredSearchOptions.length
+                                        "
+                                        class="er-search-dropdown list-unstyled mb-0"
+                                    >
+                                        <li
+                                            v-for="opt in filteredSearchOptions"
+                                            :key="opt"
+                                            @mousedown.prevent="
+                                                onSearchSelect(opt)
+                                            "
+                                        >
+                                            {{ opt }}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                             <div class="p-2 flex-grow-1" style="min-height: 0">
                                 <svg
                                     v-if="layout.boxes.length"
@@ -140,8 +170,8 @@
                                         :y="b.y"
                                         :width="b.w"
                                         :height="b.h"
-                                        :fill="boxFill(b)"
-                                        :stroke="boxStroke(b)"
+                                        :fill="darken(boxFill(b), 0.65)"
+                                        :stroke="darken(boxStroke(b), 0.65)"
                                         stroke-width="0.5"
                                     ></rect>
                                     <line
@@ -151,7 +181,7 @@
                                         :y1="e.y1"
                                         :x2="e.x2"
                                         :y2="e.y2"
-                                        stroke="#8aa08a"
+                                        stroke="#5a685a"
                                         stroke-width="0.5"
                                     ></line>
                                     <rect
@@ -159,8 +189,8 @@
                                         :y="viewportRect.y"
                                         :width="viewportRect.w"
                                         :height="viewportRect.h"
-                                        fill="rgba(41, 128, 185, 0.08)"
-                                        stroke="#2980b9"
+                                        fill="rgba(27, 83, 120, 0.12)"
+                                        stroke="#1b5378"
                                         stroke-width="1.5"
                                     ></rect>
                                 </svg>
@@ -497,6 +527,9 @@ const RING_GAP = 64;
 const MARGIN = 40;
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 2;
+// Floor for "focus on table": keeps the focused table prominent even when its
+// immediate neighbours are spread far apart (far ones then sit out of pan).
+const MIN_FOCUS_ZOOM = 0.875;
 
 function boxHeight(model) {
     const n = Math.min(model.fields.length, MAX_FIELDS);
@@ -739,6 +772,9 @@ export default {
             viewportW: 0,
             viewportH: 0,
             minimapDragging: false,
+            searchText: '',
+            searchOpen: false,
+            pendingFocus: null,
             BOX_W,
             HEADER_H,
             ROW_H,
@@ -850,12 +886,35 @@ export default {
             const p = Math.log(z / MIN_ZOOM) / Math.log(MAX_ZOOM / MIN_ZOOM);
             return Math.round(p * 1000);
         },
+        // Flat list of table names in sidebar order, for the search dropdown.
+        allTableNames() {
+            const names = [];
+            for (const g of this.orderedGroups)
+                for (const m of g.models) names.push(m.name);
+            return names;
+        },
+        searchOptions() {
+            return ['All', ...this.allTableNames];
+        },
+        filteredSearchOptions() {
+            const q = this.searchText.trim().toLowerCase();
+            if (!q) return this.searchOptions;
+            return this.searchOptions.filter((n) =>
+                n.toLowerCase().includes(q)
+            );
+        },
     },
     watch: {
         level() {
             this.refit(true);
         },
         selectedModels() {
+            if (this.pendingFocus) {
+                const name = this.pendingFocus;
+                this.pendingFocus = null;
+                this.$nextTick(() => this.fitToTable(name));
+                return;
+            }
             this.refit(false);
         },
     },
@@ -943,6 +1002,17 @@ export default {
         isL2(b) {
             return (this.depthByName[b.model.name] || 1) === 2;
         },
+        // Darken a #rrggbb colour by `factor` (1 = unchanged, 0.65 = 35% darker).
+        darken(hex, factor) {
+            const n = parseInt(hex.slice(1), 16);
+            const r = Math.round(((n >> 16) & 255) * factor);
+            const g = Math.round(((n >> 8) & 255) * factor);
+            const b = Math.round((n & 255) * factor);
+            return (
+                '#' +
+                ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
+            );
+        },
         boxFill(b) {
             if (b.isOuter) return '#e8f0fb';
             if (this.isL2(b)) return '#fdf3e0';
@@ -1016,6 +1086,87 @@ export default {
             } else {
                 this.zoom = z;
             }
+        },
+        onSearchSelect(name) {
+            this.searchOpen = false;
+            this.searchText = name === 'All' ? '' : name;
+            this.zoomToTable(name);
+        },
+        onSearchBlur() {
+            this._blurTimer = setTimeout(() => {
+                this.searchOpen = false;
+                this._blurTimer = null;
+            }, 150);
+        },
+        onSearchFocus() {
+            if (this._blurTimer) {
+                clearTimeout(this._blurTimer);
+                this._blurTimer = null;
+            }
+            this.searchOpen = true;
+        },
+        // Focus the view on one table plus its immediately-connected neighbours.
+        zoomToTable(name) {
+            if (name === 'All') {
+                this.selectAll();
+                return;
+            }
+            if (this.excluded.has(name)) {
+                // Auto-check first; the `selectedModels` watcher then fits the
+                // view once the table is actually rendered.
+                this.pendingFocus = name;
+                this.excluded = new Set(
+                    [...this.excluded].filter((n) => n !== name)
+                );
+            } else {
+                // Already rendered — layout is current, fit immediately.
+                this.fitToTable(name);
+            }
+        },
+        fitToTable(name, attempt = 0) {
+            const boxes = this.layout.boxes;
+            const box = boxes.find((b) => b.model.name === name);
+            if (!box) {
+                if (attempt < 3) {
+                    this.$nextTick(() => this.fitToTable(name, attempt + 1));
+                }
+                return;
+            }
+            const neighbours = new Set([name]);
+            for (const e of this.layout.edges) {
+                if (e.from === name) neighbours.add(e.to);
+                else if (e.to === name) neighbours.add(e.from);
+            }
+            let minX = Infinity;
+            let minY = Infinity;
+            let maxX = -Infinity;
+            let maxY = -Infinity;
+            for (const b of boxes) {
+                if (!neighbours.has(b.model.name)) continue;
+                minX = Math.min(minX, b.x);
+                minY = Math.min(minY, b.y);
+                maxX = Math.max(maxX, b.x + b.w);
+                maxY = Math.max(maxY, b.y + b.h);
+            }
+            if (minX === Infinity) return;
+            const PAD = 60;
+            minX -= PAD;
+            minY -= PAD;
+            maxX += PAD;
+            maxY += PAD;
+            const el = this.$refs.viewport;
+            const vw = el ? el.clientWidth : this.viewportW;
+            const vh = el ? el.clientHeight : this.viewportH;
+            if (!vw || !vh) return;
+            const s = Math.min(vw / (maxX - minX), vh / (maxY - minY));
+            // Floor the zoom so the focused table stays prominent; far-away
+            // neighbours then fall out of pan rather than shrinking the table.
+            const newZoom = Math.max(MIN_FOCUS_ZOOM, Math.min(s, MAX_ZOOM));
+            const cx = box.x + box.w / 2;
+            const cy = box.y + box.h / 2;
+            this.zoom = newZoom;
+            this.panX = vw / 2 - cx * newZoom;
+            this.panY = vh / 2 - cy * newZoom;
         },
         fitView(preserveCenter = false) {
             const el = this.$refs.viewport;
@@ -1213,6 +1364,32 @@ export default {
 }
 .er-zoom-slider {
     min-width: 70px;
+}
+.er-search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 2px 0 0;
+    padding: 0;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+.er-search-dropdown li {
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.er-search-dropdown li:hover {
+    background: #e9f0f9;
 }
 .er-viewport {
     position: relative;

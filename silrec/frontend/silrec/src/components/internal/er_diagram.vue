@@ -52,47 +52,123 @@
                         </div>
                     </div>
                     <div
-                        class="card-body py-2"
-                        style="max-height: 75vh; overflow-y: auto"
+                        class="card-body p-0 d-flex flex-column"
+                        style="height: 75vh"
                     >
-                        <div
-                            v-for="group in orderedGroups"
-                            :key="group.key"
-                            class="mb-3"
-                        >
-                            <div class="d-flex align-items-center mb-1">
-                                <input
-                                    type="checkbox"
-                                    class="form-check-input me-2"
-                                    :checked="isGroupAllSelected(group)"
-                                    @change="toggleGroup(group.key)"
-                                />
-                                <strong class="me-1">{{ group.name }}</strong>
-                                <span class="text-muted small"
-                                    >({{ selectedGroupCount(group) }}/{{
-                                        group.models.length
-                                    }})</span
-                                >
-                            </div>
-                            <div class="ms-4">
-                                <div
-                                    v-for="m in group.models"
-                                    :key="m.name"
-                                    class="form-check"
-                                >
+                        <!-- Models (60%) -->
+                        <div class="p-2" style="height: 60%; overflow-y: auto">
+                            <div
+                                v-for="group in orderedGroups"
+                                :key="group.key"
+                                class="mb-3"
+                            >
+                                <div class="d-flex align-items-center mb-1">
                                     <input
                                         type="checkbox"
-                                        class="form-check-input"
-                                        :id="'er-' + m.name"
-                                        :checked="selected.has(m.name)"
-                                        @change="toggleModel(m.name)"
+                                        class="form-check-input me-2"
+                                        :checked="isGroupAllSelected(group)"
+                                        @change="toggleGroup(group.key)"
                                     />
-                                    <label
-                                        class="form-check-label small"
-                                        :for="'er-' + m.name"
-                                        :title="m.verbose_name"
-                                        >{{ m.name }}</label
+                                    <strong class="me-1">{{
+                                        group.name
+                                    }}</strong>
+                                    <span class="text-muted small"
+                                        >({{ selectedGroupCount(group) }}/{{
+                                            group.models.length
+                                        }})</span
                                     >
+                                </div>
+                                <div class="ms-4">
+                                    <div
+                                        v-for="m in group.models"
+                                        :key="m.name"
+                                        class="form-check"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="form-check-input"
+                                            :id="'er-' + m.name"
+                                            :checked="selected.has(m.name)"
+                                            @change="toggleModel(m.name)"
+                                        />
+                                        <label
+                                            class="form-check-label small"
+                                            :for="'er-' + m.name"
+                                            :title="m.verbose_name"
+                                            >{{ m.name }}</label
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pan and Zoom (40%) -->
+                        <div
+                            class="border-top d-flex flex-column"
+                            style="height: 40%; min-height: 0"
+                        >
+                            <div
+                                class="d-flex align-items-center gap-2 px-2 pt-2 small"
+                            >
+                                <span class="fw-bold">Pan and Zoom</span>
+                                <input
+                                    type="range"
+                                    class="form-range flex-grow-1 er-zoom-slider"
+                                    min="0"
+                                    max="1000"
+                                    :value="zoomSliderValue"
+                                    @input="onZoomSlider"
+                                    title="Zoom"
+                                />
+                            </div>
+                            <div class="p-2 flex-grow-1" style="min-height: 0">
+                                <svg
+                                    v-if="layout.boxes.length"
+                                    ref="minimapSvg"
+                                    class="er-minimap"
+                                    :viewBox="`0 0 ${layout.width} ${layout.height}`"
+                                    width="100%"
+                                    height="100%"
+                                    preserveAspectRatio="xMidYMid meet"
+                                    @pointerdown="onMinimapPointerDown"
+                                    @wheel.prevent="onMinimapWheel"
+                                >
+                                    <rect
+                                        v-for="b in layout.boxes"
+                                        :key="'m' + b.model.name"
+                                        :x="b.x"
+                                        :y="b.y"
+                                        :width="b.w"
+                                        :height="b.h"
+                                        :fill="boxFill(b)"
+                                        :stroke="boxStroke(b)"
+                                        stroke-width="0.5"
+                                    ></rect>
+                                    <line
+                                        v-for="(e, i) in layout.edges"
+                                        :key="'ml' + i"
+                                        :x1="e.x1"
+                                        :y1="e.y1"
+                                        :x2="e.x2"
+                                        :y2="e.y2"
+                                        stroke="#8aa08a"
+                                        stroke-width="0.5"
+                                    ></line>
+                                    <rect
+                                        :x="viewportRect.x"
+                                        :y="viewportRect.y"
+                                        :width="viewportRect.w"
+                                        :height="viewportRect.h"
+                                        fill="rgba(41, 128, 185, 0.08)"
+                                        stroke="#2980b9"
+                                        stroke-width="1.5"
+                                    ></rect>
+                                </svg>
+                                <div
+                                    v-else
+                                    class="text-muted small text-center py-3"
+                                >
+                                    Loading…
                                 </div>
                             </div>
                         </div>
@@ -657,10 +733,12 @@ export default {
             panX: 0,
             panY: 0,
             dragging: false,
-            lastWheel: 0,
             maximized: false,
             sidebarCollapsed: false,
             hoveredEdge: null,
+            viewportW: 0,
+            viewportH: 0,
+            minimapDragging: false,
             BOX_W,
             HEADER_H,
             ROW_H,
@@ -755,6 +833,22 @@ export default {
         },
         layout() {
             return computeLayout(this.selectedModels, this.depthByName);
+        },
+        // Visible region of the main viewport, in diagram (world) coordinates.
+        viewportRect() {
+            const z = this.zoom || 1;
+            return {
+                x: -this.panX / z,
+                y: -this.panY / z,
+                w: this.viewportW / z,
+                h: this.viewportH / z,
+            };
+        },
+        // Slider position: 0 = zoomed out (MIN_ZOOM), 1000 = zoomed in (MAX_ZOOM).
+        zoomSliderValue() {
+            const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoom));
+            const p = Math.log(z / MIN_ZOOM) / Math.log(MAX_ZOOM / MIN_ZOOM);
+            return Math.round(p * 1000);
         },
     },
     watch: {
@@ -888,15 +982,46 @@ export default {
             this.level = Math.min(this.maxLevel, this.level + 1);
         },
         onWheel(e) {
-            const now = Date.now();
-            if (now - this.lastWheel < 160) return;
-            this.lastWheel = now;
-            if (e.deltaY < 0) this.zoomIn();
-            else this.zoomOut();
+            const el = this.$refs.viewport;
+            const rect = el ? el.getBoundingClientRect() : null;
+            const ax = rect ? e.clientX - rect.left : null;
+            const ay = rect ? e.clientY - rect.top : null;
+            const factor = Math.pow(1.1, -e.deltaY / 100);
+            this.setZoom(this.zoom * factor, ax, ay);
+        },
+        onMinimapWheel(e) {
+            const factor = Math.pow(1.1, -e.deltaY / 100);
+            this.setZoom(this.zoom * factor);
+        },
+        onZoomSlider(e) {
+            const p = Number(e.target.value) / 1000;
+            this.setZoom(MIN_ZOOM * Math.pow(MAX_ZOOM / MIN_ZOOM, p));
+        },
+        // Continuous geometric zoom. Anchors on the given viewport point
+        // (defaults to the centre) so the world point under it stays fixed.
+        setZoom(newZoom, anchorX = null, anchorY = null) {
+            const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+            if (z === this.zoom) return;
+            const el = this.$refs.viewport;
+            const vw = el ? el.clientWidth : this.viewportW;
+            const vh = el ? el.clientHeight : this.viewportH;
+            if (vw && vh) {
+                const ax = anchorX != null ? anchorX : vw / 2;
+                const ay = anchorY != null ? anchorY : vh / 2;
+                const wx = (ax - this.panX) / this.zoom;
+                const wy = (ay - this.panY) / this.zoom;
+                this.zoom = z;
+                this.panX = ax - wx * z;
+                this.panY = ay - wy * z;
+            } else {
+                this.zoom = z;
+            }
         },
         fitView(preserveCenter = false) {
             const el = this.$refs.viewport;
             if (!el || !this.layout.boxes.length) return;
+            this.viewportW = el.clientWidth;
+            this.viewportH = el.clientHeight;
             // Fit to the rings up to the current level. Deeper rings stay laid
             // out "out of pan" and are reachable by panning at the same zoom.
             const boxes = this.layout.boxes.filter(
@@ -956,14 +1081,68 @@ export default {
                     el.requestFullscreen().catch(() => {});
                 }
             }
+            this.$nextTick(() => this.updateViewportSize());
         },
         onFullscreenChange() {
             if (!document.fullscreenElement && this.maximized) {
                 this.maximized = false;
             }
+            this.$nextTick(() => this.updateViewportSize());
         },
         toggleSidebar() {
             this.sidebarCollapsed = !this.sidebarCollapsed;
+            this.$nextTick(() => this.updateViewportSize());
+        },
+        updateViewportSize() {
+            const el = this.$refs.viewport;
+            if (el) {
+                this.viewportW = el.clientWidth;
+                this.viewportH = el.clientHeight;
+            }
+        },
+        onResize() {
+            this.updateViewportSize();
+        },
+        minimapTransform() {
+            const svg = this.$refs.minimapSvg;
+            if (!svg || !this.layout.width || !this.layout.height) return null;
+            const rect = svg.getBoundingClientRect();
+            const s = Math.min(
+                rect.width / this.layout.width,
+                rect.height / this.layout.height
+            );
+            const ox = (rect.width - this.layout.width * s) / 2;
+            const oy = (rect.height - this.layout.height * s) / 2;
+            return { s, ox, oy, rect };
+        },
+        onMinimapPointerDown(e) {
+            this.minimapDragging = true;
+            this._mmStart = {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                panX: this.panX,
+                panY: this.panY,
+            };
+            window.addEventListener('pointermove', this.onMinimapPointerMove);
+            window.addEventListener('pointerup', this.onMinimapPointerUp);
+            e.preventDefault();
+        },
+        onMinimapPointerMove(e) {
+            if (!this.minimapDragging) return;
+            const t = this.minimapTransform();
+            if (!t) return;
+            const dx = (e.clientX - this._mmStart.clientX) / t.s;
+            const dy = (e.clientY - this._mmStart.clientY) / t.s;
+            this.panX = this._mmStart.panX - dx * this.zoom;
+            this.panY = this._mmStart.panY - dy * this.zoom;
+        },
+        onMinimapPointerUp() {
+            this.minimapDragging = false;
+            window.removeEventListener(
+                'pointermove',
+                this.onMinimapPointerMove
+            );
+            window.removeEventListener('pointerup', this.onMinimapPointerUp);
         },
         // --- pan ---
         onMousedown(e) {
@@ -994,10 +1173,14 @@ export default {
         await this.loadData();
         this.$nextTick(() => this.fitView());
         document.addEventListener('fullscreenchange', this.onFullscreenChange);
+        window.addEventListener('resize', this.onResize);
     },
     beforeUnmount() {
         window.removeEventListener('mousemove', this._dragMove);
         window.removeEventListener('mouseup', this._dragEnd);
+        window.removeEventListener('pointermove', this.onMinimapPointerMove);
+        window.removeEventListener('pointerup', this.onMinimapPointerUp);
+        window.removeEventListener('resize', this.onResize);
         document.removeEventListener(
             'fullscreenchange',
             this.onFullscreenChange
@@ -1019,6 +1202,17 @@ export default {
     left: 8px;
     z-index: 10;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.er-minimap {
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+.er-zoom-slider {
+    min-width: 70px;
 }
 .er-viewport {
     position: relative;

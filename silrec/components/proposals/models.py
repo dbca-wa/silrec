@@ -2271,11 +2271,11 @@ class FormValidationRule(models.Model):
 from reversion import register
 
 #register(AdditionalDocumentType, follow=get_follow_fields(AdditionalDocumentType))
-register(AdditionalDocumentType, follow=['proposaladditionaldocumenttype_set'])
-register(ProposalDocument, follow=['proposal'])
-register(ShapefileDocument, follow=['proposal'])
-register(ProposalAdditionalDocumentType, follow=['proposal', 'additional_document_type'])
-register(ProposalType, follow=[])
+register(AdditionalDocumentType, follow=[], ignore_duplicates=True)  # proposaladditionaldocumenttype_set (reverse) omitted — avoid cascade on save
+register(ProposalDocument, follow=['proposal'], ignore_duplicates=True)
+register(ShapefileDocument, follow=['proposal'], ignore_duplicates=True)
+register(ProposalAdditionalDocumentType, follow=['proposal', 'additional_document_type'], ignore_duplicates=True)
+register(ProposalType, follow=[], ignore_duplicates=True)
 #register(Proposal, follow=['proposal_type', 'previous_application', 'application_type'])
 register(Proposal, follow=[
     'proposal_type',
@@ -2288,15 +2288,15 @@ register(Proposal, follow=[
     'shapefile_documents',   # Shapefile documents
     'supporting_documents',  # Other documents
     #'request_metrics'        # Request metrics
-])
+], ignore_duplicates=True)
 #register(ProposalGeometry, follow=['proposal', 'copied_from'])
 #register(AmendmentReason, follow=[])
 #register(ProposalRequest, follow=[])
 #register(AmendmentRequest, follow=[])
-register(SQLReport, follow=['created_by', 'allowed_groups', 'templates'])
-register(ReportTemplate, follow=['report', 'created_by'])
-register(TextSearchModelConfig, follow=['created_by'])
-register(TextSearchFieldDisplay, follow=['created_by'])
-register(ShapefileAttributeConfig, follow=['application_type'])
-register(ShapefileProcessing, follow=['proposal', 'user'])
-register(FormValidationRule, follow=[])
+register(SQLReport, follow=['created_by', 'allowed_groups', 'templates'], ignore_duplicates=True)
+register(ReportTemplate, follow=['report', 'created_by'], ignore_duplicates=True)
+register(TextSearchModelConfig, follow=['created_by'], ignore_duplicates=True)
+register(TextSearchFieldDisplay, follow=['created_by'], ignore_duplicates=True)
+register(ShapefileAttributeConfig, follow=['application_type'], ignore_duplicates=True)
+register(ShapefileProcessing, follow=['proposal', 'user'], ignore_duplicates=True)
+register(FormValidationRule, follow=[], ignore_duplicates=True)

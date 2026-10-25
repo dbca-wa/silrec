@@ -1094,62 +1094,63 @@ from reversion import register
 
 #register(SurveyAssessmentDocument, follow=get_follow_fields(SurveyAssessmentDocument))
 #register(SurveyAssessmentDocument, follow=['treatment'])
-register(AssignCategoryToTask, follow=['task', 'tsk_cat'])
-register(AssignChtToPly, follow=['polygon', 'cohort', 'op'])
-register(AssignObjToReport, follow=['obj_code', 'report'])
-register(AssignTaskToReport, follow=['task', 'tsk_rpt'])
-register(BaSweep, follow=['ba_transect', 'cell'])
-register(BaSweepTransfer, follow=[])
-register(BaSweepVersion, follow=[])
-register(BaTransect, follow=['cell'])
-register(BaTransectTransfer, follow=[])
-register(Cell, follow=['op'])
-register(ClComp2024PolysClearedMga202050Pl, follow=[])
+register(AssignCategoryToTask, follow=['task', 'tsk_cat'], ignore_duplicates=True)
+register(AssignChtToPly, follow=['polygon', 'cohort', 'op'], ignore_duplicates=True)
+register(AssignObjToReport, follow=['obj_code', 'report'], ignore_duplicates=True)
+register(AssignTaskToReport, follow=['task', 'tsk_rpt'], ignore_duplicates=True)
+register(BaSweep, follow=['ba_transect', 'cell'], ignore_duplicates=True)
+register(BaSweepTransfer, follow=[], ignore_duplicates=True)
+register(BaSweepVersion, follow=[], ignore_duplicates=True)
+register(BaTransect, follow=['cell'], ignore_duplicates=True)
+register(BaTransectTransfer, follow=[], ignore_duplicates=True)
+register(Cell, follow=['op'], ignore_duplicates=True)
+register(ClComp2024PolysClearedMga202050Pl, follow=[], ignore_duplicates=True)
 #register(Cohort, follow=['regen_method', 'vrp'])
 register(Cohort, follow=[
     'regen_method',
     'vrp',
-    'assignchttoply_set',    # Reverse relation to AssignChtToPly
-    'treatment_set',          # Treatments
-    'cohortresult_set',       # Results
-    'cohortxtra_set',         # Extra data
-    'silviculturistcomment_set'  # Comments
-])
-register(CohortResult, follow=['cohort', 'metric'])
-register(CohortXtra, follow=['cohort', 'category1', 'category2'])
-register(CombinedSilrec2023, follow=[])
-register(CombinedSilrec20232, follow=[])
-register(Compartments, follow=[])
-register(Duplicates, follow=[])
-register(FeaActiveFmp25Region, follow=[])
-register(ObjectiveCategory, follow=[])
-register(ObjectiveSubtype, follow=[])
-register(Operation, follow=[])
+    # Reverse relations (assignchttoply_set, treatment_set, cohortresult_set,
+    # cohortxtra_set, silviculturistcomment_set) intentionally omitted — including
+    # them makes reversion snapshot every related assignment/treatment/result on
+    # every cohort save (e.g. a bulk update), fanning out into hundreds of
+    # "no field changes" version records for objects that weren't touched.
+], ignore_duplicates=True)
+register(CohortResult, follow=['cohort', 'metric'], ignore_duplicates=True)
+register(CohortXtra, follow=['cohort', 'category1', 'category2'], ignore_duplicates=True)
+register(CombinedSilrec2023, follow=[], ignore_duplicates=True)
+register(CombinedSilrec20232, follow=[], ignore_duplicates=True)
+register(Compartments, follow=[], ignore_duplicates=True)
+register(Duplicates, follow=[], ignore_duplicates=True)
+register(FeaActiveFmp25Region, follow=[], ignore_duplicates=True)
+register(ObjectiveCategory, follow=[], ignore_duplicates=True)
+register(ObjectiveSubtype, follow=[], ignore_duplicates=True)
+register(Operation, follow=[], ignore_duplicates=True)
 #register(Polygon, follow=['proposal', 'compartment', 'sp_code'])
 register(Polygon, follow=[
     'proposal',
     'compartment',
     'sp_code',
-    'assignchttoply_set',    # Reverse relation to AssignChtToPly
-    'silviculturistcomment_set'  # Comments
-])
-register(PolygonDa, follow=[])
-register(PolygonMiningUnion, follow=[])
-register(PolygonPriorToAreaFix, follow=[])
-register(Prescription, follow=['obj_code', 'task', 'responsibility'])
-register(ReportCohort, follow=[])
-register(ReportTreatment, follow=[])
-register(SilrecPly2023, follow=[])
-register(SilrecVersion, follow=[])
-register(SilrecVersionTracking, follow=['version'])
-register(SilvicPlanInput, follow=[])
-register(SilviculturistComment, follow=['op', 'polygon', 'cohort', 'treatment'])
-register(SplitUnchangedPolygons, follow=[])
-register(TaskCategory, follow=[])
-register(Treatment, follow=['prescription', 'cohort', 'task'])
-register(TreatmentXtra, follow=['treatment', 'category1', 'category2', 'category3', 'category4'])
-register(VegRetPatch, follow=[])
-register(FpcHarvestTracker, follow=[])
+    # Reverse relations (assignchttoply_set, silviculturistcomment_set)
+    # intentionally omitted — same reason as the Cohort note above: they fan the
+    # reversion cascade out across the whole related graph on every save.
+], ignore_duplicates=True)
+register(PolygonDa, follow=[], ignore_duplicates=True)
+register(PolygonMiningUnion, follow=[], ignore_duplicates=True)
+register(PolygonPriorToAreaFix, follow=[], ignore_duplicates=True)
+register(Prescription, follow=['obj_code', 'task', 'responsibility'], ignore_duplicates=True)
+register(ReportCohort, follow=[], ignore_duplicates=True)
+register(ReportTreatment, follow=[], ignore_duplicates=True)
+register(SilrecPly2023, follow=[], ignore_duplicates=True)
+register(SilrecVersion, follow=[], ignore_duplicates=True)
+register(SilrecVersionTracking, follow=['version'], ignore_duplicates=True)
+register(SilvicPlanInput, follow=[], ignore_duplicates=True)
+register(SilviculturistComment, follow=['op', 'polygon', 'cohort', 'treatment'], ignore_duplicates=True)
+register(SplitUnchangedPolygons, follow=[], ignore_duplicates=True)
+register(TaskCategory, follow=[], ignore_duplicates=True)
+register(Treatment, follow=['prescription', 'cohort', 'task'], ignore_duplicates=True)
+register(TreatmentXtra, follow=['treatment', 'category1', 'category2', 'category3', 'category4'], ignore_duplicates=True)
+register(VegRetPatch, follow=[], ignore_duplicates=True)
+register(FpcHarvestTracker, follow=[], ignore_duplicates=True)
 #register(TmpPolygon, follow=['proposal', 'compartment', 'sp_code'])
 #register(TmpAssignChtToPly, follow=['polygon', 'cohort', 'op'])
 #register(TmpCohort, follow=['regen_method', 'vrp'])

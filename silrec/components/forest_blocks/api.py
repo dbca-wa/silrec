@@ -2510,7 +2510,7 @@ class VersionHistoryView(APIView):
     }
 
     def get(self, request, model_name, pk):
-        model = self.MODELS.get(model_name.lower())
+        model = _resolve_history_model(model_name)
         if model is None:
             return Response({'error': 'Unknown model'},
                             status=status.HTTP_404_NOT_FOUND)
@@ -2536,6 +2536,26 @@ class VersionHistoryView(APIView):
                 'date': v.revision.date_created.isoformat() if v.revision else None,
             })
         return Response({'model': model_name.lower(), 'pk': pk, 'versions': data})
+
+
+def _resolve_history_model(model_name):
+    """Resolve a model by name for the version-history/diff endpoints.
+
+    The Change History list exposes every reversion-tracked model, so these
+    endpoints must support any of them — not just the small whitelist in
+    ``VersionHistoryView.MODELS`` (which is kept for the model filter dropdown).
+    """
+    name = (model_name or '').lower()
+    model = VersionHistoryView.MODELS.get(name)
+    if model is not None:
+        return model
+    from django.contrib.contenttypes.models import ContentType
+    from reversion.revisions import is_registered
+    for ct in ContentType.objects.filter(model=name):
+        cls = ct.model_class()
+        if cls is not None and is_registered(cls):
+            return cls
+    return None
 
 
 _dmp = diff_match_patch()
@@ -2577,7 +2597,7 @@ class VersionDiffView(APIView):
     MODELS = VersionHistoryView.MODELS
 
     def get(self, request, model_name, pk):
-        model = self.MODELS.get(model_name.lower())
+        model = _resolve_history_model(model_name)
         if model is None:
             return Response({'error': 'Unknown model'},
                             status=status.HTTP_404_NOT_FOUND)
@@ -2613,9 +2633,19 @@ class VersionDiffView(APIView):
             if len(versions) >= 2:
                 v1 = versions[-2]
 
-        if v1 is None or v2 is None:
-            return Response({'error': 'Two versions are required to compare'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        if v2 is None:
+            return Response({'error': 'Version not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        if v1 is None:
+            # Earliest recorded version of this object — nothing to diff against.
+            return Response({
+                'model': model_name.lower(),
+                'pk': pk,
+                'v1': None,
+                'v2': self._version_meta(v2),
+                'changes': [],
+            })
 
         old = self._field_dict(v1)
         new = self._field_dict(v2)
@@ -2738,6 +2768,10 @@ class HistoryListView(APIView):
                 | Q(object_repr__icontains=search)
             )
 
+        exclude_first = request.query_params.get('exclude_first') in (
+            '1', 'true', 'True'
+        )
+
         revision_ids = versions_qs.values_list('revision_id', flat=True).distinct()
         revision_qs = Revision.objects.filter(id__in=revision_ids).select_related(
             'user'
@@ -2749,6 +2783,9 @@ class HistoryListView(APIView):
 
         rev_ids = [r.id for r in page]
         page_versions = versions_qs.filter(revision_id__in=rev_ids)
+        page_versions = self._exclude_no_change_versions(
+            page_versions, exclude_first=exclude_first
+        )
         by_rev = {}
         for v in page_versions:
             by_rev.setdefault(v.revision_id, []).append({
@@ -2769,3 +2806,53 @@ class HistoryListView(APIView):
             })
 
         return paginator.get_paginated_response(results)
+
+    @staticmethod
+    def _exclude_no_change_versions(versions, exclude_first=False):
+        """Drop versions whose serialized data is identical to the previous
+        version of the same object, and (optionally) the first recorded version
+        of each object.
+
+        reversion's ``follow`` cascade (and duplicate bulk-update runs) snapshot
+        many related objects that were not actually changed; those show up as
+        "No field changes" in the UI. Comparing each version's ``serialized_data``
+        against its immediate predecessor (chronologically) detects them, since
+        the JSON serialisation is deterministic for identical field values.
+
+        With ``exclude_first`` the earliest version of each object is also
+        dropped, since it has nothing to compare against ("First recorded
+        version").
+        """
+        from collections import defaultdict
+
+        versions = list(versions)
+        if not versions:
+            return versions
+
+        groups = defaultdict(list)
+        for v in versions:
+            groups[(v.content_type_id, v.object_id)].append(v.id)
+
+        excluded_ids = set()
+        for (content_type_id, object_id) in groups:
+            history = (
+                Version.objects.filter(
+                    content_type_id=content_type_id,
+                    object_id=object_id,
+                )
+                .order_by('revision__date_created', 'id')
+                .values_list('id', 'serialized_data')
+            )
+            previous = None
+            is_first = True
+            for vid, data in history:
+                if is_first and exclude_first:
+                    excluded_ids.add(vid)
+                if previous is not None and data == previous:
+                    excluded_ids.add(vid)
+                previous = data
+                is_first = False
+
+        if not excluded_ids:
+            return versions
+        return [v for v in versions if v.id not in excluded_ids]

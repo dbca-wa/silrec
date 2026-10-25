@@ -346,15 +346,14 @@ class ObjectiveLkp(models.Model):
 from reversion import register
 
 #register(CohortMetricsLkp, follow=get_follow_fields(CohortMetricsLkp))
-register(CohortMetricsLkp, follow=['cohortresult_set'])
-register(MachineLkp, follow=[])
-register(OrganisationLkp, follow=[])
-register(RegenerationMethodsLkp, follow=[])
-register(RescheduleReasonsLkp, follow=[])
-register(SpatialPrecisionLkp, follow=[])
-register(SpeciesApiLkp, follow=[])
-register(TaskLkp, follow=['addition_attribs'])
-register(TasksAttLkp, follow=[])
-register(TreatmentStatusLkp, follow=[])
-register(ObjectiveLkp, follow=[])
-
+register(CohortMetricsLkp, follow=[], ignore_duplicates=True)  # cohortresult_set (reverse) omitted
+register(MachineLkp, follow=[], ignore_duplicates=True)
+register(OrganisationLkp, follow=[], ignore_duplicates=True)
+register(RegenerationMethodsLkp, follow=[], ignore_duplicates=True)
+register(RescheduleReasonsLkp, follow=[], ignore_duplicates=True)
+register(SpatialPrecisionLkp, follow=[], ignore_duplicates=True)
+register(SpeciesApiLkp, follow=[], ignore_duplicates=True)
+register(TaskLkp, follow=[], ignore_duplicates=True)  # addition_attribs (reverse) omitted
+register(TasksAttLkp, follow=[], ignore_duplicates=True)
+register(TreatmentStatusLkp, follow=[], ignore_duplicates=True)
+register(ObjectiveLkp, follow=[], ignore_duplicates=True)

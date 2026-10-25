@@ -259,5 +259,5 @@ from reversion import register
 
 #register(ApplicationType, follow=get_follow_fields(ApplicationType))
 #register(SystemMaintenance, follow=get_follow_fields(SystemMaintenance))
-register(ApplicationType, follow=['proposal_set'])
-register(SystemMaintenance, follow=[])
+register(ApplicationType, follow=[], ignore_duplicates=True)  # proposal_set (reverse) omitted — avoid cascade on save
+register(SystemMaintenance, follow=[], ignore_duplicates=True)

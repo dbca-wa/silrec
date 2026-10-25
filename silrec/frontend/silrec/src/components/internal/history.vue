@@ -1,88 +1,106 @@
 <template>
-    <div class="container-fluid my-4">
-        <h2 class="mb-3">Change History</h2>
+    <div class="container my-4">
+        <h1 class="my-4">Change History</h1>
 
         <!-- Filters -->
-        <div class="card mb-3">
-            <div class="card-body py-2">
-                <div class="row g-2 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">Model</label>
-                        <select
-                            v-model="filters.model"
-                            class="form-select form-select-sm"
-                        >
-                            <option value="">All models</option>
-                            <option
-                                v-for="m in models"
-                                :key="m.key"
-                                :value="m.key"
-                            >
-                                {{ m.label }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">User</label>
-                        <select
-                            v-model="filters.user"
-                            class="form-select form-select-sm"
-                        >
-                            <option value="">All users</option>
-                            <option
-                                v-for="u in users"
-                                :key="u.id"
-                                :value="u.id"
-                            >
-                                {{ u.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">From</label>
-                        <input
-                            v-model="filters.from"
-                            type="date"
-                            class="form-control form-control-sm"
-                        />
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">To</label>
-                        <input
-                            v-model="filters.to"
-                            type="date"
-                            class="form-control form-control-sm"
-                        />
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">Search</label>
-                        <input
-                            v-model="filters.search"
-                            type="text"
-                            class="form-control form-control-sm"
-                            placeholder="Comment / record…"
-                            @keyup.enter="applyFilters"
-                        />
-                    </div>
+        <CollapsibleFilters
+            ref="collapsible_filters"
+            component_title="Filters"
+            :collapsed="false"
+            class="mb-2"
+        >
+            <div class="row mt-1 p-2 g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Model</label>
+                    <select
+                        v-model="filters.model"
+                        class="form-select form-select-sm"
+                    >
+                        <option value="">All models</option>
+                        <option v-for="m in models" :key="m.key" :value="m.key">
+                            {{ m.label }}
+                        </option>
+                    </select>
                 </div>
-                <div class="d-flex gap-2 mt-2">
-                    <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        @click="applyFilters"
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">User</label>
+                    <select
+                        v-model="filters.user"
+                        class="form-select form-select-sm"
                     >
-                        Apply
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-outline-secondary btn-sm"
-                        @click="clearFilters"
-                    >
-                        Clear
-                    </button>
+                        <option value="">All users</option>
+                        <option v-for="u in users" :key="u.id" :value="u.id">
+                            {{ u.name }}
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">From</label>
+                    <input
+                        v-model="filters.from"
+                        type="date"
+                        class="form-control form-control-sm"
+                    />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">To</label>
+                    <input
+                        v-model="filters.to"
+                        type="date"
+                        class="form-control form-control-sm"
+                    />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Search</label>
+                    <input
+                        v-model="filters.search"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="Comment / record…"
+                        @keyup.enter="applyFilters"
+                    />
                 </div>
             </div>
-        </div>
+            <div class="d-flex gap-2 px-2 pb-2 align-items-center">
+                <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    @click="applyFilters"
+                >
+                    Apply
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    @click="clearFilters"
+                >
+                    Clear
+                </button>
+                <div class="form-check ms-2 mb-0">
+                    <input
+                        id="exclude-first"
+                        v-model="filters.excludeFirst"
+                        type="checkbox"
+                        class="form-check-input"
+                        @change="applyFilters"
+                    />
+                    <label class="form-check-label small" for="exclude-first">
+                        Exclude first recorded versions
+                    </label>
+                </div>
+                <div class="form-check ms-2 mb-0">
+                    <input
+                        id="exclude-empty"
+                        v-model="filters.excludeEmpty"
+                        type="checkbox"
+                        class="form-check-input"
+                    />
+                    <label class="form-check-label small" for="exclude-empty">
+                        Exclude 0 record(s)
+                    </label>
+                </div>
+            </div>
+        </CollapsibleFilters>
 
         <!-- Results -->
         <div v-if="loading" class="text-center py-4">
@@ -93,13 +111,17 @@
         <div v-else-if="error" class="alert alert-danger">
             {{ error }}
         </div>
-        <div v-else-if="!results.length" class="text-muted">
+        <div v-else-if="!displayResults.length" class="text-muted">
             No history found.
         </div>
         <template v-else>
             <p class="text-muted small mb-2">{{ count }} revision(s)</p>
 
-            <div v-for="r in results" :key="r.revision_id" class="card mb-2">
+            <div
+                v-for="r in displayResults"
+                :key="r.revision_id"
+                class="card mb-2"
+            >
                 <div
                     class="card-header py-1 d-flex justify-content-between align-items-center flex-wrap"
                 >
@@ -160,6 +182,15 @@
                             <div v-else-if="diffState(c.version_id).data">
                                 <div
                                     v-if="
+                                        diffState(c.version_id).data.v1 == null
+                                    "
+                                    class="text-muted small"
+                                >
+                                    First recorded version — nothing to compare
+                                    against.
+                                </div>
+                                <div
+                                    v-else-if="
                                         !diffState(c.version_id).data.changes
                                             .length
                                     "
@@ -209,19 +240,28 @@
 <script>
 import { api_endpoints } from '@/utils/hooks';
 import RichDiff from '@/components/internal/rich_diff.vue';
+import CollapsibleFilters from '@/components/forms/collapsible_component.vue';
 
 const PAGE_SIZE = 25;
 
 export default {
     name: 'HistoryView',
-    components: { RichDiff },
+    components: { RichDiff, CollapsibleFilters },
     data() {
         return {
             loading: false,
             error: null,
             models: [],
             users: [],
-            filters: { model: '', user: '', from: '', to: '', search: '' },
+            filters: {
+                model: '',
+                user: '',
+                from: '',
+                to: '',
+                search: '',
+                excludeFirst: true,
+                excludeEmpty: true,
+            },
             page: 1,
             count: 0,
             results: [],
@@ -232,6 +272,10 @@ export default {
     computed: {
         totalPages() {
             return Math.max(1, Math.ceil(this.count / PAGE_SIZE));
+        },
+        displayResults() {
+            if (!this.filters.excludeEmpty) return this.results;
+            return this.results.filter((r) => r.changes.length > 0);
         },
     },
     mounted() {
@@ -258,6 +302,7 @@ export default {
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
             if (this.filters.search) p.set('search', this.filters.search);
+            if (this.filters.excludeFirst) p.set('exclude_first', '1');
             p.set('page', this.page);
             return p.toString();
         },
@@ -291,6 +336,8 @@ export default {
                 from: '',
                 to: '',
                 search: '',
+                excludeFirst: true,
+                excludeEmpty: true,
             };
             this.applyFilters();
         },

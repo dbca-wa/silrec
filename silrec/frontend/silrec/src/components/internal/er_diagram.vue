@@ -174,16 +174,14 @@
                                         :stroke="darken(boxStroke(b), 0.65)"
                                         stroke-width="0.5"
                                     ></rect>
-                                    <line
+                                    <path
                                         v-for="(e, i) in layout.edges"
                                         :key="'ml' + i"
-                                        :x1="e.x1"
-                                        :y1="e.y1"
-                                        :x2="e.x2"
-                                        :y2="e.y2"
+                                        :d="e.d"
+                                        fill="none"
                                         stroke="#5a685a"
                                         stroke-width="0.5"
-                                    ></line>
+                                    ></path>
                                     <rect
                                         :x="viewportRect.x"
                                         :y="viewportRect.y"
@@ -220,6 +218,36 @@
                 >
                     <i class="fa-solid fa-angles-right"></i>
                 </button>
+                <div
+                    v-if="edgePopup"
+                    class="er-edge-popup"
+                    :style="{
+                        left: edgePopup.x + 14 + 'px',
+                        top: edgePopup.y + 14 + 'px',
+                    }"
+                    @mouseenter="onPopupEnter"
+                    @mouseleave="onPopupLeave"
+                >
+                    <div class="er-edge-popup-title">
+                        {{ edgePopup.edge.from }}.{{ edgePopup.edge.field }} →
+                        {{ edgePopup.edge.to }}
+                    </div>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-light er-edge-popup-item"
+                        @click="selectTable(edgePopup.edge.from)"
+                    >
+                        <i class="bi bi-table me-1"></i
+                        >{{ edgePopup.edge.from }}
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-light er-edge-popup-item"
+                        @click="selectTable(edgePopup.edge.to)"
+                    >
+                        <i class="bi bi-table me-1"></i>{{ edgePopup.edge.to }}
+                    </button>
+                </div>
                 <div v-if="loading" class="text-center py-5">
                     <div class="spinner-border"></div>
                 </div>
@@ -282,26 +310,24 @@
                                 <g
                                     v-for="(e, i) in layout.edges"
                                     :key="'e' + i"
-                                    @mouseenter="hoveredEdge = e"
-                                    @mouseleave="hoveredEdge = null"
+                                    @mouseenter="onEdgeEnter(e, $event)"
+                                    @mouseleave="onEdgeLeave"
                                 >
                                     <title>
                                         {{ e.from }}.{{ e.field }} → {{ e.to }}
                                     </title>
-                                    <line
-                                        :x1="e.x1"
-                                        :y1="e.y1"
-                                        :x2="e.x2"
-                                        :y2="e.y2"
+                                    <path
+                                        :d="e.d"
+                                        fill="none"
                                         stroke="transparent"
                                         stroke-width="10"
                                         pointer-events="stroke"
-                                    ></line>
-                                    <line
-                                        :x1="e.x1"
-                                        :y1="e.y1"
-                                        :x2="e.x2"
-                                        :y2="e.y2"
+                                    ></path>
+                                    <path
+                                        :d="e.d"
+                                        fill="none"
+                                        stroke-linejoin="round"
+                                        stroke-linecap="round"
                                         :stroke="
                                             hoveredEdge === e
                                                 ? '#e74c3c'
@@ -318,7 +344,7 @@
                                                 ? 'url(#er-arrow-hover)'
                                                 : 'url(#er-arrow)'
                                         "
-                                    ></line>
+                                    ></path>
                                     <text
                                         v-if="e.srcLabel"
                                         :x="e.srcLabel.x"
@@ -432,15 +458,13 @@
 
                                 <!-- Hover highlight overlay (above boxes) -->
                                 <g v-if="hoveredEdge" pointer-events="none">
-                                    <line
-                                        :x1="hoveredEdge.x1"
-                                        :y1="hoveredEdge.y1"
-                                        :x2="hoveredEdge.x2"
-                                        :y2="hoveredEdge.y2"
+                                    <path
+                                        :d="hoveredEdge.d"
+                                        fill="none"
                                         stroke="#e74c3c"
                                         stroke-width="3"
                                         marker-end="url(#er-arrow-hover)"
-                                    ></line>
+                                    ></path>
                                     <text
                                         v-if="hoveredEdge.srcLabel"
                                         :x="hoveredEdge.srcLabel.x"
@@ -530,6 +554,9 @@ const MAX_ZOOM = 2;
 // Floor for "focus on table": keeps the focused table prominent even when its
 // immediate neighbours are spread far apart (far ones then sit out of pan).
 const MIN_FOCUS_ZOOM = 0.875;
+const ROUTE_CELL = 32;
+const ROUTE_PAD = 14;
+const ROUTE_TURN_PENALTY = 1;
 
 function boxHeight(model) {
     const n = Math.min(model.fields.length, MAX_FIELDS);
@@ -553,6 +580,236 @@ function edgePoints(a, b) {
         x2: bx - ux * (b.w / 2),
         y2: by - uy * (b.h / 2),
     };
+}
+
+// --- Orthogonal edge routing ------------------------------------------------
+// Relationship lines are drawn as axis-aligned polylines that route AROUND the
+// table boxes instead of straight through them. A coarse grid + A* finds a path
+// that avoids every box (inflated by ROUTE_PAD for clearance); the result is
+// simplified to the fewest orthogonal segments. When no route exists (e.g. the
+// tables touch) we fall back to a straight line.
+
+function routeGrid(boxes, width, height) {
+    const cols = Math.max(2, Math.ceil(width / ROUTE_CELL) + 2);
+    const rows = Math.max(2, Math.ceil(height / ROUTE_CELL) + 2);
+    const blocked = new Uint8Array(cols * rows);
+    const idx = (cx, cy) => cy * cols + cx;
+    for (const b of boxes) {
+        const c0 = Math.max(0, Math.floor((b.x - ROUTE_PAD) / ROUTE_CELL));
+        const r0 = Math.max(0, Math.floor((b.y - ROUTE_PAD) / ROUTE_CELL));
+        const c1 = Math.min(
+            cols - 1,
+            Math.ceil((b.x + b.w + ROUTE_PAD) / ROUTE_CELL) - 1
+        );
+        const r1 = Math.min(
+            rows - 1,
+            Math.ceil((b.y + b.h + ROUTE_PAD) / ROUTE_CELL) - 1
+        );
+        for (let cy = r0; cy <= r1; cy++) {
+            for (let cx = c0; cx <= c1; cx++) blocked[idx(cx, cy)] = 1;
+        }
+    }
+    return {
+        cols,
+        rows,
+        idx,
+        cellOf(x, y) {
+            return [
+                Math.min(cols - 1, Math.max(0, Math.floor(x / ROUTE_CELL))),
+                Math.min(rows - 1, Math.max(0, Math.floor(y / ROUTE_CELL))),
+            ];
+        },
+        centerOf(cx, cy) {
+            return { x: (cx + 0.5) * ROUTE_CELL, y: (cy + 0.5) * ROUTE_CELL };
+        },
+        isFree(cx, cy) {
+            return (
+                cx >= 0 &&
+                cy >= 0 &&
+                cx < cols &&
+                cy < rows &&
+                !blocked[idx(cx, cy)]
+            );
+        },
+    };
+}
+
+function makeRouter(grid) {
+    const { cols, rows, idx, isFree } = grid;
+    const n = cols * rows;
+    const g = new Float64Array(n);
+    const came = new Int32Array(n).fill(-1);
+    const stamp = new Int32Array(n);
+    const dirIn = new Int32Array(n).fill(-1);
+    const dirs = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+    ];
+    let token = 0;
+
+    return function (sx, sy, tx, ty) {
+        token += 1;
+        const start = idx(sx, sy);
+        const end = idx(tx, ty);
+        if (start === end) return null;
+        const h = (cx, cy) => Math.abs(cx - tx) + Math.abs(cy - ty);
+        const heap = [];
+        const push = (node, gv) => {
+            const cx = node % cols;
+            const cy = (node - cx) / cols;
+            heap.push([gv + h(cx, cy), gv, node]);
+            let i = heap.length - 1;
+            while (i > 0) {
+                const p = (i - 1) >> 1;
+                if (heap[p][0] <= heap[i][0]) break;
+                [heap[p], heap[i]] = [heap[i], heap[p]];
+                i = p;
+            }
+        };
+        const pop = () => {
+            const top = heap[0];
+            const last = heap.pop();
+            if (heap.length) {
+                heap[0] = last;
+                let i = 0;
+                for (;;) {
+                    const l = 2 * i + 1;
+                    const r = l + 1;
+                    let m = i;
+                    if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+                    if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+                    if (m === i) break;
+                    [heap[m], heap[i]] = [heap[i], heap[m]];
+                    i = m;
+                }
+            }
+            return top;
+        };
+        g[start] = 0;
+        stamp[start] = token;
+        push(start, 0);
+        while (heap.length) {
+            const [, gv, cur] = pop();
+            if (cur === end) break;
+            if (gv > g[cur]) continue;
+            const cx = cur % cols;
+            const cy = (cur - cx) / cols;
+            for (let d = 0; d < 4; d++) {
+                const nx = cx + dirs[d][0];
+                const ny = cy + dirs[d][1];
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                const ni = idx(nx, ny);
+                if (ni !== start && ni !== end && !isFree(nx, ny)) continue;
+                const penalty =
+                    dirIn[cur] === -1 || dirIn[cur] === d
+                        ? 0
+                        : ROUTE_TURN_PENALTY;
+                const ng = g[cur] + 1 + penalty;
+                if (stamp[ni] !== token || ng < g[ni]) {
+                    g[ni] = ng;
+                    came[ni] = cur;
+                    dirIn[ni] = d;
+                    stamp[ni] = token;
+                    push(ni, ng);
+                }
+            }
+        }
+        if (stamp[end] !== token) return null;
+        const cells = [];
+        let cur = end;
+        while (cur !== start) {
+            cells.push(cur);
+            cur = came[cur];
+            if (cur < 0) return null;
+        }
+        cells.push(start);
+        cells.reverse();
+        return cells.map((ci) => {
+            const cx = ci % cols;
+            return grid.centerOf(cx, (ci - cx) / cols);
+        });
+    };
+}
+
+function simplifyPath(points) {
+    const out = [];
+    for (const p of points) {
+        while (out.length >= 2) {
+            const a = out[out.length - 2];
+            const b = out[out.length - 1];
+            const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+            if (Math.abs(cross) < 1e-6) out.pop();
+            else break;
+        }
+        out.push(p);
+    }
+    return out;
+}
+
+function pathToD(points) {
+    return points
+        .map(
+            (pt, i) =>
+                `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`
+        )
+        .join(' ');
+}
+
+// True if the segment (x1,y1)-(x2,y2) passes through the interior of the
+// axis-aligned rect r = {x, y, w, h} (Liang-Barsky clipping).
+function segmentIntersectsRect(x1, y1, x2, y2, r) {
+    let t0 = 0;
+    let t1 = 1;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const p = [-dx, dx, -dy, dy];
+    const q = [x1 - r.x, r.x + r.w - x1, y1 - r.y, r.y + r.h - y1];
+    for (let i = 0; i < 4; i++) {
+        if (p[i] === 0) {
+            if (q[i] < 0) return false;
+        } else {
+            const t = q[i] / p[i];
+            if (p[i] < 0) {
+                if (t > t1) return false;
+                if (t > t0) t0 = t;
+            } else {
+                if (t < t0) return false;
+                if (t < t1) t1 = t;
+            }
+        }
+    }
+    return t0 < t1;
+}
+
+function routeEdge(a, b, grid, router) {
+    const p = edgePoints(a, b);
+    const dx = p.x2 - p.x1;
+    const dy = p.y2 - p.y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const [sx, sy] = grid.cellOf(
+        p.x1 + ux * (ROUTE_PAD + ROUTE_CELL),
+        p.y1 + uy * (ROUTE_PAD + ROUTE_CELL)
+    );
+    const [tx, ty] = grid.cellOf(
+        p.x2 - ux * (ROUTE_PAD + ROUTE_CELL),
+        p.y2 - uy * (ROUTE_PAD + ROUTE_CELL)
+    );
+    const mid = router(sx, sy, tx, ty);
+    let path;
+    if (mid && mid.length >= 2) {
+        path = [{ x: p.x1, y: p.y1 }, ...mid, { x: p.x2, y: p.y2 }];
+    } else {
+        path = [
+            { x: p.x1, y: p.y1 },
+            { x: p.x2, y: p.y2 },
+        ];
+    }
+    path = simplifyPath(path);
+    return { path, d: pathToD(path) };
 }
 
 // Place a set of models on concentric rings (hub-and-spoke).
@@ -713,6 +970,18 @@ function computeLayout(models, depthByName) {
     const width = bb.maxX - bb.minX + 2 * MARGIN;
     const height = bb.maxY - bb.minY + 2 * MARGIN;
 
+    const grid = routeGrid(boxes, width, height);
+    const router = makeRouter(grid);
+    // Boxes inflated by the routing clearance, used to decide whether a straight
+    // line would cut through a table (in which case it is routed around it).
+    const inflated = boxes.map((bx) => ({
+        name: bx.model.name,
+        x: bx.x - ROUTE_PAD,
+        y: bx.y - ROUTE_PAD,
+        w: bx.w + 2 * ROUTE_PAD,
+        h: bx.h + 2 * ROUTE_PAD,
+    }));
+
     const edges = [];
     for (const m of models) {
         const a = boxByName[m.name];
@@ -720,30 +989,51 @@ function computeLayout(models, depthByName) {
             if (f.related_model && boxByName[f.related_model]) {
                 const b = boxByName[f.related_model];
                 if (a === b) continue;
-                const pts = edgePoints(a, b);
                 const relation = f.relation || 'fk';
+                const p = edgePoints(a, b);
+                let crosses = false;
+                for (const r of inflated) {
+                    if (r.name === m.name || r.name === f.related_model)
+                        continue;
+                    if (segmentIntersectsRect(p.x1, p.y1, p.x2, p.y2, r)) {
+                        crosses = true;
+                        break;
+                    }
+                }
+                const path = crosses
+                    ? routeEdge(a, b, grid, router).path
+                    : [
+                          { x: p.x1, y: p.y1 },
+                          { x: p.x2, y: p.y2 },
+                      ];
+                const first = path[0];
+                const second = path[1];
+                const last = path[path.length - 1];
+                const prev = path[path.length - 2];
+                const d1x = second.x - first.x;
+                const d1y = second.y - first.y;
+                const l1 = Math.hypot(d1x, d1y) || 1;
+                const d2x = last.x - prev.x;
+                const d2y = last.y - prev.y;
+                const l2 = Math.hypot(d2x, d2y) || 1;
                 const srcText = relation === 'o2o' ? '1' : 'N';
                 const tgtText = relation === 'm2m' ? 'N' : '1';
-                const dx = pts.x2 - pts.x1;
-                const dy = pts.y2 - pts.y1;
-                const len = Math.hypot(dx, dy) || 1;
-                const ux = dx / len;
-                const uy = dy / len;
                 edges.push({
                     from: m.name,
                     to: f.related_model,
                     field: f.name,
                     relation,
-                    ...pts,
+                    path,
+                    d: pathToD(path),
                     srcLabel: {
                         text: srcText,
-                        x: pts.x1 + ux * 18,
-                        y: pts.y1 + uy * 18,
+                        x: first.x + (d1x / l1) * 18,
+                        y: first.y + (d1y / l1) * 18,
                     },
                     tgtLabel: {
                         text: tgtText,
-                        x: pts.x2 - ux * 18,
-                        y: pts.y2 - uy * 18,
+                        x: last.x - (d2x / l2) * 18,
+                        y: last.y - (d2y / l2) * 18,
                     },
                 });
             }
@@ -769,6 +1059,7 @@ export default {
             maximized: false,
             sidebarCollapsed: false,
             hoveredEdge: null,
+            edgePopup: null,
             viewportW: 0,
             viewportH: 0,
             minimapDragging: false,
@@ -1105,6 +1396,47 @@ export default {
             }
             this.searchOpen = true;
         },
+        onEdgeEnter(e, event) {
+            this.hoveredEdge = e;
+            if (this._edgePopupTimer) {
+                clearTimeout(this._edgePopupTimer);
+                this._edgePopupTimer = null;
+            }
+            this.edgePopup = {
+                edge: e,
+                x: event.clientX,
+                y: event.clientY,
+            };
+        },
+        onEdgeLeave() {
+            this.hoveredEdge = null;
+            this.schedulePopupHide();
+        },
+        onPopupEnter() {
+            if (this._edgePopupTimer) {
+                clearTimeout(this._edgePopupTimer);
+                this._edgePopupTimer = null;
+            }
+        },
+        onPopupLeave() {
+            this.schedulePopupHide();
+        },
+        schedulePopupHide() {
+            if (this._edgePopupTimer) clearTimeout(this._edgePopupTimer);
+            this._edgePopupTimer = setTimeout(() => {
+                this.edgePopup = null;
+                this._edgePopupTimer = null;
+            }, 150);
+        },
+        selectTable(name) {
+            if (this._edgePopupTimer) {
+                clearTimeout(this._edgePopupTimer);
+                this._edgePopupTimer = null;
+            }
+            this.edgePopup = null;
+            this.hoveredEdge = null;
+            this.zoomToTable(name);
+        },
         // Focus the view on one table plus its immediately-connected neighbours.
         zoomToTable(name) {
             if (name === 'All') {
@@ -1390,6 +1722,35 @@ export default {
 }
 .er-search-dropdown li:hover {
     background: #e9f0f9;
+}
+.er-edge-popup {
+    position: fixed;
+    z-index: 1060;
+    min-width: 200px;
+    max-width: 280px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+.er-edge-popup-title {
+    padding: 2px 6px 6px;
+    font-size: 0.75rem;
+    color: #6c757d;
+    word-break: break-all;
+}
+.er-edge-popup-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.er-edge-popup-item:last-child {
+    margin-bottom: 0;
 }
 .er-viewport {
     position: relative;

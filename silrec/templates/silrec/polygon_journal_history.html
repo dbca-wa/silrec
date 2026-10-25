@@ -1,0 +1,284 @@
+{% extends "webtemplate_dbca/base_b5.html" %}
+
+{% block menu_spacer %}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    .geom-map { height: 60vh; min-height: 400px; width: 100%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h2>Polygon History</h2>
+    <p class="text-muted">
+        Polygon: <strong>{% if polygon.name %}{{ polygon.name }}{% else %}{{ polygon.polygon_id }}{% endif %}</strong>
+        <span class="small">(ID: {{ polygon.polygon_id }})</span>
+        <span class="small">— select a journal record, then click <em>compare</em> to diff it against the current state.</span>
+    </p>
+
+    <form method="get" action="">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="updates_only" value="1"
+                        id="updates_only" {% if updates_checked %}checked{% endif %}>
+                    <label class="form-check-label" for="updates_only">Show updates only</label>
+                </div>
+                <div class="form-check">
+                    <input type="hidden" name="compare_with_current_only" value="0">
+                    <input class="form-check-input" type="checkbox" name="compare_with_current_only" value="1"
+                        id="compare_with_current_only" {% if compare_with_current_checked %}checked{% endif %} {% if single_record %}disabled{% endif %}>
+                    <label class="form-check-label" for="compare_with_current_only">compare with current only</label>
+                </div>
+                <div class="form-check">
+                    <input type="hidden" name="exclude_nontracked" value="0">
+                    <input class="form-check-input" type="checkbox" name="exclude_nontracked" value="1"
+                        id="exclude_nontracked" {% if exclude_nontracked %}checked{% endif %}>
+                    <label class="form-check-label" for="exclude_nontracked">exclude journal non-tracked fields</label>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <label class="mb-0 small" for="window_days">window (days)</label>
+                    <input class="form-control form-control-sm" style="width: 70px" type="number" name="window_days" id="window_days" value="{{ window_days }}" min="0">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">compare</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th class="text-center">From</th>
+                        <th class="text-center to-col">To</th>
+                        <th>Operation</th>
+                        <th>Date/Time</th>
+                        <th>DB User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in action_list %}
+                    <tr>
+                        <td class="text-center">
+                            <input type="radio" name="version" value="{{ a.key }}"
+                                {% if version == a.key %}checked{% endif %}>
+                        </td>
+                        <td class="text-center to-col">
+                            <input type="radio" name="to_version" value="{{ a.key }}"
+                                {% if to_version == a.key %}checked{% endif %}>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ a.operation }}</span></td>
+                        <td class="text-nowrap">{{ a.date|date:"d M Y, g:i:s a" }}</td>
+                        <td>{{ a.db_user }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted">No journal history recorded for this polygon.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    {% if compare %}
+    <hr>
+    <h4 id="comparison">Comparison
+        {% if geom_geojson %}
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-1 align-middle" data-bs-toggle="modal" data-bs-target="#geomModal" title="Show current geometry">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </button>
+        {% endif %}
+    </h4>
+    <p class="text-muted small">
+        From:
+        <strong>{{ compare.from_meta.date|date:"d M Y, g:i:s a" }}</strong>
+        {% if compare.from_meta.user %} by {{ compare.from_meta.user }}{% endif %}
+        <span class="badge bg-secondary ms-1">{{ compare.from_meta.operation }}</span>
+        &rarr;
+        To:
+        {% if compare.to_meta.is_current %}
+        <strong>Current</strong>
+        {% else %}
+        <strong>{{ compare.to_meta.date|date:"d M Y, g:i:s a" }}</strong>
+        {% if compare.to_meta.user %} by {{ compare.to_meta.user }}{% endif %}
+        <span class="badge bg-secondary ms-1">{{ compare.to_meta.operation }}</span>
+        {% endif %}
+    </p>
+
+    {% if compare.changes %}
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered mb-0">
+            <thead>
+                <tr>
+                    <th style="width:30%">Field</th>
+                    <th>Old value</th>
+                    <th>New value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in compare.changes %}
+                <tr>
+                    <td>{{ c.label }}</td>
+                    <td class="text-danger">{% if c.old is None %}(empty){% else %}{{ c.old }}{% endif %}</td>
+                    <td class="text-success">{% if c.new is None %}(empty){% else %}{{ c.new }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No changes between the selected record and current.</p>
+    {% endif %}
+    {% endif %}
+
+    {% if related %}
+    <hr>
+    <h4>Related record changes (within {{ window_days }} day{{ window_days|pluralize }} of this timestamp)</h4>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered mb-0">
+            <thead>
+                <tr>
+                    <th>Related record</th>
+                    <th>Key</th>
+                    <th>Operation</th>
+                    <th>Date/Time</th>
+                    <th>Changed fields</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in related %}
+                <tr>
+                    <td>{{ r.table }}</td>
+                    <td>{{ r.key_col }}={{ r.key }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ r.operation }}</span>
+                        {% if r.status == 'deleted' %}<span class="badge bg-danger">deleted</span>{% endif %}
+                    </td>
+                    <td class="text-nowrap">{{ r.date_str }}</td>
+                    <td>
+                        {% for c in r.changes %}
+                        <div class="small">{{ c.label }}: <span class="text-danger">{% if c.old is None %}(empty){% elif c.old_url %}<a href="{{ c.old_url }}" target="_blank" rel="noopener">{{ c.old }}</a>{% else %}{{ c.old }}{% endif %}</span> &rarr; <span class="text-success">{% if c.new is None %}(empty){% elif c.new_url %}<a href="{{ c.new_url }}" target="_blank" rel="noopener">{{ c.new }}</a>{% else %}{{ c.new }}{% endif %}</span></div>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-muted">No related-record changes in this window.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if geom_geojson %}
+    <div class="modal fade" id="geomModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Current geometry — {% if polygon.name %}{{ polygon.name }}{% else %}{{ polygon.polygon_id }}{% endif %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="geom-current" class="geom-map"></div>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted small me-auto">{{ geom_summary }}</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var cco = document.getElementById('compare_with_current_only');
+    function toggleToCol() {
+        var show = cco ? !cco.checked : true;
+        document.querySelectorAll('.to-col').forEach(function(el) {
+            el.style.display = show ? '' : 'none';
+        });
+    }
+    if (cco) {
+        cco.addEventListener('change', toggleToCol);
+        toggleToCol();
+    }
+
+    var en = document.getElementById('exclude_nontracked');
+    if (en) {
+        en.addEventListener('change', function() {
+            en.form.submit();
+        });
+    }
+
+    var cmp = document.getElementById('comparison');
+    if (cmp) {
+        cmp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+});
+</script>
+{% if geom_geojson %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('geomModal');
+    var map = null;
+    if (!modal) { return; }
+
+    var streetUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+    var satelliteUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    var esriAttr = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
+
+    var FullscreenControl = L.Control.extend({
+        options: { position: 'topleft' },
+        onAdd: function(m) {
+            var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+            var btn = L.DomUtil.create('a', 'leaflet-bar-part', container);
+            btn.href = '#';
+            btn.title = 'Maximise';
+            btn.setAttribute('role', 'button');
+            btn.setAttribute('aria-label', 'Maximise');
+            btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+            L.DomEvent.on(btn, 'click', function(e) {
+                L.DomEvent.stop(e);
+                var el = m.getContainer();
+                if (!document.fullscreenElement) {
+                    var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+                    if (fn) { fn.call(el); }
+                } else {
+                    var fn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+                    if (fn) { fn.call(document); }
+                }
+            });
+            return container;
+        }
+    });
+
+    modal.addEventListener('shown.bs.modal', function() {
+        if (!map) {
+            map = L.map('geom-current', { zoomSnap: 0.1 });
+
+            var street = L.tileLayer(streetUrl, { attribution: esriAttr });
+            var satellite = L.tileLayer(satelliteUrl, { attribution: esriAttr });
+            street.addTo(map);
+            L.control.layers({ 'Layer': street, 'Satellite': satellite }).addTo(map);
+            map.addControl(new FullscreenControl());
+
+            var layer = L.geoJSON({{ geom_geojson|safe }}).addTo(map);
+            if (layer.getBounds().isValid()) { map.fitBounds(layer.getBounds()); }
+            else { map.setView([0, 0], 2); }
+
+            document.addEventListener('fullscreenchange', function() {
+                setTimeout(function() { map.invalidateSize(); }, 50);
+            });
+        } else {
+            setTimeout(function() { map.invalidateSize(); }, 50);
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

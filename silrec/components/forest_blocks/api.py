@@ -3,6 +3,11 @@ from django.db.models import Q, Min
 from django.db.models.functions import Cast
 from django.db.models import DateTimeField, IntegerField
 from django.db import transaction
+import reversion
+from reversion.models import Version, Revision
+from django.contrib.contenttypes.models import ContentType
+from diff_match_patch import diff_match_patch
+from django.utils.html import escape
 from django.http import HttpResponse
 from django.http import FileResponse
 from django.conf import settings
@@ -1460,10 +1465,15 @@ class BulkUpdateApplyView(_BulkUpdateBase):
         results = []
         try:
             with transaction.atomic():
-                for item in polygons:
-                    results.append(self._apply_one(
-                        request, item, cohort_section, treatment_section, operation_section
-                    ))
+                with reversion.create_revision():
+                    reversion.set_user(request.user)
+                    reversion.set_comment(
+                        f'Bulk update: {len(polygons)} polygon(s)'
+                    )
+                    for item in polygons:
+                        results.append(self._apply_one(
+                            request, item, cohort_section, treatment_section, operation_section
+                        ))
         except serializers.ValidationError as exc:
             return Response({'error': 'Validation failed', 'details': exc.detail},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -2112,8 +2122,13 @@ class BulkUpdateUploadView(_BulkUpdateBase):
         results = []
         try:
             with transaction.atomic():
-                for parsed in parsed_rows:
-                    results.append(self._apply_row(request, parsed))
+                with reversion.create_revision():
+                    reversion.set_user(request.user)
+                    reversion.set_comment(
+                        f'Excel bulk update: {len(parsed_rows)} row(s)'
+                    )
+                    for parsed in parsed_rows:
+                        results.append(self._apply_row(request, parsed))
         except BulkUpdateUploadError as exc:
             return Response(
                 {'error': f'{len(exc.errors)} validation error(s) found', 'errors': exc.errors},
@@ -2479,3 +2494,278 @@ class ERDiagramView(APIView):
             'db_table': model._meta.db_table,
             'fields': fields,
         }
+
+
+class VersionHistoryView(APIView):
+    """List django-reversion history for a model instance (read-only)."""
+
+    permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
+
+    MODELS = {
+        'polygon': Polygon,
+        'cohort': Cohort,
+        'treatment': Treatment,
+        'operation': Operation,
+        'assignchttoply': AssignChtToPly,
+    }
+
+    def get(self, request, model_name, pk):
+        model = self.MODELS.get(model_name.lower())
+        if model is None:
+            return Response({'error': 'Unknown model'},
+                            status=status.HTTP_404_NOT_FOUND)
+        try:
+            obj = model.objects.get(pk=pk)
+        except model.DoesNotExist:
+            return Response({'error': 'Record not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        versions = Version.objects.get_for_object(obj).select_related(
+            'revision', 'revision__user'
+        ).order_by('-revision__date_created')
+
+        data = []
+        for v in versions:
+            user = None
+            if v.revision is not None and v.revision.user is not None:
+                user = v.revision.user.get_full_name() or v.revision.user.username
+            data.append({
+                'version_id': v.id,
+                'user': user,
+                'comment': v.revision.comment if v.revision else '',
+                'date': v.revision.date_created.isoformat() if v.revision else None,
+            })
+        return Response({'model': model_name.lower(), 'pk': pk, 'versions': data})
+
+
+_dmp = diff_match_patch()
+
+
+def _rich_diff(old, new):
+    """Return (inline_html, old_html, new_html) for a changed field.
+
+    `inline` uses django-reversion-compare's `html_diff` (Google diff-match-patch
+    for text over 20 chars, difflib.ndiff otherwise). `old_html`/`new_html` are
+    the side-by-side halves built from the raw diff-match-patch operations.
+    """
+    from reversion_compare.helpers import html_diff
+
+    old_s = '' if old is None else str(old)
+    new_s = '' if new is None else str(new)
+    inline = str(html_diff(old_s, new_s))
+
+    diff = _dmp.diff_main(old_s, new_s)
+    _dmp.diff_cleanupSemantic(diff)
+    old_parts = []
+    new_parts = []
+    for op, text in diff:
+        if op == diff_match_patch.DIFF_EQUAL:
+            old_parts.append(escape(text))
+            new_parts.append(escape(text))
+        elif op == diff_match_patch.DIFF_DELETE:
+            old_parts.append('<del>' + escape(text) + '</del>')
+        elif op == diff_match_patch.DIFF_INSERT:
+            new_parts.append('<ins>' + escape(text) + '</ins>')
+    return inline, ''.join(old_parts), ''.join(new_parts)
+
+
+class VersionDiffView(APIView):
+    """Field-level diff between two versions (defaults to latest vs previous)."""
+
+    permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
+
+    MODELS = VersionHistoryView.MODELS
+
+    def get(self, request, model_name, pk):
+        model = self.MODELS.get(model_name.lower())
+        if model is None:
+            return Response({'error': 'Unknown model'},
+                            status=status.HTTP_404_NOT_FOUND)
+        try:
+            obj = model.objects.get(pk=pk)
+        except model.DoesNotExist:
+            return Response({'error': 'Record not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        versions = list(Version.objects.get_for_object(obj).select_related(
+            'revision'
+        ).order_by('revision__date_created'))
+
+        v1 = v2 = None
+        v1_id = request.query_params.get('v1')
+        v2_id = request.query_params.get('v2')
+        single_id = request.query_params.get('version')
+        if v1_id and v2_id:
+            for v in versions:
+                if str(v.id) == str(v1_id):
+                    v1 = v
+                if str(v.id) == str(v2_id):
+                    v2 = v
+        elif single_id:
+            for i, v in enumerate(versions):
+                if str(v.id) == str(single_id):
+                    v2 = v
+                    if i > 0:
+                        v1 = versions[i - 1]
+                    break
+        elif versions:
+            v2 = versions[-1]
+            if len(versions) >= 2:
+                v1 = versions[-2]
+
+        if v1 is None or v2 is None:
+            return Response({'error': 'Two versions are required to compare'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        old = self._field_dict(v1)
+        new = self._field_dict(v2)
+        changes = []
+        for field in sorted(set(old) | set(new)):
+            o = self._normalize(old.get(field))
+            n = self._normalize(new.get(field))
+            if o != n:
+                inline, old_side, new_side = _rich_diff(o, n)
+                changes.append({
+                    'field': field,
+                    'old': o,
+                    'new': n,
+                    'inline': inline,
+                    'old_side': old_side,
+                    'new_side': new_side,
+                })
+
+        return Response({
+            'model': model_name.lower(),
+            'pk': pk,
+            'v1': self._version_meta(v1),
+            'v2': self._version_meta(v2),
+            'changes': changes,
+        })
+
+    @staticmethod
+    def _version_meta(v):
+        return {
+            'version_id': v.id,
+            'date': v.revision.date_created.isoformat() if v.revision else None,
+        }
+
+    @staticmethod
+    def _field_dict(v):
+        try:
+            return v.field_dict or {}
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _normalize(value):
+        from decimal import Decimal
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        if isinstance(value, Decimal):
+            return float(value)
+        if value is None:
+            return None
+        return value
+
+
+HISTORY_MODEL_LABELS = {
+    'polygon': 'Polygon',
+    'cohort': 'Cohort',
+    'treatment': 'Treatment',
+    'operation': 'Operation',
+    'assignchttoply': 'Assign Cohort to Polygon',
+}
+
+
+class HistoryOptionsView(APIView):
+    """Filter options for the history page (models + distinct users)."""
+
+    permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
+
+    def get(self, request):
+        models = [
+            {'key': key, 'label': label}
+            for key, label in HISTORY_MODEL_LABELS.items()
+        ]
+        rows = Revision.objects.exclude(user__isnull=True).values_list(
+            'user__id', 'user__first_name', 'user__last_name', 'user__username'
+        ).distinct()
+        users = []
+        for uid, first, last, username in rows:
+            name = (f'{first} {last}'.strip() or username or '')
+            users.append({'id': uid, 'name': name})
+        users.sort(key=lambda u: (u['name'] or '').lower())
+        return Response({'models': models, 'users': users})
+
+
+class HistoryListView(APIView):
+    """Chronological, filterable list of revisions and the records they changed."""
+
+    permission_classes = [IsAuthenticated & (IsOperator | IsReviewer | IsSilrecAdmin)]
+
+    def get(self, request):
+        versions_qs = Version.objects.select_related(
+            'revision', 'revision__user', 'content_type'
+        )
+
+        model_name = request.query_params.get('model')
+        if model_name:
+            model = VersionHistoryView.MODELS.get(model_name.lower())
+            if model is not None:
+                versions_qs = versions_qs.filter(
+                    content_type=ContentType.objects.get_for_model(model)
+                )
+
+        user_id = request.query_params.get('user')
+        if user_id:
+            versions_qs = versions_qs.filter(revision__user_id=user_id)
+
+        from_date = request.query_params.get('from')
+        if from_date:
+            versions_qs = versions_qs.filter(
+                revision__date_created__gte=from_date
+            )
+        to_date = request.query_params.get('to')
+        if to_date:
+            versions_qs = versions_qs.filter(
+                revision__date_created__lte=to_date + ' 23:59:59'
+            )
+
+        search = request.query_params.get('search')
+        if search:
+            versions_qs = versions_qs.filter(
+                Q(revision__comment__icontains=search)
+                | Q(object_repr__icontains=search)
+            )
+
+        revision_ids = versions_qs.values_list('revision_id', flat=True).distinct()
+        revision_qs = Revision.objects.filter(id__in=revision_ids).select_related(
+            'user'
+        ).order_by('-date_created')
+
+        paginator = PageNumberPagination()
+        paginator.page_size = 25
+        page = paginator.paginate_queryset(revision_qs, request)
+
+        rev_ids = [r.id for r in page]
+        page_versions = versions_qs.filter(revision_id__in=rev_ids)
+        by_rev = {}
+        for v in page_versions:
+            by_rev.setdefault(v.revision_id, []).append({
+                'model': v.content_type.model,
+                'pk': v.object_id,
+                'repr': v.object_repr,
+                'version_id': v.id,
+            })
+
+        results = []
+        for r in page:
+            results.append({
+                'revision_id': r.id,
+                'date': r.date_created.isoformat(),
+                'user': (r.user.get_full_name() or r.user.username) if r.user else None,
+                'comment': r.comment or '',
+                'changes': by_rev.get(r.id, []),
+            })
+
+        return paginator.get_paginated_response(results)

@@ -16,6 +16,7 @@ python-decouple==3.8
 #django-cron==0.6.0
 django_bootstrap3==15.0.0
 django-reversion==5.0.0
+django-reversion-compare==0.21.1
 django_vite==3.1.0
 pytz==2025.2
 django-rest-swagger==2.2.0

@@ -83,6 +83,17 @@ export default {
     bulk_update_export_template: '/api/bulk-update/export-template/',
     bulk_update_upload: '/api/bulk-update/upload/',
     er_diagram: '/api/er-diagram/',
+    version_history: function (model, pk) {
+        return `/api/version-history/${model}/${pk}/`;
+    },
+    version_diff: function (model, pk, v1, v2) {
+        return `/api/version-history/${model}/${pk}/diff/?v1=${v1}&v2=${v2}`;
+    },
+    version_diff_by_version: function (model, pk, versionId) {
+        return `/api/version-history/${model}/${pk}/diff/?version=${versionId}`;
+    },
+    history: '/api/history/',
+    history_options: '/api/history/options/',
     prescriptions: '/api/prescriptions/',
     silviculturist_comments: '/api/silviculturist-comments/',
     polygon_search: '/api/polygon_search/',

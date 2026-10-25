@@ -76,42 +76,6 @@
 
 
         {% block header_top_menu %}
-	      {% if request.user.is_authenticated %}
-                  <div class="top_header_bar">
-                       <div style='padding: 10px;'>
-                          <div class="row">
-                              <div class="col-lg-12 " >
-                                    <div class='container'>
-                                    <ul>
-                                            {% block  top_menu %}
-                                            <li>
-                                                     <button type="button" class="btn btn-sm btn-secondary">
-                                                              Notification 1 <span class="badge bg-danger">14</span>
-                                                     </button>
-
-                                            </li>
-
-                                            <li>
-                                                     <button type="button" class="btn btn-sm btn-secondary">
-                                                              Notification 2 <span class="badge bg-danger">4</span>
-                                                     </button>
-
-                                            </li>
-                                            <li>
-                                                     <button type="button" class="btn btn-sm btn-secondary">
-                                                              Notification 3 <span class="badge bg-danger">8</span>
-                                                     </button>
-
-                                            </li>
-                                            {% endblock %}
-
-                                    </ul>
-                                    </div>
-                              </div>
-                         </div>
-                       </div>
-                   </div>
-              {% endif %}
         {% endblock %}
 
         {% block main_header %}

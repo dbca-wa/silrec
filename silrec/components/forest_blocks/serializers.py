@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from datetime import datetime, date
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from django.contrib.auth.models import User
 from django.contrib.gis.db.models.functions import Area
@@ -1300,15 +1301,38 @@ class PolygonSearchSerializer(serializers.ModelSerializer):
 
     def get_created_on_formatted(self, obj):
         """Get formatted created date"""
-        if obj.created_on:
-            return obj.created_on.strftime('%Y-%m-%d')
-        return None
+        return self._format_date(obj.created_on)
 
     def get_updated_on_formatted(self, obj):
         """Get formatted updated date"""
-        if obj.updated_on:
-            return obj.updated_on.strftime('%Y-%m-%d')
-        return None
+        return self._format_date(obj.updated_on)
+
+    @staticmethod
+    def _format_date(value):
+        """Return a date as 'YYYY-MM-DD' without crashing on legacy rows whose
+        created_on/updated_on columns are varchar and hold strings (some with an
+        ISO 'T' separator or a date-only value)."""
+        if value is None:
+            return None
+        if isinstance(value, (datetime, date)):
+            return value.strftime('%Y-%m-%d')
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            for fmt in (
+                '%Y/%m/%d %H:%M:%S.%f', '%Y/%m/%d %H:%M:%S',
+                '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S',
+                '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%d', '%Y/%m/%d',
+            ):
+                try:
+                    return datetime.strptime(value, fmt).strftime('%Y-%m-%d')
+                except ValueError:
+                    continue
+            # Unparseable legacy value — return as-is rather than crash.
+            return value
+        return str(value)
 
     def to_representation(self, instance):
         """Custom representation to optimize data structure"""

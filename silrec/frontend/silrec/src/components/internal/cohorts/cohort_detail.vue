@@ -23,6 +23,9 @@
             >
                 <i class="bi bi-plus"></i> Add Treatment
             </router-link>
+
+            <!-- Version history -->
+            <VersionHistory model="cohort" :pk="cohortData.cohort_id" />
         </div>
 
         <!-- Recent bulk update changes -->
@@ -463,6 +466,7 @@ import AdditionalCohortFields from '@/components/internal/cohorts/additional_coh
 import SystemInformation from '@/components/internal/cohorts/system_info_cohort.vue';
 import TreatmentsTable from '@/components/internal/treatments/treatments_table.vue';
 import OperationForm from '@/components/internal/operations/operations_form.vue';
+import VersionHistory from '@/components/internal/version_history.vue';
 import { api_endpoints, helpers } from '@/utils/hooks';
 import { FIELD_LABELS } from '@/utils/fieldLabels';
 import permissionsMixin from '@/mixins/permissions';
@@ -477,6 +481,7 @@ export default {
         SystemInformation,
         TreatmentsTable,
         OperationForm,
+        VersionHistory,
     },
     props: {
         proposal_id: {

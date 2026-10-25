@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.conf import settings
 
-import reversion
+from reversion_compare.admin import CompareVersionAdmin
 from silrec.components.forest_blocks.models import (
     Polygon,
     Cohort,
@@ -15,7 +15,7 @@ admin.autodiscover()
 #    list_display = ["polygon_id"]
 
 @admin.register(Polygon)
-class PolygonAdmin(reversion.admin.VersionAdmin):
+class PolygonAdmin(CompareVersionAdmin):
     #list_display = ['polygon_id', 'name', 'proposal']  # your fields
     list_display = ['polygon_id', 'name']  # your fields
 
@@ -23,14 +23,14 @@ class PolygonAdmin(reversion.admin.VersionAdmin):
         return request.user.is_superuser
 
 @admin.register(Cohort)
-class CohortAdmin(reversion.admin.VersionAdmin):
+class CohortAdmin(CompareVersionAdmin):
     list_display = ['cohort_id', 'obj_code', 'species']
 
     def has_module_permission(self, request):
         return request.user.is_superuser
 
 @admin.register(AssignChtToPly,)
-class AssignChtToPlyAdmin(reversion.admin.VersionAdmin):
+class AssignChtToPlyAdmin(CompareVersionAdmin):
     list_display = ['cht2ply_id', 'polygon', 'cohort']
 
     def has_module_permission(self, request):

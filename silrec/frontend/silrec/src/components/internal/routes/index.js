@@ -32,6 +32,7 @@ import SilviculturistCommentDetail from '@/components/internal/silviculturist_co
 import SurveyDocumentDetail from '@/components/internal/survey_documents/survey_document_detail.vue';
 import BulkUpdate from '@/components/internal/bulk_update/bulk_update.vue';
 import ERDiagram from '@/components/internal/er_diagram.vue';
+import History from '@/components/internal/history.vue';
 
 export default {
     path: '/internal',
@@ -177,6 +178,11 @@ export default {
             path: 'er-diagram',
             component: ERDiagram,
             name: 'er-diagram',
+        },
+        {
+            path: 'history',
+            component: History,
+            name: 'history',
         },
     ],
 };

@@ -20,8 +20,10 @@ from silrec.components.lookups import api as lookups_api
 from silrec.components.forest_blocks import api as forest_blocks_api
 from silrec.components.main import api as main_api
 from silrec.components.proposals import api as proposal_api
+from silrec.components.proposals import history_views as proposal_history_views
 
 from silrec.components.forest_blocks import views as forest_blocks_views
+from silrec.components.forest_blocks import journal_history_views as journal_history_views
 
 from silrec.views import DbDumpListView, DbDumpDownloadView, DbDumpDeleteView, GeneratedReportListView, GeneratedReportDownloadView, GeneratedReportDeleteView, SilrecDocView
 
@@ -102,6 +104,8 @@ urlpatterns = [
     re_path(r'^external/', views.ExternalView.as_view(), name='external'),
     re_path(r'^contact/', views.SilrecContactView.as_view(), name='contact'),
     re_path(r'^further_info/', views.SilrecFurtherInformationView.as_view(), name='further_info'),
+    re_path(r'^history/proposal/(?P<pk>\d+)/$', proposal_history_views.ProposalHistoryCompareView.as_view(), name='proposal_history'),
+    re_path(r'^history_jn/polygon/(?P<polygon_id>\d+)/$', journal_history_views.PolygonJournalHistoryView.as_view(), name='polygon_journal_history'),
     re_path(r'^mgt-commands/$', views.ManagementCommandsView.as_view(), name='mgt-commands'),
 
     re_path(
@@ -200,6 +204,10 @@ urlpatterns = [
     re_path(r'^api/bulk-update/export-template/$', forest_blocks_api.BulkUpdateExportTemplateView.as_view(), name='bulk-update-export-template'),
     re_path(r'^api/bulk-update/upload/$', forest_blocks_api.BulkUpdateUploadView.as_view(), name='bulk-update-upload'),
     re_path(r'^api/er-diagram/$', forest_blocks_api.ERDiagramView.as_view(), name='er-diagram'),
+    re_path(r'^api/history/options/$', forest_blocks_api.HistoryOptionsView.as_view(), name='history-options'),
+    re_path(r'^api/history/$', forest_blocks_api.HistoryListView.as_view(), name='history'),
+    re_path(r'^api/version-history/(?P<model_name>[a-z]+)/(?P<pk>[^/]+)/diff/$', forest_blocks_api.VersionDiffView.as_view(), name='version-history-diff'),
+    re_path(r'^api/version-history/(?P<model_name>[a-z]+)/(?P<pk>[^/]+)/$', forest_blocks_api.VersionHistoryView.as_view(), name='version-history'),
 
     re_path(
         r"^api/shapefile-processings/$",

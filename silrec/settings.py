@@ -130,7 +130,7 @@ INSTALLED_APPS = [
     #'django_cron',
 
     'reversion',
-    #'reversion_compare',
+    'reversion_compare',
     'bootstrap3',
     'webtemplate_dbca',
     'silrec',
@@ -442,5 +442,7 @@ REPORT_EXPORT_DIR = env('REPORT_EXPORT_DIR', 'file_exports/generated_reports')
 DB_DUMPS_DIR = env('DB_DUMPS_DIR', 'file_exports/db_dumps')
 SHOW_MERGE_POLYGON_TOOL = env('SHOW_MERGE_POLYGON_TOOL', True)
 SHOW_CUT_POLYGON_TOOL = env('SHOW_CUT_POLYGON_TOOL', True)
+SHOW_HISTORY_JN_ICON_IN_DASHBOARD = env('SHOW_HISTORY_JN_ICON_IN_DASHBOARD', True)
+SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD = env('SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD', True)
 REPORT_RETENTION_DAYS = env('REPORT_RETENTION_DAYS', 20)
 MAX_SHAPEFILE_POLYGONS = env('MAX_SHAPEFILE_POLYGONS', 26)

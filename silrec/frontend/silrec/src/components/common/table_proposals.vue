@@ -156,7 +156,7 @@
 <script>
 import datatable from '@/utils/vue/datatable.vue';
 import { v4 as uuid } from 'uuid';
-import { api_endpoints, constants } from '@/utils/hooks';
+import { api_endpoints, constants, helpers } from '@/utils/hooks';
 import CollapsibleFilters from '@/components/forms/collapsible_component.vue';
 import { expandToggle } from '@/components/common/table_functions.js';
 import { discardProposal } from '@/components/common/workflow_functions.js';
@@ -304,6 +304,12 @@ export default {
         },
         is_organisation_view: function () {
             return this.level == 'organisation_view';
+        },
+        showHistoryProposalIcon: function () {
+            return helpers.getSilrecSetting(
+                'showHistoryProposalIconInDashboard',
+                true
+            );
         },
         dtHeaders: function () {
             if (this.is_organisation_view) {
@@ -471,6 +477,9 @@ export default {
                             links += `<a href='/internal/proposal/${full.id}' class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i> Process</a> `;
                         } else {
                             links += `<a href='/internal/proposal/${full.id}' class="btn btn-sm btn-outline-info me-1"><i class="bi bi-eye"></i> View</a> `;
+                        }
+                        if (vm.showHistoryProposalIcon) {
+                            links += `<a href="/history/proposal/${full.id}/" class="btn btn-sm btn-outline-info history-proposal-btn" title="History" target="_blank" rel="noopener"><i class="bi bi-clock-history"></i></a> `;
                         }
                     }
                     if (vm.is_external) {

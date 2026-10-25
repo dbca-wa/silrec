@@ -920,7 +920,7 @@ import OSM from 'ol/source/OSM';
 import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 import datatable from '@/utils/vue/datatable.vue';
-import { api_endpoints } from '@/utils/hooks';
+import { api_endpoints, helpers } from '@/utils/hooks';
 import { v4 as uuid } from 'uuid';
 import permissionsMixin from '@/mixins/permissions';
 import FormSection from '@/components/forms/section_toggle.vue';
@@ -1055,6 +1055,12 @@ export default {
         },
         getZoomToLayerTitle() {
             return 'Zoom to visible features';
+        },
+        showHistoryJnIcon() {
+            return helpers.getSilrecSetting(
+                'showHistoryJnIconInDashboard',
+                true
+            );
         },
 
         // Objective classification computed properties
@@ -1373,6 +1379,13 @@ export default {
                 <button class="btn btn-sm btn-outline-info zoom-polygon-btn" data-polygon-id="${data}" title="Zoom to Polygon">
                 <i class="bi bi-zoom-in"></i>
                 </button>
+                ${
+                    vm.showHistoryJnIcon
+                        ? `<a href="/history_jn/polygon/${data}/" class="btn btn-sm btn-outline-info history-jn-btn" title="Journal History" target="_blank" rel="noopener">
+                <i class="bi bi-clock-history"></i>
+                </a>`
+                        : ''
+                }
             `;
                         },
                     },

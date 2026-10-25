@@ -234,6 +234,53 @@ class SystemMaintenance(models.Model):
         )
 
 
+class GlobalSettings(models.Model):
+    # Key constants
+    SHOW_HISTORY_JN_ICON_IN_DASHBOARD = 'show_history_jn_icon_in_dashboard'
+    SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD = 'show_history_proposal_icon_in_dashboard'
+    EXCLUDE_FIRST_RECORDED_VERSIONS = 'exclude_first_recorded_versions'
+    EXCLUDE_EMPTY_RECORDS = 'exclude_empty_records'
+    FMB_SHAREPOINT_PAGE = 'fmb_sharepoint_page'
+
+    keys = (
+        (SHOW_HISTORY_JN_ICON_IN_DASHBOARD, 'Show History JN icon in dashboard'),
+        (SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD, 'Show History Proposal icon in dashboard'),
+        (EXCLUDE_FIRST_RECORDED_VERSIONS, 'Exclude first recorded versions (Change History)'),
+        (EXCLUDE_EMPTY_RECORDS, 'Exclude 0 record(s) (Change History)'),
+        (FMB_SHAREPOINT_PAGE, 'FMB SharePoint page'),
+    )
+
+    BOOLEAN_KEYS = {
+        SHOW_HISTORY_JN_ICON_IN_DASHBOARD,
+        SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD,
+        EXCLUDE_FIRST_RECORDED_VERSIONS,
+        EXCLUDE_EMPTY_RECORDS,
+    }
+
+    key = models.CharField(
+        max_length=255, choices=keys, blank=False, null=False, unique=True
+    )
+    value = models.CharField(max_length=255)
+
+    class Meta:
+        db_table = 'globalsettings'
+        app_label = 'silrec'
+        verbose_name_plural = 'Global Settings'
+
+    def __str__(self):
+        return self.key
+
+    @classmethod
+    def get(cls, key, default=None):
+        try:
+            return cls.objects.get(key=key).value
+        except cls.DoesNotExist:
+            return default
+
+    def value_as_bool(self):
+        return str(self.value).strip().lower() in ('true', '1', 'yes', 'on')
+
+
 ## -------------------------------------------------------------------------------------
 #
 ## Helper to collect all relation names (forward + reverse) for reversion.follow

@@ -644,7 +644,8 @@ export default {
         const el = document.getElementById('silrec-settings');
         if (!el) return defaultValue;
         try {
-            return JSON.parse(el.textContent)[key];
+            const value = JSON.parse(el.textContent)[key];
+            return value === undefined ? defaultValue : value;
         } catch {
             return defaultValue;
         }

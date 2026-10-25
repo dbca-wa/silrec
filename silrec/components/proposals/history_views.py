@@ -190,28 +190,41 @@ class ProposalHistoryCompareView(View):
     }
 
     @staticmethod
-    def _looks_like_geojson(value):
+    def _flatten_geojson(value):
+        """Normalise a GeoJSON-ish value into a single FeatureCollection.
+
+        Handles a FeatureCollection, Feature, bare geometry, and the
+        `geojson_data_processed_iters` shape (a dict mapping keys to
+        FeatureCollections). Returns None when the value is not geometry.
+        """
         if isinstance(value, str):
             try:
                 value = json.loads(value)
             except Exception:
-                return False
-        return (
-            isinstance(value, dict)
-            and (
-                value.get('type') in ('FeatureCollection', 'Feature')
-                or 'coordinates' in value
-            )
-        )
+                return None
+        if not isinstance(value, dict):
+            return None
+        if value.get('type') == 'FeatureCollection':
+            return value
+        if value.get('type') == 'Feature' or 'coordinates' in value:
+            return {'type': 'FeatureCollection', 'features': [value]}
+        features = []
+        for v in value.values():
+            if isinstance(v, dict) and v.get('type') == 'FeatureCollection':
+                features.extend(v.get('features', []))
+        if features:
+            return {'type': 'FeatureCollection', 'features': features}
+        return None
+
+    @staticmethod
+    def _looks_like_geojson(value):
+        return ProposalHistoryCompareView._flatten_geojson(value) is not None
 
     def _geojson_payload(self, value):
-        if not self._looks_like_geojson(value):
+        fc = self._flatten_geojson(value)
+        if fc is None:
             return None
-        try:
-            geojson = json.loads(value) if isinstance(value, str) else value
-            return json.dumps(geojson)
-        except Exception:
-            return None
+        return json.dumps(fc)
 
     def _is_geometry(self, field, old, new):
         return (
@@ -232,20 +245,14 @@ class ProposalHistoryCompareView(View):
             return None
         try:
             from shapely.geometry import shape
-            geojson = json.loads(value) if isinstance(value, str) else value
-
-            if geojson.get('type') == 'FeatureCollection':
-                geoms = [
-                    shape(f['geometry'])
-                    for f in geojson.get('features', [])
-                    if f.get('geometry')
-                ]
-            elif geojson.get('type') == 'Feature':
-                geoms = [shape(geojson['geometry'])]
-            elif 'coordinates' in geojson:
-                geoms = [shape(geojson)]
-            else:
+            fc = ProposalHistoryCompareView._flatten_geojson(value)
+            if fc is None:
                 return '(geometry data)'
+            geoms = [
+                shape(f['geometry'])
+                for f in fc.get('features', [])
+                if f.get('geometry')
+            ]
             if not geoms:
                 return '(empty geometry)'
         except Exception:

@@ -41,6 +41,7 @@ import json
 import os
 
 from silrec.helpers import is_customer, is_internal
+from silrec.components.proposals.history_views import ProposalHistoryCompareView
 from silrec.components.proposals.models import   (
     TextSearchFieldDisplay,
     Proposal,
@@ -2654,15 +2655,23 @@ class VersionDiffView(APIView):
             o = self._normalize(old.get(field))
             n = self._normalize(new.get(field))
             if o != n:
-                inline, old_side, new_side = _rich_diff(o, n)
-                changes.append({
-                    'field': field,
-                    'old': o,
-                    'new': n,
-                    'inline': inline,
-                    'old_side': old_side,
-                    'new_side': new_side,
-                })
+                geom_change = (
+                    self._geometry_change(field, o, n)
+                    if self._is_geometry(field, o, n)
+                    else None
+                )
+                if geom_change is not None:
+                    changes.append(geom_change)
+                else:
+                    inline, old_side, new_side = _rich_diff(o, n)
+                    changes.append({
+                        'field': field,
+                        'old': o,
+                        'new': n,
+                        'inline': inline,
+                        'old_side': old_side,
+                        'new_side': new_side,
+                    })
 
         return Response({
             'model': model_name.lower(),
@@ -2696,6 +2705,40 @@ class VersionDiffView(APIView):
         if value is None:
             return None
         return value
+
+    @staticmethod
+    def _is_geometry(field, old, new):
+        return (
+            field in ProposalHistoryCompareView.GEOMETRY_FIELDS
+            or ProposalHistoryCompareView._looks_like_geojson(old)
+            or ProposalHistoryCompareView._looks_like_geojson(new)
+        )
+
+    @staticmethod
+    def _geojson_dict(value):
+        return ProposalHistoryCompareView._flatten_geojson(value)
+
+    @staticmethod
+    def _geometry_change(field, old, new):
+        old_gj = VersionDiffView._geojson_dict(old)
+        new_gj = VersionDiffView._geojson_dict(new)
+        if old_gj is None and new_gj is None:
+            return None
+        old_summary = ProposalHistoryCompareView._geom_summary_str(old)
+        new_summary = ProposalHistoryCompareView._geom_summary_str(new)
+        return {
+            'field': field,
+            'old': old_summary,
+            'new': new_summary,
+            'inline': '',
+            'old_side': '',
+            'new_side': '',
+            'is_geometry': True,
+            'old_geojson': old_gj,
+            'new_geojson': new_gj,
+            'old_summary': old_summary,
+            'new_summary': new_summary,
+        }
 
 
 HISTORY_MODEL_LABELS = {

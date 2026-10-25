@@ -76,29 +76,6 @@
                 >
                     Clear
                 </button>
-                <div class="form-check ms-2 mb-0">
-                    <input
-                        id="exclude-first"
-                        v-model="filters.excludeFirst"
-                        type="checkbox"
-                        class="form-check-input"
-                        @change="applyFilters"
-                    />
-                    <label class="form-check-label small" for="exclude-first">
-                        Exclude first recorded versions
-                    </label>
-                </div>
-                <div class="form-check ms-2 mb-0">
-                    <input
-                        id="exclude-empty"
-                        v-model="filters.excludeEmpty"
-                        type="checkbox"
-                        class="form-check-input"
-                    />
-                    <label class="form-check-label small" for="exclude-empty">
-                        Exclude 0 record(s)
-                    </label>
-                </div>
             </div>
         </CollapsibleFilters>
 
@@ -198,12 +175,29 @@
                                 >
                                     No field changes.
                                 </div>
-                                <RichDiff
-                                    v-else
-                                    :changes="
-                                        diffState(c.version_id).data.changes
-                                    "
-                                />
+                                <div v-else>
+                                    <GeomDiff
+                                        v-for="(g, gi) in geomChanges(
+                                            diffState(c.version_id).data.changes
+                                        )"
+                                        :key="'geom-' + gi"
+                                        :change="g"
+                                    />
+                                    <RichDiff
+                                        v-if="
+                                            textChanges(
+                                                diffState(c.version_id).data
+                                                    .changes
+                                            ).length
+                                        "
+                                        :changes="
+                                            textChanges(
+                                                diffState(c.version_id).data
+                                                    .changes
+                                            )
+                                        "
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -239,14 +233,16 @@
 
 <script>
 import { api_endpoints } from '@/utils/hooks';
+import helpers from '@/utils/helpers';
 import RichDiff from '@/components/internal/rich_diff.vue';
+import GeomDiff from '@/components/internal/geom_diff.vue';
 import CollapsibleFilters from '@/components/forms/collapsible_component.vue';
 
 const PAGE_SIZE = 25;
 
 export default {
     name: 'HistoryView',
-    components: { RichDiff, CollapsibleFilters },
+    components: { RichDiff, GeomDiff, CollapsibleFilters },
     data() {
         return {
             loading: false,
@@ -259,8 +255,14 @@ export default {
                 from: '',
                 to: '',
                 search: '',
-                excludeFirst: true,
-                excludeEmpty: true,
+                excludeFirst: helpers.getSilrecSetting(
+                    'excludeFirstRecordedVersions',
+                    true
+                ),
+                excludeEmpty: helpers.getSilrecSetting(
+                    'excludeEmptyRecords',
+                    true
+                ),
             },
             page: 1,
             count: 0,
@@ -336,8 +338,14 @@ export default {
                 from: '',
                 to: '',
                 search: '',
-                excludeFirst: true,
-                excludeEmpty: true,
+                excludeFirst: helpers.getSilrecSetting(
+                    'excludeFirstRecordedVersions',
+                    true
+                ),
+                excludeEmpty: helpers.getSilrecSetting(
+                    'excludeEmptyRecords',
+                    true
+                ),
             };
             this.applyFilters();
         },
@@ -383,6 +391,12 @@ export default {
         modelLabel(key) {
             const m = this.models.find((x) => x.key === key);
             return m ? m.label : key;
+        },
+        geomChanges(changes) {
+            return (changes || []).filter((c) => c.is_geometry);
+        },
+        textChanges(changes) {
+            return (changes || []).filter((c) => !c.is_geometry);
         },
         fmtDate(v) {
             if (!v) return '';

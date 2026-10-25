@@ -226,6 +226,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'silrec.context_processors.silrec_url',
+                'silrec.context_processors.global_settings',
             ],
         },
     },

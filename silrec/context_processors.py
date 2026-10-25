@@ -31,3 +31,33 @@ def silrec_url(request):
         'vue3_entry_script': settings.VUE3_ENTRY_SCRIPT,
         'use_vite_dev_server': settings.USE_VITE_DEV_SERVER,
     }
+
+
+def global_settings(request):
+    from silrec.components.main.models import GlobalSettings
+
+    defaults = {
+        GlobalSettings.SHOW_HISTORY_JN_ICON_IN_DASHBOARD: settings.SHOW_HISTORY_JN_ICON_IN_DASHBOARD,
+        GlobalSettings.SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD: settings.SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD,
+        GlobalSettings.EXCLUDE_FIRST_RECORDED_VERSIONS: True,
+        GlobalSettings.EXCLUDE_EMPTY_RECORDS: True,
+    }
+
+    try:
+        values = {row.key: row.value for row in GlobalSettings.objects.all()}
+    except Exception:
+        # Table may not exist yet (e.g. before migrations are applied)
+        values = {}
+
+    def _bool(key):
+        raw = values.get(key)
+        if raw is None:
+            return bool(defaults[key])
+        return str(raw).strip().lower() in ('true', '1', 'yes', 'on')
+
+    return {
+        'show_history_jn_icon_in_dashboard': _bool(GlobalSettings.SHOW_HISTORY_JN_ICON_IN_DASHBOARD),
+        'show_history_proposal_icon_in_dashboard': _bool(GlobalSettings.SHOW_HISTORY_PROPOSAL_ICON_IN_DASHBOARD),
+        'exclude_first_recorded_versions': _bool(GlobalSettings.EXCLUDE_FIRST_RECORDED_VERSIONS),
+        'exclude_empty_records': _bool(GlobalSettings.EXCLUDE_EMPTY_RECORDS),
+    }

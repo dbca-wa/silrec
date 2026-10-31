@@ -29,6 +29,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
+# CVE-2026-111497 (Node2Shell): install patched Brotli (libbrotli1 >= 1.1.0-2ubuntu0.1)
+# from noble-security/noble-updates. Node.js/npm are NOT installed in this stage any
+# more - the frontend is built in the separate patched-Node stage below.
 RUN apt-get clean && \
     apt-get update && \
     apt-get upgrade -y && \
@@ -39,11 +42,13 @@ RUN apt-get clean && \
         libpq-dev patch postgresql-client mtr sqlite3 vim \
         ssh htop graphviz libgraphviz-dev pkg-config \
         run-one virtualenv software-properties-common \
-        npm python3-tk zip unzip && \
+        libbrotli1 libbrotli-dev python3-tk zip unzip && \
     # Install GDAL
     add-apt-repository ppa:ubuntugis/ubuntugis-unstable && \
     apt update && \
     apt-get install --no-install-recommends -y gdal-bin libgdal-dev python3-gdal && \
+    # Ensure the patched Brotli decoder is present (CVE-2026-111497)
+    apt-get install --no-install-recommends -y --only-upgrade libbrotli1 libbrotli-dev && \
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -68,6 +73,16 @@ RUN wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/
     wget https://raw.githubusercontent.com/dbca-wa/wagov_utils/main/wagov_utils/bin-python/scheduler/scheduler.py -O /bin/scheduler.py && \
     chmod 755 /bin/health_check.sh /bin/scheduler.py
 
+# --- Frontend build stage: patched Node.js (22.23.4 fixes CVE-2026-111497) ---
+FROM node:22.23.4 AS frontend_builder
+WORKDIR /app/silrec/frontend/silrec
+COPY silrec/frontend/silrec/package.json silrec/frontend/silrec/package-lock.json ./
+RUN npm ci --omit=dev
+COPY silrec/frontend/silrec/ ./
+# Static assets referenced by the frontend build (e.g. silrec/static/silrec/css/*)
+COPY silrec/static/ /app/silrec/static/
+RUN npm run build
+
 FROM builder_base_silrec AS python_libs_silrec
 
 WORKDIR /app
@@ -89,10 +104,8 @@ COPY --chown=oim:oim gunicorn.ini manage.py ./
 COPY --chown=oim:oim python-cron python-cron
 COPY --chown=oim:oim silrec ./silrec
 
-# Build frontend
-RUN cd /app/silrec/frontend/silrec && \
-    npm ci --omit=dev && \
-    npm run build
+# Copy pre-built frontend from the patched-Node build stage
+COPY --from=frontend_builder --chown=oim:oim /app/silrec/static/silrec_vue ./silrec/static/silrec_vue
 
 # Collect static files
 RUN touch /app/.env && \

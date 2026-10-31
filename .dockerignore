@@ -1,4 +1,5 @@
 # comment
+.git
 **/csv
 **/archive
 **/excel_export*
@@ -13,3 +14,12 @@
 **/notebooks
 **/scripts
 **/silrec/utils/plot_utils.py
+*.sql
+*.pkl
+venv/
+venv2/
+staticfiles/
+media/
+protected_media/
+file_exports/
+logs/

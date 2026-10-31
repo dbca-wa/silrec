@@ -146,7 +146,7 @@ def _fetch_vuln_details(ids):
     return result
 
 
-def _osv_vulnerabilities(packages):
+def _osv_vulnerabilities(packages, ecosystem='PyPI'):
     """Query OSV for vulnerabilities keyed by package name (full details).
 
     The batch endpoint only returns vulnerability ids, so full
@@ -154,7 +154,7 @@ def _osv_vulnerabilities(packages):
     """
     names = list(packages.keys())
     queries = [
-        {'package': {'name': name, 'ecosystem': 'PyPI'}, 'version': packages[name]}
+        {'package': {'name': name, 'ecosystem': ecosystem}, 'version': packages[name]}
         for name in names
     ]
 
@@ -226,6 +226,145 @@ def _severity(vuln):
     if score >= 4.0:
         return 'medium'
     return 'low'
+
+
+def _frontend_dir():
+    """Directory containing the frontend package.json / package-lock.json."""
+    return os.path.join(settings.BASE_DIR, 'silrec', 'frontend', 'silrec')
+
+
+def _npm_packages():
+    """Return {name: {version, declared, type}} for the frontend's npm deps.
+
+    Reads package.json (declared ranges + dep/devDep type) and resolves the
+    actually-installed version from package-lock.json.
+    """
+    pkg_path = os.path.join(_frontend_dir(), 'package.json')
+    lock_path = os.path.join(_frontend_dir(), 'package-lock.json')
+    if not os.path.exists(pkg_path):
+        return {}
+
+    try:
+        with open(pkg_path) as f:
+            pkg = json.load(f)
+    except Exception:
+        return {}
+
+    declared = {}
+    for dep_type, section in (
+        ('dependency', 'dependencies'),
+        ('devDependency', 'devDependencies'),
+    ):
+        for name, spec in (pkg.get(section) or {}).items():
+            declared[name] = {'declared': spec, 'type': dep_type}
+
+    resolved = {}
+    try:
+        with open(lock_path) as f:
+            lock = json.load(f)
+        for path, info in (lock.get('packages') or {}).items():
+            if not path.startswith('node_modules/'):
+                continue
+            name = path[len('node_modules/'):]
+            # skip nested dependencies and the root entry
+            if not name or '/node_modules/' in name:
+                continue
+            resolved[name] = info.get('version')
+    except Exception:
+        resolved = {}
+
+    result = {}
+    for name, meta in declared.items():
+        version = resolved.get(name) or str(meta['declared']).lstrip('^~><= ')
+        result[name] = {
+            'version': version,
+            'declared': meta['declared'],
+            'type': meta['type'],
+        }
+    return result
+
+
+def _npm_latest(names):
+    """Return {name: latest_version} from the npm registry (concurrent)."""
+    def _fetch(name):
+        url = 'https://registry.npmjs.org/' + urllib.parse.quote(name, safe='')
+        try:
+            req = urllib.request.Request(url, headers={'Accept': 'application/json'})
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.load(resp)
+            return name, (data.get('dist-tags') or {}).get('latest')
+        except Exception:
+            return name, None
+
+    result = {}
+    if not names:
+        return result
+    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+        for name, latest in executor.map(_fetch, names):
+            if latest:
+                result[name] = latest
+    return result
+
+
+def collect_npm_status():
+    """Scan the frontend's Node.js/Vue.js dependencies (package.json + lock)."""
+    pkgs = _npm_packages()
+    if not pkgs:
+        return None
+
+    versions = {name: meta['version'] for name, meta in pkgs.items()}
+    latest = _npm_latest(list(pkgs.keys()))
+    vulnerabilities = _osv_vulnerabilities(versions, ecosystem='npm')
+
+    packages = []
+    for name in sorted(pkgs, key=str.lower):
+        meta = pkgs[name]
+        version = meta['version']
+        latest_v = latest.get(name)
+        pkg_vulns = vulnerabilities.get(name, [])
+
+        severity = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'unknown': 0}
+        vuln_details = []
+        for vuln in pkg_vulns:
+            sev = _severity(vuln)
+            severity[sev] += 1
+            vuln_details.append({
+                'id': vuln.get('id', ''),
+                'severity': sev,
+                'summary': (vuln.get('summary') or '')[:200],
+            })
+        vuln_details.sort(key=lambda d: SEVERITY_ORDER.index(d['severity']))
+
+        outdated = bool(latest_v and version != latest_v)
+        packages.append({
+            'name': name,
+            'type': meta['type'],
+            'version': version,
+            'declared': meta['declared'],
+            'latest_version': latest_v,
+            'outdated': outdated,
+            'vuln_count': len(pkg_vulns),
+            'severity': severity,
+            'vulns': vuln_details,
+            'needs_attention': outdated or len(pkg_vulns) > 0,
+        })
+
+    packages.sort(
+        key=lambda p: (
+            -p['vuln_count'],
+            -p['severity']['critical'],
+            -p['severity']['high'],
+            -int(p['outdated']),
+            p['name'].lower(),
+        )
+    )
+
+    return {
+        'total_packages': len(packages),
+        'outdated_count': sum(1 for p in packages if p['outdated']),
+        'vulnerable_count': sum(1 for p in packages if p['vuln_count']),
+        'packages': packages,
+    }
 
 
 def collect_package_status():
@@ -306,11 +445,24 @@ def package_status_view(request):
     if request.method == 'POST':
         try:
             data = collect_package_status()
+            npm = collect_npm_status()
+            if npm:
+                data['npm_packages'] = npm['packages']
+                data['npm_total_packages'] = npm['total_packages']
+                data['npm_outdated_count'] = npm['outdated_count']
+                data['npm_vulnerable_count'] = npm['vulnerable_count']
+            else:
+                data['npm_packages'] = []
+                data['npm_total_packages'] = 0
+                data['npm_outdated_count'] = 0
+                data['npm_vulnerable_count'] = 0
             save_cache(data)
             messages.success(
                 request,
-                'Scan complete: {} outdated, {} vulnerable.'.format(
-                    data['outdated_count'], data['vulnerable_count']
+                'Scan complete — Python: {} outdated, {} vulnerable. '
+                'Node.js: {} outdated, {} vulnerable.'.format(
+                    data['outdated_count'], data['vulnerable_count'],
+                    data['npm_outdated_count'], data['npm_vulnerable_count'],
                 ),
             )
         except Exception as exc:
@@ -318,6 +470,11 @@ def package_status_view(request):
         return HttpResponseRedirect(reverse('admin_package_status'))
 
     data = load_cache()
+    if data is not None:
+        data.setdefault('npm_packages', [])
+        data.setdefault('npm_total_packages', 0)
+        data.setdefault('npm_outdated_count', 0)
+        data.setdefault('npm_vulnerable_count', 0)
     context = dict(admin.site.each_context(request))
     context.update({
         'title': 'Package Status',

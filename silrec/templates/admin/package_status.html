@@ -59,6 +59,24 @@
         outline: none;
     }
     details.vuln-details summary:hover { text-decoration: underline; }
+
+    .tab-bar { border-bottom: 2px solid #2c3e50; margin: 14px 0 10px; }
+    .tab-btn {
+        border: 1px solid #bbb;
+        background: #f0f0f0;
+        color: #333;
+        padding: 7px 18px;
+        margin-right: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 4px 4px 0 0;
+        border-bottom: none;
+    }
+    .tab-btn.active { background: #2c3e50; color: #fff; border-color: #2c3e50; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .dep-type { font-size: 11px; color: #666; }
 </style>
 {% endblock %}
 
@@ -66,8 +84,9 @@
 <div id="content-main">
     <h1>Package Status</h1>
     <p class="small">
-        Installed Python packages for the Silrec project — installed version,
-        latest PyPI release, and known vulnerabilities from the OSV database.
+        Installed packages for the Silrec project — Python packages and
+        Node.js/Vue.js modules — with the latest available release and known
+        vulnerabilities from the OSV database.
     </p>
 
     {% if messages %}
@@ -90,125 +109,229 @@
                 No scan yet — click <strong>Scan now</strong>.
             {% endif %}
         </span>
-        {% if data %}
-        <span class="stat"><b>{{ data.total_packages }}</b> packages</span>
-        <span class="stat" style="color:#c62828;"><b>{{ data.outdated_count }}</b> outdated</span>
-        <span class="stat" style="color:#c62828;"><b>{{ data.vulnerable_count }}</b> vulnerable</span>
-        {% endif %}
     </div>
 
     {% if data %}
-    <div style="margin-bottom: 8px;">
-        <label for="pkg-search">Search:</label>
-        <input type="text" id="pkg-search" placeholder="package name" style="padding: 5px 8px; width: 240px;">
+    <div class="tab-bar">
+        <button type="button" class="tab-btn active" data-tab="python">Python packages ({{ data.total_packages }})</button>
+        <button type="button" class="tab-btn" data-tab="node">Node.js / Vue.js ({{ data.npm_total_packages }})</button>
     </div>
 
-    <div class="sev-filter">
-        <span style="margin-right: 6px; color:#333;">Severity:</span>
-        <button type="button" class="sev-filter-btn active" data-sev="all">All</button>
-        <button type="button" class="sev-filter-btn" data-sev="critical">Critical</button>
-        <button type="button" class="sev-filter-btn" data-sev="high">High</button>
-        <button type="button" class="sev-filter-btn" data-sev="medium">Medium</button>
-        <button type="button" class="sev-filter-btn" data-sev="low">Low</button>
-        <button type="button" class="sev-filter-btn" data-sev="unknown">Unknown</button>
-        <label style="margin-left: 16px;">
-            <input type="checkbox" id="only-attention" checked> Only outdated / vulnerable
-        </label>
+    <!-- ============ Python tab ============ -->
+    <div id="tab-python" class="tab-panel active">
+        <div class="summary-bar">
+            <span class="stat"><b>{{ data.outdated_count }}</b> outdated</span>
+            <span class="stat" style="color:#c62828;"><b>{{ data.vulnerable_count }}</b> vulnerable</span>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+            <label for="pkg-search">Search:</label>
+            <input type="text" class="tab-search" id="pkg-search" placeholder="package name" style="padding: 5px 8px; width: 240px;">
+        </div>
+
+        <div class="sev-filter">
+            <span style="margin-right: 6px; color:#333;">Severity:</span>
+            <button type="button" class="sev-filter-btn active" data-sev="all">All</button>
+            <button type="button" class="sev-filter-btn" data-sev="critical">Critical</button>
+            <button type="button" class="sev-filter-btn" data-sev="high">High</button>
+            <button type="button" class="sev-filter-btn" data-sev="medium">Medium</button>
+            <button type="button" class="sev-filter-btn" data-sev="low">Low</button>
+            <button type="button" class="sev-filter-btn" data-sev="unknown">Unknown</button>
+            <label style="margin-left: 16px;">
+                <input type="checkbox" class="only-attention" checked> Only outdated / vulnerable
+            </label>
+        </div>
+
+        <table class="pkg-table">
+            <thead>
+                <tr>
+                    <th>Package</th>
+                    <th>Installed</th>
+                    <th>Latest</th>
+                    <th>Max version</th>
+                    <th>Status</th>
+                    <th>Vulnerabilities</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in data.packages %}
+                <tr class="pkg-row"
+                    data-name="{{ p.name|lower }}"
+                    data-flag="{{ p.needs_attention|yesno:'1,0' }}"
+                    data-sev-critical="{{ p.severity.critical }}"
+                    data-sev-high="{{ p.severity.high }}"
+                    data-sev-medium="{{ p.severity.medium }}"
+                    data-sev-low="{{ p.severity.low }}"
+                    data-sev-unknown="{{ p.severity.unknown }}">
+                    <td><strong>{{ p.name }}</strong></td>
+                    <td>{{ p.version }}</td>
+                    <td>{{ p.latest_version|default:"—" }}</td>
+                    <td>
+                        {% if p.max_version %}
+                            {% if p.max_version != p.latest_version %}
+                            <span title="Capped by dependency compatibility">{{ p.max_version }}</span>
+                            {% else %}{{ p.max_version }}{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if p.outdated %}<span class="outdated">Outdated</span>{% else %}<span class="uptodate">Up to date</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if p.vuln_count %}
+                            {% if p.severity.critical %}<span class="sev-badge sev-critical" title="Critical">{{ p.severity.critical }}</span>{% endif %}
+                            {% if p.severity.high %}<span class="sev-badge sev-high" title="High">{{ p.severity.high }}</span>{% endif %}
+                            {% if p.severity.medium %}<span class="sev-badge sev-medium" title="Medium">{{ p.severity.medium }}</span>{% endif %}
+                            {% if p.severity.low %}<span class="sev-badge sev-low" title="Low">{{ p.severity.low }}</span>{% endif %}
+                            {% if p.severity.unknown %}<span class="sev-badge sev-unknown" title="Unknown severity">{{ p.severity.unknown }}</span>{% endif %}
+                            <details class="vuln-details">
+                                <summary>{{ p.vuln_count }} advisory{% if p.vuln_count != 1 %}ies{% endif %}</summary>
+                                <div class="vuln-list">
+                                    {% for v in p.vulns %}
+                                    <a href="https://osv.dev/vulnerability/{{ v.id }}" target="_blank" rel="noopener" title="{{ v.summary|escape }}">{{ v.id }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        {% else %}
+                            <span class="uptodate">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <table class="pkg-table">
-        <thead>
-            <tr>
-                <th>Package</th>
-                <th>Installed</th>
-                <th>Latest</th>
-                <th>Max version</th>
-                <th>Status</th>
-                <th>Vulnerabilities</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in data.packages %}
-            <tr class="pkg-row"
-                data-name="{{ p.name|lower }}"
-                data-flag="{{ p.needs_attention|yesno:'1,0' }}"
-                data-sev-critical="{{ p.severity.critical }}"
-                data-sev-high="{{ p.severity.high }}"
-                data-sev-medium="{{ p.severity.medium }}"
-                data-sev-low="{{ p.severity.low }}"
-                data-sev-unknown="{{ p.severity.unknown }}">
-                <td><strong>{{ p.name }}</strong></td>
-                <td>{{ p.version }}</td>
-                <td>{{ p.latest_version|default:"—" }}</td>
-                <td>
-                    {% if p.max_version %}
-                        {% if p.max_version != p.latest_version %}
-                        <span title="Capped by dependency compatibility">{{ p.max_version }}</span>
-                        {% else %}{{ p.max_version }}{% endif %}
-                    {% else %}—{% endif %}
-                </td>
-                <td>
-                    {% if p.outdated %}<span class="outdated">Outdated</span>{% else %}<span class="uptodate">Up to date</span>{% endif %}
-                </td>
-                <td>
-                    {% if p.vuln_count %}
-                        {% if p.severity.critical %}<span class="sev-badge sev-critical" title="Critical">{{ p.severity.critical }}</span>{% endif %}
-                        {% if p.severity.high %}<span class="sev-badge sev-high" title="High">{{ p.severity.high }}</span>{% endif %}
-                        {% if p.severity.medium %}<span class="sev-badge sev-medium" title="Medium">{{ p.severity.medium }}</span>{% endif %}
-                        {% if p.severity.low %}<span class="sev-badge sev-low" title="Low">{{ p.severity.low }}</span>{% endif %}
-                        {% if p.severity.unknown %}<span class="sev-badge sev-unknown" title="Unknown severity">{{ p.severity.unknown }}</span>{% endif %}
-                        <details class="vuln-details">
-                            <summary>{{ p.vuln_count }} advisory{% if p.vuln_count != 1 %}ies{% endif %}</summary>
-                            <div class="vuln-list">
-                                {% for v in p.vulns %}
-                                <a href="https://osv.dev/vulnerability/{{ v.id }}" target="_blank" rel="noopener" title="{{ v.summary|escape }}">{{ v.id }}</a>{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            </div>
-                        </details>
-                    {% else %}
-                        <span class="uptodate">—</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- ============ Node.js / Vue.js tab ============ -->
+    <div id="tab-node" class="tab-panel">
+        <div class="summary-bar">
+            <span class="stat"><b>{{ data.npm_total_packages }}</b> modules</span>
+            <span class="stat"><b>{{ data.npm_outdated_count }}</b> outdated</span>
+            <span class="stat" style="color:#c62828;"><b>{{ data.npm_vulnerable_count }}</b> vulnerable</span>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+            <label for="npm-search">Search:</label>
+            <input type="text" class="tab-search" id="npm-search" placeholder="module name" style="padding: 5px 8px; width: 240px;">
+        </div>
+
+        <div class="sev-filter">
+            <span style="margin-right: 6px; color:#333;">Severity:</span>
+            <button type="button" class="sev-filter-btn active" data-sev="all">All</button>
+            <button type="button" class="sev-filter-btn" data-sev="critical">Critical</button>
+            <button type="button" class="sev-filter-btn" data-sev="high">High</button>
+            <button type="button" class="sev-filter-btn" data-sev="medium">Medium</button>
+            <button type="button" class="sev-filter-btn" data-sev="low">Low</button>
+            <button type="button" class="sev-filter-btn" data-sev="unknown">Unknown</button>
+            <label style="margin-left: 16px;">
+                <input type="checkbox" class="only-attention" checked> Only outdated / vulnerable
+            </label>
+        </div>
+
+        <table class="pkg-table">
+            <thead>
+                <tr>
+                    <th>Module</th>
+                    <th>Type</th>
+                    <th>Installed</th>
+                    <th>Declared</th>
+                    <th>Latest</th>
+                    <th>Status</th>
+                    <th>Vulnerabilities</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in data.npm_packages %}
+                <tr class="pkg-row"
+                    data-name="{{ p.name|lower }}"
+                    data-flag="{{ p.needs_attention|yesno:'1,0' }}"
+                    data-sev-critical="{{ p.severity.critical }}"
+                    data-sev-high="{{ p.severity.high }}"
+                    data-sev-medium="{{ p.severity.medium }}"
+                    data-sev-low="{{ p.severity.low }}"
+                    data-sev-unknown="{{ p.severity.unknown }}">
+                    <td><strong>{{ p.name }}</strong></td>
+                    <td><span class="dep-type">{{ p.type }}</span></td>
+                    <td>{{ p.version }}</td>
+                    <td>{{ p.declared }}</td>
+                    <td>{{ p.latest_version|default:"—" }}</td>
+                    <td>
+                        {% if p.outdated %}<span class="outdated">Outdated</span>{% else %}<span class="uptodate">Up to date</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if p.vuln_count %}
+                            {% if p.severity.critical %}<span class="sev-badge sev-critical" title="Critical">{{ p.severity.critical }}</span>{% endif %}
+                            {% if p.severity.high %}<span class="sev-badge sev-high" title="High">{{ p.severity.high }}</span>{% endif %}
+                            {% if p.severity.medium %}<span class="sev-badge sev-medium" title="Medium">{{ p.severity.medium }}</span>{% endif %}
+                            {% if p.severity.low %}<span class="sev-badge sev-low" title="Low">{{ p.severity.low }}</span>{% endif %}
+                            {% if p.severity.unknown %}<span class="sev-badge sev-unknown" title="Unknown severity">{{ p.severity.unknown }}</span>{% endif %}
+                            <details class="vuln-details">
+                                <summary>{{ p.vuln_count }} advisory{% if p.vuln_count != 1 %}ies{% endif %}</summary>
+                                <div class="vuln-list">
+                                    {% for v in p.vulns %}
+                                    <a href="https://osv.dev/vulnerability/{{ v.id }}" target="_blank" rel="noopener" title="{{ v.summary|escape }}">{{ v.id }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        {% else %}
+                            <span class="uptodate">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <script>
     (function () {
-        var search = document.getElementById('pkg-search');
-        var onlyAttention = document.getElementById('only-attention');
-        var filterBtns = document.querySelectorAll('.sev-filter-btn');
-        var activeSev = 'all';
-
-        filterBtns.forEach(function (btn) {
+        // Tab switching
+        var tabBtns = document.querySelectorAll('.tab-btn');
+        var panels = document.querySelectorAll('.tab-panel');
+        tabBtns.forEach(function (btn) {
             btn.addEventListener('click', function () {
-                filterBtns.forEach(function (b) { b.classList.remove('active'); });
+                tabBtns.forEach(function (b) { b.classList.remove('active'); });
+                panels.forEach(function (p) { p.classList.remove('active'); });
                 btn.classList.add('active');
-                activeSev = btn.getAttribute('data-sev');
-                apply();
+                document.getElementById('tab-' + btn.getAttribute('data-tab')).classList.add('active');
             });
         });
 
-        function apply() {
-            var q = (search.value || '').toLowerCase();
-            var ov = onlyAttention.checked;
-            document.querySelectorAll('.pkg-row').forEach(function (row) {
-                var name = row.getAttribute('data-name') || '';
-                var flag = row.getAttribute('data-flag') || '0';
-                var sevMatch = true;
-                if (activeSev !== 'all') {
-                    var count = parseInt(row.getAttribute('data-sev-' + activeSev) || '0', 10);
-                    sevMatch = count > 0;
-                }
-                var show = (!q || name.indexOf(q) !== -1)
-                    && (!ov || flag === '1')
-                    && sevMatch;
-                row.style.display = show ? '' : 'none';
+        // Per-tab filtering (search + severity + "only attention")
+        panels.forEach(function (panel) {
+            var search = panel.querySelector('.tab-search');
+            var onlyAttention = panel.querySelector('.only-attention');
+            var filterBtns = panel.querySelectorAll('.sev-filter-btn');
+            var activeSev = 'all';
+
+            filterBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    filterBtns.forEach(function (b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    activeSev = btn.getAttribute('data-sev');
+                    apply();
+                });
             });
-        }
-        search.addEventListener('input', apply);
-        onlyAttention.addEventListener('change', apply);
+
+            function apply() {
+                var q = (search.value || '').toLowerCase();
+                var ov = onlyAttention.checked;
+                panel.querySelectorAll('.pkg-row').forEach(function (row) {
+                    var name = row.getAttribute('data-name') || '';
+                    var flag = row.getAttribute('data-flag') || '0';
+                    var sevMatch = true;
+                    if (activeSev !== 'all') {
+                        var count = parseInt(row.getAttribute('data-sev-' + activeSev) || '0', 10);
+                        sevMatch = count > 0;
+                    }
+                    var show = (!q || name.indexOf(q) !== -1)
+                        && (!ov || flag === '1')
+                        && sevMatch;
+                    row.style.display = show ? '' : 'none';
+                });
+            }
+            search.addEventListener('input', apply);
+            onlyAttention.addEventListener('change', apply);
+        });
     })();
     </script>
     {% endif %}

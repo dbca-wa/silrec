@@ -20,6 +20,7 @@ file_exports/
 AGENTS.md
 main.js
 main.css
+package_status_cache.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

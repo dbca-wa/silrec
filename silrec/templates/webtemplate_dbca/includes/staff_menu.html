@@ -17,3 +17,6 @@
         <li><a class="dropdown-item" href="{% url 'silrec-doc' 'silrec_workflow.docx' %}" target="_blank">Silrec Workflow Doc</a></li>
     </ul>
 </li>
+{% if user.is_superuser %}
+<li><a class="dropdown-item" href="{% url 'admin_package_status' %}">Package Status</a></li>
+{% endif %}

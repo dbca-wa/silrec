@@ -12,7 +12,6 @@ from django.views.generic import TemplateView
 
 from django.conf.urls.static import static
 from rest_framework import routers
-from rest_framework_swagger.views import get_swagger_view
 from silrec import views
 
 from silrec.components.users import api as users_api
@@ -21,6 +20,7 @@ from silrec.components.forest_blocks import api as forest_blocks_api
 from silrec.components.main import api as main_api
 from silrec.components.proposals import api as proposal_api
 from silrec.components.proposals import history_views as proposal_history_views
+from silrec.components.main.package_status import package_status_view
 
 from silrec.components.forest_blocks import views as forest_blocks_views
 from silrec.components.forest_blocks import journal_history_views as journal_history_views
@@ -91,6 +91,7 @@ api_patterns = [
 ]
 
 urlpatterns = [
+    path('admin/package-status/', admin.site.admin_view(package_status_view), name='admin_package_status'),
     re_path(r'admin/', admin.site.urls),
     #re_path(r'', include(api_patterns)),
     re_path(r"", include(api_patterns)),

@@ -28,6 +28,7 @@ ENV BPAY_ALLOWED=False
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
+ENV OGR2OGR=/usr/local/bin/ogr2ogr
 
 # CVE-2026-111497 (Node2Shell): install patched Brotli (libbrotli1 >= 1.1.0-2ubuntu0.1)
 # from noble-security/noble-updates. Node.js/npm are NOT installed in this stage any
@@ -42,11 +43,30 @@ RUN apt-get clean && \
         libpq-dev patch postgresql-client mtr sqlite3 vim \
         ssh htop graphviz libgraphviz-dev pkg-config \
         run-one virtualenv software-properties-common \
-        libbrotli1 libbrotli-dev python3-tk zip unzip && \
-    # Install GDAL
+        libbrotli1 libbrotli-dev python3-tk zip unzip cmake && \
+    # Build GDAL 3.13.3 from source (the noble ubuntugis-unstable PPA only ships
+    # 3.11.4; GHSA-wphc-7cm7-8mf7, a netCDF-driver buffer overflow, is fixed in
+    # 3.13.1+). Install the build deps, then build and install to /usr/local so it
+    # takes precedence over any system GDAL.
     add-apt-repository ppa:ubuntugis/ubuntugis-unstable && \
     apt update && \
-    apt-get install --no-install-recommends -y gdal-bin libgdal-dev python3-gdal && \
+    apt-get install --no-install-recommends -y \
+        proj-bin proj-data libgeos-dev libsqlite3-dev \
+        libnetcdf-dev libhdf5-dev libcurl4-openssl-dev \
+        libexpat1-dev libxml2-dev libtiff-dev libpng-dev libjpeg-dev \
+        zlib1g-dev libpcre2-dev && \
+    cd /tmp && \
+    wget -q https://github.com/OSGeo/gdal/releases/download/v3.13.3/gdal-3.13.3.tar.gz && \
+    tar xzf gdal-3.13.3.tar.gz && cd gdal-3.13.3 && \
+    cmake -S . -B build \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_PYTHON_BINDINGS=OFF \
+        -DCMAKE_INSTALL_RPATH=/usr/local/lib && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    cd / && rm -rf /tmp/gdal-3.13.3* && \
+    ldconfig && \
     # Ensure the patched Brotli decoder is present (CVE-2026-111497)
     apt-get install --no-install-recommends -y --only-upgrade libbrotli1 libbrotli-dev && \
     # Clean up

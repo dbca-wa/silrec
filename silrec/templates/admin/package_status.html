@@ -1,0 +1,216 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .pkg-table { border-collapse: collapse; width: 100%; }
+    .pkg-table thead th {
+        background: #2c3e50;
+        color: #fff;
+        padding: 9px 10px;
+        border-bottom: 2px solid #1a2632;
+        text-align: left;
+        font-weight: 600;
+    }
+    .pkg-table td { padding: 7px 10px; border-bottom: 1px solid #e3e3e3; text-align: left; vertical-align: top; }
+    .pkg-table tbody tr:hover { background: #f4f8fb; }
+    .sev-badge {
+        display: inline-block;
+        min-width: 22px;
+        text-align: center;
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+        margin-right: 4px;
+    }
+    .sev-critical { background: #c62828; }
+    .sev-high { background: #e65100; }
+    .sev-medium { background: #f9a825; color: #333; }
+    .sev-low { background: #2e7d32; }
+    .sev-unknown { background: #78909c; }
+    .outdated { color: #c62828; font-weight: 600; }
+    .uptodate { color: #2e7d32; }
+    .summary-bar { margin: 14px 0; }
+    .summary-bar .stat { margin: 0 14px 0 0; white-space: nowrap; }
+    .summary-bar .stat b { font-size: 15px; }
+    .sev-filter { margin-bottom: 10px; }
+    .sev-filter-btn {
+        border: 1px solid #bbb;
+        background: #fff;
+        color: #333;
+        padding: 4px 12px;
+        margin-right: 6px;
+        border-radius: 16px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    .sev-filter-btn:hover { border-color: #417690; color: #417690; }
+    .sev-filter-btn.active { background: #417690; border-color: #417690; color: #fff; }
+    .vuln-list { font-size: 11px; color: #555; max-height: 140px; overflow-y: auto; margin-top: 4px; }
+    .vuln-list a { color: #417690; text-decoration: none; }
+    .vuln-list a:hover { text-decoration: underline; }
+    details.vuln-details summary {
+        cursor: pointer;
+        font-size: 11px;
+        color: #417690;
+        outline: none;
+    }
+    details.vuln-details summary:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Package Status</h1>
+    <p class="small">
+        Installed Python packages for the Silrec project — installed version,
+        latest PyPI release, and known vulnerabilities from the OSV database.
+    </p>
+
+    {% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="summary-bar">
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="button" style="padding: 8px 16px;">Scan now</button>
+        </form>
+        <span class="stat">
+            {% if data %}
+                Last scanned: <strong>{{ data.scanned_at|slice:":10" }} {{ data.scanned_at|slice:"11:19" }}</strong>
+            {% else %}
+                No scan yet — click <strong>Scan now</strong>.
+            {% endif %}
+        </span>
+        {% if data %}
+        <span class="stat"><b>{{ data.total_packages }}</b> packages</span>
+        <span class="stat" style="color:#c62828;"><b>{{ data.outdated_count }}</b> outdated</span>
+        <span class="stat" style="color:#c62828;"><b>{{ data.vulnerable_count }}</b> vulnerable</span>
+        {% endif %}
+    </div>
+
+    {% if data %}
+    <div style="margin-bottom: 8px;">
+        <label for="pkg-search">Search:</label>
+        <input type="text" id="pkg-search" placeholder="package name" style="padding: 5px 8px; width: 240px;">
+    </div>
+
+    <div class="sev-filter">
+        <span style="margin-right: 6px; color:#333;">Severity:</span>
+        <button type="button" class="sev-filter-btn active" data-sev="all">All</button>
+        <button type="button" class="sev-filter-btn" data-sev="critical">Critical</button>
+        <button type="button" class="sev-filter-btn" data-sev="high">High</button>
+        <button type="button" class="sev-filter-btn" data-sev="medium">Medium</button>
+        <button type="button" class="sev-filter-btn" data-sev="low">Low</button>
+        <button type="button" class="sev-filter-btn" data-sev="unknown">Unknown</button>
+        <label style="margin-left: 16px;">
+            <input type="checkbox" id="only-attention" checked> Only outdated / vulnerable
+        </label>
+    </div>
+
+    <table class="pkg-table">
+        <thead>
+            <tr>
+                <th>Package</th>
+                <th>Installed</th>
+                <th>Latest</th>
+                <th>Max version</th>
+                <th>Status</th>
+                <th>Vulnerabilities</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in data.packages %}
+            <tr class="pkg-row"
+                data-name="{{ p.name|lower }}"
+                data-flag="{{ p.needs_attention|yesno:'1,0' }}"
+                data-sev-critical="{{ p.severity.critical }}"
+                data-sev-high="{{ p.severity.high }}"
+                data-sev-medium="{{ p.severity.medium }}"
+                data-sev-low="{{ p.severity.low }}"
+                data-sev-unknown="{{ p.severity.unknown }}">
+                <td><strong>{{ p.name }}</strong></td>
+                <td>{{ p.version }}</td>
+                <td>{{ p.latest_version|default:"—" }}</td>
+                <td>
+                    {% if p.max_version %}
+                        {% if p.max_version != p.latest_version %}
+                        <span title="Capped by dependency compatibility">{{ p.max_version }}</span>
+                        {% else %}{{ p.max_version }}{% endif %}
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if p.outdated %}<span class="outdated">Outdated</span>{% else %}<span class="uptodate">Up to date</span>{% endif %}
+                </td>
+                <td>
+                    {% if p.vuln_count %}
+                        {% if p.severity.critical %}<span class="sev-badge sev-critical" title="Critical">{{ p.severity.critical }}</span>{% endif %}
+                        {% if p.severity.high %}<span class="sev-badge sev-high" title="High">{{ p.severity.high }}</span>{% endif %}
+                        {% if p.severity.medium %}<span class="sev-badge sev-medium" title="Medium">{{ p.severity.medium }}</span>{% endif %}
+                        {% if p.severity.low %}<span class="sev-badge sev-low" title="Low">{{ p.severity.low }}</span>{% endif %}
+                        {% if p.severity.unknown %}<span class="sev-badge sev-unknown" title="Unknown severity">{{ p.severity.unknown }}</span>{% endif %}
+                        <details class="vuln-details">
+                            <summary>{{ p.vuln_count }} advisory{% if p.vuln_count != 1 %}ies{% endif %}</summary>
+                            <div class="vuln-list">
+                                {% for v in p.vulns %}
+                                <a href="https://osv.dev/vulnerability/{{ v.id }}" target="_blank" rel="noopener" title="{{ v.summary|escape }}">{{ v.id }}</a>{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </div>
+                        </details>
+                    {% else %}
+                        <span class="uptodate">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+    (function () {
+        var search = document.getElementById('pkg-search');
+        var onlyAttention = document.getElementById('only-attention');
+        var filterBtns = document.querySelectorAll('.sev-filter-btn');
+        var activeSev = 'all';
+
+        filterBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                filterBtns.forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                activeSev = btn.getAttribute('data-sev');
+                apply();
+            });
+        });
+
+        function apply() {
+            var q = (search.value || '').toLowerCase();
+            var ov = onlyAttention.checked;
+            document.querySelectorAll('.pkg-row').forEach(function (row) {
+                var name = row.getAttribute('data-name') || '';
+                var flag = row.getAttribute('data-flag') || '0';
+                var sevMatch = true;
+                if (activeSev !== 'all') {
+                    var count = parseInt(row.getAttribute('data-sev-' + activeSev) || '0', 10);
+                    sevMatch = count > 0;
+                }
+                var show = (!q || name.indexOf(q) !== -1)
+                    && (!ov || flag === '1')
+                    && sevMatch;
+                row.style.display = show ? '' : 'none';
+            });
+        }
+        search.addEventListener('input', apply);
+        onlyAttention.addEventListener('change', apply);
+    })();
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

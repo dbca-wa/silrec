@@ -43,6 +43,17 @@
         </table>
         </div>
     {% endfor %}
+
+<div class="module">
+    <table>
+    <caption>Utils</caption>
+    <tr>
+        <th scope="row"><a href="{% url 'admin_package_status' %}">Package Status</a></th>
+        <td>&nbsp;</td>
+        <td><a href="{% url 'admin_package_status' %}" class="changelink">View</a></td>
+    </tr>
+    </table>
+</div>
 {% else %}
     <p>{% trans "You don't have permission to edit anything." %}</p>
 {% endif %}

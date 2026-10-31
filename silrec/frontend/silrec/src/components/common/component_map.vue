@@ -458,7 +458,7 @@ import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { Select } from 'ol/interaction';
 import { singleClick } from 'ol/events/condition';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import * as turf from '@turf/turf';
 import PolygonCohortTable from '@/components/common/table_polygon_cohort.vue';
 import MergePolygonTool from '@/components/common/merge_polygon_tool.vue';
